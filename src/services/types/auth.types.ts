@@ -34,6 +34,15 @@ export interface VendorLoginPayload {
   password: string;
 }
 
+/** Payload for vendor (seller) registration. */
+export interface VendorRegisterPayload {
+  email: string;
+  password: string;
+  businessName: string;
+  ownerName: string;
+  phone?: string;
+}
+
 export interface VendorSessionResponse {
   vendor: {
     id: string;

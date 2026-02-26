@@ -9,6 +9,7 @@ import type {
   RegisterPayload,
   LoginPayload,
   VendorLoginPayload,
+  VendorRegisterPayload,
   VendorSessionResponse,
 } from "./types/auth.types";
 
@@ -34,6 +35,14 @@ export const authService = {
   /** Log in as vendor (Seller table). Sets HTTP-only cookie; JWT sub = seller.id. */
   async vendorLogin(payload: VendorLoginPayload): Promise<VendorSessionResponse> {
     return request<VendorSessionResponse>(`${AUTH_BASE}/vendor-login`, {
+      method: "POST",
+      body: payload,
+    });
+  },
+
+  /** Register a new vendor (Seller). Creates account with status DRAFT and sets cookie. */
+  async vendorRegister(payload: VendorRegisterPayload): Promise<VendorSessionResponse> {
+    return request<VendorSessionResponse>(`${AUTH_BASE}/vendor-register`, {
       method: "POST",
       body: payload,
     });

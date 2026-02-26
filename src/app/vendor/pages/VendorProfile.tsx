@@ -2,38 +2,76 @@
 
 import { Save, Send, Building, User, CreditCard, FileText, AlertCircle } from "lucide-react";
 import { Button, Input, Select, Toggle, FileUpload, Card, Alert } from "../components/UIComponents";
+import { DataState } from "../../components/DataState";
+import { useApi } from "@/lib/hooks/useApi";
+import { vendorService } from "@/services/vendor.service";
 import * as React from "react";
 
-export function VendorProfile() {
-  const [formData, setFormData] = React.useState({
-    // Business Details
-    displayName: "Tech Store India",
-    legalName: "Tech Store India Private Limited",
-    businessType: "company",
-    gstin: "29ABCDE1234F1Z5",
-    gstNotApplicable: false,
-    pan: "ABCDE1234F",
-    addressLine1: "123, MG Road",
-    addressLine2: "Near City Center",
-    city: "Bangalore",
-    state: "Karnataka",
-    pincode: "560001",
-    pickupPincode: "560001",
-    // Owner Details
-    ownerName: "Rahul Sharma",
-    mobile: "+91 9876543210",
-    mobileVerified: true,
-    email: "rahul@techstore.com",
-    emailVerified: true,
-    // Bank Details
-    accountHolderName: "Tech Store India Pvt Ltd",
-    accountNumber: "1234567890123456",
-    ifsc: "HDFC0001234",
-    bankName: "HDFC Bank",
-  });
+const defaultFormData = {
+  displayName: "",
+  legalName: "",
+  businessType: "company",
+  gstin: "",
+  gstNotApplicable: false,
+  pan: "",
+  addressLine1: "",
+  addressLine2: "",
+  city: "",
+  state: "Karnataka",
+  pincode: "",
+  pickupPincode: "",
+  ownerName: "",
+  mobile: "",
+  mobileVerified: true,
+  email: "",
+  emailVerified: true,
+  accountHolderName: "",
+  accountNumber: "",
+  ifsc: "",
+  bankName: "HDFC Bank",
+};
 
+export function VendorProfile() {
+  const [formData, setFormData] = React.useState(defaultFormData);
   const [activeSection, setActiveSection] = React.useState("business");
-  const [status, setStatus] = React.useState<"draft" | "submitted" | "approved">("draft");
+  const [saving, setSaving] = React.useState(false);
+  const [uploadingDoc, setUploadingDoc] = React.useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = React.useState<string | null>(null);
+  const [uploadSuccess, setUploadSuccess] = React.useState<string | null>(null);
+  const [uploadErrorByType, setUploadErrorByType] = React.useState<Record<string, string | null>>({});
+
+  const { data: profile, error, isLoading, refetch } = useApi(() =>
+    vendorService.getProfile()
+  );
+
+  const status = profile?.status ?? "draft";
+
+  React.useEffect(() => {
+    if (!profile) return;
+    setFormData({
+      displayName: profile.business.displayName,
+      legalName: profile.business.legalName,
+      businessType: profile.business.businessType,
+      gstin: profile.business.gstin,
+      gstNotApplicable: profile.business.gstNotApplicable,
+      pan: profile.business.pan,
+      addressLine1: profile.business.addressLine1,
+      addressLine2: profile.business.addressLine2,
+      city: profile.business.city,
+      state: profile.business.state,
+      pincode: profile.business.pincode,
+      pickupPincode: profile.business.pickupPincode,
+      ownerName: profile.owner.ownerName,
+      mobile: profile.owner.mobile,
+      mobileVerified: profile.owner.mobileVerified,
+      email: profile.owner.email,
+      emailVerified: profile.owner.emailVerified,
+      accountHolderName: profile.bank?.accountHolderName ?? "",
+      accountNumber: profile.bank?.accountNumber ?? "",
+      ifsc: profile.bank?.ifsc ?? "",
+      bankName: profile.bank?.bankName ?? "HDFC Bank",
+    });
+  }, [profile]);
 
   const sections = [
     { id: "business", label: "Business Details", icon: Building },
@@ -42,17 +80,124 @@ export function VendorProfile() {
     { id: "documents", label: "Documents", icon: FileText },
   ];
 
-  const handleSubmit = () => {
-    // Submit for approval logic
-    setStatus("submitted");
-    alert("Profile submitted for approval!");
+  const handleSaveDraft = async () => {
+    setSaving(true);
+    setSuccessMessage(null);
+    try {
+      await vendorService.updateProfile({
+        business: {
+          displayName: formData.displayName,
+          legalName: formData.legalName,
+          businessType: formData.businessType,
+          pan: formData.pan,
+          gstin: formData.gstin,
+          gstNotApplicable: formData.gstNotApplicable,
+          addressLine1: formData.addressLine1,
+          addressLine2: formData.addressLine2,
+          city: formData.city,
+          state: formData.state,
+          pincode: formData.pincode,
+          pickupPincode: formData.pickupPincode,
+        },
+        owner: {
+          ownerName: formData.ownerName,
+          mobile: formData.mobile,
+          email: formData.email,
+        },
+        bank: {
+          accountHolderName: formData.accountHolderName,
+          accountNumber: formData.accountNumber,
+          ifsc: formData.ifsc,
+          bankName: formData.bankName,
+        },
+        status: "draft",
+      });
+      await refetch();
+      setSuccessMessage("Draft saved successfully.");
+      setTimeout(() => setSuccessMessage(null), 5000);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Failed to save draft";
+      setSuccessMessage(null);
+      alert(msg);
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleSaveDraft = () => {
-    alert("Draft saved successfully!");
+  const handleSubmit = async () => {
+    setSaving(true);
+    setSuccessMessage(null);
+    try {
+      await vendorService.updateProfile({
+        business: {
+          displayName: formData.displayName,
+          legalName: formData.legalName,
+          businessType: formData.businessType,
+          pan: formData.pan,
+          gstin: formData.gstin,
+          gstNotApplicable: formData.gstNotApplicable,
+          addressLine1: formData.addressLine1,
+          addressLine2: formData.addressLine2,
+          city: formData.city,
+          state: formData.state,
+          pincode: formData.pincode,
+          pickupPincode: formData.pickupPincode,
+        },
+        owner: {
+          ownerName: formData.ownerName,
+          mobile: formData.mobile,
+          email: formData.email,
+        },
+        bank: {
+          accountHolderName: formData.accountHolderName,
+          accountNumber: formData.accountNumber,
+          ifsc: formData.ifsc,
+          bankName: formData.bankName,
+        },
+        status: "submitted",
+      });
+      await refetch();
+      setSuccessMessage("Profile submitted for approval.");
+      setTimeout(() => setSuccessMessage(null), 5000);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Failed to submit for approval";
+      setSuccessMessage(null);
+      alert(msg);
+    } finally {
+      setSaving(false);
+    }
   };
+
+  const handleKycUpload = React.useCallback(
+    (documentType: "PAN" | "GST_CERTIFICATE" | "ADDRESS_PROOF") => async (file: File | null) => {
+      if (!file) return;
+      setUploadingDoc(documentType);
+      setUploadSuccess(null);
+      setUploadErrorByType((prev) => ({ ...prev, [documentType]: null }));
+      try {
+        await vendorService.uploadKycDocument(documentType, file);
+        await refetch();
+        const label = documentType === "PAN" ? "PAN card" : documentType === "GST_CERTIFICATE" ? "GST certificate" : "Cancelled cheque / bank proof";
+        setUploadSuccess(`${label} uploaded successfully.`);
+        setTimeout(() => setUploadSuccess(null), 5000);
+      } catch (e) {
+        setUploadSuccess(null);
+        const msg = e instanceof Error ? e.message : "Upload failed";
+        setUploadErrorByType((prev) => ({ ...prev, [documentType]: msg }));
+        setTimeout(() => setUploadErrorByType((prev) => ({ ...prev, [documentType]: null })), 8000);
+      } finally {
+        setUploadingDoc(null);
+      }
+    },
+    [refetch]
+  );
+
+  const addressProofUrl = profile?.documents?.find((d) => d.documentType === "ADDRESS_PROOF")?.fileUrl ?? null;
+  const panUrl = profile?.documents?.find((d) => d.documentType === "PAN")?.fileUrl ?? null;
+  const gstUrl = profile?.documents?.find((d) => d.documentType === "GST_CERTIFICATE")?.fileUrl ?? null;
 
   return (
+    <DataState isLoading={isLoading} error={error} retry={refetch}>
     <div className="space-y-6">
       {/* Header */}
       <div>
@@ -66,6 +211,29 @@ export function VendorProfile() {
           type="info"
           title="Profile Under Review"
           message="Your profile is being reviewed by our team. We'll notify you once approved."
+        />
+      )}
+      {status === "approved" && (
+        <Alert
+          type="info"
+          title="Profile approved"
+          message="You can update your business or contact details below and click Update Profile to save changes."
+        />
+      )}
+
+      {/* Success messages */}
+      {successMessage && (
+        <Alert
+          type="info"
+          title="Success"
+          message={successMessage}
+        />
+      )}
+      {uploadSuccess && (
+        <Alert
+          type="info"
+          title="Document uploaded"
+          message={uploadSuccess}
         />
       )}
 
@@ -288,8 +456,12 @@ export function VendorProfile() {
             <FileUpload
               label="Cancelled Cheque or Bank Proof"
               accept=".pdf,.jpg,.jpeg,.png"
-              onChange={(file) => console.log(file)}
+              onChange={handleKycUpload("ADDRESS_PROOF")}
               helperText="Upload scanned copy (PDF, JPG, PNG - Max 5MB)"
+              disabled={uploadingDoc === "ADDRESS_PROOF"}
+              uploading={uploadingDoc === "ADDRESS_PROOF"}
+              uploadedUrl={addressProofUrl}
+              error={uploadErrorByType.ADDRESS_PROOF ?? undefined}
             />
           </div>
         </Card>
@@ -306,22 +478,34 @@ export function VendorProfile() {
             <FileUpload
               label="PAN Card (Required)"
               accept=".pdf,.jpg,.jpeg,.png"
-              onChange={(file) => console.log(file)}
+              onChange={handleKycUpload("PAN")}
               helperText="Upload PAN card image or PDF"
+              disabled={uploadingDoc === "PAN"}
+              uploading={uploadingDoc === "PAN"}
+              uploadedUrl={panUrl}
+              error={uploadErrorByType.PAN ?? undefined}
             />
             {!formData.gstNotApplicable && (
               <FileUpload
                 label="GST Certificate (Optional)"
                 accept=".pdf,.jpg,.jpeg,.png"
-                onChange={(file) => console.log(file)}
+                onChange={handleKycUpload("GST_CERTIFICATE")}
                 helperText="Upload GST registration certificate"
+                disabled={uploadingDoc === "GST_CERTIFICATE"}
+                uploading={uploadingDoc === "GST_CERTIFICATE"}
+                uploadedUrl={gstUrl}
+                error={uploadErrorByType.GST_CERTIFICATE ?? undefined}
               />
             )}
             <FileUpload
               label="Cancelled Cheque or Bank Statement (Required)"
               accept=".pdf,.jpg,.jpeg,.png"
-              onChange={(file) => console.log(file)}
+              onChange={handleKycUpload("ADDRESS_PROOF")}
               helperText="Upload cancelled cheque or recent bank statement"
+              disabled={uploadingDoc === "ADDRESS_PROOF"}
+              uploading={uploadingDoc === "ADDRESS_PROOF"}
+              uploadedUrl={addressProofUrl}
+              error={uploadErrorByType.ADDRESS_PROOF ?? undefined}
             />
           </div>
         </Card>
@@ -329,15 +513,24 @@ export function VendorProfile() {
 
       {/* Action Buttons */}
       <div className="flex items-center justify-end gap-4 pt-6 border-t-2 border-[#E2E8F0]">
-        <Button variant="secondary" onClick={handleSaveDraft} disabled={status === "submitted"}>
+        <Button
+          variant="secondary"
+          onClick={handleSaveDraft}
+          disabled={saving}
+        >
           <Save className="w-5 h-5" />
-          Save as Draft
+          {saving ? "Saving…" : status === "approved" ? "Update Profile" : status === "submitted" ? "Save changes" : "Save as Draft"}
         </Button>
-        <Button variant="primary" onClick={handleSubmit} disabled={status === "submitted"}>
+        <Button
+          variant="primary"
+          onClick={handleSubmit}
+          disabled={saving || status === "submitted" || status === "approved"}
+        >
           <Send className="w-5 h-5" />
-          Submit for Approval
+          {saving ? "Submitting…" : "Submit for Approval"}
         </Button>
       </div>
     </div>
+    </DataState>
   );
 }

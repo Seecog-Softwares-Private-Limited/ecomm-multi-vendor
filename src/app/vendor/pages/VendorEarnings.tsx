@@ -1,7 +1,10 @@
 "use client";
 
-import { Calendar, Download, DollarSign, TrendingUp, TrendingDown } from "lucide-react";
+import { Download, DollarSign, TrendingUp, TrendingDown } from "lucide-react";
 import { Button, Input, Card, Select } from "../components/UIComponents";
+import { DataState } from "../../components/DataState";
+import { useApi } from "@/lib/hooks/useApi";
+import { vendorService } from "@/services/vendor.service";
 import * as React from "react";
 
 export function VendorEarnings() {
@@ -10,81 +13,86 @@ export function VendorEarnings() {
   const [filterStatus, setFilterStatus] = React.useState("all");
   const [searchOrderId, setSearchOrderId] = React.useState("");
 
-  const earnings = [
-    {
-      orderId: "#ORD-1234",
-      orderDate: "2026-02-25",
-      grossAmount: 2999,
-      commissionPercent: 10,
-      commissionAmount: 300,
-      netEarning: 2699,
-      payoutStatus: "unpaid",
-      payoutRef: null,
-    },
-    {
-      orderId: "#ORD-1233",
-      orderDate: "2026-02-24",
-      grossAmount: 1499,
-      commissionPercent: 10,
-      commissionAmount: 150,
-      netEarning: 1349,
-      payoutStatus: "unpaid",
-      payoutRef: null,
-    },
-    {
-      orderId: "#ORD-1232",
-      orderDate: "2026-02-23",
-      grossAmount: 4299,
-      commissionPercent: 10,
-      commissionAmount: 430,
-      netEarning: 3869,
-      payoutStatus: "paid",
-      payoutRef: "PAY-2026-02-001",
-    },
-    {
-      orderId: "#ORD-1231",
-      orderDate: "2026-02-22",
-      grossAmount: 899,
-      commissionPercent: 10,
-      commissionAmount: 90,
-      netEarning: 809,
-      payoutStatus: "paid",
-      payoutRef: "PAY-2026-02-001",
-    },
-    {
-      orderId: "#ORD-1230",
-      orderDate: "2026-02-21",
-      grossAmount: 3499,
-      commissionPercent: 10,
-      commissionAmount: 350,
-      netEarning: 3149,
-      payoutStatus: "paid",
-      payoutRef: "PAY-2026-01-003",
-    },
-  ];
-
-  const filteredEarnings = earnings.filter((earning) => {
-    const matchesSearch = searchOrderId
-      ? earning.orderId.toLowerCase().includes(searchOrderId.toLowerCase())
-      : true;
-    const matchesStatus = filterStatus === "all" || earning.payoutStatus === filterStatus;
-    return matchesSearch && matchesStatus;
+  const paramsRef = React.useRef({
+    dateFrom,
+    dateTo,
+    orderId: searchOrderId,
+    payoutStatus: filterStatus,
   });
+  paramsRef.current = {
+    dateFrom,
+    dateTo,
+    orderId: searchOrderId,
+    payoutStatus: filterStatus,
+  };
 
-  const totals = filteredEarnings.reduce(
-    (acc, earning) => ({
-      gross: acc.gross + earning.grossAmount,
-      commission: acc.commission + earning.commissionAmount,
-      net: acc.net + earning.netEarning,
-    }),
-    { gross: 0, commission: 0, net: 0 }
+  const fetcher = React.useCallback(
+    () =>
+      vendorService.getEarnings({
+        dateFrom: paramsRef.current.dateFrom,
+        dateTo: paramsRef.current.dateTo,
+        orderId: paramsRef.current.orderId || undefined,
+        payoutStatus:
+          paramsRef.current.payoutStatus === "all"
+            ? undefined
+            : (paramsRef.current.payoutStatus as "paid" | "unpaid"),
+      }),
+    []
   );
 
+  const { data, error, isLoading, refetch } = useApi(fetcher);
+  const isFirstMount = React.useRef(true);
+
+  React.useEffect(() => {
+    if (isFirstMount.current) {
+      isFirstMount.current = false;
+      return;
+    }
+    refetch();
+  }, [dateFrom, dateTo, searchOrderId, filterStatus, refetch]);
+
+  const summary = data?.summary ?? { gross: 0, commission: 0, net: 0 };
+  const earnings = data?.rows ?? [];
+
   const handleExport = () => {
-    alert("Exporting earnings report as CSV...");
+    if (earnings.length === 0) {
+      alert("No data to export.");
+      return;
+    }
+    const headers = [
+      "Order ID",
+      "Date",
+      "Gross Amount",
+      "Commission %",
+      "Commission Amt",
+      "Net Earning",
+      "Status",
+      "Payout Ref",
+    ];
+    const rows = earnings.map((e) =>
+      [
+        e.orderId,
+        e.orderDate,
+        e.grossAmount,
+        `${e.commissionPercent}%`,
+        e.commissionAmount,
+        e.netEarning,
+        e.payoutStatus,
+        e.payoutRef ?? "",
+      ].join(",")
+    );
+    const csv = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `earnings-${dateFrom}-${dateTo}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
+    <DataState isLoading={isLoading} error={error} retry={refetch}>
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -111,7 +119,7 @@ export function VendorEarnings() {
             </div>
           </div>
           <p className="text-[#64748B] text-sm mb-2">Total Gross Revenue</p>
-          <p className="text-3xl font-bold text-[#1E293B]">₹{totals.gross.toLocaleString()}</p>
+          <p className="text-3xl font-bold text-[#1E293B]">₹{summary.gross.toLocaleString()}</p>
         </Card>
 
         <Card>
@@ -122,7 +130,7 @@ export function VendorEarnings() {
             <p className="text-sm text-[#64748B]">10% avg</p>
           </div>
           <p className="text-[#64748B] text-sm mb-2">Total Commission</p>
-          <p className="text-3xl font-bold text-[#DC2626]">₹{totals.commission.toLocaleString()}</p>
+          <p className="text-3xl font-bold text-[#DC2626]">₹{summary.commission.toLocaleString()}</p>
         </Card>
 
         <Card>
@@ -136,7 +144,7 @@ export function VendorEarnings() {
             </div>
           </div>
           <p className="text-[#64748B] text-sm mb-2">Net Earnings</p>
-          <p className="text-3xl font-bold text-[#3B82F6]">₹{totals.net.toLocaleString()}</p>
+          <p className="text-3xl font-bold text-[#3B82F6]">₹{summary.net.toLocaleString()}</p>
         </Card>
       </div>
 
@@ -207,8 +215,8 @@ export function VendorEarnings() {
               </tr>
             </thead>
             <tbody>
-              {filteredEarnings.map((earning, index) => (
-                <tr key={index} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors">
+              {earnings.map((earning, index) => (
+                <tr key={`${earning.orderId}-${earning.orderDate}-${index}`} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors">
                   <td className="py-4 px-4">
                     <p className="font-bold text-[#1E293B]">{earning.orderId}</p>
                   </td>
@@ -256,14 +264,14 @@ export function VendorEarnings() {
                   <p className="font-bold text-[#1E293B]">TOTAL</p>
                 </td>
                 <td className="py-4 px-4 text-right">
-                  <p className="font-bold text-[#1E293B]">₹{totals.gross}</p>
+                  <p className="font-bold text-[#1E293B]">₹{summary.gross.toLocaleString()}</p>
                 </td>
                 <td className="py-4 px-4"></td>
                 <td className="py-4 px-4 text-right">
-                  <p className="font-bold text-[#DC2626]">₹{totals.commission}</p>
+                  <p className="font-bold text-[#DC2626]">₹{summary.commission.toLocaleString()}</p>
                 </td>
                 <td className="py-4 px-4 text-right">
-                  <p className="font-bold text-[#3B82F6]">₹{totals.net}</p>
+                  <p className="font-bold text-[#3B82F6]">₹{summary.net.toLocaleString()}</p>
                 </td>
                 <td colSpan={2}></td>
               </tr>
@@ -272,5 +280,6 @@ export function VendorEarnings() {
         </div>
       </Card>
     </div>
+    </DataState>
   );
 }

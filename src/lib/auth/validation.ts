@@ -24,8 +24,18 @@ export const loginSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
+/** Body for POST /api/auth/vendor-register */
+export const vendorRegisterSchema = z.object({
+  email,
+  password,
+  businessName: z.string().min(1, "Business name is required").max(255).trim(),
+  ownerName: z.string().min(1, "Owner name is required").max(255).trim(),
+  phone: z.string().max(20).trim().optional(),
+});
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
+export type VendorRegisterInput = z.infer<typeof vendorRegisterSchema>;
 
 export interface ValidationResult<T> {
   success: true;
@@ -47,6 +57,14 @@ export function validateRegister(
 
 export function validateLogin(body: unknown): ValidationResult<LoginInput> | ValidationError {
   const result = loginSchema.safeParse(body);
+  if (result.success) return { success: true, data: result.data };
+  return { success: false, errors: result.error.issues };
+}
+
+export function validateVendorRegister(
+  body: unknown
+): ValidationResult<VendorRegisterInput> | ValidationError {
+  const result = vendorRegisterSchema.safeParse(body);
   if (result.success) return { success: true, data: result.data };
   return { success: false, errors: result.error.issues };
 }
