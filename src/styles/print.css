@@ -1,0 +1,77 @@
+/* Print Styles for PDF Export */
+@media print {
+  /* Page setup */
+  @page {
+    size: A4;
+    margin: 1cm;
+  }
+
+  /* Hide unnecessary elements */
+  .print\\:hidden {
+    display: none !important;
+  }
+
+  /* Force page breaks */
+  .page-break {
+    page-break-after: always;
+    break-after: page;
+  }
+
+  /* Prevent page breaks inside elements */
+  .page-break-inside-avoid {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Remove shadows and backgrounds for cleaner print */
+  * {
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  /* Ensure borders are visible */
+  .print\\:border-4 {
+    border-width: 4px !important;
+  }
+
+  /* Force black text for better printing */
+  body {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  /* Optimize images for print */
+  img {
+    max-width: 100% !important;
+    page-break-inside: avoid;
+  }
+
+  /* Ensure tables don't break awkwardly */
+  table {
+    page-break-inside: auto;
+  }
+
+  tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+
+  /* Better spacing for headings */
+  h1, h2, h3, h4, h5, h6 {
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+
+  /* Remove unnecessary padding/margins */
+  .no-print-margin {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+}
+
+/* Print button styles (visible on screen only) */
+@media screen {
+  .print\\:hidden {
+    display: block;
+  }
+}
