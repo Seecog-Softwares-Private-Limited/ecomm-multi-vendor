@@ -68,3 +68,223 @@ export interface VendorProductForEdit {
 
 /** Payload for update (PUT) — same shape as create. */
 export type UpdateVendorProductPayload = CreateVendorProductPayload;
+
+// ---------------------------------------------------------------------------
+// Vendor orders (list)
+// ---------------------------------------------------------------------------
+
+export type VendorOrderListStatus =
+  | "new"
+  | "accepted"
+  | "shipped"
+  | "delivered"
+  | "cancelled"
+  | "rejected";
+
+export interface VendorOrderListItem {
+  id: string;
+  date: string;
+  createdAt?: string;
+  customer: string;
+  phone: string;
+  amount: number;
+  paymentMode: string;
+  status: VendorOrderListStatus;
+  itemsCount: number;
+}
+
+// ---------------------------------------------------------------------------
+// Vendor earnings
+// ---------------------------------------------------------------------------
+
+export interface VendorEarningsSummary {
+  gross: number;
+  commission: number;
+  net: number;
+}
+
+export interface VendorEarningsRow {
+  orderId: string;
+  orderDate: string;
+  grossAmount: number;
+  commissionPercent: number;
+  commissionAmount: number;
+  netEarning: number;
+  payoutStatus: "paid" | "unpaid";
+  payoutRef: string | null;
+}
+
+export interface VendorEarningsResult {
+  summary: VendorEarningsSummary;
+  rows: VendorEarningsRow[];
+}
+
+export interface VendorEarningsParams {
+  dateFrom?: string;
+  dateTo?: string;
+  orderId?: string;
+  payoutStatus?: "all" | "paid" | "unpaid";
+}
+
+// ---------------------------------------------------------------------------
+// Vendor payouts
+// ---------------------------------------------------------------------------
+
+export interface VendorPayoutListItem {
+  id: string;
+  period: string;
+  amount: number;
+  status: "paid" | "pending" | "failed";
+  paidDate: string | null;
+  reference: string | null;
+  ordersCount: number;
+}
+
+export interface VendorPayoutsSummary {
+  totalPayouts: number;
+  transactionCount: number;
+  lastPayoutAmount: number | null;
+  lastPayoutDate: string | null;
+  ordersPaid: number;
+}
+
+export interface VendorBankAccount {
+  accountHolderName: string;
+  accountNumberMasked: string;
+  ifscCode: string;
+  bankName: string;
+}
+
+export interface VendorPayoutsResult {
+  summary: VendorPayoutsSummary;
+  payouts: VendorPayoutListItem[];
+  bankAccount: VendorBankAccount | null;
+}
+
+export interface VendorPayoutsParams {
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Vendor reports summary
+// ---------------------------------------------------------------------------
+
+export interface VendorReportsSummary {
+  ordersThisMonth: number;
+  productsListed: number;
+  totalEarnings: number;
+}
+
+export interface VendorOrdersParams {
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+export interface VendorProductsParams {
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Vendor profile & KYC
+// ---------------------------------------------------------------------------
+
+export interface VendorProfileBusiness {
+  displayName: string;
+  legalName: string;
+  businessType: string;
+  gstin: string;
+  gstNotApplicable: boolean;
+  pan: string;
+  addressLine1: string;
+  addressLine2: string;
+  city: string;
+  state: string;
+  pincode: string;
+  pickupPincode: string;
+}
+
+export interface VendorProfileOwner {
+  ownerName: string;
+  mobile: string;
+  mobileVerified: boolean;
+  email: string;
+  emailVerified: boolean;
+}
+
+export interface VendorProfileBank {
+  accountHolderName: string;
+  accountNumber: string;
+  ifsc: string;
+  bankName: string;
+  bankProofUrl: string | null;
+}
+
+export interface VendorProfileDocument {
+  documentType: string;
+  fileUrl: string | null;
+  status: string;
+}
+
+export interface VendorProfileData {
+  status: "draft" | "submitted" | "approved" | "rejected" | "suspended";
+  business: VendorProfileBusiness;
+  owner: VendorProfileOwner;
+  bank: VendorProfileBank | null;
+  documents: VendorProfileDocument[];
+}
+
+export interface UpdateVendorProfilePayload {
+  business?: Partial<VendorProfileBusiness>;
+  owner?: Partial<VendorProfileOwner>;
+  bank?: Partial<Omit<VendorProfileBank, "bankProofUrl">>;
+  status?: "draft" | "submitted";
+}
+
+export interface VendorSupportTicketItem {
+  id: string;
+  subject: string;
+  category: string;
+  message: string;
+  status: string;
+  createdAt: string;
+}
+
+export interface SubmitSupportTicketPayload {
+  subject: string;
+  category: string;
+  message: string;
+}
+
+// ---------------------------------------------------------------------------
+// Vendor dashboard
+// ---------------------------------------------------------------------------
+
+export interface VendorDashboardRecentOrder {
+  id: string;
+  displayId: string;
+  date: string;
+  customer: string;
+  amount: number;
+  status: string;
+  timeAgo: string;
+}
+
+export interface VendorDashboardLowStockProduct {
+  id: string;
+  name: string;
+  sku: string;
+  stock: number;
+}
+
+export interface VendorDashboardSummary {
+  todayOrdersCount: number;
+  pendingOrdersCount: number;
+  totalRevenue30d: number;
+  commission30d: number;
+  netPayable: number;
+  todayOrdersChangePercent: number | null;
+  recentOrders: VendorDashboardRecentOrder[];
+  lowStockProducts: VendorDashboardLowStockProduct[];
+}

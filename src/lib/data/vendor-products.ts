@@ -44,12 +44,24 @@ export interface VendorProductListItem {
 
 /**
  * List products for a seller by seller id (for vendor dashboard).
+ * Optional dateFrom/dateTo filter by product.updatedAt (YYYY-MM-DD) for reports.
  */
 export async function getVendorProductsBySellerId(
-  sellerId: string
+  sellerId: string,
+  dateFrom?: string,
+  dateTo?: string
 ): Promise<VendorProductListItem[]> {
+  const updatedFilter: { gte?: Date; lte?: Date } = {};
+  if (dateFrom) updatedFilter.gte = new Date(dateFrom + "T00:00:00.000Z");
+  if (dateTo) updatedFilter.lte = new Date(dateTo + "T23:59:59.999Z");
+  const hasUpdatedFilter = dateFrom || dateTo;
+
   const list = await prisma.product.findMany({
-    where: { sellerId, deletedAt: null },
+    where: {
+      sellerId,
+      deletedAt: null,
+      ...(hasUpdatedFilter && { updatedAt: updatedFilter }),
+    },
     orderBy: { updatedAt: "desc" },
     include: {
       category: { select: { name: true } },

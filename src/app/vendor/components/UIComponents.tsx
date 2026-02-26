@@ -354,16 +354,28 @@ interface FileUploadProps {
   helperText?: string;
   error?: string;
   preview?: string;
+  /** When set, shows "Uploaded" with a link to the file (for PDF or any URL). */
+  uploadedUrl?: string | null;
   disabled?: boolean;
+  /** When true, shows upload progress bar and "Uploading..." state. */
+  uploading?: boolean;
 }
 
-export function FileUpload({ label, accept, onChange, helperText, error, preview, disabled }: FileUploadProps) {
+function isImageUrl(url: string): boolean {
+  return /\.(jpe?g|png|gif|webp)(\?|$)/i.test(url) || /\/uploads\/.*\.(jpe?g|png|gif|webp)/i.test(url);
+}
+
+export function FileUpload({ label, accept, onChange, helperText, error, preview, uploadedUrl, disabled, uploading }: FileUploadProps) {
   const inputRef = React.useRef<HTMLInputElement>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
     onChange(file);
+    if (inputRef.current) inputRef.current.value = "";
   };
+
+  const showUploaded = (uploadedUrl && uploadedUrl.length > 0) || preview;
+  const showImagePreview = showUploaded && (preview ? true : isImageUrl(uploadedUrl ?? ""));
 
   return (
     <div className="space-y-2">
@@ -377,9 +389,33 @@ export function FileUpload({ label, accept, onChange, helperText, error, preview
         }`}
       >
         <input ref={inputRef} type="file" accept={accept} onChange={handleChange} className="hidden" disabled={disabled} />
-        {preview ? (
-          <div className="flex items-center justify-center">
-            <img src={preview} alt="Preview" className="max-h-32 rounded-lg" />
+        {uploading ? (
+          <div className="flex flex-col items-center justify-center gap-3">
+            <Loader className="w-10 h-10 text-[#3B82F6] animate-spin" />
+            <p className="text-sm font-medium text-[#1E293B]">Uploading…</p>
+            <div className="w-full max-w-xs h-2 bg-[#E2E8F0] rounded-full overflow-hidden">
+              <div className="h-full w-1/3 bg-[#3B82F6] rounded-full animate-pulse" style={{ animationDuration: "0.8s" }} />
+            </div>
+          </div>
+        ) : showImagePreview ? (
+          <div className="flex flex-col items-center justify-center gap-2">
+            <img src={preview || uploadedUrl || ""} alt="Preview" className="max-h-32 rounded-lg" />
+            <p className="text-sm text-green-600 font-medium">Uploaded. Click to replace.</p>
+          </div>
+        ) : showUploaded ? (
+          <div className="flex flex-col items-center justify-center gap-2">
+            <CheckCircle className="w-10 h-10 text-green-600" />
+            <p className="text-sm font-medium text-[#1E293B]">Document uploaded</p>
+            <a
+              href={uploadedUrl || preview || "#"}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-[#3B82F6] hover:underline"
+              onClick={(e) => e.stopPropagation()}
+            >
+              View uploaded file
+            </a>
+            <p className="text-xs text-[#94A3B8]">Click area to replace</p>
           </div>
         ) : (
           <div>

@@ -20,13 +20,13 @@ async function main() {
 
   const seller = await prisma.seller.upsert({
     where: { email: VENDOR_EMAIL },
-    update: { passwordHash },
+    update: { passwordHash, status: "DRAFT" },
     create: {
       email: VENDOR_EMAIL,
       passwordHash,
       businessName: "Tech Store India",
       ownerName: "Vendor Demo",
-      status: "APPROVED",
+      status: "DRAFT",
     },
   });
 

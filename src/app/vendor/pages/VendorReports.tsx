@@ -1,8 +1,16 @@
 "use client";
 
-import { FileText, Download, Calendar, Package, ShoppingBag, DollarSign } from "lucide-react";
+import { FileText, Download, Package, ShoppingBag, DollarSign } from "lucide-react";
 import { Button, Card, Input, Alert } from "../components/UIComponents";
+import { DataState } from "../../components/DataState";
+import { useApi } from "@/lib/hooks/useApi";
+import { vendorService } from "@/services/vendor.service";
 import * as React from "react";
+
+function orderDisplayId(id: string): string {
+  if (id.startsWith("#")) return id;
+  return `#ORD-${id.slice(-6).toUpperCase()}`;
+}
 
 export function VendorReports() {
   const [ordersDateFrom, setOrdersDateFrom] = React.useState("2026-02-01");
@@ -11,41 +19,160 @@ export function VendorReports() {
   const [productsDateTo, setProductsDateTo] = React.useState("2026-02-25");
   const [earningsDateFrom, setEarningsDateFrom] = React.useState("2026-02-01");
   const [earningsDateTo, setEarningsDateTo] = React.useState("2026-02-25");
+  const [downloading, setDownloading] = React.useState<"orders" | "products" | "earnings" | null>(null);
 
-  const handleDownloadOrders = () => {
-    alert(`Downloading Orders Report (${ordersDateFrom} to ${ordersDateTo})`);
+  const { data: summary, error, isLoading, refetch } = useApi(() =>
+    vendorService.getReportsSummary()
+  );
+
+  const handleDownloadOrders = async () => {
+    setDownloading("orders");
+    try {
+      const orders = await vendorService.getOrders({
+        dateFrom: ordersDateFrom,
+        dateTo: ordersDateTo,
+      });
+      const headers = [
+        "Order ID",
+        "Date",
+        "Customer",
+        "Phone",
+        "Items",
+        "Amount (₹)",
+        "Payment Mode",
+        "Status",
+      ];
+      const rows = orders.map((o) =>
+        [
+          orderDisplayId(o.id),
+          o.date,
+          o.customer,
+          o.phone,
+          o.itemsCount,
+          o.amount,
+          o.paymentMode,
+          o.status,
+        ].join(",")
+      );
+      const csv = [headers.join(","), ...rows].join("\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `orders-report-${ordersDateFrom}-${ordersDateTo}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error(e);
+      alert(e instanceof Error ? e.message : "Failed to download orders report");
+    } finally {
+      setDownloading(null);
+    }
   };
 
-  const handleDownloadProducts = () => {
-    alert(`Downloading Products Report (${productsDateFrom} to ${productsDateTo})`);
+  const handleDownloadProducts = async () => {
+    setDownloading("products");
+    try {
+      const products = await vendorService.getProducts({
+        dateFrom: productsDateFrom,
+        dateTo: productsDateTo,
+      });
+      const headers = [
+        "Product Name",
+        "SKU",
+        "Category",
+        "Price (₹)",
+        "Stock",
+        "Status",
+        "Last Updated",
+      ];
+      const rows = products.map((p) =>
+        [p.name, p.sku, p.category, p.price, p.stock, p.status, p.lastUpdated].join(",")
+      );
+      const csv = [headers.join(","), ...rows].join("\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `products-report-${productsDateFrom}-${productsDateTo}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error(e);
+      alert(e instanceof Error ? e.message : "Failed to download products report");
+    } finally {
+      setDownloading(null);
+    }
   };
 
-  const handleDownloadEarnings = () => {
-    alert(`Downloading Earnings Report (${earningsDateFrom} to ${earningsDateTo})`);
+  const handleDownloadEarnings = async () => {
+    setDownloading("earnings");
+    try {
+      const { rows } = await vendorService.getEarnings({
+        dateFrom: earningsDateFrom,
+        dateTo: earningsDateTo,
+      });
+      const headers = [
+        "Order ID",
+        "Date",
+        "Gross Amount (₹)",
+        "Commission %",
+        "Commission Amt (₹)",
+        "Net Earning (₹)",
+        "Payout Status",
+        "Payout Ref",
+      ];
+      const dataRows = rows.map((r) =>
+        [
+          r.orderId,
+          r.orderDate,
+          r.grossAmount,
+          r.commissionPercent,
+          r.commissionAmount,
+          r.netEarning,
+          r.payoutStatus,
+          r.payoutRef ?? "",
+        ].join(",")
+      );
+      const csv = [headers.join(","), ...dataRows].join("\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `earnings-report-${earningsDateFrom}-${earningsDateTo}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error(e);
+      alert(e instanceof Error ? e.message : "Failed to download earnings report");
+    } finally {
+      setDownloading(null);
+    }
   };
 
   const reportStats = [
     {
       label: "Orders This Month",
-      value: "127",
+      value: summary ? String(summary.ordersThisMonth) : "—",
       icon: ShoppingBag,
       color: "from-blue-500 to-indigo-600",
     },
     {
       label: "Products Listed",
-      value: "45",
+      value: summary ? String(summary.productsListed) : "—",
       icon: Package,
       color: "from-green-500 to-emerald-600",
     },
     {
       label: "Total Earnings",
-      value: "₹42,350",
+      value: summary != null ? `₹${summary.totalEarnings.toLocaleString()}` : "—",
       icon: DollarSign,
       color: "from-purple-500 to-pink-600",
     },
   ];
 
   return (
+    <DataState isLoading={isLoading} error={error} retry={refetch}>
     <div className="space-y-6">
       {/* Header */}
       <div>
@@ -141,9 +268,13 @@ export function VendorReports() {
                 onChange={(e) => setOrdersDateTo(e.target.value)}
               />
             </div>
-            <Button variant="primary" onClick={handleDownloadOrders}>
+            <Button
+              variant="primary"
+              onClick={handleDownloadOrders}
+              disabled={downloading !== null}
+            >
               <Download className="w-5 h-5" />
-              Download CSV
+              {downloading === "orders" ? "Downloading…" : "Download CSV"}
             </Button>
           </div>
         </div>
@@ -211,9 +342,13 @@ export function VendorReports() {
                 onChange={(e) => setProductsDateTo(e.target.value)}
               />
             </div>
-            <Button variant="primary" onClick={handleDownloadProducts}>
+            <Button
+              variant="primary"
+              onClick={handleDownloadProducts}
+              disabled={downloading !== null}
+            >
               <Download className="w-5 h-5" />
-              Download CSV
+              {downloading === "products" ? "Downloading…" : "Download CSV"}
             </Button>
           </div>
         </div>
@@ -281,9 +416,13 @@ export function VendorReports() {
                 onChange={(e) => setEarningsDateTo(e.target.value)}
               />
             </div>
-            <Button variant="primary" onClick={handleDownloadEarnings}>
+            <Button
+              variant="primary"
+              onClick={handleDownloadEarnings}
+              disabled={downloading !== null}
+            >
               <Download className="w-5 h-5" />
-              Download CSV
+              {downloading === "earnings" ? "Downloading…" : "Download CSV"}
             </Button>
           </div>
         </div>
@@ -308,5 +447,6 @@ export function VendorReports() {
         </div>
       </Card>
     </div>
+    </DataState>
   );
 }

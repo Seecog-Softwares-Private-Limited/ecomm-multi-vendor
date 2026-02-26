@@ -12,10 +12,28 @@ export function VendorProductsList() {
   const [searchQuery, setSearchQuery] = React.useState("");
   const [filterStatus, setFilterStatus] = React.useState("all");
 
+  const [deletingId, setDeletingId] = React.useState<string | null>(null);
   const { data, error, isLoading, refetch } = useApi(() =>
     vendorService.getProducts()
   );
   const products = data ?? [];
+
+  const handleDelete = React.useCallback(
+    async (product: { id: string; name: string }) => {
+      if (!window.confirm(`Delete "${product.name}"? This cannot be undone.`)) return;
+      setDeletingId(product.id);
+      try {
+        await vendorService.deleteProduct(product.id);
+        await refetch();
+      } catch (err) {
+        console.error("Delete product failed:", err);
+        alert(err instanceof Error ? err.message : "Failed to delete product");
+      } finally {
+        setDeletingId(null);
+      }
+    },
+    [refetch]
+  );
 
   const filteredProducts = products.filter((product) => {
     const matchesSearch =
@@ -168,7 +186,13 @@ export function VendorProductsList() {
                             <Edit className="w-4 h-4" />
                           </button>
                         </Link>
-                        <button className="p-2 text-[#DC2626] hover:bg-red-50 rounded-lg transition-colors">
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(product)}
+                          disabled={deletingId === product.id}
+                          className="p-2 text-[#DC2626] hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          title="Delete product"
+                        >
                           <XCircle className="w-4 h-4" />
                         </button>
                       </div>

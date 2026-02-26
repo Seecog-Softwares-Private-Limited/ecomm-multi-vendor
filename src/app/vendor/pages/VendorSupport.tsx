@@ -1,22 +1,67 @@
 "use client";
 
-import { HelpCircle, Send, Phone, Mail, MessageSquare } from "lucide-react";
+import { HelpCircle, Send, Phone, Mail, MessageSquare, Ticket } from "lucide-react";
 import { Button, Input, Textarea, Card, Alert } from "../components/UIComponents";
+import { DataState } from "../../components/DataState";
+import { useApi } from "@/lib/hooks/useApi";
+import { vendorService } from "@/services/vendor.service";
 import * as React from "react";
+
+const CATEGORY_LABELS: Record<string, string> = {
+  general: "General Inquiry",
+  orders: "Orders & Fulfillment",
+  products: "Product Listings",
+  payments: "Payments & Payouts",
+  technical: "Technical Issue",
+  account: "Account & KYC",
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  OPEN: "Open",
+  IN_PROGRESS: "In Progress",
+  RESOLVED: "Resolved",
+  CLOSED: "Closed",
+};
 
 export function VendorSupport() {
   const [subject, setSubject] = React.useState("");
   const [message, setMessage] = React.useState("");
   const [category, setCategory] = React.useState("general");
+  const [saving, setSaving] = React.useState(false);
+  const [successMessage, setSuccessMessage] = React.useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
 
-  const handleSubmit = () => {
-    if (!subject || !message) {
-      alert("Please fill in all fields");
+  const { data: tickets, error, isLoading, refetch } = useApi(() =>
+    vendorService.getSupportTickets()
+  );
+
+  const handleSubmit = async () => {
+    if (!subject.trim() || !message.trim()) {
+      setErrorMessage("Please fill in subject and message.");
       return;
     }
-    alert("Support ticket submitted successfully! We'll get back to you within 24 hours.");
-    setSubject("");
-    setMessage("");
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    setSaving(true);
+    try {
+      await vendorService.submitSupportTicket({
+        subject: subject.trim(),
+        category: category.trim(),
+        message: message.trim(),
+      });
+      setSuccessMessage(
+        "Support ticket submitted successfully. We'll get back to you within 24 hours on business days."
+      );
+      setSubject("");
+      setMessage("");
+      setCategory("general");
+      refetch();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Failed to submit ticket.";
+      setErrorMessage(msg);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const contactMethods = [
@@ -103,6 +148,12 @@ export function VendorSupport() {
       {/* Submit Ticket */}
       <Card title="Submit a Support Ticket">
         <div className="space-y-6">
+          {successMessage && (
+            <Alert type="success" message={successMessage} />
+          )}
+          {errorMessage && (
+            <Alert type="error" message={errorMessage} />
+          )}
           <Alert
             type="info"
             message="Our support team typically responds within 24 hours on business days. For urgent issues, please call us."
@@ -143,12 +194,49 @@ export function VendorSupport() {
           />
 
           <div className="flex justify-end">
-            <Button variant="primary" onClick={handleSubmit}>
+            <Button
+              variant="primary"
+              onClick={handleSubmit}
+              disabled={saving}
+            >
               <Send className="w-5 h-5" />
-              Submit Ticket
+              {saving ? "Submitting..." : "Submit Ticket"}
             </Button>
           </div>
         </div>
+      </Card>
+
+      {/* My Tickets */}
+      <Card title="My Support Tickets">
+        <DataState isLoading={isLoading} error={error} retry={refetch}>
+          {tickets && tickets.length > 0 ? (
+            <div className="space-y-3">
+              {tickets.map((t) => (
+                <div
+                  key={t.id}
+                  className="flex items-start gap-3 p-4 bg-[#F8FAFC] rounded-xl border-2 border-[#E2E8F0]"
+                >
+                  <Ticket className="w-5 h-5 text-[#3B82F6] flex-shrink-0 mt-0.5" />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-[#1E293B]">{t.subject}</p>
+                    <p className="text-sm text-[#64748B] mt-1">
+                      {CATEGORY_LABELS[t.category] ?? t.category} ·{" "}
+                      {STATUS_LABELS[t.status] ?? t.status}
+                    </p>
+                    <p className="text-sm text-[#64748B] mt-1 line-clamp-2">
+                      {t.message}
+                    </p>
+                    <p className="text-xs text-[#94A3B8] mt-2">
+                      {new Date(t.createdAt).toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-[#64748B] py-4">You haven&apos;t submitted any tickets yet.</p>
+          )}
+        </DataState>
       </Card>
 
       {/* FAQs */}

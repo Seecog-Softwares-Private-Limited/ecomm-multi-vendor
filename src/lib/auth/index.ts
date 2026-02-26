@@ -5,11 +5,14 @@ export { setAuthCookie, clearAuthCookie, getTokenFromCookie } from "./cookies";
 export {
   registerSchema,
   loginSchema,
+  vendorRegisterSchema,
   validateRegister,
   validateLogin,
+  validateVendorRegister,
   formatValidationDetails,
   type RegisterInput,
   type LoginInput,
+  type VendorRegisterInput,
   type ValidationResult,
   type ValidationError,
 } from "./validation";
