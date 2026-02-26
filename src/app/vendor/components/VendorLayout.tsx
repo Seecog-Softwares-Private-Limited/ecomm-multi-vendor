@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { Link } from "../../components/Link";
 import {
   LayoutDashboard,
@@ -18,6 +19,7 @@ import {
   X
 } from "lucide-react";
 import * as React from "react";
+import { authService } from "@/services/auth.service";
 
 export type VendorLayoutProps = {
   children: React.ReactNode;
@@ -26,10 +28,23 @@ export type VendorLayoutProps = {
 };
 
 export function VendorLayout({ children, vendorStatus = "approved", activePath = "" }: VendorLayoutProps) {
+  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = React.useState(false);
 
   const isActive = (path: string) => activePath === path;
+
+  const handleLogout = async () => {
+    setProfileMenuOpen(false);
+    try {
+      await authService.logout();
+      router.push("/vendor/login");
+      router.refresh();
+    } catch {
+      router.push("/vendor/login");
+      router.refresh();
+    }
+  };
 
   const isApproved = vendorStatus === "approved";
 
@@ -171,7 +186,11 @@ export function VendorLayout({ children, vendorStatus = "approved", activePath =
                     <span className="font-medium">Settings</span>
                   </Link>
                   <div className="border-t border-[#E2E8F0] my-2"></div>
-                  <button className="w-full flex items-center gap-3 px-4 py-3 text-[#DC2626] hover:bg-red-50 transition-colors">
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-[#DC2626] hover:bg-red-50 transition-colors text-left"
+                  >
                     <LogOut className="w-4 h-4" />
                     <span className="font-medium">Logout</span>
                   </button>

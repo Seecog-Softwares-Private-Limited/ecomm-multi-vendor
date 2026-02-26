@@ -152,3 +152,38 @@ export const PUT = withApiHandler(async (request: NextRequest, context?: RouteCo
   const updated = await getVendorProductForEdit(id, sellerId);
   return apiSuccess(updated ?? { id });
 });
+
+/**
+ * DELETE /api/vendor/products/:productId — soft-delete product (vendor must own it).
+ */
+export const DELETE = withApiHandler(async (request: NextRequest, context?: RouteContext) => {
+  const session = await requireSession(request);
+  if (session.role !== "SELLER" && session.role !== "ADMIN") {
+    return apiForbidden("Vendor access required");
+  }
+  const sellerId = session.role === "SELLER" ? session.sub : undefined;
+  if (!sellerId) {
+    return apiForbidden("Vendor account required");
+  }
+
+  const params = context?.params ? await context.params : {};
+  const productId = typeof params.productId === "string" ? params.productId : params.productId?.[0];
+  const parsedId = uuid.safeParse(productId ?? "");
+  if (!parsedId.success) {
+    return apiBadRequest("Invalid product ID");
+  }
+  const id = parsedId.data;
+
+  const existing = await prisma.product.findFirst({
+    where: { id, sellerId, deletedAt: null },
+    select: { id: true },
+  });
+  if (!existing) return apiNotFound("Product not found");
+
+  await prisma.product.update({
+    where: { id },
+    data: { deletedAt: new Date() },
+  });
+
+  return apiSuccess({ id, deleted: true });
+});

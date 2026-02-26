@@ -26,7 +26,7 @@ const RETURN_POLICY_MAP: Record<string, "DAYS_7" | "DAYS_15" | "DAYS_30" | "NO_R
 
 /**
  * GET /api/vendor/products — list products for the logged-in vendor (seller).
- * Requires session with role SELLER (from vendor-login; JWT sub = seller.id).
+ * Query params: dateFrom, dateTo (YYYY-MM-DD) to filter by product updatedAt (for reports).
  */
 export const GET = withApiHandler(async (request: NextRequest) => {
   const session = await requireSession(request);
@@ -40,7 +40,11 @@ export const GET = withApiHandler(async (request: NextRequest) => {
     return apiSuccess([]);
   }
 
-  const products = await getVendorProductsBySellerId(sellerId);
+  const { searchParams } = new URL(request.url);
+  const dateFrom = searchParams.get("dateFrom") ?? undefined;
+  const dateTo = searchParams.get("dateTo") ?? undefined;
+
+  const products = await getVendorProductsBySellerId(sellerId, dateFrom, dateTo);
   return apiSuccess(products);
 });
 

@@ -185,10 +185,11 @@ model Seller {
   ownerName       String       @map("owner_name") @db.VarChar(255)
   phone           String?      @db.VarChar(20)
   businessAddress String?      @map("business_address") @db.VarChar(500)
+  profileExtras   String?      @map("profile_extras") @db.Text
   status          SellerStatus @default(DRAFT)
   createdAt       DateTime     @default(now()) @map("created_at") @db.DateTime(3)
-  updatedAt      DateTime     @updatedAt @map("updated_at") @db.DateTime(3)
-  deletedAt      DateTime?    @map("deleted_at") @db.DateTime(3)
+  updatedAt       DateTime     @updatedAt @map("updated_at") @db.DateTime(3)
+  deletedAt       DateTime?    @map("deleted_at") @db.DateTime(3)
 
   products            Product[]
   orderItems          OrderItem[]
@@ -199,11 +200,32 @@ model Seller {
   returns             Return[]
   notifications       Notification[]
   questionsAnswered   ProductQuestion[] @relation("ProductQuestionAnsweredBy")
+  supportTickets      VendorSupportTicket[]
 
   @@index([email])
   @@index([status])
   @@index([deletedAt])
   @@map("sellers")
+}
+
+model VendorSupportTicket {
+  id        String   @id @default(uuid()) @db.Char(36)
+  sellerId  String   @map("seller_id") @db.Char(36)
+  subject   String   @db.VarChar(500)
+  category  String   @db.VarChar(100)
+  message   String   @db.Text
+  status    SupportTicketStatus @default(OPEN)
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+  deletedAt DateTime? @map("deleted_at") @db.DateTime(3)
+
+  seller Seller @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+
+  @@index([sellerId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([deletedAt])
+  @@map("vendor_support_tickets")
 }
 
 // =============================================================================
