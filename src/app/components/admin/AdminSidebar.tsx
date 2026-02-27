@@ -1,3 +1,5 @@
+"use client";
+
 import { Link } from "../Link";
 import {
   LayoutDashboard,
@@ -10,7 +12,7 @@ import {
   Bell,
   Settings,
   FolderTree,
-  ShieldCheck
+  ShieldCheck,
 } from "lucide-react";
 
 const menuItems = [
@@ -32,22 +34,22 @@ export type AdminSidebarProps = {
 
 export function AdminSidebar({ activePath = "" }: AdminSidebarProps) {
   return (
-    <aside className="w-64 bg-white border-r-2 border-gray-400 flex flex-col">
-      {/* Logo */}
-      <div className="h-16 flex items-center px-6 border-b-2 border-gray-400">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gray-700 border-2 border-gray-800 flex items-center justify-center">
-            <ShieldCheck className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <h1 className="text-sm font-bold text-gray-900">ADMIN PANEL</h1>
-            <p className="text-xs text-gray-600">MarketHub</p>
-          </div>
+    <aside className="w-64 flex-shrink-0 flex flex-col bg-slate-900 text-slate-200 shadow-xl">
+      {/* Logo / Brand */}
+      <div className="flex items-center gap-3 px-6 py-5 border-b border-slate-700/80">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500 shadow-lg shadow-indigo-500/25">
+          <ShieldCheck className="h-5 w-5 text-white" />
+        </div>
+        <div className="min-w-0">
+          <h1 className="text-sm font-semibold tracking-tight text-white">
+            ADMIN PANEL
+          </h1>
+          <p className="text-xs text-slate-400 truncate">Market Hub</p>
         </div>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 py-6 px-3 space-y-1 overflow-y-auto">
+      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5">
         {menuItems.map((item) => {
           const Icon = item.icon;
           const isActive = activePath === item.path;
@@ -56,18 +58,25 @@ export function AdminSidebar({ activePath = "" }: AdminSidebarProps) {
             <Link
               key={item.path}
               href={item.path}
-              className={`flex items-center gap-3 px-3 py-2.5 border-2 transition-colors ${
-                isActive
-                  ? "bg-gray-700 text-white border-gray-800"
-                  : "text-gray-900 border-gray-400 hover:bg-gray-100"
-              }`}
+              className={`
+                flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200
+                ${isActive
+                  ? "bg-indigo-500/20 text-white shadow-sm"
+                  : "text-slate-400 hover:bg-slate-800/80 hover:text-slate-200"
+                }
+              `}
             >
-              <Icon className="w-5 h-5" />
-              <span className="text-sm font-bold">{item.label}</span>
+              <Icon
+                className={`h-5 w-5 flex-shrink-0 ${isActive ? "text-indigo-400" : ""}`}
+              />
+              <span>{item.label}</span>
             </Link>
           );
         })}
       </nav>
+
+      {/* Bottom accent */}
+      <div className="h-1 bg-gradient-to-r from-indigo-500 to-indigo-600" />
     </aside>
   );
 }

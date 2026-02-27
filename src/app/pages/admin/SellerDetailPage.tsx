@@ -1,294 +1,507 @@
 "use client";
 
+import { useState, useEffect, useCallback } from "react";
 import { Link } from "../../components/Link";
-import { ArrowLeft, Mail, Phone, MapPin, Package, ShoppingBag, DollarSign, TrendingUp } from "lucide-react";
+import {
+  ArrowLeft,
+  Mail,
+  Phone,
+  MapPin,
+  Package,
+  ShoppingBag,
+  DollarSign,
+  Star,
+  FileText,
+  Ban,
+  CheckCircle,
+} from "lucide-react";
 import * as React from "react";
 
-const tabs = ["Business Info", "KYC Documents", "Bank Details", "Products", "Orders"];
+const TABS = ["Business Info", "KYC Documents", "Bank Details", "Products", "Orders"] as const;
 
-export type SellerDetailPageProduct = { id: number; name: string; category: string; price: string; stock: number; status: string };
-export type SellerDetailPageOrder = { id: string; customer: string; amount: string; status: string; date: string };
+type SellerDetail = {
+  seller: {
+    id: string;
+    businessName: string;
+    ownerName: string;
+    email: string;
+    phone?: string;
+    businessAddress?: string;
+    status: string;
+    createdAt: string;
+  };
+  stats: {
+    totalProducts: number;
+    totalOrders: number;
+    totalRevenue: number;
+    avgRating: number | null;
+  };
+  bank: {
+    bankName: string;
+    accountHolderName: string;
+    accountNumberMasked: string;
+    ifscCode: string;
+  } | null;
+  documents: Array<{
+    documentType: string;
+    label: string;
+    identifier?: string;
+    fileUrl?: string;
+    status: string;
+  }>;
+  products: Array<{
+    id: string;
+    name: string;
+    categoryName: string;
+    price: number;
+    stock: number;
+    status: string;
+  }>;
+  orders: Array<{
+    id: string;
+    displayId: string;
+    customerName: string;
+    amount: string;
+    status: string;
+    date: string;
+  }>;
+};
 
 export type SellerDetailPageProps = {
   sellerId?: string;
-  products?: SellerDetailPageProduct[];
-  orders?: SellerDetailPageOrder[];
 };
 
-const defaultProducts: SellerDetailPageProduct[] = [
-  { id: 1, name: "Wireless Headphones", category: "Electronics", price: "$99.99", stock: 145, status: "Active" },
-  { id: 2, name: "Smart Watch", category: "Electronics", price: "$199.99", stock: 89, status: "Active" },
-  { id: 3, name: "Phone Case", category: "Accessories", price: "$19.99", stock: 234, status: "Active" },
-];
+function formatCurrency(n: number): string {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(n);
+}
 
-const defaultOrders: SellerDetailPageOrder[] = [
-  { id: "#ORD-12345", customer: "John Doe", amount: "$299.99", status: "Delivered", date: "2026-02-18" },
-  { id: "#ORD-12344", customer: "Jane Smith", amount: "$149.99", status: "Shipped", date: "2026-02-17" },
-  { id: "#ORD-12343", customer: "Bob Johnson", amount: "$89.99", status: "Processing", date: "2026-02-16" },
-];
+function formatDate(iso: string): string {
+  try {
+    return new Date(iso).toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+  } catch {
+    return iso;
+  }
+}
 
-export function SellerDetailPage({ sellerId = "", products = defaultProducts, orders = defaultOrders }: SellerDetailPageProps) {
-  const [activeTab, setActiveTab] = React.useState(0);
+function statusBadge(status: string): string {
+  const s = status.toLowerCase();
+  const base = "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium";
+  if (s === "active" || s === "approved" || s === "delivered")
+    return `${base} bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/20`;
+  if (s === "shipped" || s === "processing")
+    return `${base} bg-blue-50 text-blue-700 ring-1 ring-blue-600/20`;
+  if (s === "blocked" || s === "suspended" || s === "rejected")
+    return `${base} bg-rose-50 text-rose-700 ring-1 ring-rose-600/20`;
+  if (s === "pending" || s === "draft")
+    return `${base} bg-amber-50 text-amber-700 ring-1 ring-amber-600/20`;
+  return `${base} bg-slate-100 text-slate-600 ring-1 ring-slate-300/50`;
+}
+
+export function SellerDetailPage({ sellerId = "" }: SellerDetailPageProps) {
+  const [data, setData] = useState<SellerDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState(0);
+  const [blocking, setBlocking] = useState(false);
+  const [blockError, setBlockError] = useState<string | null>(null);
+
+  const fetchDetail = useCallback(async () => {
+    if (!sellerId) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/sellers/${sellerId}`, { credentials: "include" });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        setError(json?.error?.message ?? "Failed to load seller");
+        setData(null);
+        return;
+      }
+      setData(json.data);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load seller");
+      setData(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [sellerId]);
+
+  useEffect(() => {
+    fetchDetail();
+  }, [fetchDetail]);
+
+  const openDocument = (fileUrl: string | undefined) => {
+    if (!fileUrl) return;
+    const url = fileUrl.startsWith("http")
+      ? fileUrl
+      : `${typeof window !== "undefined" ? window.location.origin : ""}${fileUrl.startsWith("/") ? "" : "/"}${fileUrl}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  const handleBlock = async () => {
+    if (!sellerId) return;
+    setBlocking(true);
+    setBlockError(null);
+    try {
+      const isBlocked = data?.seller.status === "SUSPENDED";
+      const res = await fetch(`/api/admin/sellers/${sellerId}/block`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: isBlocked ? "unblock" : "block" }),
+        credentials: "include",
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        setBlockError(json?.error?.message ?? "Action failed");
+        return;
+      }
+      fetchDetail();
+    } catch (e) {
+      setBlockError(e instanceof Error ? e.message : "Action failed");
+    } finally {
+      setBlocking(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center p-8">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <div className="p-8">
+        <p className="text-rose-600">{error ?? "Seller not found."}</p>
+        <Link href="/admin/sellers" className="mt-4 inline-block text-sm text-slate-600 hover:underline">
+          Back to Sellers
+        </Link>
+      </div>
+    );
+  }
+
+  const { seller, stats, bank, documents, products, orders } = data;
+  const isBlocked = seller.status === "SUSPENDED";
 
   return (
-    <div className="p-8 bg-gray-100 min-h-screen">
-      {/* Back Button */}
-      <Link href="/admin/sellers" className="inline-flex items-center gap-2 text-sm text-gray-900 hover:underline mb-6 font-bold">
-        <ArrowLeft className="w-4 h-4" />
+    <div className="min-h-full bg-slate-50/80 p-6 lg:p-8">
+      <Link
+        href="/admin/sellers"
+        className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-slate-700 hover:text-slate-900"
+      >
+        <ArrowLeft className="h-4 w-4" />
         Back to Sellers
       </Link>
 
-      {/* Seller Header */}
-      <div className="bg-white border-2 border-gray-400 p-6 mb-6">
-        <div className="flex items-start justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Tech Store</h1>
-            <p className="text-sm text-gray-700 mt-1 font-bold">Seller ID: #{sellerId}</p>
-          </div>
-          <div className="flex gap-2">
-            <Link
-              href={`/admin/kyc/${sellerId}`}
-              className="px-4 py-2 bg-gray-700 text-white border-2 border-gray-800 hover:bg-gray-800 font-bold"
-            >
-              Review KYC
-            </Link>
-            <button className="px-4 py-2 border-2 border-gray-400 text-gray-900 hover:bg-gray-100 font-bold">
-              Block Seller
-            </button>
-          </div>
+      {/* Header */}
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">{seller.businessName}</h1>
+          <p className="mt-1 text-sm text-slate-500">Seller ID: #{seller.id.slice(0, 8)}</p>
         </div>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href={`/admin/kyc/${sellerId}`}
+            className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500"
+          >
+            <CheckCircle className="h-4 w-4" />
+            Review KYC
+          </Link>
+          <button
+            type="button"
+            onClick={handleBlock}
+            disabled={blocking}
+            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold shadow-sm disabled:opacity-60 ${
+              isBlocked
+                ? "border border-emerald-600 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+            }`}
+          >
+            <Ban className="h-4 w-4" />
+            {blocking ? "…" : isBlocked ? "Unblock Seller" : "Block Seller"}
+          </button>
+        </div>
+      </div>
+      {blockError && <p className="mb-4 text-sm text-rose-600">{blockError}</p>}
 
-        {/* Stats */}
-        <div className="grid grid-cols-4 gap-6">
-          <div className="flex items-center gap-4 p-4 border-2 border-gray-300 bg-gray-50">
-            <div className="w-12 h-12 bg-gray-300 border-2 border-gray-400 flex items-center justify-center">
-              <Package className="w-6 h-6 text-gray-700" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-700 font-bold">Total Products</p>
-              <p className="text-xl font-bold text-gray-900">245</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4 p-4 border-2 border-gray-300 bg-gray-50">
-            <div className="w-12 h-12 bg-gray-300 border-2 border-gray-400 flex items-center justify-center">
-              <ShoppingBag className="w-6 h-6 text-gray-700" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-700 font-bold">Total Orders</p>
-              <p className="text-xl font-bold text-gray-900">1,240</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4 p-4 border-2 border-gray-300 bg-gray-50">
-            <div className="w-12 h-12 bg-gray-300 border-2 border-gray-400 flex items-center justify-center">
-              <DollarSign className="w-6 h-6 text-gray-700" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-700 font-bold">Total Revenue</p>
-              <p className="text-xl font-bold text-gray-900">$124,500</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4 p-4 border-2 border-gray-300 bg-gray-50">
-            <div className="w-12 h-12 bg-gray-300 border-2 border-gray-400 flex items-center justify-center">
-              <TrendingUp className="w-6 h-6 text-gray-700" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-700 font-bold">Avg Rating</p>
-              <p className="text-xl font-bold text-gray-900">4.7/5.0</p>
-            </div>
-          </div>
-        </div>
+      {/* Stats */}
+      <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          label="Total Products"
+          value={String(stats.totalProducts)}
+          icon={Package}
+          iconClass="bg-indigo-500/10 text-indigo-600 ring-1 ring-indigo-500/20"
+        />
+        <StatCard
+          label="Total Orders"
+          value={String(stats.totalOrders)}
+          icon={ShoppingBag}
+          iconClass="bg-emerald-500/10 text-emerald-600 ring-1 ring-emerald-500/20"
+        />
+        <StatCard
+          label="Total Revenue"
+          value={formatCurrency(stats.totalRevenue)}
+          icon={DollarSign}
+          iconClass="bg-violet-500/10 text-violet-600 ring-1 ring-violet-500/20"
+        />
+        <StatCard
+          label="Avg Rating"
+          value={stats.avgRating != null ? `${Number(stats.avgRating).toFixed(1)}/5.0` : "—"}
+          icon={Star}
+          iconClass="bg-amber-500/10 text-amber-600 ring-1 ring-amber-500/20"
+        />
       </div>
 
       {/* Tabs */}
-      <div className="bg-white border-2 border-gray-400">
-        <div className="border-b-2 border-gray-400">
-          <div className="flex gap-8 px-6">
-            {tabs.map((tab, index) => (
-              <button
-                key={index}
-                onClick={() => setActiveTab(index)}
-                className={`py-4 text-sm font-bold border-b-2 transition-colors ${
-                  activeTab === index
-                    ? "border-gray-700 text-gray-900"
-                    : "border-transparent text-gray-600 hover:text-gray-900"
-                }`}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
+      <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
+        <div className="flex border-b border-slate-200/80 bg-slate-50/50">
+          {TABS.map((tab, i) => (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => setActiveTab(i)}
+              className={`px-6 py-4 text-sm font-medium transition-colors ${
+                activeTab === i
+                  ? "border-b-2 border-indigo-600 text-indigo-600"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              {tab}
+            </button>
+          ))}
         </div>
 
         <div className="p-6">
-          {/* Business Info Tab */}
+          {/* Business Info */}
           {activeTab === 0 && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-6">
+            <div className="grid gap-6 sm:grid-cols-2">
+              <div className="space-y-4">
+                <Field label="Business Name" value={seller.businessName} />
+                <Field label="Email" value={seller.email} icon={Mail} />
+                <Field label="Business Address" value={seller.businessAddress ?? "—"} icon={MapPin} />
+                <Field label="Registration Date" value={formatDate(seller.createdAt)} />
+              </div>
+              <div className="space-y-4">
+                <Field label="Owner Name" value={seller.ownerName} />
+                <Field label="Phone" value={seller.phone ?? "—"} icon={Phone} />
                 <div>
-                  <label className="text-sm font-bold text-gray-700">Business Name</label>
-                  <p className="mt-1 text-gray-900">Tech Store</p>
-                </div>
-                <div>
-                  <label className="text-sm font-bold text-gray-700">Owner Name</label>
-                  <p className="mt-1 text-gray-900">John Smith</p>
-                </div>
-                <div>
-                  <label className="text-sm font-bold text-gray-700 flex items-center gap-2">
-                    <Mail className="w-4 h-4" />
-                    Email
-                  </label>
-                  <p className="mt-1 text-gray-900">john@techstore.com</p>
-                </div>
-                <div>
-                  <label className="text-sm font-bold text-gray-700 flex items-center gap-2">
-                    <Phone className="w-4 h-4" />
-                    Phone
-                  </label>
-                  <p className="mt-1 text-gray-900">+1 234 567 8901</p>
-                </div>
-                <div className="col-span-2">
-                  <label className="text-sm font-bold text-gray-700 flex items-center gap-2">
-                    <MapPin className="w-4 h-4" />
-                    Business Address
-                  </label>
-                  <p className="mt-1 text-gray-900">123 Business Street, Suite 100, New York, NY 10001</p>
-                </div>
-                <div>
-                  <label className="text-sm font-bold text-gray-700">Registration Date</label>
-                  <p className="mt-1 text-gray-900">January 15, 2025</p>
-                </div>
-                <div>
-                  <label className="text-sm font-bold text-gray-700">KYC Status</label>
-                  <span className="inline-flex mt-1 px-3 py-1 text-sm font-bold border-2 border-gray-400 bg-gray-200">
-                    Approved
-                  </span>
+                  <label className="text-sm font-medium text-slate-500">KYC Status</label>
+                  <p className="mt-1">
+                    <span className={statusBadge(seller.status)}>{seller.status}</span>
+                  </p>
                 </div>
               </div>
             </div>
           )}
 
-          {/* KYC Documents Tab */}
+          {/* KYC Documents */}
           {activeTab === 1 && (
             <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 border-2 border-gray-400">
-                <div>
-                  <p className="font-bold text-gray-900">PAN Card</p>
-                  <p className="text-sm text-gray-700">ABCDE1234F</p>
-                </div>
-                <button className="px-4 py-2 border-2 border-gray-400 text-gray-900 hover:bg-gray-100 font-bold">
-                  View Document
-                </button>
-              </div>
-              <div className="flex items-center justify-between p-4 border-2 border-gray-400">
-                <div>
-                  <p className="font-bold text-gray-900">GST Certificate</p>
-                  <p className="text-sm text-gray-700">22ABCDE1234F1Z5</p>
-                </div>
-                <button className="px-4 py-2 border-2 border-gray-400 text-gray-900 hover:bg-gray-100 font-bold">
-                  View Document
-                </button>
-              </div>
-              <div className="flex items-center justify-between p-4 border-2 border-gray-400">
-                <div>
-                  <p className="font-bold text-gray-900">Address Proof</p>
-                  <p className="text-sm text-gray-700">Utility Bill</p>
-                </div>
-                <button className="px-4 py-2 border-2 border-gray-400 text-gray-900 hover:bg-gray-100 font-bold">
-                  View Document
-                </button>
-              </div>
+              {documents.length === 0 ? (
+                <p className="text-slate-500">No KYC documents uploaded.</p>
+              ) : (
+                documents.map((doc) => (
+                  <div
+                    key={doc.documentType}
+                    className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-200/80 bg-slate-50/30 p-4"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-200/80">
+                        <FileText className="h-5 w-5 text-slate-600" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-slate-900">{doc.label}</p>
+                        <p className="text-sm text-slate-500">{doc.identifier ?? "—"}</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => openDocument(doc.fileUrl)}
+                      disabled={!doc.fileUrl}
+                      className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                    >
+                      View Document
+                    </button>
+                  </div>
+                ))
+              )}
             </div>
           )}
 
-          {/* Bank Details Tab */}
+          {/* Bank Details */}
           {activeTab === 2 && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <label className="text-sm font-bold text-gray-700">Bank Name</label>
-                  <p className="mt-1 text-gray-900">Chase Bank</p>
-                </div>
-                <div>
-                  <label className="text-sm font-bold text-gray-700">Account Holder Name</label>
-                  <p className="mt-1 text-gray-900">Tech Store LLC</p>
-                </div>
-                <div>
-                  <label className="text-sm font-bold text-gray-700">Account Number</label>
-                  <p className="mt-1 text-gray-900">****  ****  ****  1234</p>
-                </div>
-                <div>
-                  <label className="text-sm font-bold text-gray-700">IFSC Code</label>
-                  <p className="mt-1 text-gray-900">CHAS0001234</p>
-                </div>
-              </div>
+            <div className="grid gap-6 sm:grid-cols-2">
+              {bank ? (
+                <>
+                  <Field label="Bank Name" value={bank.bankName} />
+                  <Field label="Account Holder Name" value={bank.accountHolderName} />
+                  <Field label="Account Number" value={bank.accountNumberMasked} />
+                  <Field label="IFSC Code" value={bank.ifscCode} />
+                </>
+              ) : (
+                <p className="text-slate-500">No bank details added.</p>
+              )}
             </div>
           )}
 
-          {/* Products Tab */}
+          {/* Products */}
           {activeTab === 3 && (
-            <div className="overflow-x-auto border-2 border-gray-400">
-              <table className="w-full">
-                <thead className="bg-gray-200 border-b-2 border-gray-400">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-900 uppercase">Product Name</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-900 uppercase">Category</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-900 uppercase">Price</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-900 uppercase">Stock</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-900 uppercase">Status</th>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[600px]">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50/80">
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      Product Name
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      Category
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      Price
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      Stock
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      Status
+                    </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-400">
-                  {products.map((product) => (
-                    <tr key={product.id}>
-                      <td className="px-6 py-4 text-sm text-gray-900">{product.name}</td>
-                      <td className="px-6 py-4 text-sm text-gray-700">{product.category}</td>
-                      <td className="px-6 py-4 text-sm font-bold text-gray-900">{product.price}</td>
-                      <td className="px-6 py-4 text-sm text-gray-900">{product.stock}</td>
-                      <td className="px-6 py-4">
-                        <span className="inline-flex px-3 py-1 text-xs font-bold border-2 border-gray-400 bg-gray-200">
-                          {product.status}
-                        </span>
+                <tbody className="divide-y divide-slate-200/80">
+                  {products.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-4 py-8 text-center text-slate-500">
+                        No products yet.
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    products.map((p) => (
+                      <tr key={p.id} className="hover:bg-slate-50/50">
+                        <td className="px-4 py-3 text-sm font-medium text-slate-900">{p.name}</td>
+                        <td className="px-4 py-3 text-sm text-slate-600">{p.categoryName}</td>
+                        <td className="px-4 py-3 text-sm font-medium text-slate-900">
+                          {formatCurrency(p.price)}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-slate-700">{p.stock}</td>
+                        <td className="px-4 py-3">
+                          <span className={statusBadge(p.status)}>{p.status}</span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
           )}
 
-          {/* Orders Tab */}
+          {/* Orders */}
           {activeTab === 4 && (
-            <div className="overflow-x-auto border-2 border-gray-400">
-              <table className="w-full">
-                <thead className="bg-gray-200 border-b-2 border-gray-400">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-900 uppercase">Order ID</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-900 uppercase">Customer</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-900 uppercase">Amount</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-900 uppercase">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-900 uppercase">Date</th>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[600px]">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50/80">
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      Order ID
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      Customer
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      Amount
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      Status
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      Date
+                    </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-400">
-                  {orders.map((order) => (
-                    <tr key={order.id}>
-                      <td className="px-6 py-4 text-sm font-bold text-gray-900">{order.id}</td>
-                      <td className="px-6 py-4 text-sm text-gray-900">{order.customer}</td>
-                      <td className="px-6 py-4 text-sm font-bold text-gray-900">{order.amount}</td>
-                      <td className="px-6 py-4">
-                        <span className="inline-flex px-3 py-1 text-xs font-bold border-2 border-gray-400 bg-gray-200">
-                          {order.status}
-                        </span>
+                <tbody className="divide-y divide-slate-200/80">
+                  {orders.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-4 py-8 text-center text-slate-500">
+                        No orders yet.
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-700">{order.date}</td>
                     </tr>
-                  ))}
+                  ) : (
+                    orders.map((o) => (
+                      <tr key={o.id} className="hover:bg-slate-50/50">
+                        <td className="px-4 py-3 text-sm font-medium text-slate-900">{o.displayId}</td>
+                        <td className="px-4 py-3 text-sm text-slate-700">{o.customerName}</td>
+                        <td className="px-4 py-3 text-sm font-medium text-slate-900">{o.amount}</td>
+                        <td className="px-4 py-3">
+                          <span className={statusBadge(o.status)}>{o.status}</span>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-slate-500">{o.date}</td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function StatCard({
+  label,
+  value,
+  icon: Icon,
+  iconClass,
+}: {
+  label: string;
+  value: string;
+  icon: React.ComponentType<{ className?: string }>;
+  iconClass: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
+      <div className="flex items-center gap-4">
+        <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${iconClass}`}>
+          <Icon className="h-5 w-5" />
+        </div>
+        <div>
+          <p className="text-sm font-medium text-slate-500">{label}</p>
+          <p className="text-xl font-bold text-slate-900">{value}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Field({
+  label,
+  value,
+  icon: Icon,
+}: {
+  label: string;
+  value: string;
+  icon?: React.ComponentType<{ className?: string }>;
+}) {
+  return (
+    <div>
+      <label className="flex items-center gap-2 text-sm font-medium text-slate-500">
+        {Icon && <Icon className="h-4 w-4" />}
+        {label}
+      </label>
+      <p className="mt-1 text-slate-900">{value}</p>
     </div>
   );
 }

@@ -19,10 +19,13 @@ This is a code bundle for E-commerce Website Wireframes. The original project is
    ```
    This applies all pending migrations and creates/updates the schema.
 
-4. **Seed the database** (optional, for initial/sample data)
+4. **Seed the database** (optional, for initial/sample data and test accounts)
    ```bash
    npm run seed
    ```
+   After seeding, you can log in with:
+   - **Admin**: `admin@example.com` / `Admin@123` → [http://localhost:3000/admin/login](http://localhost:3000/admin/login)
+   - **Vendor**: `vendor@example.com` / `Vendor@123` → [http://localhost:3000/vendor/login](http://localhost:3000/vendor/login)
 
 5. **Start the app**
    ```bash
@@ -33,3 +36,8 @@ This is a code bundle for E-commerce Website Wireframes. The original project is
 
 - Run `npm i` to install the dependencies.
 - Run `npm run dev` to start the development server.
+
+## API documentation
+
+- **Swagger UI**: Open [http://localhost:3000/api-docs](http://localhost:3000/api-docs) for interactive API documentation (OpenAPI 3.0). The spec is served at [http://localhost:3000/api/openapi](http://localhost:3000/api/openapi).
+- **Postman**: Import the collection from `postman/Indovypar-API.postman_collection.json`. Set the `baseUrl` variable (default `http://localhost:3000`). For vendor endpoints, run **Auth → Vendor Login** first so requests use the session cookie.

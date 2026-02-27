@@ -6,6 +6,11 @@ const prisma = new PrismaClient();
 /** Test vendor credentials: vendor@example.com / Vendor@123 */
 const VENDOR_EMAIL = "vendor@example.com";
 const VENDOR_PASSWORD = "Vendor@123";
+
+/** Test admin credentials: admin@example.com / Admin@123 */
+const ADMIN_EMAIL = "admin@example.com";
+const ADMIN_PASSWORD = "Admin@123";
+
 const BCRYPT_ROUNDS = 12;
 
 const CATEGORIES: { slug: string; name: string; subCategories: { slug: string; name: string }[] }[] = [
@@ -16,14 +21,25 @@ const CATEGORIES: { slug: string; name: string; subCategories: { slug: string; n
 ];
 
 async function main() {
-  const passwordHash = await bcrypt.hash(VENDOR_PASSWORD, BCRYPT_ROUNDS);
+  const vendorPasswordHash = await bcrypt.hash(VENDOR_PASSWORD, BCRYPT_ROUNDS);
+  const adminPasswordHash = await bcrypt.hash(ADMIN_PASSWORD, BCRYPT_ROUNDS);
+
+  await prisma.admin.upsert({
+    where: { email: ADMIN_EMAIL },
+    update: { passwordHash: adminPasswordHash, name: "Admin Demo" },
+    create: {
+      email: ADMIN_EMAIL,
+      passwordHash: adminPasswordHash,
+      name: "Admin Demo",
+    },
+  });
 
   const seller = await prisma.seller.upsert({
     where: { email: VENDOR_EMAIL },
-    update: { passwordHash, status: "DRAFT" },
+    update: { passwordHash: vendorPasswordHash, status: "DRAFT" },
     create: {
       email: VENDOR_EMAIL,
-      passwordHash,
+      passwordHash: vendorPasswordHash,
       businessName: "Tech Store India",
       ownerName: "Vendor Demo",
       status: "DRAFT",
@@ -45,10 +61,9 @@ async function main() {
     }
   }
 
-  console.log("Seed complete. Test vendor:");
-  console.log("  Email:", seller.email);
-  console.log("  Password: Vendor@123");
-  console.log("  Login at: /vendor/login");
+  console.log("Seed complete.");
+  console.log("  Admin:  ", ADMIN_EMAIL, "/", ADMIN_PASSWORD, "→ /admin/login");
+  console.log("  Vendor: ", seller.email, "/ Vendor@123 → /vendor/login");
   console.log("  Categories: electronics, fashion, home, books (with sub-categories)");
 }
 
