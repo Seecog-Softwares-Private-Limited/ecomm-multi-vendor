@@ -1,15 +1,45 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Link } from "../../components/Link";
 import { ShieldCheck } from "lucide-react";
+import { authService } from "@/services/auth.service";
+import { ServiceError } from "@/services/errors";
 
 export type AdminLoginPageProps = {
   onSuccess?: () => void;
 };
 
+/**
+ * Admin login at /admin/login.
+ * Submits to POST /api/auth/admin-login and redirects to /admin or callbackUrl on success.
+ */
 export function AdminLoginPage({ onSuccess }: AdminLoginPageProps) {
-  const handleSubmit = (e: React.FormEvent) => {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get("callbackUrl") ?? "/admin";
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    onSuccess?.();
-  };
+    setError(null);
+    setLoading(true);
+    try {
+      await authService.adminLogin({ email, password });
+      onSuccess?.();
+      router.push(callbackUrl);
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof ServiceError ? err.message : "Login failed");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-8">
@@ -26,8 +56,13 @@ export function AdminLoginPage({ onSuccess }: AdminLoginPageProps) {
         {/* Login Card */}
         <div className="bg-white border-2 border-gray-400 p-8">
           <h2 className="text-xl font-bold text-gray-900 mb-6 text-center">Admin Login</h2>
-          
+
           <form onSubmit={handleSubmit} className="space-y-5">
+            {error && (
+              <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">
+                {error}
+              </p>
+            )}
             {/* Email */}
             <div>
               <label className="block text-sm font-bold text-gray-900 mb-2">
@@ -36,6 +71,9 @@ export function AdminLoginPage({ onSuccess }: AdminLoginPageProps) {
               <input
                 type="email"
                 placeholder="admin@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
                 className="w-full px-4 py-3 border-2 border-gray-400 bg-gray-100 focus:outline-none focus:border-gray-600"
               />
             </div>
@@ -48,6 +86,9 @@ export function AdminLoginPage({ onSuccess }: AdminLoginPageProps) {
               <input
                 type="password"
                 placeholder="Enter your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
                 className="w-full px-4 py-3 border-2 border-gray-400 bg-gray-100 focus:outline-none focus:border-gray-600"
               />
             </div>
@@ -69,9 +110,10 @@ export function AdminLoginPage({ onSuccess }: AdminLoginPageProps) {
             {/* Login Button */}
             <button
               type="submit"
-              className="w-full py-3 bg-gray-700 text-white border-2 border-gray-800 hover:bg-gray-800 transition-colors font-bold"
+              disabled={loading}
+              className="w-full py-3 bg-gray-700 text-white border-2 border-gray-800 hover:bg-gray-800 transition-colors font-bold disabled:opacity-60"
             >
-              LOGIN
+              {loading ? "Logging in…" : "LOGIN"}
             </button>
           </form>
         </div>

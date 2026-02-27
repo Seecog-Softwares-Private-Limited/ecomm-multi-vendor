@@ -21,8 +21,10 @@ enum UserRole {
 }
 
 enum SellerStatus {
+  PENDING_VERIFICATION
   DRAFT
   SUBMITTED
+  UNDER_REVIEW
   APPROVED
   REJECTED
   SUSPENDED
@@ -178,18 +180,21 @@ model Admin {
 }
 
 model Seller {
-  id              String       @id @default(uuid()) @db.Char(36)
-  email           String       @unique @db.VarChar(255)
-  passwordHash    String       @map("password_hash") @db.VarChar(255)
-  businessName    String       @map("business_name") @db.VarChar(255)
-  ownerName       String       @map("owner_name") @db.VarChar(255)
-  phone           String?      @db.VarChar(20)
-  businessAddress String?      @map("business_address") @db.VarChar(500)
-  profileExtras   String?      @map("profile_extras") @db.Text
-  status          SellerStatus @default(DRAFT)
-  createdAt       DateTime     @default(now()) @map("created_at") @db.DateTime(3)
-  updatedAt       DateTime     @updatedAt @map("updated_at") @db.DateTime(3)
-  deletedAt       DateTime?    @map("deleted_at") @db.DateTime(3)
+  id                        String       @id @default(uuid()) @db.Char(36)
+  email                     String       @unique @db.VarChar(255)
+  passwordHash              String       @map("password_hash") @db.VarChar(255)
+  businessName              String       @map("business_name") @db.VarChar(255)
+  ownerName                 String       @map("owner_name") @db.VarChar(255)
+  phone                     String?      @db.VarChar(20)
+  businessAddress           String?      @map("business_address") @db.VarChar(500)
+  profileExtras             String?      @map("profile_extras") @db.Text
+  emailVerified             Boolean      @default(false) @map("email_verified")
+  verificationToken         String?      @map("verification_token") @db.VarChar(255)
+  verificationTokenExpires  DateTime?    @map("verification_token_expires") @db.DateTime(3)
+  status                    SellerStatus @default(PENDING_VERIFICATION)
+  createdAt                 DateTime     @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt                 DateTime     @updatedAt @map("updated_at") @db.DateTime(3)
+  deletedAt                 DateTime?    @map("deleted_at") @db.DateTime(3)
 
   products            Product[]
   orderItems          OrderItem[]

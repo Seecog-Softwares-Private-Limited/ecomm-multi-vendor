@@ -1,3 +1,4 @@
+import { randomBytes } from "crypto";
 import { NextRequest } from "next/server";
 import {
   withApiHandler,
@@ -11,13 +12,15 @@ import {
   validateVendorRegister,
   formatValidationDetails,
   hashPassword,
-  signToken,
-  setAuthCookie,
 } from "@/lib/auth";
+import { sendVendorVerificationEmail } from "@/lib/email";
+
+const VERIFICATION_TOKEN_BYTES = 32;
+const VERIFICATION_EXPIRY_HOURS = 24;
 
 /**
- * POST /api/auth/vendor-register — create a new vendor (Seller) and optionally log them in.
- * Creates seller with status DRAFT. Client can then complete profile and submit for approval.
+ * POST /api/auth/vendor-register — create a new vendor (Seller) and send verification email.
+ * Seller is created with status PENDING_VERIFICATION. No session is set until email is verified.
  */
 export const POST = withApiHandler(async (request: NextRequest) => {
   let body: unknown;
@@ -46,6 +49,8 @@ export const POST = withApiHandler(async (request: NextRequest) => {
   }
 
   const passwordHash = await hashPassword(password);
+  const verificationToken = randomBytes(VERIFICATION_TOKEN_BYTES).toString("hex");
+  const verificationTokenExpires = new Date(Date.now() + VERIFICATION_EXPIRY_HOURS * 60 * 60 * 1000);
 
   const seller = await prisma.seller.create({
     data: {
@@ -54,7 +59,10 @@ export const POST = withApiHandler(async (request: NextRequest) => {
       businessName,
       ownerName,
       phone: phone ?? null,
-      status: "DRAFT",
+      status: "PENDING_VERIFICATION",
+      emailVerified: false,
+      verificationToken,
+      verificationTokenExpires,
     },
     select: {
       id: true,
@@ -65,23 +73,17 @@ export const POST = withApiHandler(async (request: NextRequest) => {
     },
   });
 
-  const token = await signToken({
-    sub: seller.id,
-    email: seller.email,
-    role: "SELLER",
-  });
+  await sendVendorVerificationEmail(email, verificationToken);
 
-  const response = apiSuccess({
+  return apiSuccess({
+    message: "Registration successful. Please check your email to verify your account.",
     vendor: {
       id: seller.id,
       email: seller.email,
       businessName: seller.businessName,
       ownerName: seller.ownerName,
       status: seller.status,
-      role: "SELLER",
+      emailVerified: false,
     },
   });
-
-  setAuthCookie(response, token);
-  return response;
 });

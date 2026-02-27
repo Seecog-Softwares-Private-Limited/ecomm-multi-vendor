@@ -1,0 +1,352 @@
+{
+  "info": {
+    "name": "Indovypar / MarketHub API",
+    "description": "API collection for Indovypar e-commerce multi-vendor platform. Use **Auth** requests first to get session cookie; **Vendor** endpoints require vendor login cookie.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/health",
+            "description": "Returns API health status."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Customer Register",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"customer@example.com\",\n  \"password\": \"Password1\",\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"phone\": \"9876543210\"\n}"
+            },
+            "url": "{{baseUrl}}/api/auth/register",
+            "description": "Register a new customer. Sets session cookie on success."
+          }
+        },
+        {
+          "name": "Customer Login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"customer@example.com\",\n  \"password\": \"Password1\"\n}"
+            },
+            "url": "{{baseUrl}}/api/auth/login",
+            "description": "Customer login. Sets session cookie."
+          }
+        },
+        {
+          "name": "Vendor Register",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"vendor@example.com\",\n  \"password\": \"Vendor@123\",\n  \"businessName\": \"My Store\",\n  \"ownerName\": \"Owner Name\",\n  \"phone\": \"9876543210\"\n}"
+            },
+            "url": "{{baseUrl}}/api/auth/vendor-register",
+            "description": "Register a new vendor (Seller). Sets session cookie."
+          }
+        },
+        {
+          "name": "Admin Login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"Admin@123\"\n}"
+            },
+            "url": "{{baseUrl}}/api/auth/admin-login",
+            "description": "Admin login. Sets session cookie. Use before calling admin-protected endpoints."
+          }
+        },
+        {
+          "name": "Vendor Login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"vendor@example.com\",\n  \"password\": \"Vendor@123\"\n}"
+            },
+            "url": "{{baseUrl}}/api/auth/vendor-login",
+            "description": "Vendor login. Sets session cookie. Use before calling Vendor endpoints."
+          }
+        },
+        {
+          "name": "Get Current User (Me)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/auth/me",
+            "description": "Get current user from session cookie (customer auth)."
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/auth/logout",
+            "description": "Clear session cookie."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Catalog",
+      "item": [
+        {
+          "name": "Get Categories",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/categories",
+            "description": "List all categories (public)."
+          }
+        },
+        {
+          "name": "Get Products",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/products?category=electronics&subCategory=mobiles",
+            "description": "List products. Query: category, subCategory (slugs)."
+          }
+        },
+        {
+          "name": "Get Product by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/products/:id",
+            "description": "Get single product details. Path: product id."
+          }
+        },
+        {
+          "name": "Get Product Reviews",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/products/:id/reviews",
+            "description": "Get reviews for a product."
+          }
+        },
+        {
+          "name": "Get Product Questions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/products/:id/questions",
+            "description": "Get Q&A for a product."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Vendor",
+      "description": "All endpoints require vendor session cookie (login via Vendor Login first).",
+      "item": [
+        {
+          "name": "Vendor Me (Session Check)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/vendor/me",
+            "description": "Check vendor session. Returns 401 if not logged in as vendor."
+          }
+        },
+        {
+          "name": "Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/vendor/dashboard",
+            "description": "Dashboard summary: KPIs, recent orders, low stock."
+          }
+        },
+        {
+          "name": "Get Orders",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/vendor/orders?dateFrom=2025-01-01&dateTo=2025-12-31",
+            "description": "List orders for vendor. Query: dateFrom, dateTo (YYYY-MM-DD)."
+          }
+        },
+        {
+          "name": "Get Products",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/vendor/products?dateFrom=2025-01-01&dateTo=2025-12-31",
+            "description": "List vendor's products. Query: dateFrom, dateTo optional."
+          }
+        },
+        {
+          "name": "Create Product",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Product Name\",\n  \"description\": \"Description\",\n  \"categorySlug\": \"electronics\",\n  \"subCategorySlug\": \"mobiles\",\n  \"sku\": \"SKU001\",\n  \"mrp\": 1000,\n  \"sellingPrice\": 899,\n  \"gstPercent\": 18,\n  \"stock\": 10,\n  \"returnPolicy\": \"7days\",\n  \"status\": \"DRAFT\"\n}"
+            },
+            "url": "{{baseUrl}}/api/vendor/products",
+            "description": "Create a new product. Requires categorySlug, subCategorySlug from /api/categories."
+          }
+        },
+        {
+          "name": "Get Product by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/vendor/products/:productId",
+            "description": "Get single product for edit."
+          }
+        },
+        {
+          "name": "Update Product",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Name\",\n  \"description\": \"Updated description\",\n  \"categorySlug\": \"electronics\",\n  \"subCategorySlug\": \"mobiles\",\n  \"sku\": \"SKU001\",\n  \"mrp\": 1000,\n  \"sellingPrice\": 849,\n  \"gstPercent\": 18,\n  \"stock\": 15,\n  \"returnPolicy\": \"7days\"\n}"
+            },
+            "url": "{{baseUrl}}/api/vendor/products/:productId",
+            "description": "Update existing product."
+          }
+        },
+        {
+          "name": "Delete Product",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/vendor/products/:productId",
+            "description": "Soft-delete a product."
+          }
+        },
+        {
+          "name": "Upload Product Image",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "file", "type": "file", "src": "" }
+              ]
+            },
+            "url": "{{baseUrl}}/api/vendor/upload",
+            "description": "Upload product image (multipart, field 'file'). JPEG, PNG, WebP, GIF max 5MB. Returns { url }."
+          }
+        },
+        {
+          "name": "Get Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/vendor/profile",
+            "description": "Get vendor profile (business, owner, bank, KYC documents)."
+          }
+        },
+        {
+          "name": "Update Profile",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"business\": { \"displayName\": \"Store\", \"legalName\": \"Legal Name\", \"businessType\": \"company\", \"pan\": \"ABCDE1234F\", \"gstNotApplicable\": false, \"addressLine1\": \"Addr\", \"city\": \"City\", \"state\": \"Karnataka\", \"pincode\": \"560001\", \"pickupPincode\": \"560001\" },\n  \"owner\": { \"ownerName\": \"Owner\", \"mobile\": \"9876543210\", \"email\": \"vendor@example.com\" },\n  \"bank\": { \"accountHolderName\": \"Name\", \"accountNumber\": \"123456\", \"ifsc\": \"HDFC0001234\", \"bankName\": \"HDFC Bank\" },\n  \"status\": \"draft\"\n}"
+            },
+            "url": "{{baseUrl}}/api/vendor/profile",
+            "description": "Update profile. status: 'draft' or 'submitted'."
+          }
+        },
+        {
+          "name": "Upload KYC Document",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "documentType", "value": "PAN", "description": "PAN | GST_CERTIFICATE | ADDRESS_PROOF" },
+                { "key": "file", "type": "file", "src": "" }
+              ]
+            },
+            "url": "{{baseUrl}}/api/vendor/profile/documents",
+            "description": "Upload KYC document. documentType: PAN, GST_CERTIFICATE, or ADDRESS_PROOF. PDF, JPG, PNG max 5MB."
+          }
+        },
+        {
+          "name": "Get Earnings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/vendor/earnings?dateFrom=2025-01-01&dateTo=2025-12-31&payoutStatus=all",
+            "description": "Earnings. Query: dateFrom, dateTo, orderId, payoutStatus (all|paid|unpaid)."
+          }
+        },
+        {
+          "name": "Get Payouts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/vendor/payouts?dateFrom=2025-01-01&dateTo=2025-12-31",
+            "description": "Payouts list. Query: dateFrom, dateTo."
+          }
+        },
+        {
+          "name": "Get Reports Summary",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/vendor/reports/summary?dateFrom=2025-01-01&dateTo=2025-12-31",
+            "description": "Reports summary. Query: dateFrom, dateTo."
+          }
+        },
+        {
+          "name": "Get Support Tickets",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/vendor/support/tickets",
+            "description": "List support tickets."
+          }
+        },
+        {
+          "name": "Create Support Ticket",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subject\": \"Issue subject\",\n  \"category\": \"Orders\",\n  \"message\": \"Description of the issue\"\n}"
+            },
+            "url": "{{baseUrl}}/api/vendor/support/tickets",
+            "description": "Create a support ticket."
+          }
+        }
+      ]
+    }
+  ]
+}

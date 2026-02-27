@@ -20,10 +20,12 @@ export function VendorRegisterPage() {
   const [phone, setPhone] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setSuccess(false);
     setLoading(true);
     try {
       await authService.vendorRegister({
@@ -33,8 +35,7 @@ export function VendorRegisterPage() {
         ownerName: ownerName.trim(),
         phone: phone.trim() || undefined,
       });
-      router.push("/vendor");
-      router.refresh();
+      setSuccess(true);
     } catch (err) {
       setError(err instanceof ServiceError ? err.message : "Registration failed");
     } finally {
@@ -58,6 +59,19 @@ export function VendorRegisterPage() {
         <div className="bg-white border-2 border-gray-400 p-6 md:p-8">
           <h2 className="text-xl font-bold text-gray-900 mb-6">Register as Vendor</h2>
 
+          {success ? (
+            <div className="space-y-4">
+              <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-3">
+                Registration successful. Please check your email to verify your account. Click the link in the email, then you can log in.
+              </p>
+              <Link
+                href="/vendor/login"
+                className="block w-full py-3 bg-gray-700 text-white border-2 border-gray-800 hover:bg-gray-800 font-bold text-center"
+              >
+                Go to login
+              </Link>
+            </div>
+          ) : (
           <form className="space-y-4" onSubmit={handleSubmit}>
             {error && (
               <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
@@ -160,6 +174,7 @@ export function VendorRegisterPage() {
               {loading ? "Creating account…" : "Register as Vendor"}
             </button>
           </form>
+          )}
 
           <div className="mt-6 pt-6 border-t-2 border-gray-300 text-center">
             <p className="text-sm text-gray-700">

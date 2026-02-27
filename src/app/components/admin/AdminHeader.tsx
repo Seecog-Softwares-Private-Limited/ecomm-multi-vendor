@@ -1,37 +1,44 @@
+"use client";
+
 import { Bell, Search, User } from "lucide-react";
 import { Link } from "../Link";
 
 export function AdminHeader() {
   return (
-    <header className="h-16 bg-white border-b-2 border-gray-400 flex items-center justify-between px-8">
+    <header className="sticky top-0 z-10 flex h-16 flex-shrink-0 items-center justify-between gap-4 border-b border-slate-200/80 bg-white/90 px-6 backdrop-blur-md">
       {/* Search */}
-      <div className="flex-1 max-w-xl">
+      <div className="flex-1 max-w-md">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-600" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
-            placeholder="Search..."
-            className="w-full pl-10 pr-4 py-2 border-2 border-gray-400 bg-gray-100 focus:outline-none focus:border-gray-600"
+            placeholder="Search orders, sellers, products..."
+            className="w-full rounded-xl border border-slate-200 bg-slate-50/80 py-2.5 pl-10 pr-4 text-sm text-slate-800 placeholder-slate-400 transition-colors focus:border-indigo-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
           />
         </div>
       </div>
 
-      {/* Right Side */}
-      <div className="flex items-center gap-4">
-        {/* Notifications */}
-        <button className="relative p-2 text-gray-700 hover:bg-gray-100 border-2 border-gray-400">
-          <Bell className="w-5 h-5" />
-          <span className="absolute top-1 right-1 w-2 h-2 bg-gray-700 rounded-full"></span>
+      {/* Right */}
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          className="relative rounded-xl p-2.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
+          aria-label="Notifications"
+        >
+          <Bell className="h-5 w-5" />
+          <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-indigo-500 ring-2 ring-white" />
         </button>
 
-        {/* Profile */}
-        <Link href="/admin/settings" className="flex items-center gap-3 pl-3 pr-4 py-2 border-2 border-gray-400 hover:bg-gray-100">
-          <div className="w-8 h-8 bg-gray-700 flex items-center justify-center">
-            <User className="w-5 h-5 text-white" />
+        <Link
+          href="/admin/settings"
+          className="flex items-center gap-3 rounded-xl border border-slate-200/80 bg-slate-50/50 px-3 py-2 transition-colors hover:border-slate-200 hover:bg-slate-100/80"
+        >
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-800 text-white shadow-sm">
+            <User className="h-4 w-4" />
           </div>
-          <div className="text-left">
-            <p className="text-sm font-bold text-gray-900">Admin User</p>
-            <p className="text-xs text-gray-600">Super Admin</p>
+          <div className="text-left hidden sm:block">
+            <p className="text-sm font-semibold text-slate-800">Admin User</p>
+            <p className="text-xs text-slate-500">Super Admin</p>
           </div>
         </Link>
       </div>
