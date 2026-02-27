@@ -53,3 +53,18 @@ export interface VendorSessionResponse {
     role: string;
   };
 }
+
+/** Payload for admin login — same shape as LoginPayload. */
+export interface AdminLoginPayload {
+  email: string;
+  password: string;
+}
+
+export interface AdminSessionResponse {
+  admin: {
+    id: string;
+    email: string;
+    name: string | null;
+    role: string;
+  };
+}

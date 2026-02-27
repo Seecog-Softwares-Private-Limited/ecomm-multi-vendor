@@ -11,6 +11,8 @@ import type {
   VendorLoginPayload,
   VendorRegisterPayload,
   VendorSessionResponse,
+  AdminLoginPayload,
+  AdminSessionResponse,
 } from "./types/auth.types";
 
 const AUTH_BASE = "/api/auth";
@@ -43,6 +45,14 @@ export const authService = {
   /** Register a new vendor (Seller). Creates account with status DRAFT and sets cookie. */
   async vendorRegister(payload: VendorRegisterPayload): Promise<VendorSessionResponse> {
     return request<VendorSessionResponse>(`${AUTH_BASE}/vendor-register`, {
+      method: "POST",
+      body: payload,
+    });
+  },
+
+  /** Log in as admin (Admin table). Sets HTTP-only cookie; JWT role = ADMIN. */
+  async adminLogin(payload: AdminLoginPayload): Promise<AdminSessionResponse> {
+    return request<AdminSessionResponse>(`${AUTH_BASE}/admin-login`, {
       method: "POST",
       body: payload,
     });

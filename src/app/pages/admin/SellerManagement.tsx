@@ -1,127 +1,379 @@
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
 import { Link } from "../../components/Link";
 import { Search, Filter, Eye, Ban } from "lucide-react";
 
-const sellers = [
-  { id: 1, name: "John Smith", business: "Tech Store", email: "john@techstore.com", phone: "+1 234 567 8901", kyc: "Approved", products: 245, orders: 1240, status: "Active" },
-  { id: 2, name: "Sarah Johnson", business: "Fashion Hub", email: "sarah@fashionhub.com", phone: "+1 234 567 8902", kyc: "Pending", products: 156, orders: 890, status: "Active" },
-  { id: 3, name: "Mike Wilson", business: "Home Decor", email: "mike@homedecor.com", phone: "+1 234 567 8903", kyc: "Approved", products: 98, orders: 456, status: "Active" },
-  { id: 4, name: "Emily Brown", business: "Sports Gear", email: "emily@sportsgear.com", phone: "+1 234 567 8904", kyc: "Rejected", products: 67, orders: 234, status: "Blocked" },
-  { id: 5, name: "David Lee", business: "Electronics Plus", email: "david@electronicsplus.com", phone: "+1 234 567 8905", kyc: "Approved", products: 312, orders: 1567, status: "Active" },
-  { id: 6, name: "Lisa Anderson", business: "Beauty Store", email: "lisa@beautystore.com", phone: "+1 234 567 8906", kyc: "Pending", products: 189, orders: 678, status: "Active" },
-];
+export type SellerRow = {
+  id: string;
+  name: string;
+  business: string;
+  email: string;
+  phone: string;
+  kyc: string;
+  products: number;
+  orders: number;
+  status: string;
+};
+
+type SellersResponse = {
+  success: true;
+  data: SellerRow[];
+  meta?: {
+    total: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  };
+};
+
+function kycBadgeClass(kyc: string): string {
+  const base =
+    "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium";
+  switch (kyc.toLowerCase()) {
+    case "approved":
+      return `${base} bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/20`;
+    case "pending":
+      return `${base} bg-amber-50 text-amber-700 ring-1 ring-amber-600/20`;
+    case "rejected":
+      return `${base} bg-rose-50 text-rose-700 ring-1 ring-rose-600/20`;
+    default:
+      return `${base} bg-slate-100 text-slate-600 ring-1 ring-slate-300/50`;
+  }
+}
+
+function statusBadgeClass(status: string): string {
+  const base =
+    "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium";
+  switch (status.toLowerCase()) {
+    case "active":
+      return `${base} bg-blue-50 text-blue-700 ring-1 ring-blue-600/20`;
+    case "blocked":
+      return `${base} bg-rose-50 text-rose-700 ring-1 ring-rose-600/20`;
+    default:
+      return `${base} bg-slate-100 text-slate-600 ring-1 ring-slate-300/50`;
+  }
+}
 
 export function SellerManagement() {
+  const [sellers, setSellers] = useState<SellerRow[]>([]);
+  const [meta, setMeta] = useState<SellersResponse["meta"] | undefined>(undefined);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [kycStatus, setKycStatus] = useState("");
+  const [status, setStatus] = useState("");
+  const [page, setPage] = useState(1);
+  const [blockingSellerId, setBlockingSellerId] = useState<string | null>(null);
+  const [blockError, setBlockError] = useState<string | null>(null);
+
+  const fetchSellers = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const params = new URLSearchParams();
+    if (search) params.set("search", search);
+    if (kycStatus) params.set("kycStatus", kycStatus);
+    if (status) params.set("status", status);
+    params.set("page", String(page));
+    params.set("pageSize", "10");
+
+    try {
+      const res = await fetch(`/api/admin/sellers?${params.toString()}`, {
+        credentials: "include",
+      });
+      const json = (await res.json()) as SellersResponse | { success: false; error: { message: string } };
+      if (!res.ok || !("success" in json) || !json.success) {
+        const msg = "error" in json ? json.error.message : "Failed to load sellers";
+        setError(msg);
+        setSellers([]);
+        setMeta(undefined);
+        return;
+      }
+      setSellers(json.data);
+      setMeta(json.meta ?? undefined);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load sellers");
+      setSellers([]);
+      setMeta(undefined);
+    } finally {
+      setLoading(false);
+    }
+  }, [search, kycStatus, status, page]);
+
+  useEffect(() => {
+    fetchSellers();
+  }, [fetchSellers]);
+
+  const handleFilter = () => {
+    setSearch(searchInput.trim());
+    setPage(1);
+  };
+
+  const handleBlock = async (seller: SellerRow) => {
+    setBlockError(null);
+    setBlockingSellerId(seller.id);
+    try {
+      const action = seller.status.toLowerCase() === "blocked" ? "unblock" : "block";
+      const res = await fetch(`/api/admin/sellers/${seller.id}/block`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+        credentials: "include",
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        setBlockError(json?.error?.message ?? "Action failed");
+        return;
+      }
+      fetchSellers();
+    } catch (e) {
+      setBlockError(e instanceof Error ? e.message : "Action failed");
+    } finally {
+      setBlockingSellerId(null);
+    }
+  };
+
+  const total = meta?.total ?? 0;
+  const totalPages = meta?.totalPages ?? 0;
+  const pageSize = meta?.pageSize ?? 10;
+  const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const to = Math.min(page * pageSize, total);
+
   return (
-    <div className="p-8 bg-gray-100 min-h-screen">
+    <div className="min-h-full bg-slate-50/80 p-6 lg:p-8">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Seller Management</h1>
-        <p className="text-sm text-gray-600 mt-1">Manage all sellers and their accounts</p>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+          Seller Management
+        </h1>
+        <p className="mt-1 text-sm text-slate-500">
+          Manage all sellers and their accounts
+        </p>
       </div>
 
       {/* Filters & Search */}
-      <div className="bg-white border-2 border-gray-400 p-6 mb-6">
-        <div className="flex gap-4">
-          {/* Search */}
-          <div className="flex-1">
+      <div className="mb-6 overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+          <div className="min-w-0 flex-1">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-600" />
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
                 placeholder="Search by name, email, or business..."
-                className="w-full pl-10 pr-4 py-2 border-2 border-gray-400 bg-gray-100 focus:outline-none focus:border-gray-600"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleFilter()}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50/80 py-2.5 pl-10 pr-4 text-sm text-slate-800 placeholder-slate-400 transition-colors focus:border-indigo-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
               />
             </div>
           </div>
-
-          {/* KYC Filter */}
-          <select className="px-4 py-2 border-2 border-gray-400 bg-white focus:outline-none focus:border-gray-600 font-bold">
-            <option>All KYC Status</option>
-            <option>Approved</option>
-            <option>Pending</option>
-            <option>Rejected</option>
-          </select>
-
-          {/* Status Filter */}
-          <select className="px-4 py-2 border-2 border-gray-400 bg-white focus:outline-none focus:border-gray-600 font-bold">
-            <option>All Status</option>
-            <option>Active</option>
-            <option>Blocked</option>
-          </select>
-
-          <button className="px-4 py-2 bg-gray-700 text-white border-2 border-gray-800 hover:bg-gray-800 flex items-center gap-2 font-bold">
-            <Filter className="w-4 h-4" />
-            Filter
-          </button>
+          <div className="flex flex-wrap items-center gap-3">
+            <select
+              value={kycStatus}
+              onChange={(e) => {
+                setKycStatus(e.target.value);
+                setPage(1);
+              }}
+              className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition-colors focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+            >
+              <option value="">All KYC Status</option>
+              <option value="approved">Approved</option>
+              <option value="pending">Pending</option>
+              <option value="rejected">Rejected</option>
+            </select>
+            <select
+              value={status}
+              onChange={(e) => {
+                setStatus(e.target.value);
+                setPage(1);
+              }}
+              className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition-colors focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+            >
+              <option value="">All Status</option>
+              <option value="active">Active</option>
+              <option value="blocked">Blocked</option>
+            </select>
+            <button
+              type="button"
+              onClick={handleFilter}
+              className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+            >
+              <Filter className="h-4 w-4" />
+              Filter
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Sellers Table */}
-      <div className="bg-white border-2 border-gray-400">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-200 border-b-2 border-gray-400">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-bold text-gray-900 uppercase">Seller Name</th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-gray-900 uppercase">Business Name</th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-gray-900 uppercase">Email</th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-gray-900 uppercase">Phone</th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-gray-900 uppercase">KYC Status</th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-gray-900 uppercase">Products</th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-gray-900 uppercase">Orders</th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-gray-900 uppercase">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-gray-900 uppercase">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-400">
-              {sellers.map((seller) => (
-                <tr key={seller.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 text-sm font-bold text-gray-900">{seller.name}</td>
-                  <td className="px-6 py-4 text-sm text-gray-900">{seller.business}</td>
-                  <td className="px-6 py-4 text-sm text-gray-700">{seller.email}</td>
-                  <td className="px-6 py-4 text-sm text-gray-700">{seller.phone}</td>
-                  <td className="px-6 py-4">
-                    <span className="inline-flex px-3 py-1 text-xs font-bold border-2 border-gray-400 bg-gray-200">
-                      {seller.kyc}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-900">{seller.products}</td>
-                  <td className="px-6 py-4 text-sm text-gray-900">{seller.orders}</td>
-                  <td className="px-6 py-4">
-                    <span className="inline-flex px-3 py-1 text-xs font-bold border-2 border-gray-400 bg-gray-200">
-                      {seller.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      <Link
-                        href={`/admin/sellers/${seller.id}`}
-                        className="p-2 border-2 border-gray-400 hover:bg-gray-100"
-                        title="View Details"
-                      >
-                        <Eye className="w-4 h-4 text-gray-700" />
-                      </Link>
-                      <button className="p-2 border-2 border-gray-400 hover:bg-gray-100" title="Block">
-                        <Ban className="w-4 h-4 text-gray-700" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination */}
-        <div className="px-6 py-4 border-t-2 border-gray-400 flex items-center justify-between">
-          <p className="text-sm text-gray-700 font-bold">Showing 1 to 6 of 1,234 sellers</p>
-          <div className="flex gap-2">
-            <button className="px-3 py-1 border-2 border-gray-400 hover:bg-gray-100 text-sm font-bold">Previous</button>
-            <button className="px-3 py-1 bg-gray-700 text-white border-2 border-gray-800 text-sm font-bold">1</button>
-            <button className="px-3 py-1 border-2 border-gray-400 hover:bg-gray-100 text-sm font-bold">2</button>
-            <button className="px-3 py-1 border-2 border-gray-400 hover:bg-gray-100 text-sm font-bold">3</button>
-            <button className="px-3 py-1 border-2 border-gray-400 hover:bg-gray-100 text-sm font-bold">Next</button>
+      <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
+        {(error || blockError) && (
+          <div className="border-b border-slate-200 bg-rose-50/80 px-6 py-4 text-sm text-rose-700">
+            {error ?? blockError}
           </div>
-        </div>
+        )}
+        {loading ? (
+          <div className="flex items-center justify-center py-16">
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
+          </div>
+        ) : (
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[900px]">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50/80">
+                    <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      Seller Name
+                    </th>
+                    <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      Business Name
+                    </th>
+                    <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      Email
+                    </th>
+                    <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      Phone
+                    </th>
+                    <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      KYC Status
+                    </th>
+                    <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      Products
+                    </th>
+                    <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      Orders
+                    </th>
+                    <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      Status
+                    </th>
+                    <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200/80">
+                  {sellers.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={9}
+                        className="px-6 py-12 text-center text-sm text-slate-500"
+                      >
+                        No sellers found.
+                      </td>
+                    </tr>
+                  ) : (
+                    sellers.map((seller) => (
+                      <tr
+                        key={seller.id}
+                        className="transition-colors hover:bg-slate-50/50"
+                      >
+                        <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-slate-900">
+                          {seller.name}
+                        </td>
+                        <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-700">
+                          {seller.business}
+                        </td>
+                        <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">
+                          {seller.email}
+                        </td>
+                        <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-500">
+                          {seller.phone}
+                        </td>
+                        <td className="whitespace-nowrap px-6 py-4">
+                          <span className={kycBadgeClass(seller.kyc)}>
+                            {seller.kyc}
+                          </span>
+                        </td>
+                        <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-slate-900">
+                          {seller.products}
+                        </td>
+                        <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-slate-900">
+                          {seller.orders}
+                        </td>
+                        <td className="whitespace-nowrap px-6 py-4">
+                          <span className={statusBadgeClass(seller.status)}>
+                            {seller.status}
+                          </span>
+                        </td>
+                        <td className="whitespace-nowrap px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            <Link
+                              href={`/admin/sellers/${seller.id}`}
+                              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition-colors hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600"
+                              title="View Details"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Link>
+                            <button
+                              type="button"
+                              onClick={() => handleBlock(seller)}
+                              disabled={blockingSellerId === seller.id}
+                              title={seller.status.toLowerCase() === "blocked" ? "Unblock" : "Block"}
+                              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition-colors hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50"
+                            >
+                              {blockingSellerId === seller.id ? (
+                                <span className="h-4 w-4 animate-spin rounded-full border-2 border-rose-500 border-t-transparent" />
+                              ) : (
+                                <Ban className="h-4 w-4" />
+                              )}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination */}
+            <div className="flex flex-col items-center justify-between gap-4 border-t border-slate-200/80 px-6 py-4 sm:flex-row">
+              <p className="text-sm text-slate-500">
+                Showing{" "}
+                <span className="font-medium text-slate-700">{from}</span> to{" "}
+                <span className="font-medium text-slate-700">{to}</span> of{" "}
+                <span className="font-medium text-slate-700">{total}</span> sellers
+              </p>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  disabled={page <= 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900 disabled:opacity-50"
+                >
+                  Previous
+                </button>
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  const p = totalPages <= 5 ? i + 1 : Math.max(1, Math.min(page - 2, totalPages - 4)) + i;
+                  if (p > totalPages) return null;
+                  return (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setPage(p)}
+                      className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                        p === page
+                          ? "bg-indigo-600 text-white shadow-sm"
+                          : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  );
+                })}
+                <button
+                  type="button"
+                  disabled={page >= totalPages || totalPages === 0}
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900 disabled:opacity-50"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
