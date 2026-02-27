@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { withApiHandler, apiSuccess, apiBadRequest } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
+import { SellerStatus } from "@prisma/client";
 
 /** Generic message for invalid/expired token — do not reveal whether email exists. */
 const INVALID_OR_EXPIRED_MESSAGE = "Invalid or expired verification link. Please request a new one or register again.";
@@ -51,7 +52,7 @@ export const GET = withApiHandler(async (request: NextRequest) => {
     where: { id: seller.id },
     data: {
       emailVerified: true,
-      status: "UNDER_REVIEW",
+      status: SellerStatus.UNDER_REVIEW,
       verificationToken: null,
       verificationTokenExpires: null,
     },

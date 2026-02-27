@@ -8,6 +8,7 @@ import {
   apiConflict,
 } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
+import { SellerStatus } from "@prisma/client";
 import {
   validateVendorRegister,
   formatValidationDetails,
@@ -59,7 +60,7 @@ export const POST = withApiHandler(async (request: NextRequest) => {
       businessName,
       ownerName,
       phone: phone ?? null,
-      status: "PENDING_VERIFICATION",
+      status: SellerStatus.PENDING_VERIFICATION,
       emailVerified: false,
       verificationToken,
       verificationTokenExpires,
