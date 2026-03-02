@@ -18,42 +18,66 @@ export function VendorVerifyPage() {
 
   useEffect(() => {
     const token = searchParams.get("token");
-    if (!token) {
-      setResult({ state: "error", message: "Missing verification link. Please use the link from your email." });
-      return;
-    }
 
-    let cancelled = false;
-    setResult({ state: "loading" });
-
-    fetch(`/api/auth/verify-email?token=${encodeURIComponent(token)}`, { credentials: "include" })
-      .then(async (res) => {
-        if (cancelled) return;
-        const json = await res.json();
-        if (res.ok && json?.success) {
-          setResult({
-            state: "success",
-            message: json?.data?.message ?? "Email verified. Awaiting admin approval.",
-          });
-        } else {
-          setResult({
-            state: "error",
-            message: json?.error?.message ?? "Invalid or expired verification link. Please request a new one or register again.",
-          });
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
+    const run = async () => {
+      if (token) {
+        setResult({ state: "loading" });
+        try {
+          const res = await fetch(`/api/auth/verify-email?token=${encodeURIComponent(token)}`, { credentials: "include" });
+          const json = await res.json();
+          if (res.ok && json?.success) {
+            setResult({
+              state: "success",
+              message: json?.data?.message ?? "Email verified. Awaiting admin approval.",
+            });
+          } else {
+            const meRes = await fetch("/api/vendor/me", { credentials: "include" });
+            const meJson = await meRes.json();
+            if (meRes.ok && meJson?.success && meJson?.data?.emailVerified) {
+              setResult({
+                state: "success",
+                message: "Your email is already verified. You can log in and complete your profile.",
+              });
+            } else {
+              setResult({
+                state: "error",
+                message: json?.error?.message ?? "Invalid or expired verification link. Please request a new one or register again.",
+              });
+            }
+          }
+        } catch {
           setResult({
             state: "error",
             message: "Something went wrong. Please try again or use the link from your email.",
           });
         }
-      });
+        return;
+      }
 
-    return () => {
-      cancelled = true;
+      setResult({ state: "loading" });
+      try {
+        const res = await fetch("/api/vendor/me", { credentials: "include" });
+        const json = await res.json();
+        if (res.ok && json?.success && json?.data?.emailVerified) {
+          setResult({
+            state: "success",
+            message: "Your email is already verified. You can log in and complete your profile.",
+          });
+        } else {
+          setResult({
+            state: "error",
+            message: "Missing verification link. Please use the link from your email. If you already verified, go to login.",
+          });
+        }
+      } catch {
+        setResult({
+          state: "error",
+          message: "Missing verification link. Please use the link from your email. If you already verified, go to login.",
+        });
+      }
     };
+
+    run();
   }, [searchParams]);
 
   return (

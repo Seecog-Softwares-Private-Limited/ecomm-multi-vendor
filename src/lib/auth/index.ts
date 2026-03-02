@@ -17,6 +17,12 @@ export {
   type ValidationError,
 } from "./validation";
 export { getSession, requireSession } from "./session";
+export {
+  requireVendorApproved,
+  getVendorStatus,
+  toVendorStatusDisplay,
+  type VendorStatusDisplay,
+} from "./vendor-approval";
 export { getVerifiedSession } from "./middleware-auth";
 export {
   isAuthPage,

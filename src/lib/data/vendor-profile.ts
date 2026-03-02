@@ -13,6 +13,8 @@ export interface VendorProfileBusiness {
   state: string;
   pincode: string;
   pickupPincode: string;
+  storeLogo: string;
+  storeDescription: string;
 }
 
 export interface VendorProfileOwner {
@@ -37,12 +39,20 @@ export interface VendorProfileDocument {
   status: string;
 }
 
+export interface VendorProfileDocumentDynamic {
+  documentName: string;
+  documentUrl: string;
+}
+
 export interface VendorProfileData {
-  status: "draft" | "submitted" | "approved" | "rejected" | "suspended";
+  status: "draft" | "submitted" | "approved" | "rejected" | "suspended" | "on_hold";
+  statusReason?: string | null;
+  primaryCategoryId?: string | null;
   business: VendorProfileBusiness;
   owner: VendorProfileOwner;
   bank: VendorProfileBank | null;
   documents: VendorProfileDocument[];
+  vendorDocuments: VendorProfileDocumentDynamic[];
 }
 
 interface ProfileExtras {
@@ -57,6 +67,23 @@ interface ProfileExtras {
   state?: string;
   pincode?: string;
   pickupPincode?: string;
+  storeLogo?: string;
+  storeDescription?: string;
+}
+
+/** Mask account number for vendor-facing responses; admin APIs return full number. */
+export function maskAccountNumber(acc: string | null | undefined): string {
+  if (!acc || typeof acc !== "string") return "—";
+  const s = acc.trim();
+  if (s.length <= 4) return "xxxx";
+  return "xxxxxx" + s.slice(-4);
+}
+
+/** True if value looks like our masked format (e.g. xxxxxx1234). Never save this to DB. */
+export function looksLikeMaskedAccountNumber(acc: string | null | undefined): boolean {
+  if (!acc || typeof acc !== "string") return false;
+  const s = acc.trim();
+  return /^x{4,}\d{1,4}$/i.test(s) || s === "xxxx";
 }
 
 function parseProfileExtras(raw: string | null): ProfileExtras {
@@ -73,7 +100,9 @@ function mapSellerStatus(s: string): VendorProfileData["status"] {
   switch (s) {
     case "DRAFT":
       return "draft";
+    case "PENDING_VERIFICATION":
     case "SUBMITTED":
+    case "UNDER_REVIEW":
       return "submitted";
     case "APPROVED":
       return "approved";
@@ -81,6 +110,8 @@ function mapSellerStatus(s: string): VendorProfileData["status"] {
       return "rejected";
     case "SUSPENDED":
       return "suspended";
+    case "ON_HOLD":
+      return "on_hold";
     default:
       return "draft";
   }
@@ -89,21 +120,25 @@ function mapSellerStatus(s: string): VendorProfileData["status"] {
 export async function getVendorProfile(sellerId: string): Promise<VendorProfileData | null> {
   const seller = await prisma.seller.findFirst({
     where: { id: sellerId, deletedAt: null },
-    include: {
-      bankAccounts: {
-        where: { deletedAt: null, isPrimary: true },
-        take: 1,
-      },
-      kycDocuments: {
-        where: { deletedAt: null },
-      },
+    select: {
+      id: true,
+      businessName: true,
+      ownerName: true,
+      phone: true,
+      email: true,
+      profileExtras: true,
+      status: true,
+      statusReason: true,
+      primaryCategoryId: true,
+      bankAccounts: { where: { deletedAt: null, isPrimary: true }, take: 1 },
+      kycDocuments: { where: { deletedAt: null } },
+      vendorDocuments: { where: { deletedAt: null }, select: { documentName: true, documentUrl: true } },
     },
   });
   if (!seller) return null;
 
+  const bank = seller.bankAccounts?.[0];
   const extras = parseProfileExtras(seller.profileExtras);
-  const bank = seller.bankAccounts[0];
-
   const docByType = new Map(
     seller.kycDocuments.map((d) => [
       d.documentType,
@@ -113,6 +148,8 @@ export async function getVendorProfile(sellerId: string): Promise<VendorProfileD
 
   return {
     status: mapSellerStatus(seller.status),
+    statusReason: seller.statusReason ?? null,
+    primaryCategoryId: seller.primaryCategoryId ?? null,
     business: {
       displayName: seller.businessName ?? "",
       legalName: extras.legalName ?? "",
@@ -126,6 +163,8 @@ export async function getVendorProfile(sellerId: string): Promise<VendorProfileD
       state: extras.state ?? "",
       pincode: extras.pincode ?? "",
       pickupPincode: extras.pickupPincode ?? extras.pincode ?? "",
+      storeLogo: extras.storeLogo ?? "",
+      storeDescription: extras.storeDescription ?? "",
     },
     owner: {
       ownerName: seller.ownerName ?? "",
@@ -148,7 +187,28 @@ export async function getVendorProfile(sellerId: string): Promise<VendorProfileD
       { documentType: "GST_CERTIFICATE", fileUrl: (docByType.get("GST_CERTIFICATE") as { fileUrl: string | null } | undefined)?.fileUrl ?? null, status: (docByType.get("GST_CERTIFICATE") as { status: string } | undefined)?.status ?? "PENDING" },
       { documentType: "ADDRESS_PROOF", fileUrl: (docByType.get("ADDRESS_PROOF") as { fileUrl: string | null } | undefined)?.fileUrl ?? null, status: (docByType.get("ADDRESS_PROOF") as { status: string } | undefined)?.status ?? "PENDING" },
     ],
+    vendorDocuments: seller.vendorDocuments ?? [],
   };
+}
+
+export async function upsertVendorDocument(
+  sellerId: string,
+  documentName: string,
+  documentUrl: string
+): Promise<void> {
+  const existing = await prisma.vendorDocument.findFirst({
+    where: { sellerId, documentName, deletedAt: null },
+  });
+  if (existing) {
+    await prisma.vendorDocument.update({
+      where: { id: existing.id },
+      data: { documentUrl },
+    });
+  } else {
+    await prisma.vendorDocument.create({
+      data: { sellerId, documentName, documentUrl },
+    });
+  }
 }
 
 export interface UpdateVendorProfilePayload {
@@ -156,6 +216,7 @@ export interface UpdateVendorProfilePayload {
   owner?: Partial<VendorProfileOwner>;
   bank?: Partial<VendorProfileBank>;
   status?: "draft" | "submitted";
+  primaryCategoryId?: string | null;
 }
 
 export async function updateVendorProfile(
@@ -177,9 +238,10 @@ export async function updateVendorProfile(
     email?: string;
     profileExtras?: string;
     status?: "DRAFT" | "SUBMITTED";
+    primaryCategoryId?: string | null;
   } = {};
 
-  if (payload.business) {
+    if (payload.business) {
     const b = payload.business;
     if (b.displayName !== undefined) sellerUpdate.businessName = b.displayName;
     const newExtras: ProfileExtras = {
@@ -195,6 +257,8 @@ export async function updateVendorProfile(
       ...(b.state !== undefined && { state: b.state }),
       ...(b.pincode !== undefined && { pincode: b.pincode }),
       ...(b.pickupPincode !== undefined && { pickupPincode: b.pickupPincode }),
+      ...(b.storeLogo !== undefined && { storeLogo: b.storeLogo }),
+      ...(b.storeDescription !== undefined && { storeDescription: b.storeDescription }),
     };
     sellerUpdate.profileExtras = JSON.stringify(newExtras);
   }
@@ -207,6 +271,7 @@ export async function updateVendorProfile(
   }
 
   if (payload.status === "submitted") sellerUpdate.status = "SUBMITTED";
+  if (payload.primaryCategoryId !== undefined) sellerUpdate.primaryCategoryId = payload.primaryCategoryId;
 
   if (Object.keys(sellerUpdate).length > 0) {
     await prisma.seller.update({
@@ -220,9 +285,14 @@ export async function updateVendorProfile(
     const existing = await prisma.bankAccount.findFirst({
       where: { sellerId, deletedAt: null, isPrimary: true },
     });
+    const rawAccountNumber = (b.accountNumber ?? "").trim();
+    const accountNumberToSave =
+      rawAccountNumber && !looksLikeMaskedAccountNumber(rawAccountNumber)
+        ? rawAccountNumber
+        : existing?.accountNumber ?? "";
     const bankData = {
       accountHolderName: b.accountHolderName ?? "",
-      accountNumber: b.accountNumber ?? "",
+      accountNumber: accountNumberToSave,
       ifscCode: b.ifsc ?? "",
       bankName: b.bankName ?? "",
     };

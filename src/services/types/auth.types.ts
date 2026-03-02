@@ -50,8 +50,15 @@ export interface VendorSessionResponse {
     businessName: string;
     ownerName: string;
     status: string;
-    role: string;
+    role?: string;
   };
+}
+
+/** Response from vendor registration (includes verification hint when SMTP not configured). */
+export interface VendorRegisterResponse extends VendorSessionResponse {
+  message: string;
+  emailSent?: boolean;
+  verificationLink?: string;
 }
 
 /** Payload for admin login — same shape as LoginPayload. */

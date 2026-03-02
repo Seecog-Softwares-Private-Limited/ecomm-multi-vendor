@@ -53,8 +53,7 @@ export const GET = withApiHandler(async (request: NextRequest) => {
     data: {
       emailVerified: true,
       status: SellerStatus.UNDER_REVIEW,
-      verificationToken: null,
-      verificationTokenExpires: null,
+      // Keep token so the same link still works and shows "already verified" on repeat clicks
     },
   });
 

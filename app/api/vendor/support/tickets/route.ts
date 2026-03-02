@@ -13,13 +13,11 @@ import {
 } from "@/lib/data/vendor-support";
 
 /**
- * GET /api/vendor/support/tickets — list support tickets for the logged-in vendor.
+ * GET /api/vendor/support/tickets — list support tickets. Allowed for all vendors (including not approved) so they can contact support.
  */
 export const GET = withApiHandler(async (request: NextRequest) => {
   const session = await requireSession(request);
-  if (session.role !== "SELLER" && session.role !== "ADMIN") {
-    return apiForbidden("Vendor access required");
-  }
+  if (session.role !== "SELLER" && session.role !== "ADMIN") return apiForbidden("Vendor access required");
   const sellerId = session.role === "SELLER" ? session.sub : undefined;
   if (!sellerId) return apiNotFound("Vendor not found");
 
@@ -28,14 +26,11 @@ export const GET = withApiHandler(async (request: NextRequest) => {
 });
 
 /**
- * POST /api/vendor/support/tickets — create a support ticket.
- * Body: { subject: string, category: string, message: string }
+ * POST /api/vendor/support/tickets — create a support ticket. Allowed for all vendors so rejected/blocked can contact support.
  */
 export const POST = withApiHandler(async (request: NextRequest) => {
   const session = await requireSession(request);
-  if (session.role !== "SELLER" && session.role !== "ADMIN") {
-    return apiForbidden("Vendor access required");
-  }
+  if (session.role !== "SELLER" && session.role !== "ADMIN") return apiForbidden("Vendor access required");
   const sellerId = session.role === "SELLER" ? session.sub : undefined;
   if (!sellerId) return apiNotFound("Vendor not found");
 

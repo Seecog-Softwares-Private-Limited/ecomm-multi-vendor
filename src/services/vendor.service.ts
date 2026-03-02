@@ -112,6 +112,55 @@ export const vendorService = {
     });
   },
 
+  /** Submit profile for approval. Backend validates all required fields; returns 400 if incomplete. */
+  async submitForApproval(): Promise<{ message: string; profile: VendorProfileData }> {
+    return request<{ message: string; profile: VendorProfileData }>(
+      `${VENDOR_BASE}/submit-for-approval`,
+      { method: "POST" }
+    );
+  },
+
+  /** List categories for primary category selection. */
+  async getCategories(): Promise<{ id: string; name: string }[]> {
+    return request<{ id: string; name: string }[]>(`${VENDOR_BASE}/categories`, { method: "GET" });
+  },
+
+  /** Get document names for a category (optional/required – vendor may upload or skip). */
+  async getCategoryDocumentRequirements(categoryId: string): Promise<{ documentName: string; isRequired: boolean }[]> {
+    const res = await request<{ documentName: string; isRequired: boolean }[]>(
+      `${VENDOR_BASE}/category-document-requirements?categoryId=${encodeURIComponent(categoryId)}`,
+      { method: "GET" }
+    );
+    return Array.isArray(res) ? res : [];
+  },
+
+  /** Upload a category-specific vendor document. */
+  async uploadVendorDocument(documentName: string, file: File): Promise<{ url: string; documentName: string }> {
+    const formData = new FormData();
+    formData.append("documentName", documentName);
+    formData.append("file", file);
+    const base = getBaseUrl();
+    const url = base ? `${base}${VENDOR_BASE}/profile/vendor-documents` : `${VENDOR_BASE}/profile/vendor-documents`;
+    const res = await fetch(url, {
+      method: "POST",
+      body: formData,
+      credentials: "include",
+    });
+    const json = (await res.json()) as {
+      success?: boolean;
+      data?: { url: string; documentName: string };
+      error?: { message: string };
+    };
+    if (!res.ok) {
+      const msg = json?.error?.message ?? res.statusText ?? "Upload failed";
+      throw new ServiceError(msg, "UPLOAD_ERROR", res.status);
+    }
+    if (!json.success || !json.data) {
+      throw new ServiceError("Invalid upload response", "UPLOAD_ERROR");
+    }
+    return json.data;
+  },
+
   /** Upload a KYC document (PAN, GST_CERTIFICATE, or ADDRESS_PROOF). */
   async uploadKycDocument(
     documentType: "PAN" | "GST_CERTIFICATE" | "ADDRESS_PROOF",
