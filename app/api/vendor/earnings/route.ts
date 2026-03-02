@@ -1,23 +1,13 @@
 import { NextRequest } from "next/server";
-import { withApiHandler, apiSuccess, apiForbidden } from "@/lib/api";
-import { requireSession } from "@/lib/auth";
+import { withApiHandler, apiSuccess } from "@/lib/api";
+import { requireVendorApproved } from "@/lib/auth";
 import { getVendorEarnings } from "@/lib/data/vendor-earnings";
 
 /**
- * GET /api/vendor/earnings — earnings for the logged-in vendor.
- * Query params: dateFrom (YYYY-MM-DD), dateTo (YYYY-MM-DD), orderId (search), payoutStatus (all|paid|unpaid).
+ * GET /api/vendor/earnings — earnings for the logged-in vendor. Requires approved status.
  */
 export const GET = withApiHandler(async (request: NextRequest) => {
-  const session = await requireSession(request);
-
-  if (session.role !== "SELLER" && session.role !== "ADMIN") {
-    return apiForbidden("Vendor access required");
-  }
-
-  const sellerId = session.role === "SELLER" ? session.sub : undefined;
-  if (!sellerId) {
-    return apiSuccess({ summary: { gross: 0, commission: 0, net: 0 }, rows: [] });
-  }
+  const { sellerId } = await requireVendorApproved(request);
 
   const { searchParams } = new URL(request.url);
   const dateFrom = searchParams.get("dateFrom") ?? undefined;

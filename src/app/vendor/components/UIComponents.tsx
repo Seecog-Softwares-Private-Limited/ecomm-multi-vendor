@@ -18,13 +18,13 @@ export function Button({
   className = "",
   ...props
 }: ButtonProps) {
-  const baseStyles = "font-semibold rounded-xl transition-all inline-flex items-center justify-center gap-2";
+  const baseStyles = "inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-offset-2";
   
   const variants = {
-    primary: "bg-[#3B82F6] text-white hover:bg-[#2563EB] shadow-md hover:shadow-lg disabled:bg-[#94A3B8] disabled:cursor-not-allowed",
-    secondary: "bg-white border-2 border-[#E2E8F0] text-[#1E293B] hover:border-[#3B82F6] hover:text-[#3B82F6] disabled:opacity-50 disabled:cursor-not-allowed",
-    danger: "bg-[#DC2626] text-white hover:bg-[#B91C1C] shadow-md hover:shadow-lg disabled:bg-[#94A3B8] disabled:cursor-not-allowed",
-    ghost: "text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#1E293B] disabled:opacity-50 disabled:cursor-not-allowed",
+    primary: "bg-slate-900 text-white shadow-sm hover:bg-slate-800 focus:ring-slate-500 disabled:bg-slate-400 disabled:cursor-not-allowed",
+    secondary: "border border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50 hover:border-slate-300 focus:ring-slate-400 disabled:opacity-50 disabled:cursor-not-allowed",
+    danger: "bg-red-600 text-white shadow-sm hover:bg-red-500 focus:ring-red-500 disabled:bg-slate-400 disabled:cursor-not-allowed",
+    ghost: "text-slate-600 hover:bg-slate-50 hover:text-slate-900 focus:ring-slate-400 disabled:opacity-50 disabled:cursor-not-allowed",
   };
 
   const sizes = {
@@ -56,23 +56,25 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 export function Input({ label, error, helperText, icon, className = "", ...props }: InputProps) {
   return (
     <div className="space-y-2">
-      {label && <label className="block text-sm font-semibold text-[#1E293B]">{label}</label>}
+      {label && <label className="block text-sm font-medium text-slate-700">{label}</label>}
       <div className="relative">
-        {icon && <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#64748B]">{icon}</div>}
+        {icon && <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">{icon}</div>}
         <input
-          className={`w-full ${icon ? "pl-12" : "pl-4"} pr-4 py-3 border-2 ${
-            error ? "border-[#DC2626]" : "border-[#E2E8F0]"
-          } rounded-xl focus:border-[#3B82F6] focus:outline-none transition-all bg-white text-[#1E293B] disabled:bg-[#F8FAFC] disabled:cursor-not-allowed ${className}`}
+          className={`w-full rounded-xl border bg-white px-4 py-3 text-slate-900 shadow-sm transition placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500 ${
+            icon ? "pl-12" : ""
+          } ${
+            error ? "border-red-300 focus:border-red-500 focus:ring-red-500/20" : "border-slate-200"
+          } ${className}`}
           {...props}
         />
       </div>
       {error && (
-        <p className="text-sm text-[#DC2626] flex items-center gap-1">
-          <AlertCircle className="w-4 h-4" />
+        <p className="flex items-center gap-1.5 text-sm text-red-600">
+          <AlertCircle className="h-4 w-4 shrink-0" />
           {error}
         </p>
       )}
-      {helperText && !error && <p className="text-sm text-[#64748B]">{helperText}</p>}
+      {helperText && !error && <p className="text-sm text-slate-500">{helperText}</p>}
     </div>
   );
 }
@@ -87,20 +89,20 @@ interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement
 export function Textarea({ label, error, helperText, className = "", ...props }: TextareaProps) {
   return (
     <div className="space-y-2">
-      {label && <label className="block text-sm font-semibold text-[#1E293B]">{label}</label>}
+      {label && <label className="block text-sm font-medium text-slate-700">{label}</label>}
       <textarea
-        className={`w-full px-4 py-3 border-2 ${
-          error ? "border-[#DC2626]" : "border-[#E2E8F0]"
-        } rounded-xl focus:border-[#3B82F6] focus:outline-none transition-all bg-white text-[#1E293B] resize-none ${className}`}
+        className={`w-full resize-none rounded-xl border bg-white px-4 py-3 text-slate-900 shadow-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 ${
+          error ? "border-red-300 focus:border-red-500 focus:ring-red-500/20" : "border-slate-200"
+        } ${className}`}
         {...props}
       />
       {error && (
-        <p className="text-sm text-[#DC2626] flex items-center gap-1">
-          <AlertCircle className="w-4 h-4" />
+        <p className="flex items-center gap-1.5 text-sm text-red-600">
+          <AlertCircle className="h-4 w-4 shrink-0" />
           {error}
         </p>
       )}
-      {helperText && !error && <p className="text-sm text-[#64748B]">{helperText}</p>}
+      {helperText && !error && <p className="text-sm text-slate-500">{helperText}</p>}
     </div>
   );
 }
@@ -116,11 +118,11 @@ interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
 export function Select({ label, error, helperText, options, className = "", ...props }: SelectProps) {
   return (
     <div className="space-y-2">
-      {label && <label className="block text-sm font-semibold text-[#1E293B]">{label}</label>}
+      {label && <label className="block text-sm font-medium text-slate-700">{label}</label>}
       <select
-        className={`w-full px-4 py-3 border-2 ${
-          error ? "border-[#DC2626]" : "border-[#E2E8F0]"
-        } rounded-xl focus:border-[#3B82F6] focus:outline-none transition-all bg-white text-[#1E293B] cursor-pointer ${className}`}
+        className={`w-full cursor-pointer rounded-xl border bg-white px-4 py-3 text-slate-900 shadow-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 ${
+          error ? "border-red-300 focus:border-red-500 focus:ring-red-500/20" : "border-slate-200"
+        } ${className}`}
         {...props}
       >
         {options.map((option) => (
@@ -130,12 +132,12 @@ export function Select({ label, error, helperText, options, className = "", ...p
         ))}
       </select>
       {error && (
-        <p className="text-sm text-[#DC2626] flex items-center gap-1">
-          <AlertCircle className="w-4 h-4" />
+        <p className="flex items-center gap-1.5 text-sm text-red-600">
+          <AlertCircle className="h-4 w-4 shrink-0" />
           {error}
         </p>
       )}
-      {helperText && !error && <p className="text-sm text-[#64748B]">{helperText}</p>}
+      {helperText && !error && <p className="text-sm text-slate-500">{helperText}</p>}
     </div>
   );
 }
@@ -150,8 +152,8 @@ interface ToggleProps {
 
 export function Toggle({ checked, onChange, label, disabled = false }: ToggleProps) {
   return (
-    <label className="flex items-center gap-3 cursor-pointer">
-      <div className="relative">
+    <label className={`flex items-center gap-3 ${disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}>
+      <div className="relative inline-block">
         <input
           type="checkbox"
           checked={checked}
@@ -160,18 +162,18 @@ export function Toggle({ checked, onChange, label, disabled = false }: TogglePro
           className="sr-only"
         />
         <div
-          className={`w-12 h-6 rounded-full transition-colors ${
-            checked ? "bg-[#3B82F6]" : "bg-[#E2E8F0]"
-          } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
+          className={`h-6 w-11 rounded-full shadow-inner transition-colors duration-200 ${
+            checked ? "bg-indigo-600" : "bg-slate-200"
+          }`}
         >
           <div
-            className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${
-              checked ? "translate-x-6" : ""
+            className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-200 ${
+              checked ? "translate-x-5" : "translate-x-0"
             }`}
           />
         </div>
       </div>
-      {label && <span className="text-sm font-medium text-[#1E293B]">{label}</span>}
+      {label && <span className="text-sm font-medium text-slate-700">{label}</span>}
     </label>
   );
 }
@@ -229,15 +231,22 @@ export function Alert({ type, title, message, dismissible = false, onDismiss }: 
   const Icon = config.icon;
 
   return (
-    <div className={`${config.bgColor} ${config.borderColor} border-2 rounded-xl p-4 flex items-start gap-3`}>
-      <Icon className={`w-5 h-5 ${config.iconColor} flex-shrink-0 mt-0.5`} />
-      <div className="flex-1">
-        {title && <h4 className={`font-bold ${config.textColor} mb-1`}>{title}</h4>}
-        <p className={`text-sm ${config.textColor}`}>{message}</p>
+    <div className={`flex items-start gap-4 rounded-xl border p-4 shadow-sm ${config.bgColor} ${config.borderColor}`}>
+      <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${config.iconColor}`}>
+        <Icon className="h-5 w-5 opacity-90" />
+      </div>
+      <div className="min-w-0 flex-1">
+        {title && <h4 className={`font-semibold ${config.textColor} mb-0.5`}>{title}</h4>}
+        <p className={`text-sm leading-relaxed ${config.textColor} opacity-95`}>{message}</p>
       </div>
       {dismissible && onDismiss && (
-        <button onClick={onDismiss} className={`${config.iconColor} hover:opacity-70 transition-opacity`}>
-          <X className="w-5 h-5" />
+        <button
+          type="button"
+          onClick={onDismiss}
+          className={`shrink-0 rounded-lg p-1.5 ${config.iconColor} transition hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-offset-1`}
+          aria-label="Dismiss"
+        >
+          <X className="h-5 w-5" />
         </button>
       )}
     </div>
@@ -291,14 +300,14 @@ interface CardProps {
 
 export function Card({ title, children, className = "", actions }: CardProps) {
   return (
-    <div className={`bg-white border-2 border-[#E2E8F0] rounded-2xl shadow-sm ${className}`}>
+    <div className={`overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/50 sm:rounded-2xl ${className}`}>
       {title && (
-        <div className="flex items-center justify-between p-6 border-b border-[#E2E8F0]">
-          <h3 className="text-xl font-bold text-[#1E293B]">{title}</h3>
+        <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 px-6 py-5">
+          <h3 className="text-lg font-semibold tracking-tight text-slate-900">{title}</h3>
           {actions && <div>{actions}</div>}
         </div>
       )}
-      <div className="p-6">{children}</div>
+      <div className="p-6 sm:p-8">{children}</div>
     </div>
   );
 }
@@ -419,14 +428,14 @@ export function FileUpload({ label, accept, onChange, helperText, error, preview
           </div>
         ) : (
           <div>
-            <p className="text-[#64748B] mb-2">Click to upload or drag and drop</p>
-            <p className="text-sm text-[#94A3B8]">{helperText || "PDF, PNG, JPG (max 5MB)"}</p>
+            <p className="mb-2 text-slate-600">Click to upload or drag and drop</p>
+            <p className="text-sm text-slate-500">{helperText || "PDF, PNG, JPG (max 5MB)"}</p>
           </div>
         )}
       </div>
       {error && (
-        <p className="text-sm text-[#DC2626] flex items-center gap-1">
-          <AlertCircle className="w-4 h-4" />
+        <p className="mt-2 flex items-center gap-1.5 text-sm text-red-600">
+          <AlertCircle className="h-4 w-4 shrink-0" />
           {error}
         </p>
       )}

@@ -2,12 +2,11 @@ import { NextRequest } from "next/server";
 import {
   withApiHandler,
   apiSuccess,
-  apiForbidden,
   apiNotFound,
   apiBadRequest,
   apiValidationError,
 } from "@/lib/api";
-import { requireSession } from "@/lib/auth";
+import { requireVendorApproved } from "@/lib/auth";
 import { getVendorProductForEdit } from "@/lib/data/vendor-products";
 import { resolveCategoryAndSubCategoryIds } from "@/lib/data/categories";
 import { prisma } from "@/lib/prisma";
@@ -28,17 +27,10 @@ const RETURN_POLICY_MAP: Record<string, "DAYS_7" | "DAYS_15" | "DAYS_30" | "NO_R
 type RouteContext = { params?: Promise<Record<string, string | string[]>> };
 
 /**
- * GET /api/vendor/products/:productId — fetch one product for edit (vendor must own it).
+ * GET /api/vendor/products/:productId — fetch one product for edit. Requires approved status.
  */
 export const GET = withApiHandler(async (request: NextRequest, context?: RouteContext) => {
-  const session = await requireSession(request);
-  if (session.role !== "SELLER" && session.role !== "ADMIN") {
-    return apiForbidden("Vendor access required");
-  }
-  const sellerId = session.role === "SELLER" ? session.sub : undefined;
-  if (!sellerId) {
-    return apiForbidden("Vendor account required");
-  }
+  const { sellerId } = await requireVendorApproved(request);
 
   const params = context?.params ? await context.params : {};
   const productId = typeof params.productId === "string" ? params.productId : params.productId?.[0];
@@ -56,17 +48,10 @@ export const GET = withApiHandler(async (request: NextRequest, context?: RouteCo
 });
 
 /**
- * PUT /api/vendor/products/:productId — update product (vendor must own it).
+ * PUT /api/vendor/products/:productId — update product. Requires approved status.
  */
 export const PUT = withApiHandler(async (request: NextRequest, context?: RouteContext) => {
-  const session = await requireSession(request);
-  if (session.role !== "SELLER" && session.role !== "ADMIN") {
-    return apiForbidden("Vendor access required");
-  }
-  const sellerId = session.role === "SELLER" ? session.sub : undefined;
-  if (!sellerId) {
-    return apiForbidden("Vendor account required");
-  }
+  const { sellerId } = await requireVendorApproved(request);
 
   const params = context?.params ? await context.params : {};
   const productId = typeof params.productId === "string" ? params.productId : params.productId?.[0];
@@ -154,17 +139,10 @@ export const PUT = withApiHandler(async (request: NextRequest, context?: RouteCo
 });
 
 /**
- * DELETE /api/vendor/products/:productId — soft-delete product (vendor must own it).
+ * DELETE /api/vendor/products/:productId — soft-delete product. Requires approved status.
  */
 export const DELETE = withApiHandler(async (request: NextRequest, context?: RouteContext) => {
-  const session = await requireSession(request);
-  if (session.role !== "SELLER" && session.role !== "ADMIN") {
-    return apiForbidden("Vendor access required");
-  }
-  const sellerId = session.role === "SELLER" ? session.sub : undefined;
-  if (!sellerId) {
-    return apiForbidden("Vendor account required");
-  }
+  const { sellerId } = await requireVendorApproved(request);
 
   const params = context?.params ? await context.params : {};
   const productId = typeof params.productId === "string" ? params.productId : params.productId?.[0];

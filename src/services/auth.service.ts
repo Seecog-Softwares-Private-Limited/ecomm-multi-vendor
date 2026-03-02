@@ -10,6 +10,7 @@ import type {
   LoginPayload,
   VendorLoginPayload,
   VendorRegisterPayload,
+  VendorRegisterResponse,
   VendorSessionResponse,
   AdminLoginPayload,
   AdminSessionResponse,
@@ -42,9 +43,9 @@ export const authService = {
     });
   },
 
-  /** Register a new vendor (Seller). Creates account with status DRAFT and sets cookie. */
-  async vendorRegister(payload: VendorRegisterPayload): Promise<VendorSessionResponse> {
-    return request<VendorSessionResponse>(`${AUTH_BASE}/vendor-register`, {
+  /** Register a new vendor (Seller). Sends verification email; returns verificationLink in dev when SMTP not configured. */
+  async vendorRegister(payload: VendorRegisterPayload): Promise<VendorRegisterResponse> {
+    return request<VendorRegisterResponse>(`${AUTH_BASE}/vendor-register`, {
       method: "POST",
       body: payload,
     });

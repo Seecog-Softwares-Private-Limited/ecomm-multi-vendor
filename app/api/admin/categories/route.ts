@@ -20,8 +20,8 @@ function normalizeSlug(s: string): string {
 }
 
 /**
- * GET /api/admin/categories — list all categories for admin (admin only).
- * Returns id, name, slug, status (Active if not deleted, else Inactive), createdDate.
+ * GET /api/admin/categories — list all categories with subcategories for admin (admin only).
+ * Returns id, name, slug, status, createdDate, subcategories[].
  */
 export const GET = withApiHandler(async (request: NextRequest) => {
   const session = await requireSession(request);
@@ -37,6 +37,17 @@ export const GET = withApiHandler(async (request: NextRequest) => {
       slug: true,
       createdAt: true,
       deletedAt: true,
+      subCategories: {
+        where: { deletedAt: null },
+        orderBy: { sortOrder: "asc" },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          createdAt: true,
+          deletedAt: true,
+        },
+      },
     },
   });
 
@@ -46,15 +57,22 @@ export const GET = withApiHandler(async (request: NextRequest) => {
     slug: c.slug,
     status: c.deletedAt == null ? "Active" : "Inactive",
     createdDate: c.createdAt.toISOString().slice(0, 10),
+    subcategories: c.subCategories.map((s) => ({
+      id: s.id,
+      name: s.name,
+      slug: s.slug,
+      status: s.deletedAt == null ? "Active" : "Inactive",
+      createdDate: s.createdAt.toISOString().slice(0, 10),
+    })),
   }));
 
   return apiSuccess(rows);
 });
 
 /**
- * POST /api/admin/categories — create a category (admin only).
- * Body: { name: string, slug?: string, status?: "Active" | "Inactive" }.
- * Slug is optional; if omitted or empty, derived from name. Slug is normalized (lowercase, hyphens).
+ * POST /api/admin/categories — create a category or subcategory (admin only).
+ * Body: { name: string, slug?: string, status?: "Active" | "Inactive", parentId?: string }.
+ * If parentId is provided, creates a subcategory under that category; otherwise creates a root category.
  */
 export const POST = withApiHandler(async (request: NextRequest) => {
   const session = await requireSession(request);
@@ -73,10 +91,11 @@ export const POST = withApiHandler(async (request: NextRequest) => {
     return apiBadRequest("Body must be an object");
   }
 
-  const { name, slug: rawSlug, status } = body as {
+  const { name, slug: rawSlug, status, parentId } = body as {
     name?: string;
     slug?: string;
     status?: string;
+    parentId?: string;
   };
 
   const nameStr = typeof name === "string" ? name.trim() : "";
@@ -95,6 +114,43 @@ export const POST = withApiHandler(async (request: NextRequest) => {
     status === undefined ||
     status === null ||
     String(status).toLowerCase() === "active";
+
+  if (parentId && typeof parentId === "string" && parentId.trim()) {
+    const parent = await prisma.category.findFirst({
+      where: { id: parentId.trim(), deletedAt: null },
+      select: { id: true },
+    });
+    if (!parent) {
+      return apiBadRequest("Parent category not found");
+    }
+    const existingSub = await prisma.subCategory.findFirst({
+      where: { categoryId: parent.id, slug },
+      select: { id: true },
+    });
+    if (existingSub) {
+      return apiConflict(`A subcategory with slug "${slug}" already exists in this category`);
+    }
+    const sub = await prisma.subCategory.create({
+      data: {
+        categoryId: parent.id,
+        name: nameStr,
+        slug,
+        deletedAt: isActive ? null : new Date(),
+      },
+      select: { id: true, name: true, slug: true, createdAt: true, deletedAt: true },
+    });
+    return apiSuccess(
+      {
+        id: sub.id,
+        name: sub.name,
+        slug: sub.slug,
+        status: sub.deletedAt == null ? "Active" : "Inactive",
+        createdDate: sub.createdAt.toISOString().slice(0, 10),
+        parentId: parent.id,
+      },
+      201
+    );
+  }
 
   const existing = await prisma.category.findFirst({
     where: { slug },
@@ -119,11 +175,14 @@ export const POST = withApiHandler(async (request: NextRequest) => {
     },
   });
 
-  return apiSuccess({
-    id: category.id,
-    name: category.name,
-    slug: category.slug,
-    status: category.deletedAt == null ? "Active" : "Inactive",
-    createdDate: category.createdAt.toISOString().slice(0, 10),
-  }, 201);
+  return apiSuccess(
+    {
+      id: category.id,
+      name: category.name,
+      slug: category.slug,
+      status: category.deletedAt == null ? "Active" : "Inactive",
+      createdDate: category.createdAt.toISOString().slice(0, 10),
+    },
+    201
+  );
 });

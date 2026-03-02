@@ -27,7 +27,9 @@ type SellerDetail = {
     email: string;
     phone?: string;
     businessAddress?: string;
+    gstNumber?: string;
     status: string;
+    statusReason?: string;
     createdAt: string;
   };
   stats: {
@@ -39,7 +41,7 @@ type SellerDetail = {
   bank: {
     bankName: string;
     accountHolderName: string;
-    accountNumberMasked: string;
+    accountNumber: string;
     ifscCode: string;
   } | null;
   documents: Array<{
@@ -49,6 +51,7 @@ type SellerDetail = {
     fileUrl?: string;
     status: string;
   }>;
+  vendorDocuments?: Array<{ documentName: string; documentUrl: string }>;
   products: Array<{
     id: string;
     name: string;
@@ -112,6 +115,9 @@ export function SellerDetailPage({ sellerId = "" }: SellerDetailPageProps) {
   const [activeTab, setActiveTab] = useState(0);
   const [blocking, setBlocking] = useState(false);
   const [blockError, setBlockError] = useState<string | null>(null);
+  const [showBlockModal, setShowBlockModal] = useState(false);
+  const [blockReason, setBlockReason] = useState("");
+  const [blockAction, setBlockAction] = useState<"block" | "unblock">("block");
 
   const fetchDetail = useCallback(async () => {
     if (!sellerId) {
@@ -149,16 +155,31 @@ export function SellerDetailPage({ sellerId = "" }: SellerDetailPageProps) {
     window.open(url, "_blank", "noopener,noreferrer");
   };
 
-  const handleBlock = async () => {
+  const openBlockModal = (action: "block" | "unblock") => {
+    setBlockAction(action);
+    setBlockReason("");
+    setBlockError(null);
+    setShowBlockModal(true);
+  };
+
+  const handleBlockSubmit = async () => {
     if (!sellerId) return;
+    const isBlocked = data?.seller.status === "SUSPENDED";
+    const action = isBlocked ? "unblock" : "block";
+    if (action === "block" && !blockReason.trim()) {
+      setBlockError("Please provide a reason for blocking.");
+      return;
+    }
     setBlocking(true);
     setBlockError(null);
     try {
-      const isBlocked = data?.seller.status === "SUSPENDED";
       const res = await fetch(`/api/admin/sellers/${sellerId}/block`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: isBlocked ? "unblock" : "block" }),
+        body: JSON.stringify({
+          action,
+          reason: blockReason.trim() || undefined,
+        }),
         credentials: "include",
       });
       const json = await res.json();
@@ -166,6 +187,7 @@ export function SellerDetailPage({ sellerId = "" }: SellerDetailPageProps) {
         setBlockError(json?.error?.message ?? "Action failed");
         return;
       }
+      setShowBlockModal(false);
       fetchDetail();
     } catch (e) {
       setBlockError(e instanceof Error ? e.message : "Action failed");
@@ -222,7 +244,7 @@ export function SellerDetailPage({ sellerId = "" }: SellerDetailPageProps) {
           </Link>
           <button
             type="button"
-            onClick={handleBlock}
+            onClick={() => openBlockModal(isBlocked ? "unblock" : "block")}
             disabled={blocking}
             className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold shadow-sm disabled:opacity-60 ${
               isBlocked
@@ -235,7 +257,54 @@ export function SellerDetailPage({ sellerId = "" }: SellerDetailPageProps) {
           </button>
         </div>
       </div>
+      {seller.statusReason && (
+        <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-3">
+          <p className="text-sm font-medium text-amber-800">Status reason</p>
+          <p className="mt-1 text-sm text-amber-900">{seller.statusReason}</p>
+        </div>
+      )}
       {blockError && <p className="mb-4 text-sm text-rose-600">{blockError}</p>}
+
+      {/* Block/Unblock modal */}
+      {showBlockModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
+            <h3 className="text-lg font-semibold text-slate-900">
+              {isBlocked ? "Unblock Seller" : "Block Seller"}
+            </h3>
+            {!isBlocked && (
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-slate-700">Reason (required)</label>
+                <textarea
+                  value={blockReason}
+                  onChange={(e) => setBlockReason(e.target.value)}
+                  placeholder="Enter reason for blocking this vendor..."
+                  rows={3}
+                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                />
+              </div>
+            )}
+            {blockError && <p className="mt-2 text-sm text-rose-600">{blockError}</p>}
+            <div className="mt-6 flex gap-3 justify-end">
+              <button
+                type="button"
+                onClick={() => { setShowBlockModal(false); setBlockError(null); }}
+                className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleBlockSubmit}
+                disabled={blocking || (!isBlocked && !blockReason.trim())}
+                className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-50"
+              >
+                {blocking ? "…" : isBlocked ? "Unblock" : "Block"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -290,6 +359,7 @@ export function SellerDetailPage({ sellerId = "" }: SellerDetailPageProps) {
             <div className="grid gap-6 sm:grid-cols-2">
               <div className="space-y-4">
                 <Field label="Business Name" value={seller.businessName} />
+                <Field label="GST Number" value={seller.gstNumber?.trim() ? seller.gstNumber : "Not Provided"} />
                 <Field label="Email" value={seller.email} icon={Mail} />
                 <Field label="Business Address" value={seller.businessAddress ?? "—"} icon={MapPin} />
                 <Field label="Registration Date" value={formatDate(seller.createdAt)} />
@@ -310,33 +380,55 @@ export function SellerDetailPage({ sellerId = "" }: SellerDetailPageProps) {
           {/* KYC Documents */}
           {activeTab === 1 && (
             <div className="space-y-4">
-              {documents.length === 0 ? (
+              {documents.length === 0 && (!data.vendorDocuments || data.vendorDocuments.length === 0) ? (
                 <p className="text-slate-500">No KYC documents uploaded.</p>
               ) : (
-                documents.map((doc) => (
-                  <div
-                    key={doc.documentType}
-                    className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-200/80 bg-slate-50/30 p-4"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-200/80">
-                        <FileText className="h-5 w-5 text-slate-600" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-slate-900">{doc.label}</p>
-                        <p className="text-sm text-slate-500">{doc.identifier ?? "—"}</p>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => openDocument(doc.fileUrl)}
-                      disabled={!doc.fileUrl}
-                      className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                <>
+                  {documents.map((doc) => (
+                    <div
+                      key={doc.documentType}
+                      className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-200/80 bg-slate-50/30 p-4"
                     >
-                      View Document
-                    </button>
-                  </div>
-                ))
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-200/80">
+                          <FileText className="h-5 w-5 text-slate-600" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-slate-900">{doc.label}</p>
+                          <p className="text-sm text-slate-500">{doc.identifier ?? "—"}</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => openDocument(doc.fileUrl)}
+                        disabled={!doc.fileUrl}
+                        className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                      >
+                        View Document
+                      </button>
+                    </div>
+                  ))}
+                  {data.vendorDocuments?.map((vd) => (
+                    <div
+                      key={vd.documentName}
+                      className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-200/80 bg-slate-50/30 p-4"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-200/80">
+                          <FileText className="h-5 w-5 text-slate-600" />
+                        </div>
+                        <p className="font-medium text-slate-900">{vd.documentName}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => openDocument(vd.documentUrl)}
+                        className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                      >
+                        View Document
+                      </button>
+                    </div>
+                  ))}
+                </>
               )}
             </div>
           )}
@@ -348,7 +440,7 @@ export function SellerDetailPage({ sellerId = "" }: SellerDetailPageProps) {
                 <>
                   <Field label="Bank Name" value={bank.bankName} />
                   <Field label="Account Holder Name" value={bank.accountHolderName} />
-                  <Field label="Account Number" value={bank.accountNumberMasked} />
+                  <Field label="Account Number" value={bank.accountNumber} />
                   <Field label="IFSC Code" value={bank.ifscCode} />
                 </>
               ) : (

@@ -28,6 +28,7 @@ enum SellerStatus {
   APPROVED
   REJECTED
   SUSPENDED
+  ON_HOLD
 }
 
 enum ProductStatus {
@@ -192,24 +193,29 @@ model Seller {
   verificationToken         String?      @map("verification_token") @db.VarChar(255)
   verificationTokenExpires  DateTime?    @map("verification_token_expires") @db.DateTime(3)
   status                    SellerStatus @default(PENDING_VERIFICATION)
+  statusReason              String?      @map("status_reason") @db.Text
+  primaryCategoryId         String?      @map("primary_category_id") @db.Char(36)
   createdAt                 DateTime     @default(now()) @map("created_at") @db.DateTime(3)
   updatedAt                 DateTime     @updatedAt @map("updated_at") @db.DateTime(3)
   deletedAt                 DateTime?    @map("deleted_at") @db.DateTime(3)
 
-  products            Product[]
-  orderItems          OrderItem[]
-  kycDocuments        KYCDocument[]
-  bankAccounts        BankAccount[]
-  settlements         Settlement[]
-  payouts             Payout[]
-  returns             Return[]
-  notifications       Notification[]
-  questionsAnswered   ProductQuestion[] @relation("ProductQuestionAnsweredBy")
-  supportTickets      VendorSupportTicket[]
+  primaryCategory           Category?    @relation("SellerPrimaryCategory", fields: [primaryCategoryId], references: [id], onDelete: SetNull)
+  products                  Product[]
+  orderItems                OrderItem[]
+  kycDocuments              KYCDocument[]
+  bankAccounts               BankAccount[]
+  vendorDocuments            VendorDocument[]
+  settlements                Settlement[]
+  payouts                    Payout[]
+  returns                    Return[]
+  notifications              Notification[]
+  questionsAnswered          ProductQuestion[] @relation("ProductQuestionAnsweredBy")
+  supportTickets            VendorSupportTicket[]
 
   @@index([email])
   @@index([status])
   @@index([deletedAt])
+  @@index([primaryCategoryId])
   @@map("sellers")
 }
 
@@ -246,12 +252,47 @@ model Category {
   updatedAt  DateTime  @updatedAt @map("updated_at") @db.DateTime(3)
   deletedAt  DateTime? @map("deleted_at") @db.DateTime(3)
 
-  subCategories SubCategory[]
-  products      Product[]
+  subCategories            SubCategory[]
+  products                 Product[]
+  documentRequirements     CategoryDocumentRequirement[]
+  primaryCategorySellers   Seller[] @relation("SellerPrimaryCategory")
 
   @@index([slug])
   @@index([deletedAt])
   @@map("categories")
+}
+
+model CategoryDocumentRequirement {
+  id          String   @id @default(uuid()) @db.Char(36)
+  categoryId  String   @map("category_id") @db.Char(36)
+  documentName String  @map("document_name") @db.VarChar(255)
+  isRequired  Boolean  @default(true) @map("is_required") @db.TinyInt
+  createdAt   DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+  deletedAt   DateTime? @map("deleted_at") @db.DateTime(3)
+
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@index([categoryId])
+  @@index([deletedAt])
+  @@map("category_document_requirements")
+}
+
+model VendorDocument {
+  id           String   @id @default(uuid()) @db.Char(36)
+  sellerId     String   @map("seller_id") @db.Char(36)
+  documentName String   @map("document_name") @db.VarChar(255)
+  documentUrl  String   @map("document_url") @db.VarChar(500)
+  createdAt    DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+  deletedAt    DateTime? @map("deleted_at") @db.DateTime(3)
+
+  seller Seller @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+
+  @@unique([sellerId, documentName])
+  @@index([sellerId])
+  @@index([deletedAt])
+  @@map("vendor_documents")
 }
 
 model SubCategory {
