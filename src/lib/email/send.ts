@@ -9,10 +9,26 @@ export type SendMailOptions = {
 };
 
 let transporter: nodemailer.Transporter | null = null;
+let loggedDisabledReason = false;
+
+function getDisabledReason(): string {
+  const host = emailConfig.host;
+  const pass = emailConfig.pass;
+  const user = emailConfig.user;
+  if (!host) return "SMTP_HOST (or SWMTP_HOST) not set in .env";
+  if (user && !pass) return "SMTP_PASS not set in .env";
+  return "SMTP not enabled";
+}
 
 function getTransporter(): nodemailer.Transporter | null {
   if (transporter) return transporter;
-  if (!emailConfig.enabled) return null;
+  if (!emailConfig.enabled) {
+    if (!loggedDisabledReason && process.env.NODE_ENV === "development") {
+      console.warn("[email] SMTP disabled:", getDisabledReason());
+      loggedDisabledReason = true;
+    }
+    return null;
+  }
   try {
     transporter = nodemailer.createTransport({
       host: emailConfig.host,
@@ -31,7 +47,7 @@ function getTransporter(): nodemailer.Transporter | null {
 }
 
 /**
- * Send an email. If SMTP is not configured (e.g. in dev), logs the payload and resolves without error.
+ * Send an email. If SMTP is not configured (e.g. in dev), logs the reason and resolves without error.
  */
 export async function sendMail(options: SendMailOptions): Promise<{ sent: boolean; error?: string }> {
   const { to, subject, text, html } = options;
@@ -39,7 +55,7 @@ export async function sendMail(options: SendMailOptions): Promise<{ sent: boolea
 
   if (!transport) {
     if (process.env.NODE_ENV === "development") {
-      console.log("[email] (SMTP not configured) Would send:", { to, subject, text: text.slice(0, 80) + "..." });
+      console.log("[email] Not sending (no transport):", { to, subject });
     }
     return { sent: false };
   }
@@ -52,6 +68,9 @@ export async function sendMail(options: SendMailOptions): Promise<{ sent: boolea
       text,
       html: html ?? text.replace(/\n/g, "<br>"),
     });
+    if (process.env.NODE_ENV === "development") {
+      console.log("[email] Sent successfully to", to);
+    }
     return { sent: true };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

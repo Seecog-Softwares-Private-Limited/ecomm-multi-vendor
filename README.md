@@ -12,6 +12,8 @@ This is a code bundle for E-commerce Website Wireframes. The original project is
 2. **Configure environment**
    - Copy `.env.example` to `.env` (or create `.env` with the same variables).
    - Set `DATABASE_URL` to your database connection string.
+   - Set `JWT_SECRET` (required for auth).
+   - For vendor verification emails: set `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, and optionally `SMTP_FROM` and `APP_URL`. If SMTP is not set, registration still works but the verification link is shown on the success page (dev only).
 
 3. **Run database migrations**
    ```bash

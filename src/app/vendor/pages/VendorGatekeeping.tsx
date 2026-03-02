@@ -3,12 +3,15 @@ import { AlertCircle, CheckCircle, Clock, XCircle, Ban, FileText, Edit, HelpCirc
 import { Button, Alert } from "../components/UIComponents";
 
 interface VendorGatekeepingProps {
-  status: "draft" | "submitted" | "rejected" | "suspended";
+  status?: "draft" | "submitted" | "rejected" | "suspended" | "on_hold";
+  statusReason?: string;
   rejectionReason?: string;
   suspensionReason?: string;
 }
 
-export function VendorGatekeeping({ status, rejectionReason, suspensionReason }: VendorGatekeepingProps) {
+export function VendorGatekeeping({ status: statusProp, statusReason, rejectionReason, suspensionReason }: VendorGatekeepingProps) {
+  const reason = statusReason ?? rejectionReason ?? suspensionReason;
+  const status = statusProp ?? "draft";
   const getContent = () => {
     switch (status) {
       case "draft":
@@ -75,7 +78,7 @@ export function VendorGatekeeping({ status, rejectionReason, suspensionReason }:
               type="error"
               title="Rejection Reason"
               message={
-                rejectionReason ||
+                reason ||
                 "Your profile was rejected due to incomplete or incorrect information. Please update and resubmit."
               }
             />
@@ -98,6 +101,34 @@ export function VendorGatekeeping({ status, rejectionReason, suspensionReason }:
           ),
         };
 
+      case "on_hold":
+        return {
+          icon: <Clock className="w-16 h-16 text-[#F59E0B]" />,
+          bgColor: "from-amber-50 to-orange-100",
+          title: "Account On Hold",
+          description:
+            "Your vendor account is currently on hold. Please review the reason below and contact support if you have questions.",
+          alert: reason ? (
+            <Alert type="warning" title="Reason" message={reason} />
+          ) : null,
+          actions: (
+            <div className="flex items-center justify-center gap-4">
+              <Link href="/vendor/support">
+                <Button variant="primary" size="lg">
+                  <HelpCircle className="w-5 h-5" />
+                  Contact Support
+                </Button>
+              </Link>
+              <Link href="/vendor/profile">
+                <Button variant="secondary">
+                  <FileText className="w-5 h-5" />
+                  View Profile
+                </Button>
+              </Link>
+            </div>
+          ),
+        };
+
       case "suspended":
         return {
           icon: <Ban className="w-16 h-16 text-[#F59E0B]" />,
@@ -110,7 +141,7 @@ export function VendorGatekeeping({ status, rejectionReason, suspensionReason }:
               type="warning"
               title="Suspension Reason"
               message={
-                suspensionReason ||
+                reason ||
                 "Your account has been suspended due to policy violations or pending verification. Contact support for more details."
               }
             />

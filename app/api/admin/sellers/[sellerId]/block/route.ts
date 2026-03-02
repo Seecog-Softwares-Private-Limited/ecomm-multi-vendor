@@ -4,6 +4,7 @@ import {
   apiSuccess,
   apiForbidden,
   apiNotFound,
+  apiBadRequest,
 } from "@/lib/api";
 import { requireSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -11,8 +12,9 @@ import { prisma } from "@/lib/prisma";
 type RouteContext = { params: Promise<{ sellerId: string }> };
 
 /**
- * POST /api/admin/sellers/[sellerId]/block — block (suspend) or unblock seller (admin only).
- * Body: { action: "block" | "unblock" }. Block sets status to SUSPENDED, unblock to APPROVED.
+ * POST /api/admin/sellers/[sellerId]/block — block, unblock, reject, or put on hold (admin only).
+ * Body: { action: "block" | "unblock" | "reject" | "hold", reason?: string }.
+ * Reason is required for block, reject, and hold.
  */
 export const POST = withApiHandler(
   async (request: NextRequest, context?: RouteContext) => {
@@ -27,14 +29,27 @@ export const POST = withApiHandler(
       return apiNotFound("Seller not found");
     }
 
-    let body: { action?: string } = {};
+    let body: { action?: string; reason?: string } = {};
     try {
       body = await request.json();
     } catch {
       body = {};
     }
     const action = (body.action ?? "block").toLowerCase();
-    const status = action === "unblock" ? "APPROVED" : "SUSPENDED";
+    const reason = typeof body.reason === "string" ? body.reason.trim() : undefined;
+
+    const statusMap: Record<string, "APPROVED" | "SUSPENDED" | "REJECTED" | "ON_HOLD"> = {
+      unblock: "APPROVED",
+      block: "SUSPENDED",
+      reject: "REJECTED",
+      hold: "ON_HOLD",
+    };
+    const status = statusMap[action] ?? "SUSPENDED";
+    const requiresReason = action === "block" || action === "reject" || action === "hold";
+
+    if (requiresReason && (!reason || reason.length === 0)) {
+      return apiBadRequest(`Reason is required when ${action}ing a vendor.`);
+    }
 
     const seller = await prisma.seller.findFirst({
       where: { id: sellerId, deletedAt: null },
@@ -47,7 +62,10 @@ export const POST = withApiHandler(
 
     await prisma.seller.update({
       where: { id: sellerId },
-      data: { status },
+      data: {
+        status,
+        statusReason: action === "unblock" ? null : reason ?? null,
+      },
     });
 
     return apiSuccess({

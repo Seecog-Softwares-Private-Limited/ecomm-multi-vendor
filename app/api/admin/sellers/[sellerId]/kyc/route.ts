@@ -36,6 +36,7 @@ export const GET = withApiHandler(
         phone: true,
         businessAddress: true,
         status: true,
+        profileExtras: true,
         kycDocuments: {
           where: { deletedAt: null },
           select: {
@@ -46,12 +47,35 @@ export const GET = withApiHandler(
             status: true,
           },
         },
+        bankAccounts: {
+          where: { deletedAt: null },
+          take: 1,
+          orderBy: { createdAt: "desc" },
+          select: {
+            bankName: true,
+            accountHolderName: true,
+            accountNumber: true,
+            ifscCode: true,
+          },
+        },
       },
     });
 
     if (!seller) {
       return apiNotFound("Seller not found");
     }
+
+    let gstNumber: string | undefined;
+    if (seller.profileExtras) {
+      try {
+        const extras = JSON.parse(seller.profileExtras) as { gstin?: string };
+        gstNumber = typeof extras?.gstin === "string" ? extras.gstin.trim() || undefined : undefined;
+      } catch {
+        // ignore
+      }
+    }
+
+    const bank = seller.bankAccounts?.[0];
 
     const documents = (seller.kycDocuments ?? []).map((d) => ({
       id: d.id,
@@ -70,7 +94,16 @@ export const GET = withApiHandler(
         phone: seller.phone ?? undefined,
         businessAddress: seller.businessAddress ?? undefined,
         status: seller.status,
+        gstNumber,
       },
+      bank: bank
+        ? {
+            bankName: bank.bankName,
+            accountHolderName: bank.accountHolderName,
+            accountNumber: bank.accountNumber,
+            ifscCode: bank.ifscCode,
+          }
+        : null,
       documents,
     });
   }

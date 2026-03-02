@@ -7,7 +7,7 @@ import {
   apiForbidden,
   apiBadRequest,
 } from "@/lib/api";
-import { requireSession } from "@/lib/auth";
+import { requireVendorApproved } from "@/lib/auth";
 
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 const MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
@@ -19,14 +19,10 @@ function getBaseUrl(request: NextRequest): string {
 }
 
 /**
- * POST /api/vendor/upload — upload a product image (multipart/form-data, field "file").
- * Requires vendor session. Saves to public/uploads, returns { url: string } (absolute URL).
+ * POST /api/vendor/upload — upload a product image. Requires approved vendor status.
  */
 export const POST = withApiHandler(async (request: NextRequest) => {
-  const session = await requireSession(request);
-  if (session.role !== "SELLER" && session.role !== "ADMIN") {
-    return apiForbidden("Vendor access required");
-  }
+  await requireVendorApproved(request);
 
   let formData: FormData;
   try {

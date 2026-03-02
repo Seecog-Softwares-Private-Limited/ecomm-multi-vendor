@@ -14,10 +14,10 @@ import {
   formatValidationDetails,
   hashPassword,
 } from "@/lib/auth";
-import { sendVendorVerificationEmail } from "@/lib/email";
+import { emailConfig, sendVendorVerificationEmail } from "@/lib/email";
 
 const VERIFICATION_TOKEN_BYTES = 32;
-const VERIFICATION_EXPIRY_HOURS = 24;
+const VERIFICATION_EXPIRY_HOURS = 72; // 3 days so the link stays valid
 
 /**
  * POST /api/auth/vendor-register — create a new vendor (Seller) and send verification email.
@@ -74,10 +74,20 @@ export const POST = withApiHandler(async (request: NextRequest) => {
     },
   });
 
-  await sendVendorVerificationEmail(email, verificationToken);
+  const emailResult = await sendVendorVerificationEmail(email, verificationToken);
 
-  return apiSuccess({
-    message: "Registration successful. Please check your email to verify your account.",
+  const appUrl = emailConfig.appUrl.replace(/\/$/, "");
+  const verificationLink = `${appUrl}/vendor/verify?token=${encodeURIComponent(verificationToken)}`;
+
+  const payload: {
+    message: string;
+    vendor: { id: string; email: string; businessName: string; ownerName: string; status: string; emailVerified: boolean };
+    emailSent: boolean;
+    verificationLink?: string;
+  } = {
+    message: emailResult.sent
+      ? "Registration successful. Please check your email to verify your account."
+      : "Registration successful. Verify your email using the link below (no email was sent — SMTP not configured).",
     vendor: {
       id: seller.id,
       email: seller.email,
@@ -86,5 +96,12 @@ export const POST = withApiHandler(async (request: NextRequest) => {
       status: seller.status,
       emailVerified: false,
     },
-  });
+    emailSent: emailResult.sent,
+  };
+
+  if (!emailResult.sent && process.env.NODE_ENV === "development") {
+    payload.verificationLink = verificationLink;
+  }
+
+  return apiSuccess(payload);
 });

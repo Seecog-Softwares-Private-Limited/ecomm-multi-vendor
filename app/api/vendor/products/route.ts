@@ -2,12 +2,11 @@ import { NextRequest } from "next/server";
 import {
   withApiHandler,
   apiSuccess,
-  apiForbidden,
   apiBadRequest,
   apiValidationError,
   Status,
 } from "@/lib/api";
-import { requireSession } from "@/lib/auth";
+import { requireVendorApproved } from "@/lib/auth";
 import { getVendorProductsBySellerId } from "@/lib/data/vendor-products";
 import { resolveCategoryAndSubCategoryIds } from "@/lib/data/categories";
 import { prisma } from "@/lib/prisma";
@@ -25,20 +24,10 @@ const RETURN_POLICY_MAP: Record<string, "DAYS_7" | "DAYS_15" | "DAYS_30" | "NO_R
 };
 
 /**
- * GET /api/vendor/products — list products for the logged-in vendor (seller).
- * Query params: dateFrom, dateTo (YYYY-MM-DD) to filter by product updatedAt (for reports).
+ * GET /api/vendor/products — list products for the logged-in vendor. Requires approved status.
  */
 export const GET = withApiHandler(async (request: NextRequest) => {
-  const session = await requireSession(request);
-
-  if (session.role !== "SELLER" && session.role !== "ADMIN") {
-    return apiForbidden("Vendor access required");
-  }
-
-  const sellerId = session.role === "SELLER" ? session.sub : undefined;
-  if (!sellerId) {
-    return apiSuccess([]);
-  }
+  const { sellerId } = await requireVendorApproved(request);
 
   const { searchParams } = new URL(request.url);
   const dateFrom = searchParams.get("dateFrom") ?? undefined;
@@ -49,19 +38,10 @@ export const GET = withApiHandler(async (request: NextRequest) => {
 });
 
 /**
- * POST /api/vendor/products — create a new product for the logged-in vendor.
+ * POST /api/vendor/products — create a new product for the logged-in vendor. Requires approved status.
  */
 export const POST = withApiHandler(async (request: NextRequest) => {
-  const session = await requireSession(request);
-
-  if (session.role !== "SELLER" && session.role !== "ADMIN") {
-    return apiForbidden("Vendor access required");
-  }
-
-  const sellerId = session.role === "SELLER" ? session.sub : undefined;
-  if (!sellerId) {
-    return apiForbidden("Vendor account required");
-  }
+  const { sellerId } = await requireVendorApproved(request);
 
   let body: unknown;
   try {

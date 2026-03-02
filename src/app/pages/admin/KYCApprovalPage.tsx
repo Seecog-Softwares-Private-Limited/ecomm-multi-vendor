@@ -41,10 +41,19 @@ type SellerInfo = {
   phone?: string;
   businessAddress?: string;
   status: string;
+  gstNumber?: string;
+};
+
+type BankInfo = {
+  bankName: string;
+  accountHolderName: string;
+  accountNumber: string;
+  ifscCode: string;
 };
 
 type KycResponse = {
   seller: SellerInfo;
+  bank: BankInfo | null;
   documents: KycDoc[];
 };
 
@@ -56,6 +65,9 @@ export function KYCApprovalPage({ sellerId = "" }: KYCApprovalPageProps) {
   const [approving, setApproving] = useState(false);
   const [approveError, setApproveError] = useState<string | null>(null);
   const [approved, setApproved] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
+  const [rejecting, setRejecting] = useState(false);
+  const [rejectError, setRejectError] = useState<string | null>(null);
 
   const fetchKyc = useCallback(async () => {
     if (!sellerId) {
@@ -74,7 +86,11 @@ export function KYCApprovalPage({ sellerId = "" }: KYCApprovalPageProps) {
         setData(null);
         return;
       }
-      setData({ seller: json.data.seller, documents: json.data.documents ?? [] });
+      setData({
+        seller: json.data.seller,
+        bank: json.data.bank ?? null,
+        documents: json.data.documents ?? [],
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load KYC data");
       setData(null);
@@ -91,6 +107,37 @@ export function KYCApprovalPage({ sellerId = "" }: KYCApprovalPageProps) {
     if (!fileUrl) return;
     const url = fileUrl.startsWith("http") ? fileUrl : `${typeof window !== "undefined" ? window.location.origin : ""}${fileUrl.startsWith("/") ? "" : "/"}${fileUrl}`;
     window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  const handleRejectKyc = async () => {
+    if (!sellerId) return;
+    const reason = rejectReason.trim();
+    if (!reason) {
+      setRejectError("Please enter a rejection reason.");
+      return;
+    }
+    setRejecting(true);
+    setRejectError(null);
+    try {
+      const res = await fetch(`/api/admin/sellers/${sellerId}/block`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "reject", reason }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        setRejectError(json?.error?.message ?? "Failed to reject KYC");
+        return;
+      }
+      setShowRejectModal(false);
+      setRejectReason("");
+      fetchKyc();
+    } catch (e) {
+      setRejectError(e instanceof Error ? e.message : "Failed to reject KYC");
+    } finally {
+      setRejecting(false);
+    }
   };
 
   const handleApproveKyc = async () => {
@@ -135,7 +182,7 @@ export function KYCApprovalPage({ sellerId = "" }: KYCApprovalPageProps) {
     );
   }
 
-  const { seller, documents } = data;
+  const { seller, bank, documents } = data;
 
   return (
     <div className="min-h-full bg-slate-50/80 p-6 lg:p-8">
@@ -188,6 +235,33 @@ export function KYCApprovalPage({ sellerId = "" }: KYCApprovalPageProps) {
               <label className="text-sm font-medium text-slate-500">Business Address</label>
               <p className="mt-0.5 text-slate-900">{seller.businessAddress ?? "—"}</p>
             </div>
+            <div>
+              <label className="text-sm font-medium text-slate-500">GST Number</label>
+              <p className="mt-0.5 text-slate-900">{seller.gstNumber ?? "Not Provided"}</p>
+            </div>
+            {bank && (
+              <>
+                <div className="border-t border-slate-200 pt-3 mt-3">
+                  <label className="text-sm font-medium text-slate-500">Bank Details</label>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-slate-500">Bank Name</label>
+                  <p className="mt-0.5 text-slate-900">{bank.bankName || "—"}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-slate-500">Account Holder Name</label>
+                  <p className="mt-0.5 text-slate-900">{bank.accountHolderName || "—"}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-slate-500">Account Number</label>
+                  <p className="mt-0.5 font-mono text-slate-900">{bank.accountNumber || "—"}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-slate-500">IFSC Code</label>
+                  <p className="mt-0.5 text-slate-900">{bank.ifscCode || "—"}</p>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -300,36 +374,47 @@ export function KYCApprovalPage({ sellerId = "" }: KYCApprovalPageProps) {
       {showRejectModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm"
-          onClick={() => setShowRejectModal(false)}
+          onClick={() => { setShowRejectModal(false); setRejectReason(""); setRejectError(null); }}
         >
           <div
             className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="mb-4 text-lg font-semibold text-slate-900">Reject KYC</h3>
+            {rejectError && (
+              <div className="mb-4 rounded-xl bg-rose-50 px-4 py-2.5 text-sm text-rose-700">
+                {rejectError}
+              </div>
+            )}
             <div className="mb-4">
               <label className="mb-2 block text-sm font-medium text-slate-700">
                 Rejection Reason
               </label>
               <textarea
                 rows={4}
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
                 className="w-full rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                 placeholder="Enter reason for rejection..."
+                disabled={rejecting}
               />
             </div>
             <div className="flex gap-3">
               <button
                 type="button"
-                onClick={() => setShowRejectModal(false)}
-                className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                onClick={() => { setShowRejectModal(false); setRejectReason(""); setRejectError(null); }}
+                disabled={rejecting}
+                className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 type="button"
-                className="flex-1 rounded-xl bg-rose-600 py-2.5 text-sm font-semibold text-white hover:bg-rose-500"
+                onClick={handleRejectKyc}
+                disabled={rejecting || !rejectReason.trim()}
+                className="flex-1 rounded-xl bg-rose-600 py-2.5 text-sm font-semibold text-white hover:bg-rose-500 disabled:opacity-50"
               >
-                Confirm Rejection
+                {rejecting ? "Rejecting…" : "Confirm Rejection"}
               </button>
             </div>
           </div>

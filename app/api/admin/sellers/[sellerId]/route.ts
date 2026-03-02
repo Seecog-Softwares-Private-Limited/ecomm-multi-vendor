@@ -35,8 +35,11 @@ export const GET = withApiHandler(
         email: true,
         phone: true,
         businessAddress: true,
+        profileExtras: true,
         status: true,
+        statusReason: true,
         createdAt: true,
+        primaryCategoryId: true,
         _count: { select: { products: true, orderItems: true } },
         bankAccounts: {
           where: { deletedAt: null },
@@ -57,6 +60,10 @@ export const GET = withApiHandler(
             fileUrl: true,
             status: true,
           },
+        },
+        vendorDocuments: {
+          where: { deletedAt: null },
+          select: { documentName: true, documentUrl: true },
         },
       },
     });
@@ -143,6 +150,16 @@ export const GET = withApiHandler(
     const totalRevenue = revenueResult._sum.totalPrice ?? 0;
     const avgRating = avgRatingResult._avg.avgRating ?? null;
 
+    let gstNumber: string | undefined;
+    if (seller.profileExtras) {
+      try {
+        const extras = JSON.parse(seller.profileExtras) as { gstin?: string };
+        gstNumber = typeof extras?.gstin === "string" ? extras.gstin.trim() || undefined : undefined;
+      } catch {
+        // ignore
+      }
+    }
+
     const docLabels: Record<string, string> = {
       PAN: "PAN Card",
       GST_CERTIFICATE: "GST Certificate",
@@ -157,7 +174,9 @@ export const GET = withApiHandler(
         email: seller.email,
         phone: seller.phone ?? undefined,
         businessAddress: seller.businessAddress ?? undefined,
+        gstNumber,
         status: seller.status,
+        statusReason: seller.statusReason ?? undefined,
         createdAt: seller.createdAt.toISOString(),
       },
       stats: {
@@ -170,10 +189,7 @@ export const GET = withApiHandler(
         ? {
             bankName: bank.bankName,
             accountHolderName: bank.accountHolderName,
-            accountNumberMasked:
-              bank.accountNumber.length > 4
-                ? `**** **** **** ${bank.accountNumber.slice(-4)}`
-                : "****",
+            accountNumber: bank.accountNumber,
             ifscCode: bank.ifscCode,
           }
         : null,
@@ -183,6 +199,10 @@ export const GET = withApiHandler(
         identifier: d.identifier ?? undefined,
         fileUrl: d.fileUrl ?? undefined,
         status: d.status,
+      })),
+      vendorDocuments: (seller.vendorDocuments ?? []).map((d) => ({
+        documentName: d.documentName,
+        documentUrl: d.documentUrl,
       })),
       products: products.map((p) => ({
         id: p.id,

@@ -21,14 +21,16 @@ export function VendorRegisterPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [verificationLink, setVerificationLink] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setSuccess(false);
+    setVerificationLink(null);
     setLoading(true);
     try {
-      await authService.vendorRegister({
+      const data = await authService.vendorRegister({
         email,
         password,
         businessName: businessName.trim(),
@@ -36,8 +38,21 @@ export function VendorRegisterPage() {
         phone: phone.trim() || undefined,
       });
       setSuccess(true);
+      if (data.verificationLink) setVerificationLink(data.verificationLink);
     } catch (err) {
-      setError(err instanceof ServiceError ? err.message : "Registration failed");
+      if (err instanceof ServiceError) {
+        const msg = err.message;
+        const details = err.details as Record<string, string> | undefined;
+        const detailList =
+          details && typeof details === "object" && Object.keys(details).length > 0
+            ? Object.entries(details)
+                .map(([field, text]) => `${field}: ${text}`)
+                .join(". ")
+            : "";
+        setError(detailList ? `${msg}. ${detailList}` : msg);
+      } else {
+        setError("Registration failed");
+      }
     } finally {
       setLoading(false);
     }
@@ -62,8 +77,21 @@ export function VendorRegisterPage() {
           {success ? (
             <div className="space-y-4">
               <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-3">
-                Registration successful. Please check your email to verify your account. Click the link in the email, then you can log in.
+                {verificationLink
+                  ? "Registration successful. No email was sent (SMTP not configured). Use the link below to verify your email, then you can log in."
+                  : "Registration successful. Please check your email to verify your account. Click the link in the email, then you can log in."}
               </p>
+              {verificationLink && (
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <p className="text-xs font-medium text-gray-600 mb-2">Verification link (click or copy):</p>
+                  <a
+                    href={verificationLink}
+                    className="block text-sm text-blue-600 underline break-all hover:text-blue-800"
+                  >
+                    {verificationLink}
+                  </a>
+                </div>
+              )}
               <Link
                 href="/vendor/login"
                 className="block w-full py-3 bg-gray-700 text-white border-2 border-gray-800 hover:bg-gray-800 font-bold text-center"

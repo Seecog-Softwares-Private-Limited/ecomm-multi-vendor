@@ -203,6 +203,8 @@ export interface VendorProfileBusiness {
   state: string;
   pincode: string;
   pickupPincode: string;
+  storeLogo: string;
+  storeDescription: string;
 }
 
 export interface VendorProfileOwner {
@@ -228,11 +230,14 @@ export interface VendorProfileDocument {
 }
 
 export interface VendorProfileData {
-  status: "draft" | "submitted" | "approved" | "rejected" | "suspended";
+  status: "draft" | "submitted" | "approved" | "rejected" | "suspended" | "on_hold";
+  statusReason?: string | null;
+  primaryCategoryId?: string | null;
   business: VendorProfileBusiness;
   owner: VendorProfileOwner;
   bank: VendorProfileBank | null;
   documents: VendorProfileDocument[];
+  vendorDocuments?: { documentName: string; documentUrl: string }[];
 }
 
 export interface UpdateVendorProfilePayload {
@@ -240,6 +245,7 @@ export interface UpdateVendorProfilePayload {
   owner?: Partial<VendorProfileOwner>;
   bank?: Partial<Omit<VendorProfileBank, "bankProofUrl">>;
   status?: "draft" | "submitted";
+  primaryCategoryId?: string | null;
 }
 
 export interface VendorSupportTicketItem {
