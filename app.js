@@ -43,11 +43,13 @@ async function main() {
   await loadEnv();
 
   const mode = process.argv[2] === "start" ? "start" : "dev";
-  const child = spawn("npx", ["next", mode], {
+  const port = process.env.PORT || "3004";
+  const env = { ...process.env, FORCE_COLOR: "1", PORT: port };
+  const child = spawn("npx", ["next", mode, "-p", port], {
     stdio: "inherit",
     shell: true,
     cwd: root,
-    env: { ...process.env, FORCE_COLOR: "1" },
+    env,
   });
 
   child.on("exit", (code) => {
