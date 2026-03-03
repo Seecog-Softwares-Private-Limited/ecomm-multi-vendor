@@ -1,6 +1,6 @@
 "use client";
 
-import { Link } from "../../../components/Link";
+import { Link } from "../../components/Link";
 import { Lock, Eye, EyeOff } from "lucide-react";
 import * as React from "react";
 

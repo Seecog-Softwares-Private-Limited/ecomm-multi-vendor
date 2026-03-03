@@ -301,9 +301,10 @@ export function SellerManagement() {
                             <Link
                               href={`/admin/sellers/${seller.id}`}
                               className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition-colors hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600"
-                              title="View Details"
                             >
-                              <Eye className="h-4 w-4" />
+                              <span title="View Details">
+                                <Eye className="h-4 w-4" />
+                              </span>
                             </Link>
                             <button
                               type="button"

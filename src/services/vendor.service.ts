@@ -29,13 +29,6 @@ import type {
 const VENDOR_BASE = "/api/vendor";
 
 export const vendorService = {
-  /** List products for the logged-in vendor. */
-  async getProducts(): Promise<VendorProductListItem[]> {
-    return request<VendorProductListItem[]>(`${VENDOR_BASE}/products`, {
-      method: "GET",
-    });
-  },
-
   /** Get a single product for edit. */
   async getProduct(productId: string): Promise<VendorProductForEdit> {
     return request<VendorProductForEdit>(`${VENDOR_BASE}/products/${productId}`, {

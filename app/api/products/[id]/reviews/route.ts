@@ -28,6 +28,8 @@ export const GET = withApiHandler(async (request: NextRequest, context?: RouteCo
     return apiValidationError("Validation failed", queryParsed.details);
   }
 
-  const reviews = await getProductReviews(idParsed.data.id, queryParsed.data.limit);
+  const limit =
+    typeof queryParsed.data.limit === "number" ? queryParsed.data.limit : undefined;
+  const reviews = await getProductReviews(idParsed.data.id, limit);
   return apiSuccess(reviews);
 });

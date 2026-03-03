@@ -74,6 +74,7 @@ export const POST = withApiHandler(async (request: NextRequest) => {
     (url) => url.startsWith("http://") || url.startsWith("https://")
   );
 
+  const stock = typeof parsed.data.stock === "number" ? parsed.data.stock : Number(parsed.data.stock) || 0;
   const product = await prisma.product.create({
     data: {
       sellerId,
@@ -85,7 +86,7 @@ export const POST = withApiHandler(async (request: NextRequest) => {
       mrp: parsed.data.mrp,
       sellingPrice: parsed.data.sellingPrice,
       gstPercent: parsed.data.gstPercent ?? null,
-      stock: parsed.data.stock,
+      stock,
       returnPolicy,
       status,
       images: {
