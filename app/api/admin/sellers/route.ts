@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import type { Prisma } from "@prisma/client";
 import {
   withApiHandler,
   apiSuccess,
@@ -35,7 +36,7 @@ export const GET = withApiHandler(async (request: NextRequest) => {
   const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10) || 1);
   const pageSize = Math.min(50, Math.max(1, parseInt(searchParams.get("pageSize") ?? String(PAGE_SIZE), 10) || PAGE_SIZE));
 
-  const where: Parameters<typeof prisma.seller.findMany>[0]["where"] = {
+  const where: Prisma.SellerWhereInput = {
     deletedAt: null,
   };
 

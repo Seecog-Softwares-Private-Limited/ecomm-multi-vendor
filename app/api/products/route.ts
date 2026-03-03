@@ -21,11 +21,15 @@ export const GET = withApiHandler(async (request: NextRequest) => {
     return apiValidationError("Validation failed", parsed.details);
   }
 
+  const limit =
+    typeof parsed.data.limit === "number" ? parsed.data.limit : undefined;
+  const offset =
+    typeof parsed.data.offset === "number" ? parsed.data.offset : undefined;
   const products = await getProducts({
     categorySlug: parsed.data.categorySlug,
     subCategorySlug: parsed.data.subCategorySlug,
-    limit: parsed.data.limit,
-    offset: parsed.data.offset,
+    limit,
+    offset,
   });
 
   return apiSuccess(products);

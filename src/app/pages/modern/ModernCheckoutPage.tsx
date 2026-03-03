@@ -1,6 +1,6 @@
 "use client";
 
-import { Link } from "../../../components/Link";
+import { Link } from "../../components/Link";
 import { Search, ShoppingBag, User, Check, Plus, CreditCard, Smartphone } from "lucide-react";
 import * as React from "react";
 

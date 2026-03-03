@@ -281,7 +281,7 @@ export function PDFExportPage() {
 
       {/* Customer Pages */}
       <PageSection title="1. Homepage (Wireframe)">
-        <HomePage />
+        <HomePage categories={[]} products={[]} />
       </PageSection>
 
       <PageSection title="2. Homepage (Enhanced) ⭐ - Smart Search, Flash Sales, Recommendations">
@@ -309,7 +309,7 @@ export function PDFExportPage() {
       </PageSection>
 
       <PageSection title="8. Category Listing">
-        <CategoryListingPage />
+        <CategoryListingPage categoryName="" categorySlug="" products={[]} />
       </PageSection>
 
       <PageSection title="9. Sub-Category Listing">

@@ -110,9 +110,10 @@ export function OrdersManagement() {
                     <Link
                       href={`/admin/orders/${order.id.replace('#', '')}`}
                       className="inline-flex p-2 border-2 border-gray-400 hover:bg-gray-100"
-                      title="View Details"
                     >
-                      <Eye className="w-4 h-4 text-gray-700" />
+                      <span title="View Details">
+                        <Eye className="w-4 h-4 text-gray-700" />
+                      </span>
                     </Link>
                   </td>
                 </tr>

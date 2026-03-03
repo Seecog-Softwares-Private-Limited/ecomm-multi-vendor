@@ -10,16 +10,16 @@ import * as React from "react";
 
 const defaultProductImages = ["IMAGE 1", "IMAGE 2", "IMAGE 3", "IMAGE 4", "IMAGE 5"];
 const defaultReviews = [
-  { id: 1, user: "John D.", rating: 5, date: "2026-02-15", comment: "Excellent product! Works perfectly as described. Highly recommended.", verified: true, helpful: 45, images: 3 },
-  { id: 2, user: "Sarah M.", rating: 4, date: "2026-02-10", comment: "Good quality, fast delivery. Minor packaging issue but product is great.", verified: true, helpful: 23, images: 2 },
-  { id: 3, user: "Mike R.", rating: 5, date: "2026-02-05", comment: "Best purchase ever! Will buy again.", verified: true, helpful: 67, images: 0 },
-  { id: 4, user: "Emma W.", rating: 3, date: "2026-01-28", comment: "Product is okay, expected better quality for the price.", verified: false, helpful: 12, images: 1 },
+  { id: "1", user: "John D.", rating: 5, date: "2026-02-15", comment: "Excellent product! Works perfectly as described. Highly recommended.", verified: true, helpful: 45, images: 3 },
+  { id: "2", user: "Sarah M.", rating: 4, date: "2026-02-10", comment: "Good quality, fast delivery. Minor packaging issue but product is great.", verified: true, helpful: 23, images: 2 },
+  { id: "3", user: "Mike R.", rating: 5, date: "2026-02-05", comment: "Best purchase ever! Will buy again.", verified: true, helpful: 67, images: 0 },
+  { id: "4", user: "Emma W.", rating: 3, date: "2026-01-28", comment: "Product is okay, expected better quality for the price.", verified: false, helpful: 12, images: 1 },
 ];
 
 const defaultQuestions = [
-  { id: 1, question: "Is this product compatible with iPhone 15?", answer: "Yes, it works with all iPhone models from 12 onwards.", askedBy: "User123", answeredBy: "Seller", helpful: 34, date: "2026-02-12" },
-  { id: 2, question: "What is the warranty period?", answer: "This product comes with 1 year manufacturer warranty.", askedBy: "Buyer456", answeredBy: "Seller", helpful: 28, date: "2026-02-10" },
-  { id: 3, question: "Does it come with a charging cable?", answer: "Yes, USB-C cable included in the box.", askedBy: "Customer789", answeredBy: "Seller", helpful: 45, date: "2026-02-08" },
+  { id: "1", question: "Is this product compatible with iPhone 15?", answer: "Yes, it works with all iPhone models from 12 onwards.", askedBy: "User123", answeredBy: "Seller", helpful: 34, date: "2026-02-12" },
+  { id: "2", question: "What is the warranty period?", answer: "This product comes with 1 year manufacturer warranty.", askedBy: "Buyer456", answeredBy: "Seller", helpful: 28, date: "2026-02-10" },
+  { id: "3", question: "Does it come with a charging cable?", answer: "Yes, USB-C cable included in the box.", askedBy: "Customer789", answeredBy: "Seller", helpful: 45, date: "2026-02-08" },
 ];
 
 const defaultSpecifications = [

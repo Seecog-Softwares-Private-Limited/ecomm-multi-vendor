@@ -3,7 +3,7 @@
  * Centralized error handling and typed responses; used by all domain services.
  */
 
-import type { ApiErrorResponse, ApiSuccessResponse } from "@/lib/api/types";
+import type { ApiErrorResponse, ApiResponse, ApiSuccessResponse } from "@/lib/api/types";
 import { isApiError } from "@/lib/api/types";
 import { ServiceError } from "./errors";
 
@@ -54,8 +54,8 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
     throw new ServiceError(message, "NETWORK_ERROR", undefined, e);
   }
 
-  if (isApiError(json)) {
-    const { error } = json;
+  if (isApiError(json as ApiResponse<unknown>)) {
+    const { error } = json as ApiErrorResponse;
     throw new ServiceError(
       error.message,
       error.code,

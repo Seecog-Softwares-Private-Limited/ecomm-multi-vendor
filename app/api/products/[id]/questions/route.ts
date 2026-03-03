@@ -28,9 +28,8 @@ export const GET = withApiHandler(async (request: NextRequest, context?: RouteCo
     return apiValidationError("Validation failed", queryParsed.details);
   }
 
-  const questions = await getProductQuestions(
-    idParsed.data.id,
-    queryParsed.data.limit
-  );
+  const limit =
+    typeof queryParsed.data.limit === "number" ? queryParsed.data.limit : undefined;
+  const questions = await getProductQuestions(idParsed.data.id, limit);
   return apiSuccess(questions);
 });
