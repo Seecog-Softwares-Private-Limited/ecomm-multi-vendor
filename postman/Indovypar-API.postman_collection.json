@@ -1,11 +1,15 @@
 {
   "info": {
     "name": "Indovypar / MarketHub API",
-    "description": "API collection for Indovypar e-commerce multi-vendor platform. Use **Auth** requests first to get session cookie; **Vendor** endpoints require vendor login cookie.",
+    "description": "API collection for Indovypar e-commerce multi-vendor platform. Run **Vendor Login** first; the response token is saved to {{vendorToken}} and used as Bearer auth for all Vendor requests.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "baseUrl", "value": "http://localhost:3000" }
+    { "key": "baseUrl", "value": "http://localhost:3004" },
+    { "key": "vendorToken", "value": "" },
+    { "key": "customerUserId", "value": "" },
+    { "key": "shippingAddressId", "value": "" },
+    { "key": "productId", "value": "" }
   ],
   "item": [
     {
@@ -87,7 +91,21 @@
               "raw": "{\n  \"email\": \"vendor@example.com\",\n  \"password\": \"Vendor@123\"\n}"
             },
             "url": "{{baseUrl}}/api/auth/vendor-login",
-            "description": "Vendor login. Sets session cookie. Use before calling Vendor endpoints."
+            "description": "Vendor login. Response includes token; run this first so Vendor folder requests use Bearer {{vendorToken}}.",
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "exec": [
+                    "var json = pm.response.json();",
+                    "if (json.success && json.data && json.data.token) {",
+                    "  pm.collectionVariables.set('vendorToken', json.data.token);",
+                    "}"
+                  ],
+                  "type": "text/javascript"
+                }
+              }
+            ]
           }
         },
         {
@@ -162,7 +180,13 @@
     },
     {
       "name": "Vendor",
-      "description": "All endpoints require vendor session cookie (login via Vendor Login first).",
+      "description": "Run Vendor Login first. Token is saved to {{vendorToken}} and sent as Bearer auth.",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          { "key": "token", "value": "{{vendorToken}}", "type": "string" }
+        ]
+      },
       "item": [
         {
           "name": "Vendor Me (Session Check)",
@@ -189,6 +213,44 @@
             "header": [],
             "url": "{{baseUrl}}/api/vendor/orders?dateFrom=2025-01-01&dateTo=2025-12-31",
             "description": "List orders for vendor. Query: dateFrom, dateTo (YYYY-MM-DD)."
+          }
+        },
+        {
+          "name": "Get Create Order Test Data",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/vendor/orders/test-data",
+            "description": "Returns customerUserId, shippingAddressId, productId and saves them to collection variables. Run this first, then Create Order (uses {{customerUserId}}, etc.).",
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "exec": [
+                    "var json = pm.response.json();",
+                    "if (json.success && json.data) {",
+                    "  pm.collectionVariables.set('customerUserId', json.data.customerUserId);",
+                    "  pm.collectionVariables.set('shippingAddressId', json.data.shippingAddressId);",
+                    "  pm.collectionVariables.set('productId', json.data.productId);",
+                    "}"
+                  ],
+                  "type": "text/javascript"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "Create Order",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerUserId\": \"{{customerUserId}}\",\n  \"shippingAddressId\": \"{{shippingAddressId}}\",\n  \"items\": [\n    { \"productId\": \"{{productId}}\", \"quantity\": 1 }\n  ]\n}"
+            },
+            "url": "{{baseUrl}}/api/vendor/orders",
+            "description": "Create a test order. Run Get Create Order Test Data first so {{customerUserId}}, {{shippingAddressId}}, {{productId}} are set."
           }
         },
         {

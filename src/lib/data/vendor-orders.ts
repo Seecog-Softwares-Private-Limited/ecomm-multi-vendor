@@ -1,3 +1,4 @@
+import { OrderStatus, PaymentMode, PaymentStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 const toNumber = (v: unknown): number =>
@@ -189,4 +190,144 @@ export async function getVendorOrdersBySellerId(
 
   list.sort((a, b) => b.date.localeCompare(a.date));
   return list;
+}
+
+/**
+ * Get IDs needed for Create Order (testing): one customer with an address, and one ACTIVE product for this vendor.
+ * Returns null if no user with address exists or vendor has no ACTIVE product.
+ */
+export async function getCreateOrderTestData(sellerId: string): Promise<{
+  customerUserId: string;
+  shippingAddressId: string;
+  productId: string;
+  productName: string;
+  customerEmail: string;
+} | null> {
+  const address = await prisma.address.findFirst({
+    where: { deletedAt: null },
+    select: { id: true, userId: true, user: { select: { email: true } } },
+  });
+  if (!address) return null;
+
+  const product = await prisma.product.findFirst({
+    where: { sellerId, status: "ACTIVE", deletedAt: null },
+    select: { id: true, name: true },
+  });
+  if (!product) return null;
+
+  return {
+    customerUserId: address.userId,
+    shippingAddressId: address.id,
+    productId: product.id,
+    productName: product.name,
+    customerEmail: address.user.email,
+  };
+}
+
+/** Input for creating a test order (vendor creates order for a customer). */
+export interface CreateVendorOrderInput {
+  customerUserId: string;
+  shippingAddressId: string;
+  items: { productId: string; quantity: number }[];
+}
+
+/**
+ * Create an order as the logged-in vendor (for testing). All products must belong to this vendor.
+ * Creates Order, OrderItems, and a single Payment (PAID). Customer must exist and address must belong to them.
+ */
+export async function createVendorOrder(
+  sellerId: string,
+  input: CreateVendorOrderInput
+): Promise<{ orderId: string; totalAmount: number }> {
+  const { customerUserId, shippingAddressId, items } = input;
+  if (!items.length) {
+    throw new Error("At least one item is required");
+  }
+
+  const address = await prisma.address.findFirst({
+    where: { id: shippingAddressId, userId: customerUserId, deletedAt: null },
+  });
+  if (!address) {
+    throw new Error("Shipping address not found or does not belong to customer");
+  }
+
+  const productIds = [...new Set(items.map((i) => i.productId))];
+  const products = await prisma.product.findMany({
+    where: {
+      id: { in: productIds },
+      sellerId,
+      status: "ACTIVE",
+      deletedAt: null,
+    },
+    select: { id: true, sellingPrice: true, sku: true },
+  });
+  const productMap = new Map(products.map((p) => [p.id, p]));
+  if (productMap.size !== productIds.length) {
+    const missing = productIds.filter((id) => !productMap.has(id));
+    throw new Error(`Product(s) not found or not yours or not active: ${missing.join(", ")}`);
+  }
+
+  let totalAmount = 0;
+  const orderItemsData: { productId: string; quantity: number; unitPrice: number; totalPrice: number; sku: string | null }[] = [];
+  for (const { productId, quantity } of items) {
+    if (quantity < 1) throw new Error(`Invalid quantity for product ${productId}`);
+    const product = productMap.get(productId)!;
+    const unitPrice = toNumber(product.sellingPrice);
+    const totalPrice = unitPrice * quantity;
+    totalAmount += totalPrice;
+    orderItemsData.push({
+      productId,
+      quantity,
+      unitPrice,
+      totalPrice,
+      sku: product.sku,
+    });
+  }
+
+  const result = await prisma.$transaction(async (tx) => {
+    const order = await tx.order.create({
+      data: {
+        userId: customerUserId,
+        shippingAddressId,
+        status: OrderStatus.PAYMENT_CONFIRMED,
+        totalAmount,
+        discountAmount: 0,
+        taxAmount: 0,
+        shippingAmount: 0,
+      },
+      select: { id: true },
+    });
+
+    for (const item of orderItemsData) {
+      await tx.orderItem.create({
+        data: {
+          orderId: order.id,
+          productId: item.productId,
+          sellerId,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          totalPrice: item.totalPrice,
+          sku: item.sku,
+        },
+      });
+    }
+
+    await tx.payment.create({
+      data: {
+        orderId: order.id,
+        mode: PaymentMode.PREPAID,
+        status: PaymentStatus.PAID,
+        amount: totalAmount,
+        paidAt: new Date(),
+      },
+    });
+
+    await tx.orderStatusEvent.create({
+      data: { orderId: order.id, status: OrderStatus.PAYMENT_CONFIRMED },
+    });
+
+    return { orderId: order.id, totalAmount };
+  });
+
+  return result;
 }

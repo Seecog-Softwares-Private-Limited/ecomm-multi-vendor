@@ -8,6 +8,7 @@ const EMAILS = [
   "lakshyaagrawal010@gmail.com",
   "agrawallakshya010@gmail.com",
   "lakshya@seecogsoftwares.com",
+  "agiamallakshya@010@gmail.com",
 ];
 
 async function main() {

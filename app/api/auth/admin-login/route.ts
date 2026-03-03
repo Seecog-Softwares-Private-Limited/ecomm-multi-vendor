@@ -69,6 +69,7 @@ export const POST = withApiHandler(async (request: NextRequest) => {
       name: admin.name,
       role: "ADMIN",
     },
+    token, // For API clients (e.g. Postman): use as Authorization: Bearer <token>
   });
 
   setAuthCookie(response, token);

@@ -45,3 +45,13 @@ export function getTokenFromCookie(cookieHeader: string | null): string | null {
   const value = cookies[authConfig.cookieName];
   return value && value.length > 0 ? value : null;
 }
+
+/**
+ * Read the auth token from the Authorization header (Bearer <token>).
+ * Returns null if missing or not a Bearer token.
+ */
+export function getTokenFromBearer(authHeader: string | null): string | null {
+  if (!authHeader || !authHeader.startsWith("Bearer ")) return null;
+  const token = authHeader.slice(7).trim();
+  return token.length > 0 ? token : null;
+}
