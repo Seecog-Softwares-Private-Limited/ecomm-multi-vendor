@@ -10,7 +10,9 @@ import { requireSession } from "@/lib/auth";
 import { getVendorProfile, updateVendorProfile } from "@/lib/data/vendor-profile";
 import { prisma } from "@/lib/prisma";
 import {
-  isProfileComplete,
+  isBusinessInfoComplete,
+  isKycDetailsComplete,
+  isBankDetailsComplete,
   isCategoryDocumentsComplete,
   profileToValidationShape,
 } from "@/lib/utils/vendorValidation";
@@ -18,7 +20,7 @@ import {
 /**
  * POST /api/vendor/submit-for-approval
  * Validates that all required profile fields and required category documents are complete, then sets vendor status to SUBMITTED.
- * Returns 400 if any required field or document is missing (backend safety check).
+ * Returns 400 with a specific list of missing sections if validation fails.
  */
 export const POST = withApiHandler(async (request: NextRequest) => {
   const session = await requireSession(request);
@@ -38,11 +40,14 @@ export const POST = withApiHandler(async (request: NextRequest) => {
   });
 
   const gstNotApplicable = profile.business?.gstNotApplicable === true;
-  if (!isProfileComplete(validationShape, gstNotApplicable)) {
-    return apiBadRequest(
-      "All required fields in every tab must be completed before submitting for approval. Please complete Business Info, KYC Details, and Bank Details."
-    );
-  }
+  const businessComplete = isBusinessInfoComplete(validationShape, gstNotApplicable);
+  const kycComplete = isKycDetailsComplete(validationShape, gstNotApplicable);
+  const bankComplete = isBankDetailsComplete(validationShape);
+
+  const missing: string[] = [];
+  if (!businessComplete) missing.push("Business Info (business name, PAN, and GST number or mark GST not applicable)");
+  if (!kycComplete) missing.push("KYC Details (upload PAN card and GST certificate, or mark GST not applicable)");
+  if (!bankComplete) missing.push("Bank Details (account holder name, account number, IFSC)");
 
   if (profile.primaryCategoryId) {
     const requiredDocs = await prisma.categoryDocumentRequirement.findMany({
@@ -52,10 +57,23 @@ export const POST = withApiHandler(async (request: NextRequest) => {
     const requiredNames = requiredDocs.map((r) => r.documentName);
     const uploadedNames = (profile.vendorDocuments ?? []).map((d) => d.documentName);
     if (!isCategoryDocumentsComplete(requiredNames, uploadedNames)) {
-      return apiBadRequest(
-        "Upload all required additional documents for your category in KYC Details before submitting for approval."
+      const missingDocs = requiredNames.filter(
+        (n) => !uploadedNames.some((u) => u.trim().toLowerCase() === n.trim().toLowerCase())
+      );
+      missing.push(
+        missingDocs.length > 0
+          ? `Category documents: upload required "${missingDocs.join('", "')}" in KYC Details`
+          : "Category documents: upload all required documents for your primary category in KYC Details"
       );
     }
+  }
+
+  if (missing.length > 0) {
+    const message =
+      "Complete the following before submitting: " +
+      missing.join(". ") +
+      ".";
+    return apiBadRequest(message, { missing });
   }
 
   await updateVendorProfile(sellerId, { status: "submitted" });

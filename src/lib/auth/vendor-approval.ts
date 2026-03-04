@@ -62,9 +62,11 @@ export async function requireVendorApproved(
 /**
  * Get vendor status for display (e.g. /api/vendor/me, status screen).
  * Does not throw; returns status and reason. Use when you need to show status to unapproved vendors.
+ * rawStatus (DRAFT, SUBMITTED, etc.) lets the frontend show "Complete profile & KYC" for DRAFT vs "Under review" for SUBMITTED.
  */
 export async function getVendorStatus(sellerId: string): Promise<{
   status: VendorStatusDisplay;
+  rawStatus: string;
   statusReason: string | null;
   businessName: string | null;
   emailVerified: boolean;
@@ -76,6 +78,7 @@ export async function getVendorStatus(sellerId: string): Promise<{
   if (!seller) return null;
   return {
     status: toVendorStatusDisplay(seller.status),
+    rawStatus: seller.status,
     statusReason: seller.statusReason ?? null,
     businessName: seller.businessName ?? null,
     emailVerified: seller.emailVerified ?? false,

@@ -20,6 +20,8 @@ const VENDOR_LOGIN_PATH = "/vendor/login";
 
 export type VendorStatusCardProps = {
   status: VendorStatusDisplay;
+  /** Raw DB status (e.g. DRAFT, SUBMITTED) so we can prompt "Complete profile & KYC" for new vendors. */
+  rawStatus?: string | null;
   statusReason?: string | null;
   businessName?: string | null;
 };
@@ -29,6 +31,7 @@ const STATUS_CONFIG: Record<
   {
     label: string;
     message: string;
+    messageDraft?: string;
     Icon: LucideIcon;
     accent: string;
     badge: string;
@@ -45,7 +48,10 @@ const STATUS_CONFIG: Record<
   },
   under_review: {
     label: "Under Review",
-    message: "Your profile is under review by admin. We'll notify you once it's processed.",
+    message:
+      "Your application is under review by our team. We will notify you once the verification is complete.",
+    messageDraft:
+      "To get your account approved, please complete your business profile, KYC documents, and any other required information. You can do this in your profile.",
     Icon: FileSearch,
     accent: "from-amber-500 to-yellow-500",
     badge: "bg-amber-500/10 text-amber-800 border border-amber-500/20",
@@ -87,11 +93,18 @@ const STATUS_CONFIG: Record<
 
 export function VendorStatusCard({
   status,
+  rawStatus,
   statusReason,
   businessName,
 }: VendorStatusCardProps) {
   const router = useRouter();
   const config = STATUS_CONFIG[status] ?? STATUS_CONFIG.pending_verification;
+  const isDraft = rawStatus === "DRAFT";
+  const underReviewNeedsCompletion = status === "under_review" && isDraft;
+  const message =
+    status === "under_review" && isDraft && config.messageDraft
+      ? config.messageDraft
+      : config.message;
   const showReason = statusReason && statusReason.trim().length > 0;
   const showContactSupport = status === "rejected" || status === "blocked";
   const Icon = config.Icon;
@@ -150,12 +163,12 @@ export function VendorStatusCard({
               className={`mt-5 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold ${config.badge}`}
             >
               <span className="h-2 w-2 rounded-full bg-current opacity-70" />
-              {config.label}
+              {underReviewNeedsCompletion ? "Action required" : config.label}
             </div>
 
             {/* Message */}
             <p className="mt-5 text-[15px] leading-relaxed text-slate-600">
-              {config.message}
+              {message}
             </p>
 
             {/* Reason block */}
@@ -181,12 +194,23 @@ export function VendorStatusCard({
                 </a>
               )}
               {(status === "under_review" || status === "on_hold") && (
-                <a
-                  href="/vendor/profile"
-                  className={`${btnBase} ${btnSecondary}`}
-                >
-                  View Profile
-                </a>
+                <>
+                  {underReviewNeedsCompletion ? (
+                    <a
+                      href="/vendor/profile"
+                      className={`${btnBase} ${btnPrimary}`}
+                    >
+                      Complete profile &amp; KYC
+                    </a>
+                  ) : (
+                    <a
+                      href="/vendor/profile"
+                      className={`${btnBase} ${btnSecondary}`}
+                    >
+                      View profile
+                    </a>
+                  )}
+                </>
               )}
               {showContactSupport && (
                 <button
@@ -212,7 +236,9 @@ export function VendorStatusCard({
 
         {/* Subtle helper text */}
         <p className="mt-6 text-center text-xs text-slate-400">
-          Need help? Visit your profile or contact support.
+          {underReviewNeedsCompletion
+            ? "Complete all required sections in your profile to submit for verification."
+            : "Need help? Visit your profile or contact support."}
         </p>
       </div>
     </div>
