@@ -1,18 +1,29 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Link } from "../../components/Link";
-import { User, Lock, Store, Building2, UserCircle, Phone } from "lucide-react";
+import {
+  Mail,
+  Lock,
+  Store,
+  Building2,
+  UserCircle,
+  Phone,
+  CheckCircle2,
+  ArrowRight,
+} from "lucide-react";
 import { authService } from "@/services/auth.service";
 import { ServiceError } from "@/services/errors";
+
+const inputBase =
+  "block w-full rounded-xl border border-slate-200 bg-slate-50/50 py-3 pl-12 pr-4 text-slate-900 placeholder:text-slate-400 transition focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20";
+const iconWrap = "pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4";
 
 /**
  * Vendor registration page at /vendor/register.
  * Submits to POST /api/auth/vendor-register and redirects to /vendor on success.
  */
 export function VendorRegisterPage() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [businessName, setBusinessName] = useState("");
@@ -59,172 +70,241 @@ export function VendorRegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-      <div className="max-w-md w-full">
-        <div className="text-center mb-8">
-          <div className="w-20 h-20 bg-gray-700 border-2 border-gray-800 flex items-center justify-center mx-auto mb-4">
-            <Store className="w-10 h-10 text-white" />
+    <div className="min-h-screen flex">
+      {/* Left panel — brand (hidden on small screens) */}
+      <div className="hidden lg:flex lg:w-[44%] xl:w-[48%] flex-col justify-between bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 p-10 xl:p-14">
+        <div>
+          <div className="flex items-center gap-3 text-white/95">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/10 backdrop-blur-sm">
+              <Store className="h-6 w-6" />
+            </div>
+            <span className="text-lg font-semibold tracking-tight">Vendor Center</span>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">
-            MarketHub Vendor Center
-          </h1>
-          <p className="text-sm text-gray-700">Create your vendor account</p>
         </div>
+        <div className="space-y-6">
+          <blockquote className="text-slate-300 text-lg xl:text-xl leading-relaxed max-w-sm">
+            “Join thousands of sellers. List products, get orders, and get paid—all from one dashboard.”
+          </blockquote>
+          <div className="flex gap-4">
+            <div className="h-1 w-12 rounded-full bg-indigo-400" />
+            <div className="h-1 w-12 rounded-full bg-white/20" />
+            <div className="h-1 w-12 rounded-full bg-white/10" />
+          </div>
+        </div>
+        <p className="text-sm text-slate-500">© Vendor Center</p>
+      </div>
 
-        <div className="bg-white border-2 border-gray-400 p-6 md:p-8">
-          <h2 className="text-xl font-bold text-gray-900 mb-6">Register as Vendor</h2>
+      {/* Right panel — form */}
+      <div className="flex flex-1 flex-col items-center justify-center px-4 py-12 sm:px-6 lg:px-10 bg-slate-50/80 overflow-y-auto">
+        <div className="w-full max-w-[420px] my-8">
+          {/* Mobile logo */}
+          <div className="lg:hidden flex flex-col items-center text-center mb-8">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-900 text-white shadow-lg mb-4">
+              <Store className="h-7 w-7" />
+            </div>
+            <h1 className="text-xl font-semibold text-slate-900">Vendor Center</h1>
+            <p className="mt-1 text-sm text-slate-500">Create your vendor account</p>
+          </div>
 
-          {success ? (
-            <div className="space-y-4">
-              <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-3">
-                {verificationLink
-                  ? "Registration successful. No email was sent (SMTP not configured). Use the link below to verify your email, then you can log in."
-                  : "Registration successful. Please check your email to verify your account. Click the link in the email, then you can log in."}
-              </p>
-              {verificationLink && (
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                  <p className="text-xs font-medium text-gray-600 mb-2">Verification link (click or copy):</p>
-                  <a
-                    href={verificationLink}
-                    className="block text-sm text-blue-600 underline break-all hover:text-blue-800"
-                  >
-                    {verificationLink}
-                  </a>
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-8 shadow-xl shadow-slate-200/50">
+            {success ? (
+              <div className="space-y-6">
+                <div className="flex flex-col items-center text-center">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 mb-4">
+                    <CheckCircle2 className="h-8 w-8" />
+                  </div>
+                  <h2 className="text-xl font-semibold text-slate-900">You’re all set</h2>
+                  <p className="mt-2 text-sm text-slate-600 max-w-sm">
+                    {verificationLink
+                      ? "No email was sent (SMTP not configured). Use the link below to verify your email, then sign in."
+                      : "Check your email and click the verification link to activate your account, then sign in."}
+                  </p>
                 </div>
-              )}
-              <Link
-                href="/vendor/login"
-                className="block w-full py-3 bg-gray-700 text-white border-2 border-gray-800 hover:bg-gray-800 font-bold text-center"
-              >
-                Go to login
-              </Link>
-            </div>
-          ) : (
-          <form className="space-y-4" onSubmit={handleSubmit}>
-            {error && (
-              <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-                {error}
-              </p>
+                {verificationLink && (
+                  <div className="rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3">
+                    <p className="text-xs font-medium text-slate-500 mb-2">Verification link (click or copy)</p>
+                    <a
+                      href={verificationLink}
+                      className="block text-sm text-indigo-600 hover:text-indigo-700 break-all transition"
+                    >
+                      {verificationLink}
+                    </a>
+                  </div>
+                )}
+                <Link
+                  href="/vendor/login"
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 py-3.5 text-sm font-semibold text-white shadow-lg shadow-slate-900/25 transition hover:bg-slate-800"
+                >
+                  Go to sign in
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </div>
+            ) : (
+              <>
+                <div className="mb-8">
+                  <h2 className="text-2xl font-semibold tracking-tight text-slate-900">
+                    Create account
+                  </h2>
+                  <p className="mt-1.5 text-sm text-slate-500">
+                    Fill in your details to register as a vendor
+                  </p>
+                </div>
+
+                <form className="space-y-5" onSubmit={handleSubmit}>
+                  {error && (
+                    <div
+                      className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 ring-1 ring-red-200/80"
+                      role="alert"
+                    >
+                      {error}
+                    </div>
+                  )}
+
+                  <div>
+                    <label htmlFor="reg-email" className="block text-sm font-medium text-slate-700 mb-1.5">
+                      Email address
+                    </label>
+                    <div className="relative">
+                      <div className={iconWrap}>
+                        <Mail className="h-5 w-5 text-slate-400" />
+                      </div>
+                      <input
+                        id="reg-email"
+                        type="email"
+                        autoComplete="email"
+                        placeholder="you@company.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                        className={inputBase}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="reg-password" className="block text-sm font-medium text-slate-700 mb-1.5">
+                      Password
+                    </label>
+                    <div className="relative">
+                      <div className={iconWrap}>
+                        <Lock className="h-5 w-5 text-slate-400" />
+                      </div>
+                      <input
+                        id="reg-password"
+                        type="password"
+                        autoComplete="new-password"
+                        placeholder="••••••••"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                        minLength={8}
+                        className={inputBase}
+                      />
+                    </div>
+                    <p className="mt-1.5 text-xs text-slate-500">
+                      Min 8 characters, with uppercase, lowercase and a number
+                    </p>
+                  </div>
+
+                  <div>
+                    <label htmlFor="reg-business" className="block text-sm font-medium text-slate-700 mb-1.5">
+                      Business name
+                    </label>
+                    <div className="relative">
+                      <div className={iconWrap}>
+                        <Building2 className="h-5 w-5 text-slate-400" />
+                      </div>
+                      <input
+                        id="reg-business"
+                        type="text"
+                        autoComplete="organization"
+                        placeholder="Your store name"
+                        value={businessName}
+                        onChange={(e) => setBusinessName(e.target.value)}
+                        required
+                        className={inputBase}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="reg-owner" className="block text-sm font-medium text-slate-700 mb-1.5">
+                      Owner / contact name
+                    </label>
+                    <div className="relative">
+                      <div className={iconWrap}>
+                        <UserCircle className="h-5 w-5 text-slate-400" />
+                      </div>
+                      <input
+                        id="reg-owner"
+                        type="text"
+                        autoComplete="name"
+                        placeholder="Full name"
+                        value={ownerName}
+                        onChange={(e) => setOwnerName(e.target.value)}
+                        required
+                        className={inputBase}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="reg-phone" className="block text-sm font-medium text-slate-700 mb-1.5">
+                      Phone <span className="font-normal text-slate-400">(optional)</span>
+                    </label>
+                    <div className="relative">
+                      <div className={iconWrap}>
+                        <Phone className="h-5 w-5 text-slate-400" />
+                      </div>
+                      <input
+                        id="reg-phone"
+                        type="tel"
+                        autoComplete="tel"
+                        placeholder="10-digit mobile"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        className={inputBase}
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 py-3.5 text-sm font-semibold text-white shadow-lg shadow-slate-900/25 transition hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-60"
+                  >
+                    {loading ? (
+                      <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    ) : (
+                      <>
+                        Create vendor account
+                        <ArrowRight className="h-4 w-4" />
+                      </>
+                    )}
+                  </button>
+                </form>
+
+                <div className="mt-8 pt-6 border-t border-slate-100 text-center">
+                  <p className="text-sm text-slate-600">
+                    Already have an account?{" "}
+                    <Link
+                      href="/vendor/login"
+                      className="font-semibold text-indigo-600 hover:text-indigo-700 transition"
+                    >
+                      Sign in
+                    </Link>
+                  </p>
+                </div>
+              </>
             )}
-            <div>
-              <label className="block text-sm font-bold text-gray-900 mb-2">
-                Email Address
-              </label>
-              <div className="relative">
-                <input
-                  type="email"
-                  placeholder="vendor@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  className="w-full pl-12 pr-4 py-3 border-2 border-gray-400 bg-gray-100 focus:outline-none focus:border-gray-600"
-                />
-                <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-600" />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-bold text-gray-900 mb-2">
-                Password
-              </label>
-              <div className="relative">
-                <input
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  minLength={8}
-                  className="w-full pl-12 pr-4 py-3 border-2 border-gray-400 bg-gray-100 focus:outline-none focus:border-gray-600"
-                />
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-600" />
-              </div>
-              <p className="text-xs text-gray-600 mt-1">
-                Min 8 characters, with uppercase, lowercase and a number
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-bold text-gray-900 mb-2">
-                Business Name
-              </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Your Store Name"
-                  value={businessName}
-                  onChange={(e) => setBusinessName(e.target.value)}
-                  required
-                  className="w-full pl-12 pr-4 py-3 border-2 border-gray-400 bg-gray-100 focus:outline-none focus:border-gray-600"
-                />
-                <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-600" />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-bold text-gray-900 mb-2">
-                Owner / Contact Name
-              </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Full name"
-                  value={ownerName}
-                  onChange={(e) => setOwnerName(e.target.value)}
-                  required
-                  className="w-full pl-12 pr-4 py-3 border-2 border-gray-400 bg-gray-100 focus:outline-none focus:border-gray-600"
-                />
-                <UserCircle className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-600" />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-bold text-gray-900 mb-2">
-                Phone <span className="font-normal text-gray-500">(optional)</span>
-              </label>
-              <div className="relative">
-                <input
-                  type="tel"
-                  placeholder="10-digit mobile"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 border-2 border-gray-400 bg-gray-100 focus:outline-none focus:border-gray-600"
-                />
-                <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-600" />
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="block w-full py-3 bg-gray-700 text-white border-2 border-gray-800 hover:bg-gray-800 font-bold text-center disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? "Creating account…" : "Register as Vendor"}
-            </button>
-          </form>
-          )}
-
-          <div className="mt-6 pt-6 border-t-2 border-gray-300 text-center">
-            <p className="text-sm text-gray-700">
-              Already have an account?{" "}
-              <Link
-                href="/vendor/login"
-                className="font-bold text-gray-900 underline hover:text-gray-700"
-              >
-                Login to Vendor Center
-              </Link>
-            </p>
           </div>
-        </div>
 
-        <div className="mt-6 text-center">
-          <p className="text-sm text-gray-700">
-            Are you a customer?{" "}
+          <p className="mt-8 text-center">
             <Link
               href="/login"
-              className="font-bold text-gray-900 underline hover:text-gray-700"
+              className="text-sm text-slate-500 hover:text-slate-700 transition"
             >
-              Customer Login
+              Are you a customer? Sign in here
             </Link>
           </p>
         </div>

@@ -24,11 +24,17 @@ import type {
   VendorSupportTicketItem,
   SubmitSupportTicketPayload,
   VendorDashboardSummary,
+  VendorMeResponse,
 } from "./types/vendor.types";
 
 const VENDOR_BASE = "/api/vendor";
 
 export const vendorService = {
+  /** Current vendor session and status (for onboarding lock UI). */
+  async getMe(): Promise<VendorMeResponse> {
+    return request<VendorMeResponse>(`${VENDOR_BASE}/me`, { method: "GET" });
+  },
+
   /** Get a single product for edit. */
   async getProduct(productId: string): Promise<VendorProductForEdit> {
     return request<VendorProductForEdit>(`${VENDOR_BASE}/products/${productId}`, {

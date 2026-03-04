@@ -99,10 +99,10 @@ function parseProfileExtras(raw: string | null): ProfileExtras {
 function mapSellerStatus(s: string): VendorProfileData["status"] {
   switch (s) {
     case "DRAFT":
-      return "draft";
     case "PENDING_VERIFICATION":
-    case "SUBMITTED":
     case "UNDER_REVIEW":
+      return "draft";
+    case "SUBMITTED":
       return "submitted";
     case "APPROVED":
       return "approved";

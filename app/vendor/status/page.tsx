@@ -12,6 +12,7 @@ type MeResponse = {
   email: string;
   role: string;
   status: VendorStatusDisplay;
+  rawStatus: string | null;
   statusReason: string | null;
   businessName: string | null;
 };
@@ -67,6 +68,7 @@ export default function VendorStatusPage() {
     <div className="min-h-screen bg-gradient-to-b from-slate-50/80 via-white to-slate-50/50">
       <VendorStatusCard
         status={data.status}
+        rawStatus={data.rawStatus}
         statusReason={data.statusReason}
         businessName={data.businessName}
       />

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { CheckCircle, XCircle, Loader2 } from "lucide-react";
 
@@ -11,8 +11,10 @@ type Result = { state: State; message?: string };
 /**
  * Vendor email verification page at /vendor/verify?token=...
  * Calls GET /api/auth/verify-email?token=... and shows success or error.
+ * If user is already logged in and verified, redirects to dashboard so they don't see "Go to login" after signing in.
  */
 export function VendorVerifyPage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const [result, setResult] = useState<Result>({ state: "loading" });
 
@@ -26,6 +28,11 @@ export function VendorVerifyPage() {
           const res = await fetch(`/api/auth/verify-email?token=${encodeURIComponent(token)}`, { credentials: "include" });
           const json = await res.json();
           if (res.ok && json?.success) {
+            const meRes = await fetch("/api/vendor/me", { credentials: "include" });
+            if (meRes.ok && (await meRes.json())?.data?.emailVerified) {
+              router.replace("/vendor");
+              return;
+            }
             setResult({
               state: "success",
               message: json?.data?.message ?? "Email verified. Awaiting admin approval.",
@@ -34,16 +41,13 @@ export function VendorVerifyPage() {
             const meRes = await fetch("/api/vendor/me", { credentials: "include" });
             const meJson = await meRes.json();
             if (meRes.ok && meJson?.success && meJson?.data?.emailVerified) {
-              setResult({
-                state: "success",
-                message: "Your email is already verified. You can log in and complete your profile.",
-              });
-            } else {
-              setResult({
-                state: "error",
-                message: json?.error?.message ?? "Invalid or expired verification link. Please request a new one or register again.",
-              });
+              router.replace("/vendor");
+              return;
             }
+            setResult({
+              state: "error",
+              message: json?.error?.message ?? "Invalid or expired verification link. Please request a new one or register again.",
+            });
           }
         } catch {
           setResult({
@@ -59,16 +63,13 @@ export function VendorVerifyPage() {
         const res = await fetch("/api/vendor/me", { credentials: "include" });
         const json = await res.json();
         if (res.ok && json?.success && json?.data?.emailVerified) {
-          setResult({
-            state: "success",
-            message: "Your email is already verified. You can log in and complete your profile.",
-          });
-        } else {
-          setResult({
-            state: "error",
-            message: "Missing verification link. Please use the link from your email. If you already verified, go to login.",
-          });
+          router.replace("/vendor");
+          return;
         }
+        setResult({
+          state: "error",
+          message: "Missing verification link. Please use the link from your email. If you already verified, go to login.",
+        });
       } catch {
         setResult({
           state: "error",
@@ -78,7 +79,7 @@ export function VendorVerifyPage() {
     };
 
     run();
-  }, [searchParams]);
+  }, [searchParams, router]);
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-slate-50 p-4">
