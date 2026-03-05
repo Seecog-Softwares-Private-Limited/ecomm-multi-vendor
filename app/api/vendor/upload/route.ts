@@ -13,7 +13,7 @@ const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 const MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
 
 function getBaseUrl(request: NextRequest): string {
-  const host = request.headers.get("host") || "localhost:3000";
+  const host = request.headers.get("host") || "localhost:3004";
   const proto = request.headers.get("x-forwarded-proto") || "http";
   return `${proto === "https" ? "https" : "http"}://${host}`;
 }

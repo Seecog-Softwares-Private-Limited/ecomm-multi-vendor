@@ -21,7 +21,7 @@ const MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
 const KYC_TYPES = ["PAN", "GST_CERTIFICATE", "ADDRESS_PROOF"] as const;
 
 function getBaseUrl(request: NextRequest): string {
-  const host = request.headers.get("host") || "localhost:3000";
+  const host = request.headers.get("host") || "localhost:3004";
   const proto = request.headers.get("x-forwarded-proto") || "http";
   return `${proto === "https" ? "https" : "http"}://${host}`;
 }

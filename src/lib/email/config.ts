@@ -30,8 +30,8 @@ export const emailConfig = {
   get from(): string {
     return getEnv("SMTP_FROM") || getEnv("SMTP_USER") || "noreply@localhost";
   },
-  /** Base URL for links in emails (e.g. https://yourdomain.com, http://localhost:3000) */
-  appUrl: getEnv("APP_URL") || "http://localhost:3000",
+  /** Base URL for links in emails (e.g. https://yourdomain.com, http://localhost:3004) */
+  appUrl: getEnv("APP_URL") || "http://localhost:3004",
   /** If true, email sending is enabled. Requires host and (pass or no user). */
   get enabled(): boolean {
     const host = getSmtpHost();
