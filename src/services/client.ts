@@ -12,7 +12,7 @@ export function getBaseUrl(): string {
   const explicit = process.env.NEXT_PUBLIC_APP_URL;
   if (explicit) return explicit;
   const vercel = process.env.VERCEL_URL;
-  return vercel ? `https://${vercel}` : "http://localhost:3000";
+  return vercel ? `https://${vercel}` : "http://localhost:3004";
 }
 
 export type RequestMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
