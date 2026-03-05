@@ -13,7 +13,7 @@ This is a code bundle for E-commerce Website Wireframes. The original project is
    - Copy `.env.example` to `.env` (or create `.env` with the same variables).
    - Set `DATABASE_URL` to your database connection string.
    - Set `JWT_SECRET` (required for auth).
-   - For vendor verification emails: set `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, and optionally `SMTP_FROM` and `APP_URL`. If SMTP is not set, registration still works but the verification link is shown on the success page (dev only).
+   - For **vendor verification** and **forgot-password** emails: set `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, and optionally `SMTP_FROM` and `APP_URL`. If SMTP is not set, emails are not sent; in development the app may show a reset link on the forgot-password success page so you can still test.
 
 3. **Run database migrations**
    ```bash
@@ -38,6 +38,23 @@ This is a code bundle for E-commerce Website Wireframes. The original project is
 
 - Run `npm i` to install the dependencies.
 - Run `npm run dev` to start the development server.
+
+## Deploying / Updating the server
+
+After pulling new code (e.g. to a server like `13.234.232.60`), you **must** rebuild and restart so new routes (e.g. `/vendor/forgot-password`) are available. Otherwise you may get **404** for new pages.
+
+On the server, from the project root:
+
+```bash
+npm ci          # or: npm install
+npm run build
+npx prisma migrate deploy   # if schema changed
+# Then restart your process, e.g.:
+# pm2 restart all
+# or: systemctl restart your-app
+```
+
+Until the server runs a build that includes the new code, new routes will return 404.
 
 ## API documentation
 

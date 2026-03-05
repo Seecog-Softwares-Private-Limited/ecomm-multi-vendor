@@ -18,7 +18,11 @@ function isVendorAuthPage(path: string | null) {
     path === VENDOR_LOGIN_PATH ||
     path.startsWith(`${VENDOR_LOGIN_PATH}/`) ||
     path === VENDOR_REGISTER_PATH ||
-    path.startsWith(`${VENDOR_REGISTER_PATH}/`)
+    path.startsWith(`${VENDOR_REGISTER_PATH}/`) ||
+    path === "/vendor/forgot-password" ||
+    path.startsWith("/vendor/forgot-password/") ||
+    path === "/vendor/reset-password" ||
+    path.startsWith("/vendor/reset-password/")
   );
 }
 
