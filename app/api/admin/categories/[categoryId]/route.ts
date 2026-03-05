@@ -32,8 +32,9 @@ export const PUT = withApiHandler(async (request: NextRequest, context?: ApiRout
   const categoryId = typeof params.categoryId === "string" ? params.categoryId : "";
   if (!categoryId) return apiNotFound("Category not found");
 
+  // Include inactive (soft-deleted) categories so admin can reactivate them
   const category = await prisma.category.findFirst({
-    where: { id: categoryId, deletedAt: null },
+    where: { id: categoryId },
     select: { id: true, name: true, slug: true },
   });
   if (!category) return apiNotFound("Category not found");
