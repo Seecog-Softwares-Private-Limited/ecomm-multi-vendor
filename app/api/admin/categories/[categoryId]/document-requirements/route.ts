@@ -5,20 +5,20 @@ import {
   apiForbidden,
   apiNotFound,
   apiBadRequest,
+  type ApiRouteContext,
 } from "@/lib/api";
 import { requireSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-type RouteContext = { params: Promise<{ categoryId: string }> };
-
 /**
  * GET /api/admin/categories/[categoryId]/document-requirements — list document requirements for a category (admin only).
  */
-export const GET = withApiHandler(async (request: NextRequest, context?: RouteContext) => {
+export const GET = withApiHandler(async (request: NextRequest, context?: ApiRouteContext) => {
   const session = await requireSession(request);
   if (session.role !== "ADMIN") return apiForbidden("Admin access required");
 
-  const { categoryId } = context?.params ? await context.params : { categoryId: "" };
+  const params = context ? await context.params : {};
+  const categoryId = typeof params.categoryId === "string" ? params.categoryId : "";
   if (!categoryId) return apiNotFound("Category not found");
 
   const category = await prisma.category.findFirst({
@@ -39,11 +39,12 @@ export const GET = withApiHandler(async (request: NextRequest, context?: RouteCo
  * POST /api/admin/categories/[categoryId]/document-requirements — add a document requirement (admin only).
  * Body: { documentName: string, isRequired?: boolean }.
  */
-export const POST = withApiHandler(async (request: NextRequest, context?: RouteContext) => {
+export const POST = withApiHandler(async (request: NextRequest, context?: ApiRouteContext) => {
   const session = await requireSession(request);
   if (session.role !== "ADMIN") return apiForbidden("Admin access required");
 
-  const { categoryId } = context?.params ? await context.params : { categoryId: "" };
+  const params = context ? await context.params : {};
+  const categoryId = typeof params.categoryId === "string" ? params.categoryId : "";
   if (!categoryId) return apiNotFound("Category not found");
 
   const category = await prisma.category.findFirst({
@@ -73,11 +74,12 @@ export const POST = withApiHandler(async (request: NextRequest, context?: RouteC
  * DELETE /api/admin/categories/[categoryId]/document-requirements — remove a document requirement (admin only).
  * Body: { id: string } (requirement id).
  */
-export const DELETE = withApiHandler(async (request: NextRequest, context?: RouteContext) => {
+export const DELETE = withApiHandler(async (request: NextRequest, context?: ApiRouteContext) => {
   const session = await requireSession(request);
   if (session.role !== "ADMIN") return apiForbidden("Admin access required");
 
-  const { categoryId } = context?.params ? await context.params : { categoryId: "" };
+  const params = context ? await context.params : {};
+  const categoryId = typeof params.categoryId === "string" ? params.categoryId : "";
   if (!categoryId) return apiNotFound("Category not found");
 
   let body: { id?: string } = {};

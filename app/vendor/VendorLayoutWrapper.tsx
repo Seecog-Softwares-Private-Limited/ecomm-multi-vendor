@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { VendorLayout } from "@/app/vendor/components/VendorLayout";
 import { VendorStatusCard } from "@/app/vendor/components/VendorStatusCard";
@@ -18,18 +18,23 @@ function isVendorAuthPage(path: string | null) {
     path === VENDOR_LOGIN_PATH ||
     path.startsWith(`${VENDOR_LOGIN_PATH}/`) ||
     path === VENDOR_REGISTER_PATH ||
-    path.startsWith(`${VENDOR_REGISTER_PATH}/`)
+    path.startsWith(`${VENDOR_REGISTER_PATH}/`) ||
+    path === "/vendor/forgot-password" ||
+    path.startsWith("/vendor/forgot-password/") ||
+    path === "/vendor/reset-password" ||
+    path.startsWith("/vendor/reset-password/")
   );
 }
 
-/** Paths a vendor can access when not approved (status screen, profile to complete KYC, support). */
+/** Paths a vendor can access when not approved (dashboard shows onboarding card, profile, support). */
 function isAllowedWhenNotApproved(path: string | null) {
   if (!path) return false;
   return (
     path === VENDOR_STATUS_PATH ||
     path.startsWith(`${VENDOR_STATUS_PATH}/`) ||
+    path === "/vendor" ||
     path === "/vendor/profile" ||
-    path.startsWith("/vendor/profile/") ||
+    path.startsWith("/vendor/profile") ||
     path === "/vendor/support" ||
     path.startsWith("/vendor/support/") ||
     path === "/vendor/verify" ||
@@ -42,6 +47,7 @@ type MeData = {
   email: string;
   role: string;
   status: VendorStatusDisplay;
+  rawStatus: string | null;
   statusReason: string | null;
   businessName: string | null;
 };
@@ -55,6 +61,21 @@ export function VendorLayoutWrapper({
   const router = useRouter();
   const [me, setMe] = useState<MeData | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
+
+  const fetchMe = useCallback(() => {
+    return fetch("/api/vendor/me", { credentials: "include" })
+      .then((res) => {
+        if (res.status === 401 || res.status === 403) return res;
+        return res.json();
+      })
+      .then((json) => {
+        if (json?.success && json.data) {
+          setMe(json.data as MeData);
+          return json.data as MeData;
+        }
+        return null;
+      });
+  }, []);
 
   useEffect(() => {
     if (!pathname || isVendorAuthPage(pathname)) {
@@ -96,6 +117,21 @@ export function VendorLayoutWrapper({
     };
   }, [pathname, router]);
 
+  // When not approved, refetch status on tab focus and every 20s so vendor sees approval without manual refresh
+  const approved = me?.status === "approved";
+  useEffect(() => {
+    if (!me || approved || isVendorAuthPage(pathname ?? null)) return;
+    const onVisible = () => {
+      fetchMe(); // setMe() in fetchMe updates state; no router.refresh() to avoid extra request
+    };
+    const id = setInterval(onVisible, 20000);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [me, approved, pathname, fetchMe]);
+
   const handleLogout = async () => {
     try {
       await authService.logout();
@@ -119,7 +155,6 @@ export function VendorLayoutWrapper({
     );
   }
 
-  const approved = me?.status === "approved";
   const allowedPath = isAllowedWhenNotApproved(pathname);
 
   if (!approved && !allowedPath) {
@@ -133,6 +168,7 @@ export function VendorLayoutWrapper({
           {me && (
             <VendorStatusCard
               status={me.status}
+              rawStatus={me.rawStatus}
               statusReason={me.statusReason}
               businessName={me.businessName}
             />
@@ -144,27 +180,22 @@ export function VendorLayoutWrapper({
 
   if (!approved) {
     return (
-      <div className="flex min-h-screen flex-col bg-[#F8FAFC]">
-        <header className="flex h-14 items-center justify-between border-b border-[#E2E8F0] bg-white px-4">
-          <a href="/vendor/status" className="text-lg font-bold text-[#1E293B]">
-            Indovypar
-          </a>
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100"
-          >
-            <LogOut className="h-4 w-4" />
-            Logout
-          </button>
-        </header>
-        <main className="flex-1 overflow-y-auto">{children}</main>
-      </div>
+      <VendorLayout
+        activePath={pathname ?? "/vendor"}
+        vendorStatus={me?.status ?? "under_review"}
+        businessName={me?.businessName}
+      >
+        {children}
+      </VendorLayout>
     );
   }
 
   return (
-    <VendorLayout activePath={pathname ?? "/vendor"} vendorStatus="approved">
+    <VendorLayout
+      activePath={pathname ?? "/vendor"}
+      vendorStatus="approved"
+      businessName={me?.businessName}
+    >
       {children}
     </VendorLayout>
   );

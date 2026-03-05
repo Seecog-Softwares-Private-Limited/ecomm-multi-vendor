@@ -1,6 +1,6 @@
 "use client";
 
-import { Link } from "../../../components/Link";
+import { Link } from "../../components/Link";
 import * as React from "react";
 
 export function ModernOTPPage() {
@@ -63,7 +63,7 @@ export function ModernOTPPage() {
             {otp.map((digit, index) => (
               <input
                 key={index}
-                ref={(el) => (inputRefs.current[index] = el)}
+                ref={(el) => { inputRefs.current[index] = el; }}
                 type="text"
                 maxLength={1}
                 value={digit}

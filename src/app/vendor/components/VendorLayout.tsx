@@ -16,23 +16,32 @@ import {
   LogOut,
   HelpCircle,
   Menu,
-  X
+  X,
 } from "lucide-react";
 import * as React from "react";
 import { authService } from "@/services/auth.service";
+import { isVendorApproved } from "@/lib/vendor-onboarding";
+import { VendorSidebarItem } from "./VendorSidebarItem";
 
 export type VendorLayoutProps = {
   children: React.ReactNode;
-  vendorStatus?: "draft" | "submitted" | "approved" | "rejected" | "suspended";
+  vendorStatus?: string;
+  businessName?: string | null;
   activePath?: string;
 };
 
-export function VendorLayout({ children, vendorStatus = "approved", activePath = "" }: VendorLayoutProps) {
+export function VendorLayout({
+  children,
+  vendorStatus = "approved",
+  businessName,
+  activePath = "",
+}: VendorLayoutProps) {
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = React.useState(false);
 
   const isActive = (path: string) => activePath === path;
+  const approved = isVendorApproved(vendorStatus);
 
   const handleLogout = async () => {
     setProfileMenuOpen(false);
@@ -46,29 +55,27 @@ export function VendorLayout({ children, vendorStatus = "approved", activePath =
     }
   };
 
-  const isApproved = vendorStatus === "approved";
-
   const navigation = [
-    { name: "Dashboard", path: "/vendor", icon: LayoutDashboard, enabled: true },
-    { name: "Orders", path: "/vendor/orders", icon: ShoppingBag, enabled: isApproved },
-    { name: "Products", path: "/vendor/products", icon: Package, enabled: isApproved },
-    { name: "Earnings", path: "/vendor/earnings", icon: Wallet, enabled: isApproved },
-    { name: "Payouts", path: "/vendor/payouts", icon: CreditCard, enabled: isApproved },
-    { name: "Reports", path: "/vendor/reports", icon: FileText, enabled: isApproved },
-    { name: "Profile & KYC", path: "/vendor/profile", icon: User, enabled: true },
-    { name: "Support", path: "/vendor/support", icon: HelpCircle, enabled: true },
+    { name: "Dashboard", path: "/vendor", icon: LayoutDashboard, locked: false },
+    { name: "Orders", path: "/vendor/orders", icon: ShoppingBag, locked: !approved },
+    { name: "Products", path: "/vendor/products", icon: Package, locked: !approved },
+    { name: "Earnings", path: "/vendor/earnings", icon: Wallet, locked: !approved },
+    { name: "Payouts", path: "/vendor/payouts", icon: CreditCard, locked: !approved },
+    { name: "Reports", path: "/vendor/reports", icon: FileText, locked: !approved },
+    { name: "Profile & KYC", path: "/vendor/profile", icon: User, locked: false },
+    { name: "Support", path: "/vendor/support", icon: HelpCircle, locked: false },
   ];
 
   const getStatusBadge = () => {
-    const statusConfig = {
-      draft: { label: "Draft", color: "bg-gray-500" },
-      submitted: { label: "Submitted", color: "bg-blue-500" },
-      approved: { label: "Approved", color: "bg-green-500" },
-      rejected: { label: "Rejected", color: "bg-red-500" },
-      suspended: { label: "Suspended", color: "bg-orange-500" },
+    const statusConfig: Record<string, { label: string; color: string }> = {
+      approved: { label: "Approved", color: "bg-emerald-500" },
+      under_review: { label: "Under review", color: "bg-amber-500" },
+      pending_verification: { label: "Pending verification", color: "bg-slate-500" },
+      rejected: { label: "Rejected", color: "bg-rose-500" },
+      on_hold: { label: "On hold", color: "bg-orange-500" },
+      blocked: { label: "Blocked", color: "bg-red-600" },
     };
-
-    const config = statusConfig[vendorStatus];
+    const config = statusConfig[vendorStatus] ?? statusConfig.under_review;
     return (
       <span className={`${config.color} text-white text-xs font-bold px-3 py-1 rounded-full`}>
         {config.label}
@@ -99,37 +106,17 @@ export function VendorLayout({ children, vendorStatus = "approved", activePath =
 
         {/* Navigation */}
         <nav className="p-4 space-y-1 overflow-y-auto h-[calc(100vh-4rem)]">
-          {navigation.map((item) => {
-            const Icon = item.icon;
-            const active = isActive(item.path);
-
-            if (!item.enabled) {
-              return (
-                <div
-                  key={item.name}
-                  className="flex items-center gap-3 px-4 py-3 rounded-xl text-[#94A3B8] cursor-not-allowed opacity-50"
-                >
-                  <Icon className="w-5 h-5" />
-                  <span className="font-medium">{item.name}</span>
-                </div>
-              );
-            }
-
-            return (
-              <Link
-                key={item.name}
-                href={item.path}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${
-                  active
-                    ? "bg-[#3B82F6] text-white shadow-lg"
-                    : "text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#1E293B]"
-                }`}
-              >
-                <Icon className="w-5 h-5" />
-                <span>{item.name}</span>
-              </Link>
-            );
-          })}
+          {navigation.map((item) => (
+            <VendorSidebarItem
+              key={item.name}
+              icon={item.icon}
+              label={item.name}
+              route={item.path}
+              disabled={item.locked}
+              tooltip={item.locked ? "Complete Profile & KYC to unlock" : undefined}
+              active={isActive(item.path)}
+            />
+          ))}
         </nav>
       </aside>
 
@@ -145,7 +132,7 @@ export function VendorLayout({ children, vendorStatus = "approved", activePath =
               <Menu className="w-6 h-6" />
             </button>
             <div className="flex items-center gap-3">
-              <h2 className="text-lg font-bold text-[#1E293B]">Tech Store India</h2>
+              <h2 className="text-lg font-bold text-[#1E293B]">{businessName ?? "Vendor"}</h2>
               {getStatusBadge()}
             </div>
           </div>

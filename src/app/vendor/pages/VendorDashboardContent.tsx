@@ -83,7 +83,11 @@ export function VendorDashboardContent({
         </Link>
       </div>
 
-      <DataState isLoading={isLoading} error={error} retry={refetch}>
+      <DataState
+        isLoading={isLoading}
+        error={error instanceof Error ? error.message : typeof error === "string" ? error : null}
+        retry={refetch}
+      >
         {data && (
           <>
             {/* Alerts */}

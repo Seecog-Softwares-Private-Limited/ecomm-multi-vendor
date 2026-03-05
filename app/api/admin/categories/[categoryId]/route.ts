@@ -6,11 +6,10 @@ import {
   apiNotFound,
   apiBadRequest,
   apiConflict,
+  type ApiRouteContext,
 } from "@/lib/api";
 import { requireSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-
-type RouteContext = { params: Promise<{ categoryId: string }> };
 
 function normalizeSlug(s: string): string {
   return s
@@ -25,11 +24,12 @@ function normalizeSlug(s: string): string {
  * PUT /api/admin/categories/[categoryId] — update a category (admin only).
  * Body: { name?: string, slug?: string, status?: "Active" | "Inactive" }.
  */
-export const PUT = withApiHandler(async (request: NextRequest, context?: RouteContext) => {
+export const PUT = withApiHandler(async (request: NextRequest, context?: ApiRouteContext) => {
   const session = await requireSession(request);
   if (session.role !== "ADMIN") return apiForbidden("Admin access required");
 
-  const { categoryId } = context?.params ? await context.params : { categoryId: "" };
+  const params = context ? await context.params : {};
+  const categoryId = typeof params.categoryId === "string" ? params.categoryId : "";
   if (!categoryId) return apiNotFound("Category not found");
 
   const category = await prisma.category.findFirst({
@@ -83,11 +83,12 @@ export const PUT = withApiHandler(async (request: NextRequest, context?: RouteCo
 /**
  * DELETE /api/admin/categories/[categoryId] — soft-delete a category (admin only).
  */
-export const DELETE = withApiHandler(async (request: NextRequest, context?: RouteContext) => {
+export const DELETE = withApiHandler(async (request: NextRequest, context?: ApiRouteContext) => {
   const session = await requireSession(request);
   if (session.role !== "ADMIN") return apiForbidden("Admin access required");
 
-  const { categoryId } = context?.params ? await context.params : { categoryId: "" };
+  const params = context ? await context.params : {};
+  const categoryId = typeof params.categoryId === "string" ? params.categoryId : "";
   if (!categoryId) return apiNotFound("Category not found");
 
   const category = await prisma.category.findFirst({

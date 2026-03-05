@@ -1,17 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
 import { apiError, apiInternalError } from "./response";
-import { Status } from "./status";
+import { Status, type StatusCode } from "./status";
 
-/** Context passed to route handlers (e.g. dynamic params). */
+/** Context passed to route handlers (e.g. dynamic params). Next.js 15 requires params. */
 export type ApiRouteContext = {
-  params?: Promise<Record<string, string | string[]>>;
+  params: Promise<Record<string, string | string[]>>;
 };
 
-/** Handler function that returns a NextResponse. */
+/** Handler function that returns a NextResponse. Context is optional so routes without params can use (request) => ... */
 export type ApiRouteHandler<T = unknown> = (
   request: NextRequest,
   context?: ApiRouteContext
 ) => Promise<NextResponse<T>>;
+
+/** Next.js 15 expects the exported route handler to have a required second argument. */
+type ExportedRouteHandler<T = unknown> = (
+  request: NextRequest,
+  context: ApiRouteContext
+) => Promise<NextResponse<T>>;
+
+/** Accepts any handler that returns a NextResponse; avoids strict return-type inference (success vs error) at each route. */
+type AnyRouteHandler = (
+  request: NextRequest,
+  context?: ApiRouteContext
+) => Promise<NextResponse<unknown>>;
 
 /**
  * Wraps an API route handler with try/catch and standardized error responses.
@@ -26,17 +38,15 @@ export type ApiRouteHandler<T = unknown> = (
  *   return apiSuccess(data);
  * });
  */
-export function withApiHandler<T = unknown>(
-  handler: ApiRouteHandler<T>
-): ApiRouteHandler<T> {
+export function withApiHandler(handler: AnyRouteHandler): ExportedRouteHandler<unknown> {
   return async (
     request: NextRequest,
-    context?: ApiRouteContext
-  ): Promise<NextResponse<T>> => {
+    context: ApiRouteContext
+  ): Promise<NextResponse<unknown>> => {
     try {
       return await handler(request, context);
     } catch (err) {
-      return handleRouteError(err) as NextResponse<T>;
+      return handleRouteError(err);
     }
   };
 }
@@ -47,7 +57,7 @@ export function withApiHandler<T = unknown>(
  */
 function handleRouteError(err: unknown): NextResponse {
   if (err instanceof ApiRouteError) {
-    return apiError(err.message, err.status, err.code, err.details);
+    return apiError(err.message, err.status as StatusCode, err.code, err.details);
   }
 
   if (typeof err === "object" && err !== null && "code" in err) {

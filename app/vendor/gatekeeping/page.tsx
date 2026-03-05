@@ -5,7 +5,7 @@ import { VendorGatekeeping } from "@/app/vendor/pages/VendorGatekeeping";
 import { vendorService } from "@/services/vendor.service";
 
 export default function GatekeepingPage() {
-  const [status, setStatus] = useState<"draft" | "submitted" | "rejected" | "suspended" | "on_hold" | null>(null);
+  const [status, setStatus] = useState<"draft" | "submitted" | "approved" | "rejected" | "suspended" | "on_hold" | null>(null);
   const [statusReason, setStatusReason] = useState<string | undefined>(undefined);
 
   useEffect(() => {

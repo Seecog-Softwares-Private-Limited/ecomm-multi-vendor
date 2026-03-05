@@ -21,6 +21,18 @@ export interface VendorProductListItem {
   imageUrl?: string | null;
 }
 
+/** Current vendor session (GET /api/vendor/me). */
+export interface VendorMeResponse {
+  vendorId: string;
+  email: string;
+  role: string;
+  status: string;
+  rawStatus: string | null;
+  statusReason: string | null;
+  businessName: string | null;
+  emailVerified: boolean;
+}
+
 /** Payload for creating a product (POST /api/vendor/products). */
 export interface CreateVendorProductPayload {
   name: string;

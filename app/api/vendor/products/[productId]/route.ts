@@ -24,7 +24,7 @@ const RETURN_POLICY_MAP: Record<string, "DAYS_7" | "DAYS_15" | "DAYS_30" | "NO_R
   "no-return": "NO_RETURN",
 };
 
-type RouteContext = { params?: Promise<Record<string, string | string[]>> };
+type RouteContext = { params: Promise<Record<string, string | string[]>> };
 
 /**
  * GET /api/vendor/products/:productId — fetch one product for edit. Requires approved status.
@@ -32,7 +32,7 @@ type RouteContext = { params?: Promise<Record<string, string | string[]>> };
 export const GET = withApiHandler(async (request: NextRequest, context?: RouteContext) => {
   const { sellerId } = await requireVendorApproved(request);
 
-  const params = context?.params ? await context.params : {};
+  const params = context ? await context.params : {};
   const productId = typeof params.productId === "string" ? params.productId : params.productId?.[0];
   const parsedId = uuid.safeParse(productId ?? "");
   if (!parsedId.success) {
@@ -53,7 +53,7 @@ export const GET = withApiHandler(async (request: NextRequest, context?: RouteCo
 export const PUT = withApiHandler(async (request: NextRequest, context?: RouteContext) => {
   const { sellerId } = await requireVendorApproved(request);
 
-  const params = context?.params ? await context.params : {};
+  const params = context ? await context.params : {};
   const productId = typeof params.productId === "string" ? params.productId : params.productId?.[0];
   const parsedId = uuid.safeParse(productId ?? "");
   if (!parsedId.success) {
@@ -98,6 +98,7 @@ export const PUT = withApiHandler(async (request: NextRequest, context?: RouteCo
     (url) => url.startsWith("http://") || url.startsWith("https://")
   );
 
+  const stock = typeof parsed.data.stock === "number" ? parsed.data.stock : Number(parsed.data.stock) || 0;
   await prisma.product.update({
     where: { id },
     data: {
@@ -109,7 +110,7 @@ export const PUT = withApiHandler(async (request: NextRequest, context?: RouteCo
       mrp: parsed.data.mrp,
       sellingPrice: parsed.data.sellingPrice,
       gstPercent: parsed.data.gstPercent ?? null,
-      stock: parsed.data.stock,
+      stock,
       returnPolicy,
       status,
       images: {
@@ -144,7 +145,7 @@ export const PUT = withApiHandler(async (request: NextRequest, context?: RouteCo
 export const DELETE = withApiHandler(async (request: NextRequest, context?: RouteContext) => {
   const { sellerId } = await requireVendorApproved(request);
 
-  const params = context?.params ? await context.params : {};
+  const params = context ? await context.params : {};
   const productId = typeof params.productId === "string" ? params.productId : params.productId?.[0];
   const parsedId = uuid.safeParse(productId ?? "");
   if (!parsedId.success) {

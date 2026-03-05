@@ -9,7 +9,7 @@ export const openApiSpec = {
     description: "E-commerce multi-vendor platform API. Vendor endpoints require session cookie (login via POST /api/auth/vendor-login first).",
     version: "1.0.0",
   },
-  servers: [{ url: "http://localhost:3000", description: "Local" }],
+  servers: [{ url: "http://localhost:3004", description: "Local" }],
   tags: [
     { name: "Health" },
     { name: "Auth" },

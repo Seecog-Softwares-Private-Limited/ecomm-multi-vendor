@@ -5,11 +5,10 @@ import {
   apiForbidden,
   apiNotFound,
   apiBadRequest,
+  type ApiRouteContext,
 } from "@/lib/api";
 import { requireSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-
-type RouteContext = { params: Promise<{ sellerId: string }> };
 
 /**
  * POST /api/admin/sellers/[sellerId]/block — block, unblock, reject, or put on hold (admin only).
@@ -17,14 +16,14 @@ type RouteContext = { params: Promise<{ sellerId: string }> };
  * Reason is required for block, reject, and hold.
  */
 export const POST = withApiHandler(
-  async (request: NextRequest, context?: RouteContext) => {
+  async (request: NextRequest, context?: ApiRouteContext) => {
     const session = await requireSession(request);
     if (session.role !== "ADMIN") {
       return apiForbidden("Admin access required");
     }
 
-    const params = context?.params;
-    const sellerId = params ? (await params).sellerId : undefined;
+    const params = context ? await context.params : {};
+    const sellerId = typeof params.sellerId === "string" ? params.sellerId : "";
     if (!sellerId) {
       return apiNotFound("Seller not found");
     }

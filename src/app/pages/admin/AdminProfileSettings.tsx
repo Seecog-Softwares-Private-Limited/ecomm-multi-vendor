@@ -1,173 +1,292 @@
-import { User, Lock, Shield, LogOut, Save } from "lucide-react";
+"use client";
+
+import { useState, useEffect } from "react";
+import { User, Lock, Shield, LogOut, Save, CheckCircle2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { authService } from "@/services/auth.service";
+
+const inputBase =
+  "w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 placeholder:text-slate-400 transition focus:border-amber-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/20";
+const labelBase = "block text-sm font-medium text-slate-700 mb-1.5";
+
+type AdminMe = { firstName: string; lastName: string; email: string; phone: string };
 
 export function AdminProfileSettings() {
-  return (
-    <div className="p-8 bg-gray-100 min-h-screen">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Admin Profile Settings</h1>
-        <p className="text-sm text-gray-700 mt-1">Manage your account settings and preferences</p>
+  const router = useRouter();
+  const [profile, setProfile] = useState<AdminMe>({
+    firstName: "Admin",
+    lastName: "User",
+    email: "",
+    phone: "",
+  });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/admin/me", { credentials: "include", cache: "no-store" })
+      .then((res) => res.json())
+      .then((json) => {
+        const d = json?.success ? (json.data as Record<string, unknown>) : null;
+        if (d) {
+          setProfile({
+            firstName: (typeof d.firstName === "string" ? d.firstName : "") || "Admin",
+            lastName: (typeof d.lastName === "string" ? d.lastName : "") || "User",
+            email: typeof d.email === "string" ? d.email : "",
+            phone: typeof d.phone === "string" ? d.phone : "",
+          });
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  async function handleSaveChanges() {
+    setSaveMessage(null);
+    setSaving(true);
+    try {
+      const res = await fetch("/api/admin/me", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          firstName: profile.firstName.trim(),
+          lastName: profile.lastName.trim(),
+          email: profile.email.trim(),
+          phone: profile.phone.trim(),
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setSaveMessage({ type: "error", text: json?.error?.message ?? "Failed to save" });
+        return;
+      }
+      setSaveMessage({ type: "success", text: "Profile updated successfully." });
+    } catch {
+      setSaveMessage({ type: "error", text: "Network error. Please try again." });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleLogout() {
+    await authService.logout();
+    router.push("/admin/login");
+    router.refresh();
+  }
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 via-white to-amber-50/30">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-amber-500 border-t-transparent" />
       </div>
+    );
+  }
 
-      <div className="max-w-3xl space-y-6">
-        {/* Personal Information */}
-        <div className="bg-white border-2 border-gray-400 p-6">
-          <h2 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
-            <User className="w-5 h-5" />
-            Personal Information
-          </h2>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-amber-50/30">
+      <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 lg:px-8">
+        {/* Page header */}
+        <div className="mb-10">
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
+            Admin Profile Settings
+          </h1>
+          <p className="mt-1.5 text-sm text-slate-500">
+            Manage your account settings and preferences
+          </p>
+        </div>
+
+        <div className="space-y-8">
+          {/* Personal Information */}
+          <section className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-lg shadow-slate-200/50 sm:p-8">
+            <div className="mb-6 flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-600">
+                <User className="h-5 w-5" />
+              </div>
               <div>
-                <label className="block text-sm font-bold text-gray-900 mb-2">
-                  First Name
-                </label>
+                <h2 className="text-lg font-semibold text-slate-900">Personal Information</h2>
+                <p className="text-sm text-slate-500">Update your name and contact details</p>
+              </div>
+            </div>
+            {saveMessage && (
+              <div
+                className={`mb-6 flex items-center gap-2 rounded-xl px-4 py-3 ${
+                  saveMessage.type === "success"
+                    ? "bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200"
+                    : "bg-red-50 text-red-700 ring-1 ring-red-200"
+                }`}
+              >
+                {saveMessage.type === "success" ? (
+                  <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" />
+                ) : null}
+                <span className="text-sm font-medium">{saveMessage.text}</span>
+              </div>
+            )}
+            <div className="space-y-5">
+              <div className="grid gap-5 sm:grid-cols-2">
+                <div>
+                  <label className={labelBase}>First Name</label>
+                  <input
+                    type="text"
+                    value={profile.firstName}
+                    onChange={(e) => setProfile((p) => ({ ...p, firstName: e.target.value }))}
+                    className={inputBase}
+                  />
+                </div>
+                <div>
+                  <label className={labelBase}>Last Name</label>
+                  <input
+                    type="text"
+                    value={profile.lastName}
+                    onChange={(e) => setProfile((p) => ({ ...p, lastName: e.target.value }))}
+                    className={inputBase}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className={labelBase}>Email Address</label>
                 <input
-                  type="text"
-                  defaultValue="Admin"
-                  className="w-full px-4 py-2 border-2 border-gray-400 bg-gray-100 focus:outline-none focus:border-gray-600"
+                  type="email"
+                  value={profile.email}
+                  onChange={(e) => setProfile((p) => ({ ...p, email: e.target.value }))}
+                  className={inputBase}
+                  placeholder="admin@example.com"
                 />
               </div>
               <div>
-                <label className="block text-sm font-bold text-gray-900 mb-2">
-                  Last Name
-                </label>
+                <label className={labelBase}>Phone Number</label>
                 <input
-                  type="text"
-                  defaultValue="User"
-                  className="w-full px-4 py-2 border-2 border-gray-400 bg-gray-100 focus:outline-none focus:border-gray-600"
+                  type="tel"
+                  value={profile.phone}
+                  onChange={(e) => setProfile((p) => ({ ...p, phone: e.target.value }))}
+                  className={inputBase}
+                  placeholder="+1 234 567 8900"
                 />
               </div>
             </div>
-            <div>
-              <label className="block text-sm font-bold text-gray-900 mb-2">
-                Email Address
-              </label>
-              <input
-                type="email"
-                defaultValue="admin@markethub.com"
-                className="w-full px-4 py-2 border-2 border-gray-400 bg-gray-100 focus:outline-none focus:border-gray-600"
-              />
+            <div className="mt-8">
+              <button
+                type="button"
+                onClick={handleSaveChanges}
+                disabled={saving}
+                className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-900/25 transition hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-60"
+              >
+                {saving ? (
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                ) : (
+                  <Save className="h-4 w-4" />
+                )}
+                {saving ? "Saving…" : "Save Changes"}
+              </button>
             </div>
-            <div>
-              <label className="block text-sm font-bold text-gray-900 mb-2">
-                Phone Number
-              </label>
-              <input
-                type="tel"
-                defaultValue="+1 234 567 8900"
-                className="w-full px-4 py-2 border-2 border-gray-400 bg-gray-100 focus:outline-none focus:border-gray-600"
-              />
-            </div>
-          </div>
-          <div className="mt-6">
-            <button className="px-6 py-2 bg-gray-700 text-white border-2 border-gray-800 hover:bg-gray-800 flex items-center gap-2 font-bold">
-              <Save className="w-4 h-4" />
-              Save Changes
-            </button>
-          </div>
-        </div>
+          </section>
 
-        {/* Change Password */}
-        <div className="bg-white border-2 border-gray-400 p-6">
-          <h2 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
-            <Lock className="w-5 h-5" />
-            Change Password
-          </h2>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-bold text-gray-900 mb-2">
-                Current Password
-              </label>
-              <input
-                type="password"
-                placeholder="Enter current password"
-                className="w-full px-4 py-2 border-2 border-gray-400 bg-gray-100 focus:outline-none focus:border-gray-600"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-bold text-gray-900 mb-2">
-                New Password
-              </label>
-              <input
-                type="password"
-                placeholder="Enter new password"
-                className="w-full px-4 py-2 border-2 border-gray-400 bg-gray-100 focus:outline-none focus:border-gray-600"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-bold text-gray-900 mb-2">
-                Confirm New Password
-              </label>
-              <input
-                type="password"
-                placeholder="Confirm new password"
-                className="w-full px-4 py-2 border-2 border-gray-400 bg-gray-100 focus:outline-none focus:border-gray-600"
-              />
-            </div>
-          </div>
-          <div className="mt-6">
-            <button className="px-6 py-2 bg-gray-700 text-white border-2 border-gray-800 hover:bg-gray-800 font-bold">
-              Update Password
-            </button>
-          </div>
-        </div>
-
-        {/* Role & Permissions */}
-        <div className="bg-white border-2 border-gray-400 p-6">
-          <h2 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
-            <Shield className="w-5 h-5" />
-            Role & Permissions
-          </h2>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-bold text-gray-900 mb-2">
-                Current Role
-              </label>
-              <div className="px-4 py-3 border-2 border-gray-400 bg-gray-50">
-                <span className="inline-flex px-3 py-1 text-sm font-bold border-2 border-gray-400 bg-gray-200">
-                  Super Admin
-                </span>
+          {/* Change Password */}
+          <section className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-lg shadow-slate-200/50 sm:p-8">
+            <div className="mb-6 flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-600">
+                <Lock className="h-5 w-5" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">Change Password</h2>
+                <p className="text-sm text-slate-500">Set a new password for your account</p>
               </div>
             </div>
-            <div>
-              <label className="block text-sm font-bold text-gray-900 mb-3">
-                Permissions
-              </label>
-              <div className="space-y-2">
-                <label className="flex items-center p-3 border-2 border-gray-400 bg-gray-50">
-                  <input type="checkbox" defaultChecked className="w-4 h-4 border-2 border-gray-400" />
-                  <span className="ml-3 text-sm text-gray-900 font-bold">Manage Sellers</span>
-                </label>
-                <label className="flex items-center p-3 border-2 border-gray-400 bg-gray-50">
-                  <input type="checkbox" defaultChecked className="w-4 h-4 border-2 border-gray-400" />
-                  <span className="ml-3 text-sm text-gray-900 font-bold">Manage Products</span>
-                </label>
-                <label className="flex items-center p-3 border-2 border-gray-400 bg-gray-50">
-                  <input type="checkbox" defaultChecked className="w-4 h-4 border-2 border-gray-400" />
-                  <span className="ml-3 text-sm text-gray-900 font-bold">Manage Orders</span>
-                </label>
-                <label className="flex items-center p-3 border-2 border-gray-400 bg-gray-50">
-                  <input type="checkbox" defaultChecked className="w-4 h-4 border-2 border-gray-400" />
-                  <span className="ml-3 text-sm text-gray-900 font-bold">View Analytics</span>
-                </label>
-                <label className="flex items-center p-3 border-2 border-gray-400 bg-gray-50">
-                  <input type="checkbox" defaultChecked className="w-4 h-4 border-2 border-gray-400" />
-                  <span className="ml-3 text-sm text-gray-900 font-bold">Manage Settlements</span>
-                </label>
+            <div className="space-y-5">
+              <div>
+                <label className={labelBase}>Current Password</label>
+                <input
+                  type="password"
+                  placeholder="Enter current password"
+                  className={inputBase}
+                />
+              </div>
+              <div>
+                <label className={labelBase}>New Password</label>
+                <input
+                  type="password"
+                  placeholder="Enter new password"
+                  className={inputBase}
+                />
+              </div>
+              <div>
+                <label className={labelBase}>Confirm New Password</label>
+                <input
+                  type="password"
+                  placeholder="Confirm new password"
+                  className={inputBase}
+                />
               </div>
             </div>
-          </div>
-        </div>
+            <div className="mt-8">
+              <button
+                type="button"
+                className="inline-flex items-center gap-2 rounded-xl border border-amber-600 bg-amber-500 px-6 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2"
+              >
+                Update Password
+              </button>
+            </div>
+          </section>
 
-        {/* Account Actions */}
-        <div className="bg-white border-2 border-gray-400 p-6">
-          <h2 className="text-lg font-bold text-gray-900 mb-6">Account Actions</h2>
-          <div className="space-y-3">
-            <button className="w-full py-3 border-2 border-gray-400 text-gray-900 hover:bg-gray-100 flex items-center justify-center gap-2 font-bold">
-              <LogOut className="w-5 h-5" />
-              Logout
+          {/* Role & Permissions */}
+          <section className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-lg shadow-slate-200/50 sm:p-8">
+            <div className="mb-6 flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-600">
+                <Shield className="h-5 w-5" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">Role & Permissions</h2>
+                <p className="text-sm text-slate-500">Your access level and capabilities</p>
+              </div>
+            </div>
+            <div className="space-y-5">
+              <div>
+                <label className={labelBase}>Current Role</label>
+                <div className="rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3">
+                  <span className="inline-flex items-center rounded-lg bg-amber-100 px-3 py-1.5 text-sm font-semibold text-amber-800 ring-1 ring-amber-200/80">
+                    Super Admin
+                  </span>
+                </div>
+              </div>
+              <div>
+                <label className="mb-3 block text-sm font-medium text-slate-700">Permissions</label>
+                <div className="space-y-2">
+                  {[
+                    "Manage Sellers",
+                    "Manage Products",
+                    "Manage Orders",
+                    "View Analytics",
+                    "Manage Settlements",
+                  ].map((perm) => (
+                    <label
+                      key={perm}
+                      className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 transition hover:bg-slate-50 hover:border-slate-300 focus-within:ring-2 focus-within:ring-amber-500/20"
+                    >
+                      <input
+                        type="checkbox"
+                        defaultChecked
+                        className="h-4 w-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500/30"
+                      />
+                      <span className="text-sm font-medium text-slate-800">{perm}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Account Actions */}
+          <section className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-lg shadow-slate-200/50 sm:p-8">
+            <h2 className="mb-6 text-lg font-semibold text-slate-900">Account Actions</h2>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-3.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:ring-offset-2"
+            >
+              <LogOut className="h-4 w-4" />
+              Log out
             </button>
-          </div>
+          </section>
         </div>
       </div>
     </div>

@@ -69,6 +69,7 @@ export function VendorProfile() {
   >([]);
   const [categories, setCategories] = React.useState<{ id: string; name: string }[]>([]);
   const [successMessage, setSuccessMessage] = React.useState<string | null>(null);
+  const [submitError, setSubmitError] = React.useState<string | null>(null);
   const [uploadSuccess, setUploadSuccess] = React.useState<string | null>(null);
   const [uploadErrorByType, setUploadErrorByType] = React.useState<Record<string, string | null>>({});
 
@@ -196,6 +197,7 @@ export function VendorProfile() {
   const handleSaveDraft = async () => {
     setSaving(true);
     setSuccessMessage(null);
+    setSubmitError(null);
     try {
       await vendorService.updateProfile({
         business: {
@@ -234,7 +236,7 @@ export function VendorProfile() {
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Failed to save draft";
       setSuccessMessage(null);
-      alert(msg);
+      setSubmitError(msg);
     } finally {
       setSaving(false);
     }
@@ -243,7 +245,40 @@ export function VendorProfile() {
   const handleSubmitForApproval = async () => {
     setSaving(true);
     setSuccessMessage(null);
+    setSubmitError(null);
     try {
+      // Save current form data first so the server validates the latest values
+      await vendorService.updateProfile({
+        business: {
+          displayName: formData.displayName,
+          legalName: formData.legalName,
+          businessType: formData.businessType,
+          pan: formData.pan,
+          gstin: formData.gstin,
+          gstNotApplicable: formData.gstNotApplicable,
+          addressLine1: formData.addressLine1,
+          addressLine2: formData.addressLine2,
+          city: formData.city,
+          state: formData.state,
+          pincode: formData.pincode,
+          pickupPincode: formData.pickupPincode,
+          storeLogo: formData.storeLogo,
+          storeDescription: formData.storeDescription,
+        },
+        owner: {
+          ownerName: formData.ownerName,
+          mobile: formData.mobile,
+          email: formData.email,
+        },
+        bank: {
+          accountHolderName: formData.accountHolderName,
+          accountNumber: formData.accountNumber,
+          ifsc: formData.ifsc,
+          bankName: formData.bankName,
+        },
+        primaryCategoryId: formData.primaryCategoryId || null,
+        status: "draft",
+      });
       await vendorService.submitForApproval();
       await refetch();
       setSuccessMessage("Profile submitted for approval.");
@@ -251,7 +286,7 @@ export function VendorProfile() {
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Failed to submit for approval";
       setSuccessMessage(null);
-      alert(msg);
+      setSubmitError(msg);
     } finally {
       setSaving(false);
     }
@@ -416,6 +451,13 @@ export function VendorProfile() {
         )}
 
         {successMessage && <Alert type="info" title="Success" message={successMessage} />}
+        {submitError && (
+          <Alert
+            type="error"
+            title="Cannot submit"
+            message={submitError}
+          />
+        )}
         {uploadSuccess && (
           <Alert type="info" title="Upload" message={uploadSuccess} />
         )}

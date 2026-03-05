@@ -8,7 +8,8 @@ const INVALID_OR_EXPIRED_MESSAGE = "Invalid or expired verification link. Please
 
 /**
  * GET /api/auth/verify-email?token=... — verify vendor email via token.
- * - Valid token: set email_verified = true, status = UNDER_REVIEW, clear token fields.
+ * - Valid token: set email_verified = true, status = DRAFT (vendor must still complete & submit profile/KYC).
+ * - SUBMITTED/UNDER_REVIEW is set only when they submit for approval via submit-for-approval.
  * - Already verified: return success with appropriate message.
  * - Invalid/expired: return same generic error (no info leak).
  */
@@ -52,13 +53,13 @@ export const GET = withApiHandler(async (request: NextRequest) => {
     where: { id: seller.id },
     data: {
       emailVerified: true,
-      status: SellerStatus.UNDER_REVIEW,
+      status: SellerStatus.DRAFT,
       // Keep token so the same link still works and shows "already verified" on repeat clicks
     },
   });
 
   return apiSuccess({
     verified: true,
-    message: "Email verified. Awaiting admin approval.",
+    message: "Email verified. Complete your profile & KYC, then submit for approval.",
   });
 });

@@ -40,6 +40,20 @@ export const AUTH_PAGES = [
 export const SELLER_LOGIN = "/seller/login";
 /** Vendor dashboard login — use this for /vendor/* redirects. */
 export const VENDOR_LOGIN = "/vendor/login";
+
+/** Vendor auth pages that don't require session (login, register, forgot/reset password). */
+export function isVendorPublicPage(pathname: string): boolean {
+  return (
+    pathname === VENDOR_LOGIN ||
+    pathname.startsWith(VENDOR_LOGIN + "/") ||
+    pathname === "/vendor/register" ||
+    pathname.startsWith("/vendor/register/") ||
+    pathname === "/vendor/forgot-password" ||
+    pathname.startsWith("/vendor/forgot-password/") ||
+    pathname === "/vendor/reset-password" ||
+    pathname.startsWith("/vendor/reset-password/")
+  );
+}
 export const ADMIN_LOGIN = "/admin/login";
 
 /** Roles that can access seller routes. */

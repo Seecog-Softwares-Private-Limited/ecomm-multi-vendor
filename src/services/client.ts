@@ -3,7 +3,7 @@
  * Centralized error handling and typed responses; used by all domain services.
  */
 
-import type { ApiErrorResponse, ApiSuccessResponse } from "@/lib/api/types";
+import type { ApiErrorResponse, ApiResponse, ApiSuccessResponse } from "@/lib/api/types";
 import { isApiError } from "@/lib/api/types";
 import { ServiceError } from "./errors";
 
@@ -12,7 +12,7 @@ export function getBaseUrl(): string {
   const explicit = process.env.NEXT_PUBLIC_APP_URL;
   if (explicit) return explicit;
   const vercel = process.env.VERCEL_URL;
-  return vercel ? `https://${vercel}` : "http://localhost:3000";
+  return vercel ? `https://${vercel}` : "http://localhost:3004";
 }
 
 export type RequestMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
@@ -54,8 +54,8 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
     throw new ServiceError(message, "NETWORK_ERROR", undefined, e);
   }
 
-  if (isApiError(json)) {
-    const { error } = json;
+  if (isApiError(json as ApiResponse<unknown>)) {
+    const { error } = json as ApiErrorResponse;
     throw new ServiceError(
       error.message,
       error.code,

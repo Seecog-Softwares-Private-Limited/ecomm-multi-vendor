@@ -3,7 +3,7 @@ import { AlertCircle, CheckCircle, Clock, XCircle, Ban, FileText, Edit, HelpCirc
 import { Button, Alert } from "../components/UIComponents";
 
 interface VendorGatekeepingProps {
-  status?: "draft" | "submitted" | "rejected" | "suspended" | "on_hold";
+  status?: "draft" | "submitted" | "approved" | "rejected" | "suspended" | "on_hold";
   statusReason?: string;
   rejectionReason?: string;
   suspensionReason?: string;

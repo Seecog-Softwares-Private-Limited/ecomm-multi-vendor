@@ -168,6 +168,7 @@ model Admin {
   email        String    @unique @db.VarChar(255)
   passwordHash String    @map("password_hash") @db.VarChar(255)
   name         String?   @db.VarChar(255)
+  phone        String?   @db.VarChar(20)
   createdAt    DateTime  @default(now()) @map("created_at") @db.DateTime(3)
   updatedAt    DateTime  @updatedAt @map("updated_at") @db.DateTime(3)
   deletedAt    DateTime? @map("deleted_at") @db.DateTime(3)
@@ -191,6 +192,8 @@ model Seller {
   emailVerified             Boolean      @default(false) @map("email_verified")
   verificationToken         String?      @map("verification_token") @db.VarChar(255)
   verificationTokenExpires  DateTime?    @map("verification_token_expires") @db.DateTime(3)
+  passwordResetToken        String?      @map("password_reset_token") @db.VarChar(255)
+  passwordResetExpires      DateTime?    @map("password_reset_expires") @db.DateTime(3)
   status                    SellerStatus @default(PENDING_VERIFICATION)
   statusReason              String?      @map("status_reason") @db.Text
   primaryCategoryId         String?      @map("primary_category_id") @db.Char(36)

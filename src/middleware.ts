@@ -8,6 +8,7 @@ import {
   isAdminRoute,
   isSellerLoginPage,
   isVendorLoginPage,
+  isVendorPublicPage,
   isAdminLoginPage,
   SELLER_ROLES,
   ADMIN_ROLE,
@@ -27,11 +28,12 @@ const LOGIN_PATH = "/login";
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Allow auth pages (login, register, etc.) and static/API
+  // Allow auth pages (login, register, forgot-password, reset-password, etc.)
   if (
     isAuthPage(pathname) ||
     isSellerLoginPage(pathname) ||
     isVendorLoginPage(pathname) ||
+    isVendorPublicPage(pathname) ||
     isAdminLoginPage(pathname)
   ) {
     return NextResponse.next();
@@ -40,11 +42,11 @@ export async function middleware(request: NextRequest) {
   const cookieHeader = request.headers.get("cookie");
   const session = await getVerifiedSession(cookieHeader);
 
-  // --- Role-based: seller routes (/vendor, /seller except login) ---
+  // --- Role-based: seller routes (/vendor, /seller except public auth pages) ---
   if (
     isSellerRoute(pathname) &&
     !isSellerLoginPage(pathname) &&
-    !isVendorLoginPage(pathname)
+    !isVendorPublicPage(pathname)
   ) {
     if (!session) {
       return redirectToLogin(request, pathname, VENDOR_LOGIN);

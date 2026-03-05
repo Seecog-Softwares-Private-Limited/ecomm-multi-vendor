@@ -22,6 +22,7 @@ export const GET = withApiHandler(async (request: NextRequest) => {
     email: session.email,
     role: session.role,
     status: statusInfo?.status ?? "pending_verification",
+    rawStatus: statusInfo?.rawStatus ?? null,
     statusReason: statusInfo?.statusReason ?? null,
     businessName: statusInfo?.businessName ?? null,
     emailVerified: statusInfo?.emailVerified ?? false,
