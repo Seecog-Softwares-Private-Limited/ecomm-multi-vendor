@@ -6,7 +6,7 @@ node_modules/
 out/
 
 # Production
-build/
+# build/
 dist/
 
 # Debug

@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { OrderStatus } from "@prisma/client";
 import {
   withApiHandler,
   apiSuccess,
@@ -9,6 +10,7 @@ import { requireSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 const RECENT_ORDERS_LIMIT = 5;
+const EXCLUDED_ORDER_STATUSES: OrderStatus[] = ["CANCELLED", "RETURNED"];
 
 function formatMoney(n: number): string {
   return new Intl.NumberFormat("en-US", {
@@ -42,7 +44,7 @@ export const GET = withApiHandler(async (_request: NextRequest) => {
     return apiForbidden("Admin access required");
   }
 
-  const orderWhere = { status: { notIn: ["CANCELLED", "RETURNED"] } };
+  const orderWhere = { status: { notIn: EXCLUDED_ORDER_STATUSES } };
 
   const now = new Date();
   const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);

@@ -11,13 +11,17 @@ import { prisma } from "@/lib/prisma";
 /**
  * DELETE /api/admin/notifications/[id] — soft-delete notification (admin only).
  */
-export const DELETE = withApiHandler(async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
+export const DELETE = withApiHandler(async (request: NextRequest, context) => {
   const session = await requireSession(request);
   if (session.role !== "ADMIN") {
     return apiForbidden("Admin access required");
   }
 
-  const { id } = await params;
+  const params = context?.params ? await context.params : {};
+  const id = typeof params.id === "string" ? params.id : undefined;
+  if (!id) {
+    return apiNotFound("Notification not found");
+  }
   const notification = await prisma.notification.findFirst({
     where: { id, adminId: session.sub, deletedAt: null },
     select: { id: true },
