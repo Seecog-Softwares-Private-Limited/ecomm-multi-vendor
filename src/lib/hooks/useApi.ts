@@ -54,14 +54,27 @@ export function useApi<T>(
           headers: { "Content-Type": "application/json", ...options?.headers },
           credentials: "include",
         });
-        const json = await res.json();
+        const text = await res.text();
+        let json: unknown;
+        try {
+          json = text ? JSON.parse(text) : {};
+        } catch {
+          const preview = text.slice(0, 60).replace(/\s+/g, " ");
+          setError(
+            res.ok === false
+              ? `Server returned ${res.status} (expected JSON). ${preview}${text.length > 60 ? "…" : ""}`
+              : `Response was not valid JSON. ${preview}${text.length > 60 ? "…" : ""}`
+          );
+          setData(null);
+          return;
+        }
         if (!res.ok) {
-          const message = json?.error?.message ?? json?.message ?? "Request failed";
+          const message = (json as { error?: { message?: string }; message?: string })?.error?.message ?? (json as { message?: string })?.message ?? "Request failed";
           setError(message);
           setData(null);
           return;
         }
-        setData(json.data ?? json);
+        setData((json as { data?: T })?.data ?? (json as T));
       }
     } catch (e) {
       const message =
