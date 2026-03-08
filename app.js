@@ -42,8 +42,13 @@ function loadEnv() {
 async function main() {
   await loadEnv();
 
+  const port = process.env.PORT;
+  if (!port || !String(port).trim()) {
+    console.error("PORT must be set in .env or properties.env");
+    process.exit(1);
+  }
+
   const mode = process.argv[2] === "start" ? "start" : "dev";
-  const port = process.env.PORT || "3004";
   const env = { ...process.env, FORCE_COLOR: "1", PORT: port };
   const child = spawn("npx", ["next", mode, "-p", port], {
     stdio: "inherit",

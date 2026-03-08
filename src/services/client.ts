@@ -12,7 +12,9 @@ export function getBaseUrl(): string {
   const explicit = process.env.NEXT_PUBLIC_APP_URL;
   if (explicit) return explicit;
   const vercel = process.env.VERCEL_URL;
-  return vercel ? `https://${vercel}` : "http://localhost:3004";
+  if (vercel) return `https://${vercel}`;
+  const port = process.env.PORT;
+  return port ? `http://localhost:${port}` : "";
 }
 
 export type RequestMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
@@ -48,8 +50,18 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   try {
     res = await fetch(url, init);
     const text = await res.text();
-    json = text ? (JSON.parse(text) as unknown) : {};
+    try {
+      json = text ? (JSON.parse(text) as unknown) : {};
+    } catch (parseErr) {
+      const preview = text.slice(0, 80).replace(/\s+/g, " ");
+      const msg =
+        res.ok === false
+          ? `Server returned ${res.status} (expected JSON). Body: ${preview}${text.length > 80 ? "…" : ""}`
+          : `Response was not valid JSON. Body: ${preview}${text.length > 80 ? "…" : ""}`;
+      throw new ServiceError(msg, "INVALID_JSON", res.status, { cause: parseErr });
+    }
   } catch (e) {
+    if (e instanceof ServiceError) throw e;
     const message = e instanceof Error ? e.message : "Network request failed";
     throw new ServiceError(message, "NETWORK_ERROR", undefined, e);
   }
