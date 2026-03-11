@@ -68,6 +68,247 @@ export async function getProducts(options: {
   }));
 }
 
+export type MenuTypeSlug = "deals" | "new-arrivals" | "best-sellers";
+
+const MENU_TYPE_NAMES: Record<MenuTypeSlug, string> = {
+  "deals": "Deals",
+  "new-arrivals": "New Arrivals",
+  "best-sellers": "Best Sellers",
+};
+
+export function getMenuTypeDisplayName(slug: MenuTypeSlug): string {
+  return MENU_TYPE_NAMES[slug] ?? slug;
+}
+
+/**
+ * List products for menu types: Deals (discounted), New Arrivals (newest), Best Sellers (by popularity/reviews).
+ */
+export async function getProductsByMenuType(
+  type: MenuTypeSlug,
+  options: { limit?: number; offset?: number } = {}
+): Promise<ProductListItem[]> {
+  const { limit = 48, offset = 0 } = options;
+
+  const select = {
+    id: true,
+    name: true,
+    sellingPrice: true,
+    mrp: true,
+    avgRating: true,
+    reviewCount: true,
+    images: { take: 1, orderBy: { sortOrder: "asc" as const }, select: { url: true } },
+  };
+
+  if (type === "deals") {
+    const list = await prisma.product.findMany({
+      where: { deletedAt: null, status: "ACTIVE" },
+      orderBy: { createdAt: "desc" },
+      take: 500,
+      select,
+    });
+    const withDiscount = list
+      .filter((p) => toNumber(p.mrp) > toNumber(p.sellingPrice))
+      .map((p) => ({
+        id: p.id,
+        name: p.name,
+        price: toNumber(p.sellingPrice),
+        oldPrice: toNumber(p.mrp),
+        rating: toNumber(p.avgRating) || 0,
+        reviews: p.reviewCount ?? 0,
+        imageUrl: p.images[0]?.url,
+        _discountPct: toNumber(p.mrp) > 0
+          ? ((toNumber(p.mrp) - toNumber(p.sellingPrice)) / toNumber(p.mrp)) * 100
+          : 0,
+      }))
+      .sort((a, b) => b._discountPct - a._discountPct)
+      .slice(offset, offset + limit);
+    return withDiscount.map(({ _discountPct: _, ...rest }) => rest);
+  }
+
+  if (type === "new-arrivals") {
+    const list = await prisma.product.findMany({
+      where: { deletedAt: null, status: "ACTIVE" },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+      skip: offset,
+      select,
+    });
+    return list.map((p) => ({
+      id: p.id,
+      name: p.name,
+      price: toNumber(p.sellingPrice),
+      oldPrice: toNumber(p.mrp) > toNumber(p.sellingPrice) ? toNumber(p.mrp) : undefined,
+      rating: toNumber(p.avgRating) || 0,
+      reviews: p.reviewCount ?? 0,
+      imageUrl: p.images[0]?.url,
+    }));
+  }
+
+  if (type === "best-sellers") {
+    const list = await prisma.product.findMany({
+      where: { deletedAt: null, status: "ACTIVE" },
+      orderBy: [{ reviewCount: "desc" }, { createdAt: "desc" }],
+      take: limit,
+      skip: offset,
+      select,
+    });
+    return list.map((p) => ({
+      id: p.id,
+      name: p.name,
+      price: toNumber(p.sellingPrice),
+      oldPrice: toNumber(p.mrp) > toNumber(p.sellingPrice) ? toNumber(p.mrp) : undefined,
+      rating: toNumber(p.avgRating) || 0,
+      reviews: p.reviewCount ?? 0,
+      imageUrl: p.images[0]?.url,
+    }));
+  }
+
+  return [];
+}
+
+/**
+ * Get distinct brands for a category (or subcategory) for filter sidebar.
+ * Uses ProductSpecification where key = 'Brand'/'brand'; if none, derives from product name first word.
+ */
+export async function getBrandsForCategory(options: {
+  categorySlug?: string;
+  subCategorySlug?: string;
+}): Promise<string[]> {
+  const { categorySlug, subCategorySlug } = options;
+  let categoryId: string | undefined;
+  let subCategoryId: string | undefined;
+
+  if (categorySlug) {
+    const normalized = categorySlug.trim().toLowerCase();
+    const cat = await prisma.category.findFirst({
+      where: { slug: normalized, deletedAt: null },
+      select: { id: true },
+    });
+    categoryId = cat?.id;
+  }
+  if (subCategorySlug) {
+    const normalized = subCategorySlug.trim().toLowerCase();
+    const sub = await prisma.subCategory.findFirst({
+      where: { slug: normalized, deletedAt: null },
+      select: { id: true },
+    });
+    subCategoryId = sub?.id;
+  }
+
+  const productWhere = {
+    deletedAt: null,
+    status: "ACTIVE" as const,
+    ...(categoryId && { categoryId }),
+    ...(subCategoryId && { subCategoryId }),
+  };
+
+  const productIds = await prisma.product.findMany({
+    where: productWhere,
+    select: { id: true, name: true },
+  });
+  const ids = productIds.map((p) => p.id);
+  if (ids.length === 0) return [];
+
+  const fromSpecs = await prisma.productSpecification.findMany({
+    where: {
+      productId: { in: ids },
+      key: { in: ["Brand", "brand"] },
+      value: { not: "" },
+    },
+    select: { value: true },
+    distinct: ["value"],
+  });
+  const specBrands = fromSpecs.map((s) => s.value.trim()).filter(Boolean);
+  if (specBrands.length > 0) return [...new Set(specBrands)].sort();
+
+  const firstWords = productIds
+    .map((p) => p.name.trim().split(/\s+/)[0])
+    .filter((w) => w && w.length >= 2);
+  return [...new Set(firstWords)].sort();
+}
+
+export type RatingFacet = { minRating: number; label: string; count: number };
+
+/**
+ * Get rating facets for a category (for filter sidebar). Returns counts of products
+ * with avgRating >= 5, >= 4, >= 3, >= 2 so the UI can show dynamic "Customer Ratings" options.
+ */
+export async function getRatingFacetsForCategory(options: {
+  categorySlug?: string;
+  subCategorySlug?: string;
+}): Promise<RatingFacet[]> {
+  const { categorySlug, subCategorySlug } = options;
+  let categoryId: string | undefined;
+  let subCategoryId: string | undefined;
+
+  if (categorySlug) {
+    const normalized = categorySlug.trim().toLowerCase();
+    const cat = await prisma.category.findFirst({
+      where: { slug: normalized, deletedAt: null },
+      select: { id: true },
+    });
+    categoryId = cat?.id;
+  }
+  if (subCategorySlug) {
+    const normalized = subCategorySlug.trim().toLowerCase();
+    const sub = await prisma.subCategory.findFirst({
+      where: { slug: normalized, deletedAt: null },
+      select: { id: true },
+    });
+    subCategoryId = sub?.id;
+  }
+
+  const productWhere = {
+    deletedAt: null,
+    status: "ACTIVE" as const,
+    ...(categoryId && { categoryId }),
+    ...(subCategoryId && { subCategoryId }),
+  };
+
+  const thresholds = [5, 4, 3, 2] as const;
+  const facets: RatingFacet[] = [];
+  const labels: Record<number, string> = { 5: "5★", 4: "4★+", 3: "3★+", 2: "2★+" };
+
+  for (const minRating of thresholds) {
+    const count = await prisma.product.count({
+      where: {
+        ...productWhere,
+        avgRating: { gte: minRating },
+      },
+    });
+    facets.push({ minRating, label: labels[minRating], count });
+  }
+
+  return facets;
+}
+
+/**
+ * Get category and subcategory names for a product (for breadcrumb on detail page).
+ */
+export async function getProductCategoryInfo(productId: string): Promise<{
+  categoryName: string;
+  categorySlug: string;
+  subCategoryName: string;
+  subCategorySlug: string;
+} | null> {
+  const product = await prisma.product.findFirst({
+    where: { id: productId, deletedAt: null },
+    select: {
+      categoryId: true,
+      subCategoryId: true,
+      category: { select: { name: true, slug: true } },
+      subCategory: { select: { name: true, slug: true } },
+    },
+  });
+  if (!product?.category) return null;
+  return {
+    categoryName: product.category.name,
+    categorySlug: product.category.slug,
+    subCategoryName: product.subCategory?.name ?? product.category.name,
+    subCategorySlug: product.subCategory?.slug ?? product.category.slug,
+  };
+}
+
 /**
  * Get a single product by id with full detail (images, specs, variations, reviews, questions).
  */

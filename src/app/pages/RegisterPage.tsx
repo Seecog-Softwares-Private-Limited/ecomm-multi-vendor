@@ -3,17 +3,85 @@
 import { Link } from "../components/Link";
 import { Mail, Lock, Eye, EyeOff, User as UserIcon, Phone } from "lucide-react";
 import * as React from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 export function RegisterPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [showPassword, setShowPassword] = React.useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = React.useState(false);
+  const [fullName, setFullName] = React.useState("");
+  const [email, setEmail] = React.useState("");
+  const [phone, setPhone] = React.useState("");
+  const [password, setPassword] = React.useState("");
+  const [confirmPassword, setConfirmPassword] = React.useState("");
+  const [agreeTerms, setAgreeTerms] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+  const [loading, setLoading] = React.useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    const trimmedEmail = email.trim().toLowerCase();
+    if (!trimmedEmail) {
+      setError("Email is required.");
+      return;
+    }
+    if (!password) {
+      setError("Password is required.");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters and contain uppercase, lowercase, and a number.");
+      return;
+    }
+    if (!agreeTerms) {
+      setError("Please agree to the Terms & Conditions and Privacy Policy.");
+      return;
+    }
+    const parts = fullName.trim().split(/\s+/).filter(Boolean);
+    const firstName = parts[0] ?? "";
+    const lastName = parts.slice(1).join(" ") || undefined;
+
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          email: trimmedEmail,
+          password,
+          firstName: firstName || undefined,
+          lastName: lastName || undefined,
+          phone: phone.trim() || undefined,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg = data?.error?.message ?? "Registration failed. Please try again.";
+        setError(msg);
+        return;
+      }
+      const returnUrl = searchParams?.get("returnUrl") ?? "/";
+      router.push(returnUrl);
+    } catch {
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#F5F7FA] via-[#E2E8F0] to-[#F5F7FA] flex items-center justify-center p-8">
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <Link href="/home" className="text-3xl font-bold text-[#0B1220]">
+          <Link href="/" className="text-3xl font-bold text-[#0B1220]">
             ShopHub
           </Link>
           <p className="text-[#64748B] mt-2">Create your account and start shopping</p>
@@ -24,7 +92,13 @@ export function RegisterPage() {
           <h1 className="text-3xl font-bold text-[#0B1220] mb-2">Create Account</h1>
           <p className="text-[#64748B] mb-8">Sign up to get started</p>
 
-          <form className="space-y-5">
+          <form className="space-y-5" onSubmit={handleSubmit}>
+            {error && (
+              <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">
+                {error}
+              </div>
+            )}
+
             {/* Full Name */}
             <div>
               <label className="block text-sm font-semibold text-[#0F172A] mb-2">
@@ -34,7 +108,10 @@ export function RegisterPage() {
                 <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-[#64748B] w-5 h-5" />
                 <input
                   type="text"
+                  name="fullName"
                   placeholder="Enter your full name"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
                   className="w-full pl-12 pr-4 py-3 border-2 border-[#E2E8F0] rounded-xl focus:border-[#2563EB] focus:outline-none transition-colors text-[#0F172A] bg-[#F5F7FA]"
                 />
               </div>
@@ -49,7 +126,10 @@ export function RegisterPage() {
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-[#64748B] w-5 h-5" />
                 <input
                   type="email"
+                  name="email"
                   placeholder="Enter your email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   className="w-full pl-12 pr-4 py-3 border-2 border-[#E2E8F0] rounded-xl focus:border-[#2563EB] focus:outline-none transition-colors text-[#0F172A] bg-[#F5F7FA]"
                 />
               </div>
@@ -64,7 +144,10 @@ export function RegisterPage() {
                 <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-[#64748B] w-5 h-5" />
                 <input
                   type="tel"
+                  name="phone"
                   placeholder="Enter your phone number"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
                   className="w-full pl-12 pr-4 py-3 border-2 border-[#E2E8F0] rounded-xl focus:border-[#2563EB] focus:outline-none transition-colors text-[#0F172A] bg-[#F5F7FA]"
                 />
               </div>
@@ -79,7 +162,10 @@ export function RegisterPage() {
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-[#64748B] w-5 h-5" />
                 <input
                   type={showPassword ? "text" : "password"}
-                  placeholder="Create a password"
+                  name="password"
+                  placeholder="Create a password (8+ chars, upper, lower, number)"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   className="w-full pl-12 pr-12 py-3 border-2 border-[#E2E8F0] rounded-xl focus:border-[#2563EB] focus:outline-none transition-colors text-[#0F172A] bg-[#F5F7FA]"
                 />
                 <button
@@ -101,7 +187,10 @@ export function RegisterPage() {
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-[#64748B] w-5 h-5" />
                 <input
                   type={showConfirmPassword ? "text" : "password"}
+                  name="confirmPassword"
                   placeholder="Confirm your password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
                   className="w-full pl-12 pr-12 py-3 border-2 border-[#E2E8F0] rounded-xl focus:border-[#2563EB] focus:outline-none transition-colors text-[#0F172A] bg-[#F5F7FA]"
                 />
                 <button
@@ -118,6 +207,8 @@ export function RegisterPage() {
             <label className="flex items-start gap-3 cursor-pointer">
               <input
                 type="checkbox"
+                checked={agreeTerms}
+                onChange={(e) => setAgreeTerms(e.target.checked)}
                 className="w-5 h-5 mt-0.5 rounded border-[#E2E8F0] text-[#2563EB] focus:ring-[#2563EB]"
               />
               <span className="text-sm text-[#64748B]">
@@ -135,9 +226,10 @@ export function RegisterPage() {
             {/* Sign Up Button */}
             <button
               type="submit"
-              className="w-full bg-[#2563EB] text-white py-4 rounded-xl font-semibold hover:bg-[#1D4ED8] transition-colors shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
+              disabled={loading}
+              className="w-full bg-[#2563EB] text-white py-4 rounded-xl font-semibold hover:bg-[#1D4ED8] transition-colors shadow-lg hover:shadow-xl transform hover:scale-[1.02] disabled:opacity-70 disabled:pointer-events-none"
             >
-              Create Account
+              {loading ? "Creating account…" : "Create Account"}
             </button>
 
             {/* Divider */}
