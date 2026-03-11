@@ -22,13 +22,8 @@ const STATUS_MAP: Record<string, OrderStatus> = {
   returned: "RETURNED",
 };
 
-function formatMoney(n: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(n);
+function formatRupee(n: number): string {
+  return "₹" + n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function orderStatusToDisplay(s: OrderStatus): string {
@@ -101,17 +96,27 @@ export const GET = withApiHandler(async (request: NextRequest) => {
     }),
   ]);
 
-  const [pendingCount, deliveredCount] = await Promise.all([
+  const [pendingCount, deliveredCount, paidRevenueAgg, unpaidRevenueAgg] = await Promise.all([
     prisma.order.count({
       where: { ...where, status: { in: ["PLACED", "PAYMENT_CONFIRMED"] } },
     }),
     prisma.order.count({
       where: { ...where, status: "DELIVERED" },
     }),
+    prisma.order.aggregate({
+      where: { ...where, payments: { some: { status: "PAID" } } },
+      _sum: { totalAmount: true },
+    }),
+    prisma.order.aggregate({
+      where: { ...where, NOT: { payments: { some: { status: "PAID" } } } },
+      _sum: { totalAmount: true },
+    }),
   ]);
 
-  const totalRevenue = Number(agg._sum.totalAmount ?? 0);
   const totalOrders = agg._count;
+  const totalRevenue = Number(agg._sum.totalAmount ?? 0);
+  const paidAmount = Number(paidRevenueAgg._sum.totalAmount ?? 0);
+  const unpaidAmount = Number(unpaidRevenueAgg._sum.totalAmount ?? 0);
   const totalPages = Math.ceil(total / pageSize) || 1;
 
   const orders = list.map((order) => {
@@ -125,7 +130,7 @@ export const GET = withApiHandler(async (request: NextRequest) => {
       customer,
       seller,
       amount: Number(order.totalAmount),
-      amountFormatted: formatMoney(Number(order.totalAmount)),
+      amountFormatted: formatRupee(Number(order.totalAmount)),
       paymentStatus,
       orderStatus: order.status,
       orderStatusDisplay: orderStatusToDisplay(order.status),
@@ -137,7 +142,11 @@ export const GET = withApiHandler(async (request: NextRequest) => {
     totalOrders,
     totalOrdersFormatted: totalOrders.toLocaleString(),
     totalRevenue,
-    totalRevenueFormatted: formatMoney(totalRevenue),
+    totalRevenueFormatted: formatRupee(totalRevenue),
+    paidAmount,
+    paidAmountFormatted: formatRupee(paidAmount),
+    unpaidAmount,
+    unpaidAmountFormatted: formatRupee(unpaidAmount),
     pendingOrders: pendingCount,
     pendingOrdersFormatted: pendingCount.toLocaleString(),
     completedOrders: deliveredCount,
