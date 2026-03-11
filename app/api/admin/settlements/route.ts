@@ -17,13 +17,8 @@ const STATUS_MAP: Record<string, SettlementStatus> = {
   completed: "COMPLETED",
 };
 
-function formatMoney(n: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-    minimumFractionDigits: 0,
-  }).format(n);
+function formatRupee(n: number): string {
+  return "₹" + n.toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
 
 /**
@@ -116,10 +111,10 @@ export const GET = withApiHandler(async (request: NextRequest) => {
         completedThisMonth,
       },
       settlements,
-      totalCommissionFormatted: formatMoney(totalCommission),
-      totalPayoutFormatted: formatMoney(totalPayout),
-      pendingFormatted: formatMoney(pendingAmount),
-      completedThisMonthFormatted: formatMoney(completedThisMonth),
+      totalCommissionFormatted: formatRupee(totalCommission),
+      totalPayoutFormatted: formatRupee(totalPayout),
+      pendingFormatted: formatRupee(pendingAmount),
+      completedThisMonthFormatted: formatRupee(completedThisMonth),
     },
     Status.OK,
     {

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { TopBar } from "./TopBar";
 import { Navbar } from "./Navbar";
 import { Footer } from "./Footer";
@@ -59,6 +60,8 @@ export function ProductDetailPageDynamic({
   const [activeImage, setActiveImage] = useState(0);
   const [wishlisted, setWishlisted] = useState(false);
   const [qty, setQty] = useState(1);
+  const [addingToCart, setAddingToCart] = useState(false);
+  const [cartError, setCartError] = useState<string | null>(null);
 
   const price = product.price;
   const mrp = product.mrp;
@@ -74,6 +77,47 @@ export function ProductDetailPageDynamic({
   const storageVariation = product.variations.find((v) => v.name.toLowerCase() === "storage" || v.name.toLowerCase() === "storage capacity");
   const [selectedColor, setSelectedColor] = useState(colorVariation?.values[0] ?? "");
   const [selectedStorage, setSelectedStorage] = useState(storageVariation?.values[0] ?? "");
+
+  const handleAddToCart = async () => {
+    setCartError(null);
+    setAddingToCart(true);
+    try {
+      const parts: string[] = [];
+      if (colorVariation && selectedColor) parts.push(`Color:${selectedColor}`);
+      if (storageVariation && selectedStorage) parts.push(`Storage:${selectedStorage}`);
+      const variantKey = parts.length > 0 ? parts.join("|") : null;
+      const res = await fetch("/api/cart/items", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          productId: product.id,
+          quantity: qty,
+          variantKey,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const message = data?.error?.message ?? "Could not add to cart. Please try again.";
+        if (res.status === 401 || res.status === 403) {
+          toast.error("Please log in to add items to your cart.");
+          const returnUrl = typeof window !== "undefined" ? encodeURIComponent(window.location.pathname) : "";
+          router.push(`/login?returnUrl=${returnUrl}`);
+          return;
+        }
+        toast.error(message);
+        setCartError(message);
+        return;
+      }
+      toast.success("Added to cart");
+      router.push("/cart");
+    } catch {
+      toast.error("Could not add to cart. Please try again.");
+      setCartError("Could not add to cart. Please try again.");
+    } finally {
+      setAddingToCart(false);
+    }
+  };
 
   const breadcrumbs = [
     { label: "Home", href: "/" },
@@ -329,12 +373,16 @@ export function ProductDetailPageDynamic({
                 </button>
               </div>
             </div>
+            {cartError && (
+              <p className="text-[13px] text-[#DC2626] font-medium">{cartError}</p>
+            )}
             <button
               type="button"
-              onClick={() => router.push("/cart")}
-              className="w-full h-12 bg-[#FF6A00] text-white font-bold text-[15px] rounded-xl hover:bg-[#E55F00] transition"
+              onClick={handleAddToCart}
+              disabled={addingToCart}
+              className="w-full h-12 bg-[#FF6A00] text-white font-bold text-[15px] rounded-xl hover:bg-[#E55F00] transition disabled:opacity-70 disabled:cursor-wait"
             >
-              Add to Cart
+              {addingToCart ? "Adding…" : "Add to Cart"}
             </button>
             <button
               type="button"

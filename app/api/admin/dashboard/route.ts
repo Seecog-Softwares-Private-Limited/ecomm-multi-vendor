@@ -12,13 +12,8 @@ import { prisma } from "@/lib/prisma";
 const RECENT_ORDERS_LIMIT = 5;
 const EXCLUDED_ORDER_STATUSES: OrderStatus[] = ["CANCELLED", "RETURNED"];
 
-function formatMoney(n: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(n);
+function formatRupee(n: number): string {
+  return "₹" + n.toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
 
 function orderStatusToDisplay(s: string): string {
@@ -115,7 +110,7 @@ export const GET = withApiHandler(async (_request: NextRequest) => {
       id: order.id,
       customer,
       seller,
-      amountFormatted: formatMoney(Number(order.totalAmount)),
+      amountFormatted: formatRupee(Number(order.totalAmount)),
       status: orderStatusToDisplay(order.status),
       date: order.createdAt.toISOString().slice(0, 10),
     };
@@ -123,7 +118,7 @@ export const GET = withApiHandler(async (_request: NextRequest) => {
 
   const stats = {
     gmv,
-    gmvFormatted: formatMoney(gmv),
+    gmvFormatted: formatRupee(gmv),
     gmvChange: null,
     totalOrders,
     totalOrdersFormatted: totalOrders.toLocaleString(),
@@ -132,7 +127,7 @@ export const GET = withApiHandler(async (_request: NextRequest) => {
     totalSellersFormatted: totalSellers.toLocaleString(),
     totalSellersChange: null,
     revenue,
-    revenueFormatted: formatMoney(revenue),
+    revenueFormatted: formatRupee(revenue),
     revenueChange: null,
     pendingKyc: pendingKycCount,
     pendingKycFormatted: String(pendingKycCount),

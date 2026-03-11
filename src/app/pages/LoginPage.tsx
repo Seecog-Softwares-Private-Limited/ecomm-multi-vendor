@@ -2,17 +2,59 @@
 
 import { Link } from "../components/Link";
 import { Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
 import * as React from "react";
 
 export function LoginPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [showPassword, setShowPassword] = React.useState(false);
+  const [email, setEmail] = React.useState("");
+  const [password, setPassword] = React.useState("");
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail || !password) {
+      setError("Please enter email and password.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ email: trimmedEmail, password }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data?.error?.message ?? "Invalid email or password.");
+        setLoading(false);
+        return;
+      }
+      const returnUrl =
+        searchParams?.get("returnUrl") ??
+        searchParams?.get("callbackUrl") ??
+        "/";
+      router.push(returnUrl);
+      return;
+    } catch {
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#F5F7FA] via-[#E2E8F0] to-[#F5F7FA] flex items-center justify-center p-8">
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <Link href="/home" className="text-3xl font-bold text-[#0B1220]">
+          <Link href="/" className="text-3xl font-bold text-[#0B1220]">
             ShopHub
           </Link>
           <p className="text-[#64748B] mt-2">Welcome back! Please login to your account</p>
@@ -23,7 +65,13 @@ export function LoginPage() {
           <h1 className="text-3xl font-bold text-[#0B1220] mb-2">Sign In</h1>
           <p className="text-[#64748B] mb-8">Enter your credentials to access your account</p>
 
-          <form className="space-y-5">
+          {error && (
+            <div className="mb-5 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">
+              {error}
+            </div>
+          )}
+
+          <form className="space-y-5" onSubmit={handleSubmit}>
             {/* Email Input */}
             <div>
               <label className="block text-sm font-semibold text-[#0F172A] mb-2">
@@ -34,6 +82,10 @@ export function LoginPage() {
                 <input
                   type="email"
                   placeholder="Enter your email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  autoComplete="email"
+                  required
                   className="w-full pl-12 pr-4 py-3 border-2 border-[#E2E8F0] rounded-xl focus:border-[#2563EB] focus:outline-none transition-colors text-[#0F172A] bg-[#F5F7FA]"
                 />
               </div>
@@ -49,6 +101,10 @@ export function LoginPage() {
                 <input
                   type={showPassword ? "text" : "password"}
                   placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="current-password"
+                  required
                   className="w-full pl-12 pr-12 py-3 border-2 border-[#E2E8F0] rounded-xl focus:border-[#2563EB] focus:outline-none transition-colors text-[#0F172A] bg-[#F5F7FA]"
                 />
                 <button
@@ -78,9 +134,10 @@ export function LoginPage() {
             {/* Sign In Button */}
             <button
               type="submit"
-              className="w-full bg-[#2563EB] text-white py-4 rounded-xl font-semibold hover:bg-[#1D4ED8] transition-colors shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
+              disabled={loading}
+              className="w-full bg-[#2563EB] text-white py-4 rounded-xl font-semibold hover:bg-[#1D4ED8] transition-colors shadow-lg hover:shadow-xl transform hover:scale-[1.02] disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
             >
-              Sign In
+              {loading ? "Signing in…" : "Sign In"}
             </button>
 
             {/* Divider */}

@@ -48,13 +48,8 @@ function statusToDisplay(s: SettlementStatusApi): SettlementStatusDisplay {
   return s === "PENDING" ? "Pending" : s === "PROCESSING" ? "Processing" : "Completed";
 }
 
-function formatMoney(n: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-    minimumFractionDigits: 0,
-  }).format(n);
+function formatRupee(n: number): string {
+  return "₹" + n.toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
 
 export function SettlementDashboard() {
@@ -96,10 +91,10 @@ export function SettlementDashboard() {
           settlements?: SettlementRow[];
         };
         setSummary({
-          totalCommissionFormatted: d.totalCommissionFormatted ?? "$0",
-          totalPayoutFormatted: d.totalPayoutFormatted ?? "$0",
-          pendingFormatted: d.pendingFormatted ?? "$0",
-          completedThisMonthFormatted: d.completedThisMonthFormatted ?? "$0",
+          totalCommissionFormatted: d.totalCommissionFormatted ?? "₹0",
+          totalPayoutFormatted: d.totalPayoutFormatted ?? "₹0",
+          pendingFormatted: d.pendingFormatted ?? "₹0",
+          completedThisMonthFormatted: d.completedThisMonthFormatted ?? "₹0",
         });
         setSettlements(d.settlements ?? []);
         const meta = json.meta as { total?: number; totalPages?: number } | undefined;
@@ -277,13 +272,13 @@ export function SettlementDashboard() {
                           {settlement.seller}
                         </td>
                         <td className="px-6 py-4 text-sm font-semibold text-slate-900">
-                          {formatMoney(settlement.revenue)}
+                          {formatRupee(settlement.revenue)}
                         </td>
                         <td className="px-6 py-4 text-sm text-slate-600">
-                          {formatMoney(settlement.commission)}
+                          {formatRupee(settlement.commission)}
                         </td>
                         <td className="px-6 py-4 text-sm font-semibold text-slate-900">
-                          {formatMoney(settlement.payout)}
+                          {formatRupee(settlement.payout)}
                         </td>
                         <td className="px-6 py-4">
                           <span
