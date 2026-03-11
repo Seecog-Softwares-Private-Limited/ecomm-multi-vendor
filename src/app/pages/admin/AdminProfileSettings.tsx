@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { User, Lock, Shield, LogOut, Save, CheckCircle2 } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { authService } from "@/services/auth.service";
 
 const inputBase =
@@ -12,7 +11,6 @@ const labelBase = "block text-sm font-medium text-slate-700 mb-1.5";
 type AdminMe = { firstName: string; lastName: string; email: string; phone: string };
 
 export function AdminProfileSettings() {
-  const router = useRouter();
   const [profile, setProfile] = useState<AdminMe>({
     firstName: "Admin",
     lastName: "User",
@@ -22,6 +20,12 @@ export function AdminProfileSettings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [updatingPassword, setUpdatingPassword] = useState(false);
+  const [passwordMessage, setPasswordMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
     fetch("/api/admin/me", { credentials: "include", cache: "no-store" })
@@ -69,10 +73,60 @@ export function AdminProfileSettings() {
     }
   }
 
+  async function handleUpdatePassword() {
+    setPasswordMessage(null);
+    if (!currentPassword.trim()) {
+      setPasswordMessage({ type: "error", text: "Enter your current password." });
+      return;
+    }
+    if (!newPassword.trim()) {
+      setPasswordMessage({ type: "error", text: "Enter a new password." });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordMessage({ type: "error", text: "New password and confirmation do not match." });
+      return;
+    }
+    if (newPassword.length < 8) {
+      setPasswordMessage({ type: "error", text: "New password must be at least 8 characters." });
+      return;
+    }
+    setUpdatingPassword(true);
+    try {
+      const res = await fetch("/api/admin/me/password", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          currentPassword: currentPassword.trim(),
+          newPassword: newPassword.trim(),
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setPasswordMessage({ type: "error", text: json?.error?.message ?? "Failed to update password." });
+        return;
+      }
+      setPasswordMessage({ type: "success", text: "Password updated successfully." });
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch {
+      setPasswordMessage({ type: "error", text: "Network error. Please try again." });
+    } finally {
+      setUpdatingPassword(false);
+    }
+  }
+
   async function handleLogout() {
-    await authService.logout();
-    router.push("/admin/login");
-    router.refresh();
+    setLoggingOut(true);
+    try {
+      await authService.logout();
+    } catch {
+      // Still redirect so user leaves admin; cookie may clear on next request
+    }
+    // Full page navigation so session is cleared and login page loads fresh
+    window.location.href = "/admin/login";
   }
 
   if (loading) {
@@ -192,38 +246,66 @@ export function AdminProfileSettings() {
                 <p className="text-sm text-slate-500">Set a new password for your account</p>
               </div>
             </div>
+            {passwordMessage && (
+              <div
+                className={`mb-6 flex items-center gap-2 rounded-xl px-4 py-3 ${
+                  passwordMessage.type === "success"
+                    ? "bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200"
+                    : "bg-red-50 text-red-700 ring-1 ring-red-200"
+                }`}
+              >
+                {passwordMessage.type === "success" ? (
+                  <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" />
+                ) : null}
+                <span className="text-sm font-medium">{passwordMessage.text}</span>
+              </div>
+            )}
             <div className="space-y-5">
               <div>
                 <label className={labelBase}>Current Password</label>
                 <input
                   type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
                   placeholder="Enter current password"
                   className={inputBase}
+                  autoComplete="current-password"
                 />
               </div>
               <div>
                 <label className={labelBase}>New Password</label>
                 <input
                   type="password"
-                  placeholder="Enter new password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Enter new password (min 8 chars, upper, lower, number)"
                   className={inputBase}
+                  autoComplete="new-password"
                 />
               </div>
               <div>
                 <label className={labelBase}>Confirm New Password</label>
                 <input
                   type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Confirm new password"
                   className={inputBase}
+                  autoComplete="new-password"
                 />
               </div>
             </div>
             <div className="mt-8">
               <button
                 type="button"
-                className="inline-flex items-center gap-2 rounded-xl border border-amber-600 bg-amber-500 px-6 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2"
+                onClick={handleUpdatePassword}
+                disabled={updatingPassword}
+                className="inline-flex items-center gap-2 rounded-xl border border-amber-600 bg-amber-500 px-6 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-60"
               >
-                Update Password
+                {updatingPassword ? (
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                ) : null}
+                {updatingPassword ? "Updating…" : "Update Password"}
               </button>
             </div>
           </section>
@@ -281,10 +363,11 @@ export function AdminProfileSettings() {
             <button
               type="button"
               onClick={handleLogout}
-              className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-3.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:ring-offset-2"
+              disabled={loggingOut}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-3.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed"
             >
               <LogOut className="h-4 w-4" />
-              Log out
+              {loggingOut ? "Logging out…" : "Log out"}
             </button>
           </section>
         </div>

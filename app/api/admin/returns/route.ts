@@ -18,13 +18,8 @@ const STATUS_MAP: Record<string, ReturnStatus> = {
   refunded: "REFUNDED",
 };
 
-function formatMoney(n: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(n);
+function formatRupee(n: number): string {
+  return "₹" + n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function statusToDisplay(s: ReturnStatus): string {
@@ -102,7 +97,7 @@ export const GET = withApiHandler(async (request: NextRequest) => {
       seller: r.seller?.businessName ?? "—",
       customer,
       amount: Number(r.totalAmount),
-      amountFormatted: formatMoney(Number(r.totalAmount)),
+      amountFormatted: formatRupee(Number(r.totalAmount)),
       reason: r.reason,
       status: r.status,
       statusDisplay: statusToDisplay(r.status),

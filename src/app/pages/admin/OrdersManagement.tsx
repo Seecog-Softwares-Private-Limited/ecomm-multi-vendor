@@ -2,14 +2,15 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Filter, Eye, DollarSign, ShoppingBag, TrendingUp, Package, ChevronLeft, ChevronRight } from "lucide-react";
+import { Filter, Eye, ShoppingBag, Package, ChevronLeft, ChevronRight, Banknote, Clock, IndianRupee } from "lucide-react";
 
 const PAGE_SIZE = 10;
 const statsConfig = [
   { key: "totalOrders" as const, icon: ShoppingBag, label: "Total Orders", accent: "amber" as const },
-  { key: "totalRevenue" as const, icon: DollarSign, label: "Total Revenue", accent: "emerald" as const },
-  { key: "pendingOrders" as const, icon: Package, label: "Pending Orders", accent: "blue" as const },
-  { key: "completedOrders" as const, icon: TrendingUp, label: "Completed Orders", accent: "slate" as const },
+  { key: "totalRevenue" as const, icon: IndianRupee, label: "Total Revenue", accent: "slate" as const },
+  { key: "paidAmount" as const, icon: Banknote, label: "Paid Amount", accent: "emerald" as const },
+  { key: "unpaidAmount" as const, icon: Clock, label: "Unpaid Amount", accent: "blue" as const },
+  { key: "pendingOrders" as const, icon: Package, label: "Pending Orders", accent: "slate" as const },
 ];
 
 interface OrderRow {
@@ -27,8 +28,9 @@ interface OrderRow {
 interface Summary {
   totalOrdersFormatted: string;
   totalRevenueFormatted: string;
+  paidAmountFormatted: string;
+  unpaidAmountFormatted: string;
   pendingOrdersFormatted: string;
-  completedOrdersFormatted: string;
 }
 
 const accentStyles: Record<string, { bg: string; text: string; ring: string }> = {
@@ -146,7 +148,7 @@ export function OrdersManagement() {
         )}
 
         {/* Stats cards */}
-        <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           {statsConfig.map((stat) => {
             const Icon = stat.icon;
             const style = accentStyles[stat.accent];

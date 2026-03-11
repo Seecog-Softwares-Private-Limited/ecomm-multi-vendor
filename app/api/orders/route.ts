@@ -79,11 +79,15 @@ export const POST = withApiHandler(async (request: NextRequest) => {
     (i) =>
       i.product &&
       i.product.deletedAt == null &&
-      i.product.status === "ACTIVE" &&
-      i.product.stock >= i.quantity
+      (i.product.status === "ACTIVE" || i.product.status === "DRAFT")
   );
   if (validItems.length === 0) {
-    return apiBadRequest("Your cart is empty or items are unavailable. Please review your cart.");
+    if (cartItems.length === 0) {
+      return apiBadRequest("Your cart is empty. Please add items before placing an order.");
+    }
+    return apiBadRequest(
+      "Some items in your cart are unavailable (inactive or removed). Please update your cart."
+    );
   }
 
   let couponId: string | null = null;
@@ -161,19 +165,26 @@ export const POST = withApiHandler(async (request: NextRequest) => {
       },
     });
 
-    for (const it of validItems) {
-      await tx.cartItem.update({
-        where: { id: it.id },
-        data: { deletedAt: new Date(), updatedAt: new Date() },
-      });
+    // Clear cart only for COD. For Card/UPI we clear cart after payment is verified (in /api/payments/verify)
+    // so that if the user cancels Razorpay they can retry without losing their cart.
+    if (paymentMode === "COD") {
+      for (const it of validItems) {
+        await tx.cartItem.update({
+          where: { id: it.id },
+          data: { deletedAt: new Date(), updatedAt: new Date() },
+        });
+      }
     }
 
     return orderCreated;
   });
 
+  const requiresRazorpay = paymentMode === "CARD" || paymentMode === "UPI";
+
   return apiSuccess({
     orderId: order.id,
     totalAmount: Number(order.totalAmount),
     message: "Order placed successfully",
+    requiresRazorpay: requiresRazorpay || false,
   });
 });
