@@ -64,6 +64,7 @@ export function CheckoutPage() {
   const [placing, setPlacing] = useState(false);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [selectedPayment, setSelectedPayment] = useState<"card" | "upi" | "cod">("cod");
+  const [upiId, setUpiId] = useState("");
   const [couponCode, setCouponCode] = useState("");
   const [showAddAddressModal, setShowAddAddressModal] = useState(false);
   const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
@@ -130,6 +131,134 @@ export function CheckoutPage() {
   const tax = (amountAfterDiscount + shipping) * TAX_RATE;
   const total = amountAfterDiscount + shipping + tax;
 
+  const openRazorpayCheckout = async (orderId: string) => {
+    const rzRes = await fetch("/api/payments/razorpay-order", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ orderId }),
+    });
+    const rzData = await rzRes.json().catch(() => ({}));
+    if (!rzRes.ok) {
+      toast.error(rzData?.error?.message ?? "Could not start payment. Please try again.");
+      setPlacing(false);
+      return;
+    }
+    if (rzData?.data?.configured === false) {
+      toast.success("Order placed! Card/UPI payment is not set up yet; your order is confirmed.");
+      router.push(`/order-confirmation?orderId=${orderId}`);
+      setPlacing(false);
+      return;
+    }
+    if (!rzData?.data?.razorpayOrderId || !rzData?.data?.keyId) {
+      toast.error("Could not start payment. Please try again.");
+      setPlacing(false);
+      return;
+    }
+    const { razorpayOrderId, keyId } = rzData.data;
+
+    const loadScript = (src: string): Promise<void> =>
+      new Promise((resolve, reject) => {
+        if (document.querySelector(`script[src="${src}"]`)) {
+          resolve();
+          return;
+        }
+        const s = document.createElement("script");
+        s.src = src;
+        s.onload = () => resolve();
+        s.onerror = () => reject(new Error("Failed to load Razorpay"));
+        document.body.appendChild(s);
+      });
+
+    try {
+      await loadScript("https://checkout.razorpay.com/v1/checkout.js");
+    } catch {
+      toast.error("Payment could not be loaded. Please try again.");
+      setPlacing(false);
+      return;
+    }
+
+    const Razorpay = (window as unknown as {
+      Razorpay: {
+        new (options: Record<string, unknown>): {
+          open: () => void;
+          on?: (event: string, cb: (res: { error?: { description?: string } }) => void) => void;
+        };
+      };
+    }).Razorpay;
+    if (!Razorpay) {
+      toast.error("Payment gateway not available.");
+      setPlacing(false);
+      return;
+    }
+
+    const customerEmail = (rzData.data.customerEmail ?? "").trim() || "customer@example.com";
+    const rawPhone = (rzData.data.customerPhone ?? "").trim().replace(/\D/g, "").slice(-10) || "9999999999";
+    const customerPhone = rawPhone.length === 10 ? `91${rawPhone}` : rawPhone;
+    const prefill: Record<string, string> = {
+      email: customerEmail,
+      contact: customerPhone,
+    };
+    if (selectedPayment === "upi") {
+      prefill.method = "upi";
+      if (upiId.trim()) prefill.vpa = upiId.trim();
+    }
+    const checkoutOptions: Record<string, unknown> = {
+      key: keyId,
+      amount: rzData.data.amount,
+      currency: rzData.data.currency || "INR",
+      order_id: razorpayOrderId,
+      name: "Indovyapar",
+      description: "Order payment",
+      prefill,
+      handler: async (response: { razorpay_payment_id: string; razorpay_order_id: string; razorpay_signature: string }) => {
+        try {
+          const verifyRes = await fetch("/api/payments/verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({
+              orderId,
+              razorpayPaymentId: response.razorpay_payment_id,
+              razorpayOrderId: response.razorpay_order_id,
+              razorpaySignature: response.razorpay_signature,
+            }),
+          });
+          const verifyData = await verifyRes.json().catch(() => ({}));
+          if (!verifyRes.ok) {
+            toast.error(verifyData?.error?.message ?? "Payment verification failed.");
+            setPlacing(false);
+            return;
+          }
+          toast.success("Payment successful! Order confirmed.");
+          router.push(`/order-confirmation?orderId=${orderId}`);
+        } catch {
+          toast.error("Payment verification failed.");
+        } finally {
+          setPlacing(false);
+        }
+      },
+      modal: { ondismiss: () => setPlacing(false) },
+    };
+    if (selectedPayment === "upi") {
+      checkoutOptions.config = {
+        display: {
+          sequence: ["upi", "card", "emi", "netbanking", "wallet", "paylater"],
+          preferences: { show_default_blocks: true },
+        },
+      };
+    }
+    const rz = new Razorpay(checkoutOptions);
+    if (typeof rz.on === "function") {
+      rz.on("payment.failed", (response: { error?: { description?: string } }) => {
+        setPlacing(false);
+        const msg = response?.error?.description ?? "Payment failed or was cancelled.";
+        toast.error(msg);
+      });
+    }
+    rz.open();
+  };
+
   const handlePlaceOrder = async () => {
     if (!selectedAddressId) {
       toast.error("Please select a delivery address.");
@@ -159,10 +288,18 @@ export function CheckoutPage() {
         return;
       }
       const orderId = data?.data?.orderId;
+      const requiresRazorpay = data?.data?.requiresRazorpay === true;
+
+      if (requiresRazorpay && (selectedPayment === "card" || selectedPayment === "upi")) {
+        await openRazorpayCheckout(orderId);
+        return;
+      }
+
       toast.success("Order placed successfully!");
       router.push(orderId ? `/order-confirmation?orderId=${orderId}` : "/order-confirmation");
     } catch {
       toast.error("Could not place order.");
+    } finally {
       setPlacing(false);
     }
   };
@@ -526,8 +663,7 @@ export function CheckoutPage() {
                       className="w-full px-4 py-2.5 border border-[#D1D5DC] rounded-lg focus:border-[#FF6A00] outline-none text-[15px]"
                     />
                     <p className="text-xs text-[#6B7280]">
-                      Payment is secured. For demo, order will be placed without
-                      charging.
+                      Secured by Razorpay. You will complete payment after clicking Place Order.
                     </p>
                   </div>
                 )}
@@ -536,12 +672,16 @@ export function CheckoutPage() {
                   <div className="p-5 bg-[#F9FAFB] rounded-xl border border-[#E5E7EB]">
                     <input
                       type="text"
+                      value={upiId}
+                      onChange={(e) => setUpiId(e.target.value)}
                       placeholder="UPI ID (e.g. name@paytm)"
                       className="w-full px-4 py-2.5 border border-[#D1D5DC] rounded-lg focus:border-[#FF6A00] focus:ring-1 focus:ring-[#FF6A00] outline-none text-[15px]"
                     />
                     <p className="text-xs text-[#6B7280] mt-2">
-                      You will be redirected to complete payment. For demo,
-                      order will be placed without payment.
+                      Secured by Razorpay. You will complete payment after clicking Place Order.
+                    </p>
+                    <p className="text-xs text-[#6B7280] mt-1.5">
+                      For testing: use <strong>success@razorpay</strong> for a successful payment; <strong>failure@razorpay</strong> will show a failed payment. Requires Razorpay test keys in .env.
                     </p>
                   </div>
                 )}

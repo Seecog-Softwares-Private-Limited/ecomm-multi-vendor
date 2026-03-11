@@ -36,13 +36,8 @@ function getDateRange(period: string): { start: Date; end: Date } {
   return { start, end };
 }
 
-function formatMoney(n: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-    minimumFractionDigits: 0,
-  }).format(n);
+function formatRupee(n: number): string {
+  return "₹" + n.toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
 
 /**
@@ -135,7 +130,7 @@ export const GET = withApiHandler(async (request: NextRequest) => {
     .map((s, i) => ({
       rank: i + 1,
       name: s.name,
-      revenue: formatMoney(s.revenue),
+      revenue: formatRupee(s.revenue),
       orders: s.orders,
       growth: "+0%", // placeholder; could compute from previous period
     }));
@@ -172,7 +167,7 @@ export const GET = withApiHandler(async (request: NextRequest) => {
       name: p.name,
       category: p.category,
       sales: p.sales,
-      revenue: formatMoney(p.revenue),
+      revenue: formatRupee(p.revenue),
     }));
 
   const fmt = (n: number) => (n >= 0 ? `+${n.toFixed(1)}%` : `${n.toFixed(1)}%`);
@@ -180,13 +175,13 @@ export const GET = withApiHandler(async (request: NextRequest) => {
   return apiSuccess({
     period,
     metrics: {
-      totalRevenue: formatMoney(totalRevenue),
+      totalRevenue: formatRupee(totalRevenue),
       totalRevenueChange: revenueChange,
       totalRevenueChangeFormatted: `${fmt(revenueChange)} vs last period`,
       totalOrders: totalOrders.toLocaleString(),
       totalOrdersChange: ordersChange,
       totalOrdersChangeFormatted: `${fmt(ordersChange)} vs last period`,
-      averageOrderValue: formatMoney(aov),
+      averageOrderValue: formatRupee(aov),
       averageOrderValueChange: aovChange,
       averageOrderValueChangeFormatted: `${fmt(aovChange)} vs last period`,
       conversionRate: "—",

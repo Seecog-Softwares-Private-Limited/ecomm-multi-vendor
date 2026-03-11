@@ -40,7 +40,7 @@ export function SellerReportsPage() {
             <p className="text-xs font-bold text-gray-700 uppercase">Total Revenue</p>
             <DollarSign className="w-5 h-5 text-gray-600" />
           </div>
-          <p className="text-2xl font-bold text-gray-900">$89,345</p>
+          <p className="text-2xl font-bold text-gray-900">₹89,345</p>
           <div className="flex items-center gap-1 mt-2">
             <TrendingUp className="w-4 h-4 text-gray-600" />
             <span className="text-xs text-gray-600">+15.2% vs last period</span>
@@ -76,7 +76,7 @@ export function SellerReportsPage() {
             <p className="text-xs font-bold text-gray-700 uppercase">Avg Order Value</p>
             <DollarSign className="w-5 h-5 text-gray-600" />
           </div>
-          <p className="text-2xl font-bold text-gray-900">$71.62</p>
+          <p className="text-2xl font-bold text-gray-900">₹71.62</p>
           <div className="flex items-center gap-1 mt-2">
             <TrendingUp className="w-4 h-4 text-gray-600" />
             <span className="text-xs text-gray-600">+6.3% vs last period</span>
