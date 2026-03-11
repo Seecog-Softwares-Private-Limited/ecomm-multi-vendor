@@ -48,6 +48,40 @@ export async function getCategoryBySlug(slug: string): Promise<CategoryItem | nu
 }
 
 /**
+ * URL slug aliases for subcategories (e.g. /category/mobile-phones -> electronics/mobiles).
+ */
+const SUBCATEGORY_SLUG_ALIASES: Record<string, string> = {
+  "mobile-phones": "mobiles",
+};
+
+/**
+ * Resolve a single slug to a subcategory (for /category/[slug] when slug is a subcategory).
+ * Returns parent category + subcategory display name and slug for product fetch.
+ */
+export async function getSubCategoryBySlug(
+  slug: string
+): Promise<{ categorySlug: string; categoryName: string; subCategorySlug: string; subCategoryName: string } | null> {
+  const normalized = slug.trim().toLowerCase();
+  const subSlug = SUBCATEGORY_SLUG_ALIASES[normalized] ?? normalized;
+  const sub = await prisma.subCategory.findFirst({
+    where: { slug: subSlug, deletedAt: null },
+    select: { id: true, slug: true, name: true, categoryId: true },
+  });
+  if (!sub) return null;
+  const cat = await prisma.category.findFirst({
+    where: { id: sub.categoryId, deletedAt: null },
+    select: { slug: true, name: true },
+  });
+  if (!cat) return null;
+  return {
+    categorySlug: cat.slug,
+    categoryName: cat.name,
+    subCategorySlug: sub.slug,
+    subCategoryName: sub.name,
+  };
+}
+
+/**
  * Resolve category and subcategory slugs to IDs for product create.
  * Returns null if either category or subcategory not found.
  */

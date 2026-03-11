@@ -1,7 +1,14 @@
 import Link from "next/link";
-import { CategoryListingPage } from "@/app/pages/CategoryListingPage";
-import { getCategoryBySlug } from "@/lib/data/categories";
-import { getProducts } from "@/lib/data/products";
+import { CategoryPage } from "@/components/CategoryPage";
+import { getCategoryBySlug, getSubCategoryBySlug } from "@/lib/data/categories";
+import {
+  getProducts,
+  getProductsByMenuType,
+  getMenuTypeDisplayName,
+  type MenuTypeSlug,
+} from "@/lib/data/products";
+
+const MENU_TYPE_SLUGS: MenuTypeSlug[] = ["deals", "new-arrivals", "best-sellers"];
 
 export default async function Page({
   params,
@@ -9,34 +16,64 @@ export default async function Page({
   params: Promise<{ categoryName: string }>;
 }) {
   const { categoryName: categorySlug } = await params;
+  const normalizedSlug = categorySlug.trim().toLowerCase();
 
-  const [category, products] = await Promise.all([
-    getCategoryBySlug(categorySlug),
-    getProducts({ categorySlug, limit: 48 }),
-  ]);
-
-  if (!category) {
+  if (MENU_TYPE_SLUGS.includes(normalizedSlug as MenuTypeSlug)) {
+    const products = await getProductsByMenuType(normalizedSlug as MenuTypeSlug, { limit: 48 });
+    const displayName = getMenuTypeDisplayName(normalizedSlug as MenuTypeSlug);
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center p-8">
-        <div className="max-w-md w-full bg-white border-2 border-gray-200 rounded-2xl p-8 text-center shadow-lg">
-          <h1 className="text-xl font-bold text-gray-900 mb-2">Category not found</h1>
-          <p className="text-gray-600 mb-6">This category may have been removed.</p>
-          <Link
-            href="/"
-            className="inline-block px-6 py-3 bg-[#2563EB] text-white rounded-xl font-semibold hover:bg-[#1D4ED8] transition-colors"
-          >
-            Back to home
-          </Link>
-        </div>
-      </div>
+      <CategoryPage
+        categoryName={displayName}
+        categorySlug={normalizedSlug}
+        products={products}
+      />
+    );
+  }
+
+  const category = await getCategoryBySlug(categorySlug);
+
+  if (category) {
+    const products = await getProducts({ categorySlug, limit: 48 });
+    return (
+      <CategoryPage
+        categoryName={category.name}
+        categorySlug={category.slug}
+        products={products}
+        apiCategorySlug={category.slug}
+      />
+    );
+  }
+
+  const subCategory = await getSubCategoryBySlug(categorySlug);
+  if (subCategory) {
+    const products = await getProducts({
+      categorySlug: subCategory.categorySlug,
+      subCategorySlug: subCategory.subCategorySlug,
+      limit: 48,
+    });
+    return (
+      <CategoryPage
+        categoryName={subCategory.subCategoryName}
+        categorySlug={categorySlug}
+        products={products}
+        apiCategorySlug={subCategory.categorySlug}
+        apiSubCategorySlug={subCategory.subCategorySlug}
+      />
     );
   }
 
   return (
-    <CategoryListingPage
-      categoryName={category.name}
-      categorySlug={category.slug}
-      products={products}
-    />
+    <div className="min-h-screen bg-white flex items-center justify-center p-8">
+      <div className="max-w-md w-full bg-white border-2 border-gray-200 rounded-2xl p-8 text-center shadow-lg">
+        <h1 className="text-xl font-bold text-gray-900 mb-2">Category not found</h1>
+        <p className="text-gray-600 mb-6">This category may have been removed.</p>
+        <Link
+          href="/"
+          className="inline-block px-6 py-3 bg-[#FF6A00] text-white rounded-xl font-semibold hover:bg-[#E55F00] transition-colors"
+        >
+          Back to home
+        </Link>
+      </div>
+    </div>
   );
 }

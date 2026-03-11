@@ -1,0 +1,9 @@
+/* Copy this file into your Next.js app (e.g. app/globals.css) or merge its contents. */
+@import './fonts.css';
+@import './theme.css';
+
+/* If using Tailwind 3 in Next.js, add:
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+*/

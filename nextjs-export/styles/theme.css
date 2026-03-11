@@ -1,0 +1,7 @@
+/* Optional: CSS variables used by some components. Merge into your Next.js globals.css if needed. */
+:root {
+  --font-size: 16px;
+  --background: #ffffff;
+  --foreground: #111827;
+  --radius: 0.625rem;
+}
