@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { TopBar } from "./TopBar";
 import { Navbar } from "./Navbar";
 import { Footer } from "./Footer";
@@ -137,15 +138,19 @@ export function ProductDetailPage({
       if (!res.ok) {
         const message = data?.error?.message ?? "Could not add to cart. Please try again.";
         if (res.status === 401 || res.status === 403) {
+          toast.error("Please log in to add items to your cart.");
           const returnUrl = typeof window !== "undefined" ? encodeURIComponent(window.location.pathname) : "";
           router.push(`/login?returnUrl=${returnUrl}`);
           return;
         }
+        toast.error(message);
         setCartError(message);
         return;
       }
+      toast.success("Added to cart");
       router.push("/cart");
     } catch {
+      toast.error("Could not add to cart. Please try again.");
       setCartError("Could not add to cart. Please try again.");
     } finally {
       setAddingToCart(false);
