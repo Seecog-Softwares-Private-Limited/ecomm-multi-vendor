@@ -7,8 +7,29 @@ import {
   apiForbidden,
 } from "@/lib/api";
 import { getSession } from "@/lib/auth";
-import { addToCart } from "@/lib/data/cart";
+import { addToCart, getCartItems } from "@/lib/data/cart";
 import { prisma } from "@/lib/prisma";
+
+/**
+ * GET /api/cart/items — list current user's cart items with product details.
+ * Requires customer session.
+ */
+export const GET = withApiHandler(async (request: NextRequest) => {
+  const session = await getSession(request);
+  if (!session) {
+    return apiUnauthorized("Please log in to view your cart.");
+  }
+  if (session.role !== "CUSTOMER") {
+    return apiForbidden("Only customers have a cart.");
+  }
+  const user = await prisma.user.findUnique({
+    where: { id: session.sub, deletedAt: null },
+    select: { id: true },
+  });
+  if (!user) return apiUnauthorized("User not found.");
+  const items = await getCartItems(user.id);
+  return apiSuccess({ items });
+});
 
 /**
  * POST /api/cart/items — add a product to the current user's cart.
