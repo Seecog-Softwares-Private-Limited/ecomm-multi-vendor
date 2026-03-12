@@ -131,7 +131,11 @@ export function CheckoutPage() {
   const tax = (amountAfterDiscount + shipping) * TAX_RATE;
   const total = amountAfterDiscount + shipping + tax;
 
-  const openRazorpayCheckout = async (orderId: string) => {
+  const openRazorpayCheckout = async (
+    orderId: string,
+    paymentMethod: "card" | "upi" | "cod",
+    upiIdValue: string
+  ) => {
     const rzRes = await fetch("/api/payments/razorpay-order", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -192,26 +196,31 @@ export function CheckoutPage() {
       return;
     }
 
+    const prefill: Record<string, string> = {};
     const customerEmail = (rzData.data.customerEmail ?? "").trim() || "customer@example.com";
-    const rawPhone = (rzData.data.customerPhone ?? "").trim().replace(/\D/g, "").slice(-10) || "9999999999";
-    const customerPhone = rawPhone.length === 10 ? `91${rawPhone}` : rawPhone;
-    const prefill: Record<string, string> = {
-      email: customerEmail,
-      contact: customerPhone,
-    };
-    if (selectedPayment === "upi") {
-      prefill.method = "upi";
-      if (upiId.trim()) prefill.vpa = upiId.trim();
+    let customerPhone = (rzData.data.customerPhone ?? "").trim().replace(/\D/g, "").slice(-10) || "9999999999";
+    if (customerPhone.length === 10) {
+      customerPhone = "+91" + customerPhone;
     }
-    const checkoutOptions: Record<string, unknown> = {
+    prefill.email = customerEmail;
+    prefill.contact = customerPhone;
+    if (paymentMethod === "upi") {
+      prefill.method = "upi";
+      if (upiIdValue.trim()) prefill.vpa = upiIdValue.trim();
+    }
+    const rz = new Razorpay({
       key: keyId,
       amount: rzData.data.amount,
       currency: rzData.data.currency || "INR",
       order_id: razorpayOrderId,
       name: "Indovyapar",
       description: "Order payment",
-      prefill,
-      handler: async (response: { razorpay_payment_id: string; razorpay_order_id: string; razorpay_signature: string }) => {
+      ...(Object.keys(prefill).length > 0 && { prefill }),
+      handler: async (response: {
+        razorpay_payment_id: string;
+        razorpay_order_id: string;
+        razorpay_signature: string;
+      }) => {
         try {
           const verifyRes = await fetch("/api/payments/verify", {
             method: "POST",
@@ -239,16 +248,7 @@ export function CheckoutPage() {
         }
       },
       modal: { ondismiss: () => setPlacing(false) },
-    };
-    if (selectedPayment === "upi") {
-      checkoutOptions.config = {
-        display: {
-          sequence: ["upi", "card", "emi", "netbanking", "wallet", "paylater"],
-          preferences: { show_default_blocks: true },
-        },
-      };
-    }
-    const rz = new Razorpay(checkoutOptions);
+    });
     if (typeof rz.on === "function") {
       rz.on("payment.failed", (response: { error?: { description?: string } }) => {
         setPlacing(false);
@@ -291,7 +291,7 @@ export function CheckoutPage() {
       const requiresRazorpay = data?.data?.requiresRazorpay === true;
 
       if (requiresRazorpay && (selectedPayment === "card" || selectedPayment === "upi")) {
-        await openRazorpayCheckout(orderId);
+        await openRazorpayCheckout(orderId, selectedPayment, upiId);
         return;
       }
 

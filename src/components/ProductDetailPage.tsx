@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -15,12 +15,13 @@ import {
   Award,
   Heart,
   ChevronRight,
+  ChevronLeft,
   MapPin,
   CheckCircle2,
   Minus,
   Plus,
 } from "lucide-react";
-import type { ProductDetail } from "@/types/catalog";
+import type { ProductDetail, ProductListItem } from "@/types/catalog";
 
 const PLACEHOLDER_IMAGE = "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=600";
 
@@ -30,7 +31,141 @@ export type ProductDetailPageProps = {
   subCategoryName: string;
   subCategorySlug: string;
   brand: string;
+  relatedFromStores?: ProductListItem[];
+  relatedToItem?: ProductListItem[];
 };
+
+// ─── Related product card (for carousel) ─────────────────────────────────────
+function RelatedProductCard({ item }: { item: ProductListItem }) {
+  const discountPct =
+    item.oldPrice != null && item.oldPrice > item.price && item.oldPrice > 0
+      ? Math.round(((item.oldPrice - item.price) / item.oldPrice) * 100)
+      : 0;
+  return (
+    <Link
+      href={`/product/${item.id}`}
+      className="flex-shrink-0 w-[220px] sm:w-[240px] bg-white border border-gray-100 rounded-xl overflow-hidden hover:shadow-lg transition-all flex flex-col group"
+    >
+      <div className="relative aspect-square overflow-hidden bg-gray-50">
+        {item.imageUrl ? (
+          <img
+            src={item.imageUrl}
+            alt={item.name}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-gray-300 text-sm">
+            No image
+          </div>
+        )}
+        {discountPct > 0 && (
+          <span
+            className="absolute bottom-2 left-2 px-2 py-1 text-xs font-bold text-white rounded"
+            style={{ background: "#16A34A" }}
+          >
+            {discountPct}% OFF
+          </span>
+        )}
+        <button
+          className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/90 flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition shadow border-0 cursor-pointer"
+          aria-label="Wishlist"
+          onClick={(e) => e.preventDefault()}
+        >
+          <Heart size={16} fill="none" color="#6B7280" />
+        </button>
+      </div>
+      <div className="p-3 flex-1 flex flex-col">
+        <h3
+          className="font-medium text-[#111827] line-clamp-2 text-sm leading-snug mb-1.5 group-hover:text-[#FF6A00] transition-colors"
+          style={{ fontFamily: "'Manrope', sans-serif" }}
+        >
+          {item.name}
+        </h3>
+        <div className="flex items-center gap-1 mb-2" style={{ fontFamily: "'Manrope', sans-serif" }}>
+          <Star size={12} fill="#FBBF24" color="#FBBF24" />
+          <span className="text-xs font-semibold text-[#FF6A00]">{Number(item.rating).toFixed(1)}</span>
+          <span className="text-xs text-gray-500">({(item.reviews ?? 0).toLocaleString("en-IN")})</span>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap mt-auto">
+          <span className="font-bold text-[#111827] text-base" style={{ fontFamily: "'Manrope', sans-serif" }}>
+            ₹{item.price.toLocaleString("en-IN")}
+          </span>
+          {item.oldPrice != null && item.oldPrice > item.price && (
+            <span className="text-sm text-gray-400 line-through" style={{ fontFamily: "'Manrope', sans-serif" }}>
+              ₹{item.oldPrice.toLocaleString("en-IN")}
+            </span>
+          )}
+        </div>
+        <p className="flex items-center gap-1 text-xs text-gray-500 mt-1.5" style={{ fontFamily: "'Manrope', sans-serif" }}>
+          <Truck size={12} />
+          Free delivery by Tomorrow
+        </p>
+      </div>
+    </Link>
+  );
+}
+
+// ─── Related products carousel section ───────────────────────────────────────
+function RelatedProductsSection({
+  title,
+  items,
+}: {
+  title: string;
+  items: ProductListItem[];
+}) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const scroll = (dir: "left" | "right") => {
+    if (!scrollRef.current) return;
+    const step = 260;
+    scrollRef.current.scrollBy({ left: dir === "left" ? -step : step, behavior: "smooth" });
+  };
+
+  if (items.length === 0) return null;
+
+  return (
+    <div className="mx-auto" style={{ maxWidth: 1360, padding: "0 40px 24px" }}>
+      <h2
+        style={{
+          fontFamily: "'Manrope', sans-serif",
+          fontWeight: 700,
+          fontSize: 20,
+          color: "#111827",
+          marginBottom: 16,
+        }}
+      >
+        {title}
+      </h2>
+      <div className="relative flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => scroll("left")}
+          className="flex-shrink-0 w-10 h-10 rounded-full border border-gray-200 bg-white shadow-sm flex items-center justify-center hover:bg-gray-50 transition"
+          aria-label="Scroll left"
+        >
+          <ChevronLeft size={20} color="#374151" />
+        </button>
+        <div
+          ref={scrollRef}
+          className="flex gap-4 overflow-x-auto scroll-smooth py-2 [&::-webkit-scrollbar]:hidden"
+          style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+        >
+          {items.map((item) => (
+            <RelatedProductCard key={item.id} item={item} />
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={() => scroll("right")}
+          className="flex-shrink-0 w-10 h-10 rounded-full border border-gray-200 bg-white shadow-sm flex items-center justify-center hover:bg-gray-50 transition"
+          aria-label="Scroll right"
+        >
+          <ChevronRight size={20} color="#374151" />
+        </button>
+      </div>
+    </div>
+  );
+}
 
 // ─── Star Rating Row (dynamic: rating and count from API) ─────────────────────
 function StarRow({ rating, count }: { rating: number; count: number }) {
@@ -79,6 +214,8 @@ export function ProductDetailPage({
   subCategoryName,
   subCategorySlug,
   brand,
+  relatedFromStores = [],
+  relatedToItem = [],
 }: ProductDetailPageProps) {
   const router = useRouter();
   const [activeImage, setActiveImage] = useState(0);
@@ -93,6 +230,7 @@ export function ProductDetailPage({
   const [wishlisted, setWishlisted] = useState(false);
   const [qty, setQty] = useState(1);
   const [addingToCart, setAddingToCart] = useState(false);
+  const [buyNowLoading, setBuyNowLoading] = useState(false);
   const [cartError, setCartError] = useState<string | null>(null);
 
   const price = Number(product.price) ?? 0;
@@ -154,6 +292,46 @@ export function ProductDetailPage({
       setCartError("Could not add to cart. Please try again.");
     } finally {
       setAddingToCart(false);
+    }
+  };
+
+  const handleBuyNow = async () => {
+    setCartError(null);
+    setBuyNowLoading(true);
+    try {
+      const parts: string[] = [];
+      if (colorVariation && selectedColor) parts.push(`Color:${selectedColor}`);
+      if (storageVariation && selectedStorage) parts.push(`Storage:${selectedStorage}`);
+      const variantKey = parts.length > 0 ? parts.join("|") : null;
+      const res = await fetch("/api/cart/items", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          productId: product.id,
+          quantity: qty,
+          variantKey,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const message = data?.error?.message ?? "Could not add to cart. Please try again.";
+        if (res.status === 401 || res.status === 403) {
+          toast.error("Please log in to buy this item.");
+          router.push(`/login?returnUrl=${encodeURIComponent("/checkout")}`);
+          return;
+        }
+        toast.error(message);
+        setCartError(message);
+        return;
+      }
+      toast.success("Added to cart");
+      router.push("/checkout");
+    } catch {
+      toast.error("Could not add to cart. Please try again.");
+      setCartError("Could not add to cart. Please try again.");
+    } finally {
+      setBuyNowLoading(false);
     }
   };
 
@@ -907,28 +1085,30 @@ export function ProductDetailPage({
 
             {/* Buy Now */}
             <button
-              onClick={() => router.push("/checkout")}
+              onClick={handleBuyNow}
+              disabled={buyNowLoading}
               style={{
                 width: "100%",
                 height: 44,
                 background: "#FFF0E0",
                 border: "2px solid #FF6A00",
                 borderRadius: 10,
-                cursor: "pointer",
+                cursor: buyNowLoading ? "wait" : "pointer",
                 fontFamily: "'Manrope', sans-serif",
                 fontWeight: 700,
                 fontSize: 15,
                 color: "#FF6A00",
                 transition: "background 0.15s",
+                opacity: buyNowLoading ? 0.8 : 1,
               }}
-              onMouseEnter={(e) =>
-                ((e.currentTarget as HTMLButtonElement).style.background = "#FFE0C0")
-              }
-              onMouseLeave={(e) =>
-                ((e.currentTarget as HTMLButtonElement).style.background = "#FFF0E0")
-              }
+              onMouseEnter={(e) => {
+                if (!buyNowLoading) (e.currentTarget as HTMLButtonElement).style.background = "#FFE0C0";
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.background = "#FFF0E0";
+              }}
             >
-              Buy Now
+              {buyNowLoading ? "Adding…" : "Buy Now"}
             </button>
 
             {/* Wishlist */}
@@ -1083,6 +1263,18 @@ export function ProductDetailPage({
           </div>
         </div>
       </div>
+
+      {/* Related products from stores */}
+      <RelatedProductsSection
+        title="Related products from stores"
+        items={relatedFromStores}
+      />
+
+      {/* Product related to this item */}
+      <RelatedProductsSection
+        title="Product related to this item"
+        items={relatedToItem}
+      />
 
       <Footer />
     </div>

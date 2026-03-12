@@ -1,12 +1,41 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Search, User, ShoppingCart, ChevronDown } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { IndovyaparLogo } from "./IndovyaparLogo";
 
 export function Navbar() {
   const [query, setQuery] = useState("");
+  const [cartCount, setCartCount] = useState(0);
   const router = useRouter();
+
+  const fetchCartCount = useCallback(async () => {
+    try {
+      const res = await fetch("/api/cart/items", { credentials: "include" });
+      if (!res.ok) {
+        setCartCount(0);
+        return;
+      }
+      const json = await res.json().catch(() => ({}));
+      const items = json?.data?.items ?? [];
+      setCartCount(Array.isArray(items) ? items.length : 0);
+    } catch {
+      setCartCount(0);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchCartCount();
+  }, [fetchCartCount]);
+
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") fetchCartCount();
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
+  }, [fetchCartCount]);
 
   return (
     <div
@@ -15,16 +44,8 @@ export function Navbar() {
     >
       {/* Logo */}
       <div className="flex-shrink-0 cursor-pointer" onClick={() => router.push("/")}>
-        <h1
-          style={{
-            fontFamily: "'Katibeh', cursive",
-            fontWeight: 400,
-            fontSize: 26,
-            lineHeight: "32px",
-            color: "#FF5400",
-          }}
-        >
-          Indovyapar
+        <h1 style={{ margin: 0 }}>
+          <IndovyaparLogo fontSize={26} />
         </h1>
       </div>
 
@@ -123,17 +144,17 @@ export function Navbar() {
 
         <button className="relative" onClick={() => router.push("/cart")}>
           <ShoppingCart size={24} color="#0A0A0A" />
-          <span
-            className="absolute flex items-center justify-center bg-red-500 text-white font-bold text-[11px] rounded-full"
-            style={{
-              width: 20,
-              height: 20,
-              top: -8,
-              left: 12,
-            }}
-          >
-            0
-          </span>
+          {cartCount > 0 && (
+            <span
+              className="absolute flex items-center justify-center bg-red-500 text-white font-bold text-[11px] rounded-full min-w-[20px] h-5 px-1"
+              style={{
+                top: -8,
+                left: 12,
+              }}
+            >
+              {cartCount > 99 ? "99+" : cartCount}
+            </span>
+          )}
         </button>
       </div>
     </div>

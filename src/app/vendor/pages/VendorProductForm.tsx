@@ -16,10 +16,12 @@ export function VendorProductForm({ productId = "", onBack, onSave }: VendorProd
 
   const [loadingProduct, setLoadingProduct] = React.useState(isEdit);
   const [loadError, setLoadError] = React.useState<string | null>(null);
+  const [rejectionReason, setRejectionReason] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (!productId) {
       setLoadingProduct(false);
+      setRejectionReason(null);
       return;
     }
     let cancelled = false;
@@ -29,6 +31,7 @@ export function VendorProductForm({ productId = "", onBack, onSave }: VendorProd
       .getProduct(productId)
       .then((product) => {
         if (cancelled) return;
+        setRejectionReason(product.rejectionReason ?? null);
         setFormData({
           name: product.name,
           category: product.categorySlug,
@@ -89,35 +92,53 @@ export function VendorProductForm({ productId = "", onBack, onSave }: VendorProd
 
   const [variations, setVariations] = React.useState<{ name: string; values: string }[]>([]);
 
-  const categories = [
-    { value: "electronics", label: "Electronics" },
-    { value: "fashion", label: "Fashion" },
-    { value: "home", label: "Home & Kitchen" },
-    { value: "books", label: "Books" },
-  ];
+  const [allCategories, setAllCategories] = React.useState<{ id: string; name: string; slug: string }[]>([]);
+  const [allowedCategoryIds, setAllowedCategoryIds] = React.useState<string[]>([]);
+  const [subCategoriesMap, setSubCategoriesMap] = React.useState<Record<string, { value: string; label: string }[]>>({});
 
-  const subCategories: Record<string, { value: string; label: string }[]> = {
-    electronics: [
-      { value: "mobiles", label: "Mobile Phones" },
-      { value: "laptops", label: "Laptops" },
-      { value: "accessories", label: "Accessories" },
-    ],
-    fashion: [
-      { value: "mens", label: "Men's Clothing" },
-      { value: "womens", label: "Women's Clothing" },
-      { value: "kids", label: "Kids Wear" },
-    ],
-    home: [
-      { value: "kitchen", label: "Kitchen" },
-      { value: "furniture", label: "Furniture" },
-      { value: "decor", label: "Home Decor" },
-    ],
-    books: [
-      { value: "fiction", label: "Fiction" },
-      { value: "nonfiction", label: "Non-Fiction" },
-      { value: "education", label: "Educational" },
-    ],
-  };
+  React.useEffect(() => {
+    vendorService.getProfile().then((profile) => {
+      setAllowedCategoryIds(profile.allowedCategoryIds ?? (profile.primaryCategoryId ? [profile.primaryCategoryId] : []));
+    }).catch(() => setAllowedCategoryIds([]));
+    vendorService.getCategories().then(setAllCategories).catch(() => setAllCategories([]));
+  }, []);
+
+  const fetchedSubCatsRef = React.useRef<Set<string>>(new Set());
+  React.useEffect(() => {
+    if (!formData.category) return;
+    const cat = allCategories.find((c) => c.slug === formData.category);
+    if (!cat || !allowedCategoryIds.includes(cat.id)) return;
+    if (fetchedSubCatsRef.current.has(formData.category)) return;
+    fetchedSubCatsRef.current.add(formData.category);
+    vendorService.getSubcategories(cat.id).then((list) => {
+      setSubCategoriesMap((prev) => ({
+        ...prev,
+        [formData.category]: list.map((s) => ({ value: s.slug, label: s.name })),
+      }));
+    }).catch(() => {
+      fetchedSubCatsRef.current.delete(formData.category);
+    });
+  }, [formData.category, allCategories, allowedCategoryIds]);
+
+  const allowedCategories = React.useMemo(
+    () => allCategories.filter((c) => allowedCategoryIds.includes(c.id)),
+    [allCategories, allowedCategoryIds]
+  );
+  const categoryOptions = React.useMemo(() => {
+    const base = allowedCategories.map((c) => ({ value: c.slug, label: c.name }));
+    if (isEdit && formData.category && !allowedCategories.some((c) => c.slug === formData.category)) {
+      const current = allCategories.find((c) => c.slug === formData.category);
+      if (current) base.push({ value: current.slug, label: `${current.name} (select a new category if needed)` });
+    }
+    return [{ value: "", label: "Select Category" }, ...base];
+  }, [allowedCategories, allCategories, isEdit, formData.category]);
+  const subCategoryOptions = formData.category
+    ? [
+        { value: "", label: "Select Sub Category" },
+        ...(subCategoriesMap[formData.category] ?? []),
+      ]
+    : [{ value: "", label: "Select Sub Category" }];
+  const noCategoriesSelected = allowedCategoryIds.length === 0;
 
   const addSpecification = () => {
     setSpecifications([...specifications, { key: "", value: "" }]);
@@ -261,6 +282,13 @@ export function VendorProductForm({ productId = "", onBack, onSave }: VendorProd
         />
       )}
 
+      {rejectionReason && (
+        <Alert
+          type="error"
+          message={`This product was rejected by admin. Reason: ${rejectionReason}`}
+        />
+      )}
+
       {loadingProduct ? (
         <div className="py-12 text-center text-[#64748B]">Loading product…</div>
       ) : (
@@ -277,23 +305,28 @@ export function VendorProductForm({ productId = "", onBack, onSave }: VendorProd
             required
           />
 
+          {noCategoriesSelected && (
+            <Alert
+              type="warning"
+              title="Select categories in Profile & KYC"
+              message="You can add products only in categories you have selected in Profile & KYC. Please go to Profile & KYC → Business Info and select the categories you sell in."
+            />
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Select
               label="Category"
               value={formData.category}
               onChange={(e) => setFormData({ ...formData, category: e.target.value, subCategory: "" })}
-              options={[{ value: "", label: "Select Category" }, ...categories]}
+              options={categoryOptions}
+              disabled={noCategoriesSelected}
               required
             />
             <Select
               label="Sub Category"
               value={formData.subCategory}
               onChange={(e) => setFormData({ ...formData, subCategory: e.target.value })}
-              options={[
-                { value: "", label: "Select Sub Category" },
-                ...(formData.category ? subCategories[formData.category] || [] : []),
-              ]}
-              disabled={!formData.category}
+              options={subCategoryOptions}
+              disabled={!formData.category || noCategoriesSelected}
               required
             />
           </div>

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, CheckCircle, XCircle, Filter, X } from "lucide-react";
+import { Eye, CheckCircle, XCircle, Filter, X, Trash2 } from "lucide-react";
 import * as React from "react";
 
 type ProductRow = {
@@ -13,6 +13,7 @@ type ProductRow = {
   price: number;
   status: string;
   statusDisplay: string;
+  rejectionReason?: string | null;
   submittedDate: string;
 };
 
@@ -34,6 +35,7 @@ type ProductDetail = {
   stock: number;
   status: string;
   statusDisplay: string;
+  rejectionReason?: string | null;
   submittedDate: string;
   sellerName: string;
   categoryName: string;
@@ -86,6 +88,8 @@ export function ProductModeration() {
   const [previewDetailError, setPreviewDetailError] = useState<string | null>(null);
   const [actioningId, setActioningId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [rejectProduct, setRejectProduct] = useState<ProductRow | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
 
   const fetchProducts = useCallback(async (pageOverride?: number) => {
     setLoading(true);
@@ -200,23 +204,50 @@ export function ProductModeration() {
     }
   };
 
-  const handleReject = async (product: ProductRow) => {
+  const handleReject = async (product: ProductRow, reason?: string) => {
     setActionError(null);
     setActioningId(product.id);
     try {
       const res = await fetch(`/api/admin/products/${product.id}/reject`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         credentials: "include",
+        body: JSON.stringify({ reason: reason ?? "" }),
       });
       const json = await res.json();
       if (!res.ok || !json.success) {
         setActionError(json?.error?.message ?? "Reject failed");
         return;
       }
+      setRejectProduct(null);
+      setRejectReason("");
       fetchProducts();
       if (previewProduct?.id === product.id) setPreviewProduct(null);
     } catch (e) {
       setActionError(e instanceof Error ? e.message : "Reject failed");
+    } finally {
+      setActioningId(null);
+    }
+  };
+
+  const handleDelete = async (product: ProductRow) => {
+    if (!confirm(`Delete "${product.name}"? This will remove the product from the catalog.`)) return;
+    setActionError(null);
+    setActioningId(product.id);
+    try {
+      const res = await fetch(`/api/admin/products/${product.id}/delete`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        setActionError(json?.error?.message ?? "Delete failed");
+        return;
+      }
+      fetchProducts();
+      if (previewProduct?.id === product.id) setPreviewProduct(null);
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : "Delete failed");
     } finally {
       setActioningId(null);
     }
@@ -354,7 +385,7 @@ export function ProductModeration() {
                               type="button"
                               onClick={() => setPreviewProduct(product)}
                               className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition-colors hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600"
-                              title="View"
+                              title="Preview"
                             >
                               <Eye className="h-4 w-4" />
                             </button>
@@ -375,7 +406,7 @@ export function ProductModeration() {
                                 </button>
                                 <button
                                   type="button"
-                                  onClick={() => handleReject(product)}
+                                  onClick={() => { setRejectProduct(product); setRejectReason(""); }}
                                   disabled={actioningId === product.id}
                                   className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition-colors hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50"
                                   title="Reject"
@@ -384,6 +415,19 @@ export function ProductModeration() {
                                 </button>
                               </>
                             )}
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(product)}
+                              disabled={actioningId === product.id}
+                              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                              title="Delete"
+                            >
+                              {actioningId === product.id ? (
+                                <span className="h-4 w-4 animate-spin rounded-full border-2 border-red-500 border-t-transparent" />
+                              ) : (
+                                <Trash2 className="h-4 w-4" />
+                              )}
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -558,6 +602,14 @@ export function ProductModeration() {
                       <label className="text-sm font-medium text-slate-500">Submitted Date</label>
                       <p className="mt-0.5 text-slate-900">{previewDetail.submittedDate}</p>
                     </div>
+                    {previewDetail.statusDisplay.toLowerCase() === "rejected" && previewDetail.rejectionReason && (
+                      <div className="col-span-2 sm:col-span-3">
+                        <label className="text-sm font-medium text-slate-500">Rejection reason</label>
+                        <p className="mt-0.5 rounded-lg border border-rose-200 bg-rose-50/50 px-3 py-2 text-sm text-rose-800">
+                          {previewDetail.rejectionReason}
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   {/* Specifications */}
@@ -598,7 +650,7 @@ export function ProductModeration() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleReject(previewProduct)}
+                      onClick={() => { setRejectProduct(previewProduct); setRejectReason(""); setPreviewProduct(null); }}
                       disabled={actioningId === previewProduct.id}
                       className="flex-1 rounded-xl border border-rose-200 bg-rose-50 py-2.5 text-sm font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-60"
                     >
@@ -608,6 +660,62 @@ export function ProductModeration() {
                 )}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Reject with reason modal */}
+      {rejectProduct && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm"
+          onClick={() => setRejectProduct(null)}
+        >
+          <div
+            className="flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-6 py-4">
+              <h3 className="text-lg font-semibold text-slate-900">Reject product</h3>
+              <button
+                type="button"
+                onClick={() => setRejectProduct(null)}
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                aria-label="Close"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="flex flex-1 flex-col gap-4 p-6">
+              <p className="text-sm text-slate-600">
+                Add a note or reason for rejection. The vendor will see this on their product list and when editing the product.
+              </p>
+              <p className="text-sm font-medium text-slate-700">{rejectProduct.name}</p>
+              <label className="text-sm font-medium text-slate-700">Reason for rejection (optional but recommended)</label>
+              <textarea
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                placeholder="e.g. Image quality is low, description is incomplete..."
+                rows={4}
+                className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-800 placeholder:text-slate-400 focus:border-rose-300 focus:outline-none focus:ring-2 focus:ring-rose-500/20"
+              />
+            </div>
+            <div className="flex shrink-0 gap-3 border-t border-slate-200 p-6">
+              <button
+                type="button"
+                onClick={() => setRejectProduct(null)}
+                className="rounded-xl border border-slate-200 px-6 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => handleReject(rejectProduct, rejectReason)}
+                disabled={actioningId === rejectProduct.id}
+                className="flex-1 rounded-xl border border-rose-200 bg-rose-600 py-2.5 text-sm font-semibold text-white hover:bg-rose-500 disabled:opacity-60"
+              >
+                {actioningId === rejectProduct.id ? "Rejecting…" : "Reject product"}
+              </button>
+            </div>
           </div>
         </div>
       )}

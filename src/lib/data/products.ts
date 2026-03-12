@@ -68,6 +68,73 @@ export async function getProducts(options: {
   }));
 }
 
+/**
+ * Get related products for a product detail page (same category or subcategory, excluding current).
+ */
+export async function getRelatedProducts(
+  excludeProductId: string,
+  options: {
+    categorySlug?: string;
+    subCategorySlug?: string;
+    limit?: number;
+  }
+): Promise<ProductListItem[]> {
+  const { categorySlug, subCategorySlug, limit = 12 } = options;
+  let categoryId: string | undefined;
+  let subCategoryId: string | undefined;
+
+  if (subCategorySlug) {
+    const normalized = subCategorySlug.trim().toLowerCase();
+    const sub = await prisma.subCategory.findFirst({
+      where: { slug: normalized, deletedAt: null },
+      select: { id: true },
+    });
+    subCategoryId = sub?.id;
+    if (!subCategoryId) return [];
+  } else if (categorySlug) {
+    const normalized = categorySlug.trim().toLowerCase();
+    const cat = await prisma.category.findFirst({
+      where: { slug: normalized, deletedAt: null },
+      select: { id: true },
+    });
+    categoryId = cat?.id;
+    if (!categoryId) return [];
+  } else {
+    return [];
+  }
+
+  const list = await prisma.product.findMany({
+    where: {
+      id: { not: excludeProductId },
+      deletedAt: null,
+      status: "ACTIVE",
+      ...(categoryId && { categoryId }),
+      ...(subCategoryId && { subCategoryId }),
+    },
+    orderBy: [{ avgRating: "desc" }, { reviewCount: "desc" }, { createdAt: "desc" }],
+    take: limit,
+    select: {
+      id: true,
+      name: true,
+      sellingPrice: true,
+      mrp: true,
+      avgRating: true,
+      reviewCount: true,
+      images: { take: 1, orderBy: { sortOrder: "asc" }, select: { url: true } },
+    },
+  });
+
+  return list.map((p) => ({
+    id: p.id,
+    name: p.name,
+    price: toNumber(p.sellingPrice),
+    oldPrice: toNumber(p.mrp) > toNumber(p.sellingPrice) ? toNumber(p.mrp) : undefined,
+    rating: toNumber(p.avgRating) || 0,
+    reviews: p.reviewCount ?? 0,
+    imageUrl: p.images[0]?.url,
+  }));
+}
+
 export type MenuTypeSlug = "deals" | "new-arrivals" | "best-sellers";
 
 const MENU_TYPE_NAMES: Record<MenuTypeSlug, string> = {
