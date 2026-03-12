@@ -10,10 +10,9 @@ import { requireSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 /**
- * POST /api/admin/products/[productId]/reject — set product status to REJECTED and optional reason (admin only).
- * Body: { reason?: string } — note/reason for rejection (shown to vendor).
+ * DELETE /api/admin/products/[productId]/delete — soft-delete a product (admin only).
  */
-export const POST = withApiHandler(
+export const DELETE = withApiHandler(
   async (request: NextRequest, context?: ApiRouteContext) => {
     const session = await requireSession(request);
     if (session.role !== "ADMIN") {
@@ -24,14 +23,6 @@ export const POST = withApiHandler(
     const productId = typeof params.productId === "string" ? params.productId : "";
     if (!productId) {
       return apiNotFound("Product not found");
-    }
-
-    let reason: string | undefined;
-    try {
-      const body = await request.json().catch(() => ({}));
-      reason = typeof body?.reason === "string" ? body.reason.trim().slice(0, 2000) : undefined;
-    } catch {
-      // no body or invalid JSON — reason stays undefined
     }
 
     const product = await prisma.product.findFirst({
@@ -45,13 +36,9 @@ export const POST = withApiHandler(
 
     await prisma.product.update({
       where: { id: productId },
-      data: {
-        status: "REJECTED",
-        rejectionReason: reason ?? null,
-        updatedAt: new Date(),
-      },
+      data: { deletedAt: new Date(), updatedAt: new Date() },
     });
 
-    return apiSuccess({ productId, status: "REJECTED", reason: reason ?? null });
+    return apiSuccess({ productId, deleted: true });
   }
 );

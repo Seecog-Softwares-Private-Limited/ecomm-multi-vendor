@@ -58,6 +58,7 @@ export const GET = withApiHandler(async (request: NextRequest) => {
         name: true,
         sellingPrice: true,
         status: true,
+        rejectionReason: true,
         createdAt: true,
         seller: { select: { businessName: true } },
         category: { select: { name: true } },
@@ -83,6 +84,7 @@ export const GET = withApiHandler(async (request: NextRequest) => {
           : p.status === "REJECTED"
             ? "Rejected"
             : p.status,
+    rejectionReason: p.rejectionReason ?? null,
     submittedDate: p.createdAt.toISOString().slice(0, 10),
   }));
 

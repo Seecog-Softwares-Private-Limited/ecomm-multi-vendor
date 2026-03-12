@@ -7,6 +7,8 @@ export interface VendorProfileBusiness {
   pan: string;
   gstin: string;
   gstNotApplicable: boolean;
+  /** Store or company website URL */
+  websiteUrl: string;
   addressLine1: string;
   addressLine2: string;
   city: string;
@@ -48,6 +50,8 @@ export interface VendorProfileData {
   status: "draft" | "submitted" | "approved" | "rejected" | "suspended" | "on_hold";
   statusReason?: string | null;
   primaryCategoryId?: string | null;
+  /** Category IDs the vendor is allowed to sell in. If empty, falls back to [primaryCategoryId]. */
+  allowedCategoryIds: string[];
   business: VendorProfileBusiness;
   owner: VendorProfileOwner;
   bank: VendorProfileBank | null;
@@ -61,6 +65,7 @@ interface ProfileExtras {
   pan?: string;
   gstin?: string;
   gstNotApplicable?: boolean;
+  websiteUrl?: string;
   addressLine1?: string;
   addressLine2?: string;
   city?: string;
@@ -69,6 +74,8 @@ interface ProfileExtras {
   pickupPincode?: string;
   storeLogo?: string;
   storeDescription?: string;
+  /** Category IDs the vendor can add products to. */
+  allowedCategoryIds?: string[];
 }
 
 /** Mask account number for vendor-facing responses; admin APIs return full number. */
@@ -146,10 +153,17 @@ export async function getVendorProfile(sellerId: string): Promise<VendorProfileD
     ])
   );
 
+  const allowedIds = Array.isArray(extras.allowedCategoryIds)
+    ? extras.allowedCategoryIds.filter((id): id is string => typeof id === "string" && id.length > 0)
+    : [];
+  const allowedCategoryIds =
+    allowedIds.length > 0 ? allowedIds : seller.primaryCategoryId ? [seller.primaryCategoryId] : [];
+
   return {
     status: mapSellerStatus(seller.status),
     statusReason: seller.statusReason ?? null,
     primaryCategoryId: seller.primaryCategoryId ?? null,
+    allowedCategoryIds,
     business: {
       displayName: seller.businessName ?? "",
       legalName: extras.legalName ?? "",
@@ -157,6 +171,7 @@ export async function getVendorProfile(sellerId: string): Promise<VendorProfileD
       pan: extras.pan ?? "",
       gstin: extras.gstin ?? "",
       gstNotApplicable: !!extras.gstNotApplicable,
+      websiteUrl: extras.websiteUrl ?? "",
       addressLine1: extras.addressLine1 ?? "",
       addressLine2: extras.addressLine2 ?? "",
       city: extras.city ?? "",
@@ -217,6 +232,8 @@ export interface UpdateVendorProfilePayload {
   bank?: Partial<VendorProfileBank>;
   status?: "draft" | "submitted";
   primaryCategoryId?: string | null;
+  /** Category IDs the vendor can sell in. Products can only be in these categories. */
+  allowedCategoryIds?: string[];
 }
 
 export async function updateVendorProfile(
@@ -251,6 +268,7 @@ export async function updateVendorProfile(
       ...(b.pan !== undefined && { pan: b.pan }),
       ...(b.gstin !== undefined && { gstin: b.gstin }),
       ...(b.gstNotApplicable !== undefined && { gstNotApplicable: b.gstNotApplicable }),
+      ...(b.websiteUrl !== undefined && { websiteUrl: b.websiteUrl }),
       ...(b.addressLine1 !== undefined && { addressLine1: b.addressLine1 }),
       ...(b.addressLine2 !== undefined && { addressLine2: b.addressLine2 }),
       ...(b.city !== undefined && { city: b.city }),
@@ -272,6 +290,18 @@ export async function updateVendorProfile(
 
   if (payload.status === "submitted") sellerUpdate.status = "SUBMITTED";
   if (payload.primaryCategoryId !== undefined) sellerUpdate.primaryCategoryId = payload.primaryCategoryId;
+
+  if (payload.allowedCategoryIds !== undefined) {
+    const ids = Array.isArray(payload.allowedCategoryIds)
+      ? payload.allowedCategoryIds.filter((id): id is string => typeof id === "string" && id.length > 0)
+      : [];
+    const base = sellerUpdate.profileExtras ? parseProfileExtras(sellerUpdate.profileExtras) : extras;
+    const newExtras: ProfileExtras = { ...base, allowedCategoryIds: ids };
+    sellerUpdate.profileExtras = JSON.stringify(newExtras);
+    if (ids.length > 0 && !sellerUpdate.primaryCategoryId) {
+      sellerUpdate.primaryCategoryId = ids[0];
+    }
+  }
 
   if (Object.keys(sellerUpdate).length > 0) {
     await prisma.seller.update({

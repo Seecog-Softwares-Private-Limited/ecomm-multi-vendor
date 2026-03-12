@@ -1,4 +1,5 @@
 import { Facebook, Twitter, Instagram, Youtube, Smartphone } from "lucide-react";
+import { IndovyaparLogo } from "./IndovyaparLogo";
 
 const footerCols = [
   {
@@ -216,7 +217,7 @@ export function Footer() {
               marginTop: 16,
             }}
           >
-            © 2026 Indovyapar. All rights reserved.
+            © 2026 <IndovyaparLogo variant="light" inline style={{ fontSize: 13, lineHeight: "20px" }} />. All rights reserved.
           </p>
         </div>
       </div>
