@@ -7,6 +7,7 @@ import {
   apiValidationError,
 } from "@/lib/api";
 import { requireVendorApproved } from "@/lib/auth";
+import { getVendorProfile } from "@/lib/data/vendor-profile";
 import { getVendorProductForEdit } from "@/lib/data/vendor-products";
 import { resolveCategoryAndSubCategoryIds } from "@/lib/data/categories";
 import { prisma } from "@/lib/prisma";
@@ -86,6 +87,19 @@ export const PUT = withApiHandler(async (request: NextRequest, context?: RouteCo
   if (!ids) {
     return apiValidationError("Invalid category or sub-category", {
       categorySlug: "Category or sub-category not found",
+    });
+  }
+
+  const profile = await getVendorProfile(sellerId);
+  const allowedIds = profile?.allowedCategoryIds ?? (profile?.primaryCategoryId ? [profile.primaryCategoryId] : []);
+  if (allowedIds.length > 0 && !allowedIds.includes(ids.categoryId)) {
+    return apiValidationError("You can add products only in categories selected in your Profile & KYC.", {
+      categorySlug: "Select this category in Profile & KYC first",
+    });
+  }
+  if (allowedIds.length === 0) {
+    return apiValidationError("Select at least one category in Profile & KYC before adding products.", {
+      categorySlug: "Go to Profile & KYC and select categories you sell in",
     });
   }
 

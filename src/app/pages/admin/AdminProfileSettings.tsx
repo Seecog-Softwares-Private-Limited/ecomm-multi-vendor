@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { User, Lock, Shield, LogOut, Save, CheckCircle2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { authService } from "@/services/auth.service";
 
 const inputBase =
@@ -11,6 +12,7 @@ const labelBase = "block text-sm font-medium text-slate-700 mb-1.5";
 type AdminMe = { firstName: string; lastName: string; email: string; phone: string };
 
 export function AdminProfileSettings() {
+  const router = useRouter();
   const [profile, setProfile] = useState<AdminMe>({
     firstName: "Admin",
     lastName: "User",
@@ -25,7 +27,6 @@ export function AdminProfileSettings() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [updatingPassword, setUpdatingPassword] = useState(false);
   const [passwordMessage, setPasswordMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
-  const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
     fetch("/api/admin/me", { credentials: "include", cache: "no-store" })
@@ -119,14 +120,9 @@ export function AdminProfileSettings() {
   }
 
   async function handleLogout() {
-    setLoggingOut(true);
-    try {
-      await authService.logout();
-    } catch {
-      // Still redirect so user leaves admin; cookie may clear on next request
-    }
-    // Full page navigation so session is cleared and login page loads fresh
-    window.location.href = "/admin/login";
+    await authService.logout();
+    router.push("/admin/login");
+    router.refresh();
   }
 
   if (loading) {
@@ -152,9 +148,9 @@ export function AdminProfileSettings() {
 
         <div className="space-y-8">
           {/* Personal Information */}
-          <section className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-lg shadow-slate-200/50 sm:p-8">
+          <section className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-md shadow-slate-200/30 sm:p-8 ring-1 ring-slate-100/50">
             <div className="mb-6 flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-600">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-100 text-orange-600">
                 <User className="h-5 w-5" />
               </div>
               <div>
@@ -223,7 +219,7 @@ export function AdminProfileSettings() {
                 type="button"
                 onClick={handleSaveChanges}
                 disabled={saving}
-                className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-900/25 transition hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-xl bg-[#FF6A00] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-orange-500/25 transition hover:bg-[#E55F00] focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-60"
               >
                 {saving ? (
                   <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
@@ -236,9 +232,9 @@ export function AdminProfileSettings() {
           </section>
 
           {/* Change Password */}
-          <section className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-lg shadow-slate-200/50 sm:p-8">
+          <section className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-md shadow-slate-200/30 sm:p-8 ring-1 ring-slate-100/50">
             <div className="mb-6 flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-600">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-100 text-orange-600">
                 <Lock className="h-5 w-5" />
               </div>
               <div>
@@ -300,7 +296,7 @@ export function AdminProfileSettings() {
                 type="button"
                 onClick={handleUpdatePassword}
                 disabled={updatingPassword}
-                className="inline-flex items-center gap-2 rounded-xl border border-amber-600 bg-amber-500 px-6 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-xl bg-[#FF6A00] px-6 py-3 text-sm font-semibold text-white shadow-md shadow-orange-500/20 transition hover:bg-[#E55F00] focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-60"
               >
                 {updatingPassword ? (
                   <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
@@ -311,9 +307,9 @@ export function AdminProfileSettings() {
           </section>
 
           {/* Role & Permissions */}
-          <section className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-lg shadow-slate-200/50 sm:p-8">
+          <section className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-md shadow-slate-200/30 sm:p-8 ring-1 ring-slate-100/50">
             <div className="mb-6 flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-600">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-100 text-orange-600">
                 <Shield className="h-5 w-5" />
               </div>
               <div>
@@ -325,7 +321,7 @@ export function AdminProfileSettings() {
               <div>
                 <label className={labelBase}>Current Role</label>
                 <div className="rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3">
-                  <span className="inline-flex items-center rounded-lg bg-amber-100 px-3 py-1.5 text-sm font-semibold text-amber-800 ring-1 ring-amber-200/80">
+                  <span className="inline-flex items-center rounded-lg bg-orange-100 px-3 py-1.5 text-sm font-semibold text-orange-800 ring-1 ring-orange-200/80">
                     Super Admin
                   </span>
                 </div>
@@ -358,16 +354,15 @@ export function AdminProfileSettings() {
           </section>
 
           {/* Account Actions */}
-          <section className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-lg shadow-slate-200/50 sm:p-8">
+          <section className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-md shadow-slate-200/30 sm:p-8 ring-1 ring-slate-100/50">
             <h2 className="mb-6 text-lg font-semibold text-slate-900">Account Actions</h2>
             <button
               type="button"
               onClick={handleLogout}
-              disabled={loggingOut}
-              className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-3.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed"
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-3.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:ring-offset-2"
             >
               <LogOut className="h-4 w-4" />
-              {loggingOut ? "Logging out…" : "Log out"}
+              Log out
             </button>
           </section>
         </div>

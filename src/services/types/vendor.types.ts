@@ -17,6 +17,7 @@ export interface VendorProductListItem {
   price: number;
   stock: number;
   status: VendorProductStatus;
+  rejectionReason?: string | null;
   lastUpdated: string;
   imageUrl?: string | null;
 }
@@ -73,6 +74,7 @@ export interface VendorProductForEdit {
   stock: number;
   returnPolicy: "no-return" | "7days" | "10days" | "15days";
   status: string;
+  rejectionReason?: string | null;
   imageUrls: string[];
   specifications: { key: string; value: string }[];
   variations: { name: string; values: string[] }[];
@@ -245,6 +247,8 @@ export interface VendorProfileData {
   status: "draft" | "submitted" | "approved" | "rejected" | "suspended" | "on_hold";
   statusReason?: string | null;
   primaryCategoryId?: string | null;
+  /** Category IDs the vendor can add products to. */
+  allowedCategoryIds: string[];
   business: VendorProfileBusiness;
   owner: VendorProfileOwner;
   bank: VendorProfileBank | null;
@@ -258,6 +262,8 @@ export interface UpdateVendorProfilePayload {
   bank?: Partial<Omit<VendorProfileBank, "bankProofUrl">>;
   status?: "draft" | "submitted";
   primaryCategoryId?: string | null;
+  /** Category IDs the vendor can sell in. */
+  allowedCategoryIds?: string[];
 }
 
 export interface VendorSupportTicketItem {
@@ -266,6 +272,8 @@ export interface VendorSupportTicketItem {
   category: string;
   message: string;
   status: string;
+  adminReply?: string | null;
+  adminRepliedAt?: string | null;
   createdAt: string;
 }
 

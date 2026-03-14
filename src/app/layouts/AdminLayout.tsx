@@ -9,7 +9,7 @@ export type AdminLayoutProps = {
 
 export function AdminLayout({ children, activePath = "" }: AdminLayoutProps) {
   return (
-    <div className="min-h-screen flex bg-slate-50/95">
+    <div className="min-h-screen flex bg-gradient-to-br from-slate-50 via-white to-slate-50/80">
       <AdminSidebar activePath={activePath} />
       <div className="flex-1 flex flex-col min-w-0">
         <AdminHeader />

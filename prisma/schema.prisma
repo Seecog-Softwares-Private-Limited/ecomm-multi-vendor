@@ -223,15 +223,17 @@ model Seller {
 }
 
 model VendorSupportTicket {
-  id        String   @id @default(uuid()) @db.Char(36)
-  sellerId  String   @map("seller_id") @db.Char(36)
-  subject   String   @db.VarChar(500)
-  category  String   @db.VarChar(100)
-  message   String   @db.Text
-  status    SupportTicketStatus @default(OPEN)
-  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
-  updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(3)
-  deletedAt DateTime? @map("deleted_at") @db.DateTime(3)
+  id             String    @id @default(uuid()) @db.Char(36)
+  sellerId       String    @map("seller_id") @db.Char(36)
+  subject        String    @db.VarChar(500)
+  category       String    @db.VarChar(100)
+  message        String    @db.Text
+  status         SupportTicketStatus @default(OPEN)
+  adminReply     String?   @map("admin_reply") @db.Text
+  adminRepliedAt DateTime? @map("admin_replied_at") @db.DateTime(3)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.DateTime(3)
+  deletedAt      DateTime? @map("deleted_at") @db.DateTime(3)
 
   seller Seller @relation(fields: [sellerId], references: [id], onDelete: Cascade)
 
@@ -330,12 +332,13 @@ model Product {
   gstPercent    Decimal?      @map("gst_percent") @db.Decimal(5, 2)
   stock         Int           @default(0) @db.Int
   returnPolicy  ReturnPolicy  @default(DAYS_7) @map("return_policy")
-  status        ProductStatus @default(DRAFT)
-  avgRating     Decimal?      @map("avg_rating") @db.Decimal(3, 2)
-  reviewCount   Int?          @map("review_count") @default(0) @db.Int
-  createdAt     DateTime      @default(now()) @map("created_at") @db.DateTime(3)
-  updatedAt     DateTime      @updatedAt @map("updated_at") @db.DateTime(3)
-  deletedAt     DateTime?     @map("deleted_at") @db.DateTime(3)
+  status           ProductStatus @default(DRAFT)
+  rejectionReason  String?       @map("rejection_reason") @db.Text
+  avgRating        Decimal?      @map("avg_rating") @db.Decimal(3, 2)
+  reviewCount      Int?          @map("review_count") @default(0) @db.Int
+  createdAt        DateTime      @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt        DateTime      @updatedAt @map("updated_at") @db.DateTime(3)
+  deletedAt        DateTime?     @map("deleted_at") @db.DateTime(3)
 
   seller              Seller                 @relation(fields: [sellerId], references: [id], onDelete: Restrict)
   category            Category               @relation(fields: [categoryId], references: [id], onDelete: Restrict)

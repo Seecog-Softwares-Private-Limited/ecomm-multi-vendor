@@ -174,7 +174,14 @@ export function VendorProductsList() {
                       )}
                     </td>
                     <td className="py-4 px-4 text-center">
-                      <StatusBadge status={product.status} size="sm" />
+                      <div className="flex flex-col items-center gap-1">
+                        <StatusBadge status={product.status} size="sm" />
+                        {product.status === "rejected" && product.rejectionReason && (
+                          <p className="max-w-[200px] text-left text-xs text-rose-600 bg-rose-50 rounded px-2 py-1 mt-1" title={product.rejectionReason}>
+                            {product.rejectionReason.length > 60 ? `${product.rejectionReason.slice(0, 60)}…` : product.rejectionReason}
+                          </p>
+                        )}
+                      </div>
                     </td>
                     <td className="py-4 px-4">
                       <p className="text-sm text-[#64748B]">{product.lastUpdated}</p>
