@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ProductDetailPage } from "@/components/ProductDetailPage";
-import { getProductById, getProductCategoryInfo } from "@/lib/data/products";
+import { getProductById, getProductCategoryInfo, getRelatedProducts } from "@/lib/data/products";
 
 function ProductNotFound() {
   return (
@@ -69,7 +69,13 @@ export default async function Page({
     specifications.find((s) => s.label?.toLowerCase() === "brand")?.value ?? "Brand";
   const categoryName = categoryInfo?.categoryName ?? "Category";
   const subCategoryName = categoryInfo?.subCategoryName ?? "Products";
+  const categorySlug = categoryInfo?.categorySlug ?? "";
   const subCategorySlug = categoryInfo?.subCategorySlug ?? "mobile-phones";
+
+  const [relatedFromStores, relatedToItem] = await Promise.all([
+    getRelatedProducts(productId, { categorySlug, limit: 12 }),
+    getRelatedProducts(productId, { subCategorySlug, limit: 12 }),
+  ]);
 
   return (
     <ProductDetailPage
@@ -78,6 +84,8 @@ export default async function Page({
       subCategoryName={subCategoryName}
       subCategorySlug={subCategorySlug}
       brand={brand}
+      relatedFromStores={relatedFromStores}
+      relatedToItem={relatedToItem}
     />
   );
 }

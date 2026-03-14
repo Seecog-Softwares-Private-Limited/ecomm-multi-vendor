@@ -8,6 +8,7 @@ import {
   FileText,
   CheckCircle,
   AlertTriangle,
+  ChevronDown,
 } from "lucide-react";
 import { Button, Input, Select, Toggle, FileUpload, Card, Alert } from "../components/UIComponents";
 import { DataState } from "../../components/DataState";
@@ -32,6 +33,7 @@ const defaultFormData = {
   gstin: "",
   gstNotApplicable: false,
   pan: "",
+  websiteUrl: "",
   addressLine1: "",
   addressLine2: "",
   city: "",
@@ -50,6 +52,8 @@ const defaultFormData = {
   storeLogo: "",
   storeDescription: "",
   primaryCategoryId: "",
+  /** Category IDs the vendor can sell in (multi-select). */
+  allowedCategoryIds: [] as string[],
 };
 
 const TABS: { id: TabName; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
@@ -72,6 +76,20 @@ export function VendorProfile() {
   const [submitError, setSubmitError] = React.useState<string | null>(null);
   const [uploadSuccess, setUploadSuccess] = React.useState<string | null>(null);
   const [uploadErrorByType, setUploadErrorByType] = React.useState<Record<string, string | null>>({});
+  const [categoriesDropdownOpen, setCategoriesDropdownOpen] = React.useState(false);
+  const categoriesDropdownRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (categoriesDropdownRef.current && !categoriesDropdownRef.current.contains(event.target as Node)) {
+        setCategoriesDropdownOpen(false);
+      }
+    }
+    if (categoriesDropdownOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [categoriesDropdownOpen]);
 
   const { data: profile, error, isLoading, refetch } = useApi(() =>
     vendorService.getProfile()
@@ -96,6 +114,7 @@ export function VendorProfile() {
       gstin: profile.business.gstin,
       gstNotApplicable: profile.business.gstNotApplicable,
       pan: profile.business.pan,
+      websiteUrl: profile.business.websiteUrl ?? "",
       addressLine1: profile.business.addressLine1,
       addressLine2: profile.business.addressLine2,
       city: profile.business.city,
@@ -114,6 +133,7 @@ export function VendorProfile() {
       storeLogo: profile.business.storeLogo ?? "",
       storeDescription: profile.business.storeDescription ?? "",
       primaryCategoryId: profile.primaryCategoryId ?? "",
+      allowedCategoryIds: profile.allowedCategoryIds ?? (profile.primaryCategoryId ? [profile.primaryCategoryId] : []),
     }));
   }, [profile]);
 
@@ -122,7 +142,10 @@ export function VendorProfile() {
   }, []);
 
   React.useEffect(() => {
-    const id = formData.primaryCategoryId || profile?.primaryCategoryId;
+    const id =
+      formData.primaryCategoryId ||
+      profile?.primaryCategoryId ||
+      (formData.allowedCategoryIds?.length ? formData.allowedCategoryIds[0] : null);
     if (!id) {
       setCategoryDocRequirements([]);
       return;
@@ -131,7 +154,7 @@ export function VendorProfile() {
       .getCategoryDocumentRequirements(id)
       .then(setCategoryDocRequirements)
       .catch(() => setCategoryDocRequirements([]));
-  }, [formData.primaryCategoryId, profile?.primaryCategoryId]);
+  }, [formData.primaryCategoryId, formData.allowedCategoryIds, profile?.primaryCategoryId]);
 
   const vendorProfile = React.useMemo(() => {
     const business = {
@@ -207,6 +230,7 @@ export function VendorProfile() {
           pan: formData.pan,
           gstin: formData.gstin,
           gstNotApplicable: formData.gstNotApplicable,
+          websiteUrl: formData.websiteUrl,
           addressLine1: formData.addressLine1,
           addressLine2: formData.addressLine2,
           city: formData.city,
@@ -227,7 +251,8 @@ export function VendorProfile() {
           ifsc: formData.ifsc,
           bankName: formData.bankName,
         },
-        primaryCategoryId: formData.primaryCategoryId || null,
+        primaryCategoryId: formData.allowedCategoryIds?.length ? formData.allowedCategoryIds[0] : formData.primaryCategoryId || null,
+        allowedCategoryIds: formData.allowedCategoryIds,
         status: "draft",
       });
       await refetch();
@@ -256,6 +281,7 @@ export function VendorProfile() {
           pan: formData.pan,
           gstin: formData.gstin,
           gstNotApplicable: formData.gstNotApplicable,
+          websiteUrl: formData.websiteUrl,
           addressLine1: formData.addressLine1,
           addressLine2: formData.addressLine2,
           city: formData.city,
@@ -276,7 +302,8 @@ export function VendorProfile() {
           ifsc: formData.ifsc,
           bankName: formData.bankName,
         },
-        primaryCategoryId: formData.primaryCategoryId || null,
+        primaryCategoryId: formData.allowedCategoryIds?.length ? formData.allowedCategoryIds[0] : formData.primaryCategoryId || null,
+        allowedCategoryIds: formData.allowedCategoryIds,
         status: "draft",
       });
       await vendorService.submitForApproval();
@@ -347,16 +374,28 @@ export function VendorProfile() {
     [refetch]
   );
 
-  const handlePrimaryCategoryChange = async (categoryId: string) => {
-    setFormData((prev) => ({ ...prev, primaryCategoryId: categoryId }));
-    try {
-      await vendorService.updateProfile({ primaryCategoryId: categoryId || null });
-      await refetch();
-    } catch {
-      // revert on error
-      setFormData((prev) => ({ ...prev, primaryCategoryId: formData.primaryCategoryId }));
-    }
-  };
+  const handleAllowedCategoriesChange = React.useCallback(
+    async (categoryId: string, checked: boolean) => {
+      const next = checked
+        ? [...(formData.allowedCategoryIds || []), categoryId]
+        : (formData.allowedCategoryIds || []).filter((id) => id !== categoryId);
+      setFormData((prev) => ({
+        ...prev,
+        allowedCategoryIds: next,
+        primaryCategoryId: next.length ? next[0] : prev.primaryCategoryId,
+      }));
+      try {
+        await vendorService.updateProfile({
+          allowedCategoryIds: next,
+          primaryCategoryId: next.length ? next[0] : null,
+        });
+        await refetch();
+      } catch {
+        setFormData((prev) => ({ ...prev, allowedCategoryIds: formData.allowedCategoryIds || [] }));
+      }
+    },
+    [formData.allowedCategoryIds, refetch]
+  );
 
   const statusLabel =
     status === "approved"
@@ -550,19 +589,105 @@ export function VendorProfile() {
                   { value: "company", label: "Company" },
                 ]}
               />
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">Primary Category</label>
-                <select
-                  value={formData.primaryCategoryId}
-                  onChange={(e) => handlePrimaryCategoryChange(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 shadow-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              <div className="relative" ref={categoriesDropdownRef}>
+                <label className="mb-2 block text-sm font-medium text-slate-700">
+                  Categories you sell in
+                </label>
+                <p className="mb-3 text-xs text-slate-500">
+                  Select all categories in which you will add products. You can add products only in these categories.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setCategoriesDropdownOpen((open) => !open)}
+                  className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 text-left shadow-sm transition hover:border-slate-300 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                 >
-                  <option value="">Select category (optional)</option>
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
-                <p className="mt-1.5 text-xs text-slate-500">Used for category-specific document requirements</p>
+                  <span className="text-sm text-slate-700 truncate mr-2">
+                    {(formData.allowedCategoryIds || []).length === 0
+                      ? "Select categories..."
+                      : (() => {
+                          const n = (formData.allowedCategoryIds || []).length;
+                          const names = (formData.allowedCategoryIds || [])
+                            .map((id) => categories.find((c) => c.id === id)?.name ?? id);
+                          return n > 3 ? `${n} categories selected` : names.join(", ");
+                        })()}
+                  </span>
+                  <ChevronDown
+                    className={`h-5 w-5 shrink-0 text-slate-400 transition ${categoriesDropdownOpen ? "rotate-180" : ""}`}
+                  />
+                </button>
+                {categoriesDropdownOpen && (
+                  <div className="absolute z-10 mt-1 w-full rounded-xl border border-slate-200 bg-white py-1 shadow-lg max-h-60 overflow-y-auto">
+                    {categories.map((c) => {
+                      const checked = (formData.allowedCategoryIds || []).includes(c.id);
+                      return (
+                        <label
+                          key={c.id}
+                          className="flex cursor-pointer items-center gap-2 px-4 py-2.5 hover:bg-slate-50 text-sm text-slate-800"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(e) => handleAllowedCategoriesChange(c.id, e.target.checked)}
+                            className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500/30"
+                          />
+                          <span className="font-medium">{c.name}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+                {((formData.allowedCategoryIds || []).length > 0) && (
+                  <p className="mt-1.5 text-xs text-slate-500">
+                    Primary category for KYC documents: <strong>{categories.find((c) => c.id === formData.allowedCategoryIds?.[0])?.name ?? formData.allowedCategoryIds?.[0]}</strong>
+                  </p>
+                )}
+              </div>
+              <Input
+                label="Store / Company website"
+                type="url"
+                value={formData.websiteUrl}
+                onChange={(e) => setFormData({ ...formData, websiteUrl: e.target.value })}
+                placeholder="https://www.example.com"
+                helperText="Link to your store or company website (optional)"
+              />
+              <div className="border-t border-slate-200 pt-8">
+                <h3 className="mb-4 text-lg font-semibold text-slate-900">Address</h3>
+                <div className="space-y-4">
+                  <Input
+                    label="Address line 1"
+                    value={formData.addressLine1}
+                    onChange={(e) => setFormData({ ...formData, addressLine1: e.target.value })}
+                    placeholder="Building, street, area"
+                    helperText="Street address or location"
+                  />
+                  <Input
+                    label="Address line 2"
+                    value={formData.addressLine2}
+                    onChange={(e) => setFormData({ ...formData, addressLine2: e.target.value })}
+                    placeholder="Landmark, floor, etc. (optional)"
+                  />
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <Input
+                      label="City"
+                      value={formData.city}
+                      onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                      placeholder="City"
+                    />
+                    <Input
+                      label="State"
+                      value={formData.state}
+                      onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                      placeholder="State"
+                    />
+                    <Input
+                      label="Pincode"
+                      value={formData.pincode}
+                      onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
+                      placeholder="e.g. 560001"
+                      helperText="6-digit pincode"
+                    />
+                  </div>
+                </div>
               </div>
               <div className="border-t border-slate-200 pt-8">
                 <h3 className="mb-4 text-lg font-semibold text-slate-900">Owner / Contact</h3>
@@ -623,9 +748,9 @@ export function VendorProfile() {
                 <p className="mb-4 text-sm text-slate-500">
                   Based on your Primary Category. Documents marked <strong>Required</strong> must be uploaded to complete your profile.
                 </p>
-                {!formData.primaryCategoryId && !profile?.primaryCategoryId ? (
+                {!(formData.primaryCategoryId || formData.allowedCategoryIds?.length || profile?.primaryCategoryId || profile?.allowedCategoryIds?.length) ? (
                   <p className="rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm text-slate-600">
-                    Select a <strong>Primary Category</strong> in the Business Info tab to see optional documents for your category.
+                    Select <strong>Categories you sell in</strong> in the Business Info tab to see optional documents for your category.
                   </p>
                 ) : categoryDocRequirements.length === 0 ? (
                   <p className="rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm text-slate-600">

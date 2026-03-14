@@ -37,6 +37,8 @@ export interface VendorProductListItem {
   price: number;
   stock: number;
   status: VendorProductStatus;
+  /** Reason for rejection from admin (when status is rejected). */
+  rejectionReason: string | null;
   lastUpdated: string;
   /** First product image URL for listing thumbnail; null if none. */
   imageUrl: string | null;
@@ -83,6 +85,7 @@ export async function getVendorProductsBySellerId(
     price: toNumber(p.sellingPrice),
     stock: p.stock,
     status: mapProductStatus(p.status),
+    rejectionReason: p.rejectionReason ?? null,
     lastUpdated: formatRelativeTime(p.updatedAt),
     imageUrl: p.images[0]?.url ?? null,
   }));
@@ -114,6 +117,8 @@ export interface VendorProductForEdit {
   stock: number;
   returnPolicy: "no-return" | "7days" | "10days" | "15days";
   status: string;
+  /** Reason for rejection from admin (when status is REJECTED). */
+  rejectionReason: string | null;
   imageUrls: string[];
   specifications: { key: string; value: string }[];
   variations: { name: string; values: string[] }[];
@@ -162,6 +167,7 @@ export async function getVendorProductForEdit(
     stock: product.stock,
     returnPolicy: RETURN_POLICY_TO_FORM[product.returnPolicy] ?? "7days",
     status: product.status,
+    rejectionReason: product.rejectionReason ?? null,
     imageUrls: (product.images ?? []).map((i) => i.url),
     specifications: product.specifications.map((s) => ({ key: s.key, value: s.value })),
     variations: product.variations.map((v) => ({

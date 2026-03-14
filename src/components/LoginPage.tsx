@@ -12,6 +12,7 @@ import {
   ShieldCheck,
   ChevronRight,
 } from "lucide-react";
+import { IndovyaparLogo } from "./IndovyaparLogo";
 
 // ─── Shared Design Tokens ─────────────────────────────────────────────────────
 const C = {
@@ -173,17 +174,7 @@ export function LoginPage() {
         }}
       >
         <div style={{ cursor: "pointer" }} onClick={() => router.push("/")}>
-          <span
-            style={{
-              fontFamily: "'Katibeh', cursive",
-              fontWeight: 400,
-              fontSize: 28,
-              color: "#FF5400",
-              lineHeight: "32px",
-            }}
-          >
-            Indovyapar
-          </span>
+          <IndovyaparLogo fontSize={28} />
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <span style={{ fontFamily: font, fontSize: 13, color: C.textGray }}>Home</span>
@@ -267,17 +258,10 @@ export function LoginPage() {
 
             {/* Logo */}
             <div style={{ textAlign: "center", position: "relative", zIndex: 1 }}>
-              <span
-                style={{
-                  fontFamily: "'Katibeh', cursive",
-                  fontWeight: 400,
-                  fontSize: 44,
-                  color: C.white,
-                  lineHeight: "52px",
-                }}
-              >
-                Indovyapar
-              </span>
+              <IndovyaparLogo
+                variant="light"
+                style={{ fontSize: 44, lineHeight: "52px" }}
+              />
               <p
                 style={{
                   fontFamily: font,
@@ -746,7 +730,7 @@ export function LoginPage() {
           </span>
         ))}
         <span style={{ fontFamily: font, fontSize: 12, color: "rgba(244,244,244,0.5)" }}>
-          © 2026 Indovyapar
+          © 2026 <IndovyaparLogo variant="light" inline style={{ fontSize: 12, lineHeight: "1" }} />
         </span>
       </div>
     </div>

@@ -226,6 +226,17 @@ export function VendorSupport() {
                     <p className="text-sm text-[#64748B] mt-1 line-clamp-2">
                       {t.message}
                     </p>
+                    {t.adminReply && (
+                      <div className="mt-3 pt-3 border-t border-[#E2E8F0]">
+                        <p className="text-xs font-semibold text-[#16A34A] uppercase tracking-wider mb-1">Support reply</p>
+                        <p className="text-sm text-[#1E293B] whitespace-pre-wrap">{t.adminReply}</p>
+                        {t.adminRepliedAt && (
+                          <p className="text-xs text-[#94A3B8] mt-1">
+                            {new Date(t.adminRepliedAt).toLocaleString()}
+                          </p>
+                        )}
+                      </div>
+                    )}
                     <p className="text-xs text-[#94A3B8] mt-2">
                       {new Date(t.createdAt).toLocaleString()}
                     </p>

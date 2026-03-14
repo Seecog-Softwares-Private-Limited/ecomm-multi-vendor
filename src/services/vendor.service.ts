@@ -119,9 +119,17 @@ export const vendorService = {
     );
   },
 
-  /** List categories for primary category selection. */
-  async getCategories(): Promise<{ id: string; name: string }[]> {
-    return request<{ id: string; name: string }[]>(`${VENDOR_BASE}/categories`, { method: "GET" });
+  /** List categories (id, name, slug) for profile and product form. */
+  async getCategories(): Promise<{ id: string; name: string; slug: string }[]> {
+    return request<{ id: string; name: string; slug: string }[]>(`${VENDOR_BASE}/categories`, { method: "GET" });
+  },
+
+  /** List subcategories for a category (for product form). */
+  async getSubcategories(categoryId: string): Promise<{ id: string; slug: string; name: string }[]> {
+    return request<{ id: string; slug: string; name: string }[]>(
+      `${VENDOR_BASE}/subcategories?categoryId=${encodeURIComponent(categoryId)}`,
+      { method: "GET" }
+    );
   },
 
   /** Get document names for a category (optional/required – vendor may upload or skip). */
