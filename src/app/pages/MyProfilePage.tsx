@@ -1,246 +1,397 @@
-import { Link } from "../components/Link";
-import { Search, ShoppingBag, User, Camera, Edit2 } from "lucide-react";
+"use client";
+
+import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { User, Camera, Edit2, LogOut } from "lucide-react";
+import { AccountLayout } from "@/components/AccountLayout";
+import { toast } from "sonner";
+
+type UserProfile = {
+  id: string;
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+  phone: string | null;
+  role: string;
+};
+
+type Stats = {
+  orderCount: number;
+  wishlistCount: number;
+  addressCount: number;
+};
 
 export function MyProfilePage() {
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [passwordOpen, setPasswordOpen] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [savingPassword, setSavingPassword] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const router = useRouter();
+
+  const [formFirstName, setFormFirstName] = useState("");
+  const [formLastName, setFormLastName] = useState("");
+  const [formPhone, setFormPhone] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
+  const fetchProfile = useCallback(() => {
+    fetch("/api/auth/me", { credentials: "include" })
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error("Failed"))))
+      .then((data) => {
+        if (data?.data?.user) {
+          setUser(data.data.user);
+          setFormFirstName(data.data.user.firstName ?? "");
+          setFormLastName(data.data.user.lastName ?? "");
+          setFormPhone(data.data.user.phone ?? "");
+        }
+        if (data?.data?.stats) setStats(data.data.stats);
+      })
+      .catch(() => setError(true))
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    fetchProfile();
+  }, [fetchProfile]);
+
+  const displayName =
+    user?.firstName || user?.lastName
+      ? [user.firstName, user.lastName].filter(Boolean).join(" ")
+      : user?.email?.split("@")[0] ?? "User";
+  const initials = (displayName || "U").slice(0, 2).toUpperCase();
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingProfile(true);
+    try {
+      const res = await fetch("/api/auth/me", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          firstName: formFirstName.trim() || null,
+          lastName: formLastName.trim() || null,
+          phone: formPhone.trim() || null,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data?.error?.message ?? "Failed to update profile");
+        return;
+      }
+      toast.success("Profile updated");
+      setUser((prev) =>
+        prev
+          ? {
+              ...prev,
+              firstName: formFirstName.trim() || null,
+              lastName: formLastName.trim() || null,
+              phone: formPhone.trim() || null,
+            }
+          : null
+      );
+      setEditOpen(false);
+    } catch {
+      toast.error("Failed to update profile");
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword !== confirmPassword) {
+      toast.error("New password and confirm password do not match");
+      return;
+    }
+    setSavingPassword(true);
+    try {
+      const res = await fetch("/api/auth/me/password", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          currentPassword,
+          newPassword,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data?.error?.message ?? "Failed to update password");
+        return;
+      }
+      toast.success("Password updated successfully");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setPasswordOpen(false);
+    } catch {
+      toast.error("Failed to update password");
+    } finally {
+      setSavingPassword(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    try {
+      await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+      toast.success("Logged out successfully");
+      router.push("/");
+    } catch {
+      toast.error("Failed to log out");
+    } finally {
+      setLoggingOut(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <AccountLayout>
+        <div className="bg-white rounded-2xl shadow-md border border-slate-200/80 p-6 sm:p-8">
+          <div className="animate-pulse space-y-6">
+            <div className="h-8 w-48 bg-slate-200 rounded" />
+            <div className="h-24 bg-slate-100 rounded-xl" />
+          </div>
+        </div>
+      </AccountLayout>
+    );
+  }
+
+  if (error || !user) {
+    return (
+      <AccountLayout>
+        <div className="bg-white rounded-2xl shadow-md border border-slate-200/80 p-6 sm:p-8">
+          <p className="text-red-600 font-medium">
+            Failed to load profile. Please log in again or try later.
+          </p>
+        </div>
+      </AccountLayout>
+    );
+  }
+
   return (
-    <div className="bg-[#F9FAFB] min-h-screen">
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-white shadow-md">
-        <div className="max-w-[1440px] mx-auto px-8 py-4">
-          <div className="flex items-center justify-between">
-            <Link href="/home" className="text-2xl font-bold text-[#111827]">ShopHub</Link>
+    <AccountLayout>
+      <div className="space-y-8">
+        <div className="bg-white rounded-2xl shadow-md border border-slate-200/80 p-6 sm:p-8">
+          <div className="flex items-start justify-between mb-8">
             <div className="flex items-center gap-6">
-              <Search className="w-5 h-5 text-[#111827] hover:text-[#2563EB] cursor-pointer" />
-              <Link href="/cart" className="relative text-[#111827] hover:text-[#2563EB]">
-                <ShoppingBag className="w-5 h-5" />
-                <span className="absolute -top-2 -right-2 bg-[#2563EB] text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">3</span>
-              </Link>
-              <User className="w-5 h-5 text-[#2563EB]" />
+              <div className="relative">
+                <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[#FF6A00] to-[#166534] flex items-center justify-center text-white text-3xl font-bold">
+                  {initials}
+                </div>
+                <button
+                  type="button"
+                  className="absolute bottom-0 right-0 w-8 h-8 bg-[#FF6A00] rounded-full flex items-center justify-center text-white hover:bg-[#E55F00] transition-colors shadow-lg"
+                  aria-label="Change photo"
+                >
+                  <Camera className="w-4 h-4" />
+                </button>
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-[#111827] mb-1">{displayName}</h2>
+                <p className="text-gray-600">{user.email}</p>
+                {user.phone && <p className="text-gray-600">{user.phone}</p>}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setEditOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 border-2 border-[#FF6A00] text-[#FF6A00] rounded-xl hover:bg-[#FF6A00] hover:text-white transition-colors font-semibold"
+            >
+              <Edit2 className="w-4 h-4" />
+              Edit Profile
+            </button>
+          </div>
+
+          <div className="grid grid-cols-3 gap-4">
+            <div className="bg-[#F9FAFB] rounded-xl p-4 text-center">
+              <p className="text-3xl font-bold text-[#111827] mb-1">{stats?.orderCount ?? 0}</p>
+              <p className="text-sm text-gray-600">Total Orders</p>
+            </div>
+            <div className="bg-[#F9FAFB] rounded-xl p-4 text-center">
+              <p className="text-3xl font-bold text-[#111827] mb-1">{stats?.wishlistCount ?? 0}</p>
+              <p className="text-sm text-gray-600">Wishlist Items</p>
+            </div>
+            <div className="bg-[#F9FAFB] rounded-xl p-4 text-center">
+              <p className="text-3xl font-bold text-[#111827] mb-1">{stats?.addressCount ?? 0}</p>
+              <p className="text-sm text-gray-600">Saved Addresses</p>
             </div>
           </div>
         </div>
-      </header>
 
-      <div className="max-w-[1440px] mx-auto px-8 py-12">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* Sidebar */}
-          <aside className="lg:col-span-1">
-            <div className="bg-white rounded-2xl shadow-lg p-6 sticky top-28">
-              <nav className="space-y-2">
-                <Link
-                  href="/profile"
-                  className="flex items-center gap-3 px-4 py-3 bg-[#2563EB] text-white rounded-xl font-semibold"
-                >
-                  <User className="w-5 h-5" />
-                  My Profile
-                </Link>
-                <Link
-                  href="/my-orders"
-                  className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-[#F9FAFB] rounded-xl font-semibold transition-colors"
-                >
-                  <ShoppingBag className="w-5 h-5" />
-                  My Orders
-                </Link>
-                <Link
-                  href="/address-management"
-                  className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-[#F9FAFB] rounded-xl font-semibold transition-colors"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                  Addresses
-                </Link>
-                <Link
-                  href="/wishlist"
-                  className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-[#F9FAFB] rounded-xl font-semibold transition-colors"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                  </svg>
-                  Wishlist
-                </Link>
-                <Link
-                  href="/support-tickets"
-                  className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-[#F9FAFB] rounded-xl font-semibold transition-colors"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" />
-                  </svg>
-                  Support
-                </Link>
-              </nav>
+        <div className="bg-white rounded-2xl shadow-lg p-8">
+          <h3 className="text-xl font-bold text-[#111827] mb-6">Personal Information</h3>
+          <dl className="space-y-4">
+            <div>
+              <dt className="text-sm font-semibold text-gray-500">First Name</dt>
+              <dd className="text-[#111827] font-medium">{user.firstName || "—"}</dd>
             </div>
-          </aside>
-
-          {/* Main Content */}
-          <div className="lg:col-span-3 space-y-8">
-            {/* Profile Header */}
-            <div className="bg-white rounded-2xl shadow-lg p-8">
-              <div className="flex items-start justify-between mb-8">
-                <div className="flex items-center gap-6">
-                  <div className="relative">
-                    <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white text-3xl font-bold">
-                      JD
-                    </div>
-                    <button className="absolute bottom-0 right-0 w-8 h-8 bg-[#2563EB] rounded-full flex items-center justify-center text-white hover:bg-[#1D4ED8] transition-colors shadow-lg">
-                      <Camera className="w-4 h-4" />
-                    </button>
-                  </div>
-                  <div>
-                    <h2 className="text-2xl font-bold text-[#111827] mb-1">John Doe</h2>
-                    <p className="text-gray-600">john.doe@email.com</p>
-                    <p className="text-gray-600">+1 234 567 8900</p>
-                  </div>
-                </div>
-                <button className="flex items-center gap-2 px-4 py-2 border-2 border-[#2563EB] text-[#2563EB] rounded-xl hover:bg-[#2563EB] hover:text-white transition-colors font-semibold">
-                  <Edit2 className="w-4 h-4" />
-                  Edit Profile
-                </button>
-              </div>
-
-              {/* Stats */}
-              <div className="grid grid-cols-3 gap-4">
-                <div className="bg-[#F9FAFB] rounded-xl p-4 text-center">
-                  <p className="text-3xl font-bold text-[#111827] mb-1">24</p>
-                  <p className="text-sm text-gray-600">Total Orders</p>
-                </div>
-                <div className="bg-[#F9FAFB] rounded-xl p-4 text-center">
-                  <p className="text-3xl font-bold text-[#111827] mb-1">12</p>
-                  <p className="text-sm text-gray-600">Wishlist Items</p>
-                </div>
-                <div className="bg-[#F9FAFB] rounded-xl p-4 text-center">
-                  <p className="text-3xl font-bold text-[#111827] mb-1">3</p>
-                  <p className="text-sm text-gray-600">Saved Addresses</p>
-                </div>
-              </div>
+            <div>
+              <dt className="text-sm font-semibold text-gray-500">Last Name</dt>
+              <dd className="text-[#111827] font-medium">{user.lastName || "—"}</dd>
             </div>
-
-            {/* Personal Information */}
-            <div className="bg-white rounded-2xl shadow-lg p-8">
-              <h3 className="text-xl font-bold text-[#111827] mb-6">Personal Information</h3>
-              <form className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-semibold text-[#111827] mb-2">
-                      First Name
-                    </label>
-                    <input
-                      type="text"
-                      defaultValue="John"
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#2563EB] focus:outline-none transition-colors bg-[#F9FAFB]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-[#111827] mb-2">
-                      Last Name
-                    </label>
-                    <input
-                      type="text"
-                      defaultValue="Doe"
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#2563EB] focus:outline-none transition-colors bg-[#F9FAFB]"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-[#111827] mb-2">
-                    Email Address
-                  </label>
-                  <input
-                    type="email"
-                    defaultValue="john.doe@email.com"
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#2563EB] focus:outline-none transition-colors bg-[#F9FAFB]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-[#111827] mb-2">
-                    Phone Number
-                  </label>
-                  <input
-                    type="tel"
-                    defaultValue="+1 234 567 8900"
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#2563EB] focus:outline-none transition-colors bg-[#F9FAFB]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-[#111827] mb-2">
-                    Date of Birth
-                  </label>
-                  <input
-                    type="date"
-                    defaultValue="1990-01-15"
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#2563EB] focus:outline-none transition-colors bg-[#F9FAFB]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-[#111827] mb-2">
-                    Gender
-                  </label>
-                  <select className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#2563EB] focus:outline-none transition-colors bg-[#F9FAFB]">
-                    <option>Male</option>
-                    <option>Female</option>
-                    <option>Other</option>
-                  </select>
-                </div>
-
-                <button
-                  type="submit"
-                  className="bg-[#2563EB] text-white px-8 py-3 rounded-xl font-semibold hover:bg-[#1D4ED8] transition-colors shadow-lg"
-                >
-                  Save Changes
-                </button>
-              </form>
+            <div>
+              <dt className="text-sm font-semibold text-gray-500">Email</dt>
+              <dd className="text-[#111827] font-medium">{user.email}</dd>
             </div>
-
-            {/* Change Password */}
-            <div className="bg-white rounded-2xl shadow-lg p-8">
-              <h3 className="text-xl font-bold text-[#111827] mb-6">Change Password</h3>
-              <form className="space-y-6">
-                <div>
-                  <label className="block text-sm font-semibold text-[#111827] mb-2">
-                    Current Password
-                  </label>
-                  <input
-                    type="password"
-                    placeholder="Enter current password"
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#2563EB] focus:outline-none transition-colors bg-[#F9FAFB]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-[#111827] mb-2">
-                    New Password
-                  </label>
-                  <input
-                    type="password"
-                    placeholder="Enter new password"
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#2563EB] focus:outline-none transition-colors bg-[#F9FAFB]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-[#111827] mb-2">
-                    Confirm New Password
-                  </label>
-                  <input
-                    type="password"
-                    placeholder="Confirm new password"
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#2563EB] focus:outline-none transition-colors bg-[#F9FAFB]"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  className="bg-[#111827] text-white px-8 py-3 rounded-xl font-semibold hover:bg-gray-800 transition-colors shadow-lg"
-                >
-                  Update Password
-                </button>
-              </form>
+            <div>
+              <dt className="text-sm font-semibold text-gray-500">Phone</dt>
+              <dd className="text-[#111827] font-medium">{user.phone || "—"}</dd>
             </div>
-          </div>
+          </dl>
+        </div>
+
+        <div className="bg-white rounded-2xl shadow-lg p-8">
+          <h3 className="text-xl font-bold text-[#111827] mb-6">Change Password</h3>
+          <button
+            type="button"
+            onClick={() => setPasswordOpen(true)}
+            className="px-6 py-3 bg-[#111827] text-white rounded-xl font-semibold hover:bg-gray-800 transition-colors"
+          >
+            Update Password
+          </button>
+        </div>
+
+        <div className="bg-white rounded-2xl shadow-lg p-8">
+          <h3 className="text-xl font-bold text-[#111827] mb-6">Logout</h3>
+          <p className="text-slate-600 mb-4">Sign out of your account on this device.</p>
+          <button
+            type="button"
+            onClick={handleLogout}
+            disabled={loggingOut}
+            className="flex items-center gap-2 px-6 py-3 border-2 border-red-200 text-red-600 rounded-xl font-semibold hover:bg-red-50 transition-colors disabled:opacity-70"
+          >
+            <LogOut className="w-5 h-5" />
+            {loggingOut ? "Logging out…" : "Log out"}
+          </button>
         </div>
       </div>
-    </div>
+
+      {editOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 sm:p-8">
+            <h3 className="text-xl font-bold text-[#111827] mb-6">Edit Profile</h3>
+            <form onSubmit={handleSaveProfile} className="space-y-6">
+              <div>
+                <label className="block text-sm font-semibold text-[#111827] mb-2">First Name</label>
+                <input
+                  type="text"
+                  value={formFirstName}
+                  onChange={(e) => setFormFirstName(e.target.value)}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#FF6A00] focus:outline-none transition-colors bg-[#F9FAFB]"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-[#111827] mb-2">Last Name</label>
+                <input
+                  type="text"
+                  value={formLastName}
+                  onChange={(e) => setFormLastName(e.target.value)}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#FF6A00] focus:outline-none transition-colors bg-[#F9FAFB]"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-[#111827] mb-2">Phone</label>
+                <input
+                  type="tel"
+                  value={formPhone}
+                  onChange={(e) => setFormPhone(e.target.value)}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#FF6A00] focus:outline-none transition-colors bg-[#F9FAFB]"
+                />
+              </div>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setEditOpen(false)}
+                  className="flex-1 px-4 py-3 border-2 border-slate-200 text-slate-700 rounded-xl font-semibold hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingProfile}
+                  className="flex-1 px-4 py-3 bg-[#FF6A00] text-white rounded-xl font-semibold hover:bg-[#E55F00] disabled:opacity-70"
+                >
+                  {savingProfile ? "Saving…" : "Save"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {passwordOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 sm:p-8">
+            <h3 className="text-xl font-bold text-[#111827] mb-6">Change Password</h3>
+            <form onSubmit={handleChangePassword} className="space-y-6">
+              <div>
+                <label className="block text-sm font-semibold text-[#111827] mb-2">
+                  Current Password
+                </label>
+                <input
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder="Enter current password"
+                  required
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#FF6A00] focus:outline-none transition-colors bg-[#F9FAFB]"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-[#111827] mb-2">
+                  New Password
+                </label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Enter new password"
+                  required
+                  minLength={8}
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#FF6A00] focus:outline-none transition-colors bg-[#F9FAFB]"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-[#111827] mb-2">
+                  Confirm New Password
+                </label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Confirm new password"
+                  required
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#FF6A00] focus:outline-none transition-colors bg-[#F9FAFB]"
+                />
+              </div>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setPasswordOpen(false)}
+                  className="flex-1 px-4 py-3 border-2 border-slate-200 text-slate-700 rounded-xl font-semibold hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingPassword}
+                  className="flex-1 px-4 py-3 bg-[#111827] text-white rounded-xl font-semibold hover:bg-gray-800 disabled:opacity-70"
+                >
+                  {savingPassword ? "Updating…" : "Update"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </AccountLayout>
   );
 }

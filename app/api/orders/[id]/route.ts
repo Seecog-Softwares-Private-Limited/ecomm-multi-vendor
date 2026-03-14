@@ -27,6 +27,7 @@ export const GET = withApiHandler(async (request: NextRequest, context: RouteCon
     where: { id, userId: session.sub },
     include: {
       shippingAddress: true,
+      statusEvents: { orderBy: { occurredAt: "asc" }, select: { status: true, note: true, occurredAt: true } },
       items: {
         include: {
           product: {
@@ -59,6 +60,12 @@ export const GET = withApiHandler(async (request: NextRequest, context: RouteCon
     totalPrice: Number(oi.totalPrice),
   }));
 
+  const timeline = order.statusEvents.map((e) => ({
+    status: e.status,
+    note: e.note ?? undefined,
+    occurredAt: e.occurredAt.toISOString(),
+  }));
+
   return apiSuccess({
     order: {
       id: order.id,
@@ -80,6 +87,7 @@ export const GET = withApiHandler(async (request: NextRequest, context: RouteCon
           }
         : null,
       items,
+      timeline,
     },
   });
 });
