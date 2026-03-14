@@ -12,6 +12,7 @@ export const GET = withApiHandler(async (request: NextRequest) => {
   const query = {
     categorySlug: searchParams.get("categorySlug") ?? undefined,
     subCategorySlug: searchParams.get("subCategorySlug") ?? undefined,
+    q: searchParams.get("q") ?? undefined,
     limit: searchParams.get("limit") ?? undefined,
     offset: searchParams.get("offset") ?? undefined,
   };
@@ -28,6 +29,7 @@ export const GET = withApiHandler(async (request: NextRequest) => {
   const products = await getProducts({
     categorySlug: parsed.data.categorySlug,
     subCategorySlug: parsed.data.subCategorySlug,
+    q: parsed.data.q,
     limit,
     offset,
   });

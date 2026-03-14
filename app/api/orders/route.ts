@@ -10,6 +10,37 @@ import {
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+/**
+ * GET /api/orders — list orders for the logged-in customer.
+ */
+export const GET = withApiHandler(async (request: NextRequest) => {
+  const session = await getSession(request);
+  if (!session) return apiUnauthorized("Please log in to view orders.");
+  if (session.role !== "CUSTOMER") return apiForbidden("Only customers can view their orders.");
+
+  const orders = await prisma.order.findMany({
+    where: { userId: session.sub },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      status: true,
+      totalAmount: true,
+      createdAt: true,
+      _count: { select: { items: true } },
+    },
+  });
+
+  const list = orders.map((o) => ({
+    id: o.id,
+    status: o.status,
+    totalAmount: Number(o.totalAmount),
+    createdAt: o.createdAt.toISOString(),
+    itemCount: o._count.items,
+  }));
+
+  return apiSuccess({ orders: list });
+});
+
 const SHIPPING_FREE_THRESHOLD = 500;
 const SHIPPING_COST = 50;
 const TAX_RATE = 0.1;

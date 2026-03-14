@@ -47,10 +47,21 @@ export const limitQuerySchema = z
 
 // --- API-specific schemas ---
 
+/** Optional search query (trimmed, max 200 chars); empty string becomes undefined. */
+const searchQueryParam = z
+  .string()
+  .max(200)
+  .transform((s) => {
+    const t = s?.trim();
+    return t === "" ? undefined : t;
+  })
+  .optional();
+
 /** GET /api/products — query params. */
 export const getProductsQuerySchema = z.object({
   categorySlug: slug,
   subCategorySlug: slug,
+  q: searchQueryParam,
   limit: limitSchema,
   offset: offsetSchema,
 });
