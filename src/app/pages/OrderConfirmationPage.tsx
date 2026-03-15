@@ -254,10 +254,10 @@ function OrderConfirmationContent() {
 
           <div className="space-y-3">
             <Link
-              href="/my-orders"
+              href={order ? `/track-order/${order.id}` : "/my-orders"}
               className="block w-full bg-[#FF6A00] text-white py-3.5 rounded-xl font-semibold text-center hover:bg-[#E55F00] transition"
             >
-              Track Your Order
+              {order ? "Track Your Order" : "My Orders"}
             </Link>
             <Link
               href="/"

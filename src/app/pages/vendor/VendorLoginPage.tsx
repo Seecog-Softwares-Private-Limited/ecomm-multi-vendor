@@ -44,7 +44,7 @@ export function VendorLoginPage() {
       <div
         className="hidden lg:flex lg:w-[44%] xl:w-[48%] flex-col justify-between p-10 xl:p-14 relative overflow-hidden"
         style={{
-          background: "linear-gradient(145deg, #FF6A00 0%, #FF5400 40%, #1E5128 100%)",
+          background: "linear-gradient(145deg, #1E5128 0%, #166534 22%, #c2410c 55%, #FF6A00 85%, #FF5400 100%)",
         }}
       >
         {/* Decorative circles */}
