@@ -29,6 +29,7 @@ export function VendorLoginPage() {
     setLoading(true);
     try {
       await authService.vendorLogin({ email, password });
+      await new Promise((r) => setTimeout(r, 50));
       router.push(callbackUrl);
       router.refresh();
     } catch (err) {
