@@ -34,6 +34,10 @@ export function AdminLoginPage({ onSuccess }: AdminLoginPageProps) {
     try {
       await authService.adminLogin({ email, password });
       onSuccess?.();
+      // Brief delay so the browser commits the Set-Cookie before the next page's fetch runs.
+      // Without this, client-side navigation to callbackUrl can trigger a fetch before the cookie
+      // is available, causing 401 and redirect-back-to-login on pages that replace on 401.
+      await new Promise((r) => setTimeout(r, 50));
       router.push(callbackUrl);
       router.refresh();
     } catch (err) {

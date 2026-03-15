@@ -41,6 +41,7 @@ export function LoginPage() {
         searchParams?.get("returnUrl") ??
         searchParams?.get("callbackUrl") ??
         "/";
+      await new Promise((r) => setTimeout(r, 50));
       router.push(returnUrl);
       return;
     } catch {
