@@ -309,9 +309,11 @@ export function OrderDetailPage({ orderId = "" }: OrderDetailPageProps) {
 
             {/* Sellers (unique from items) */}
             {(() => {
-              const sellers = Array.from(
-                new Map(order.items.map((i) => [i.seller?.id, i.seller]).filter(([, s]) => s)).values()
-              ) as Array<{ id: string; businessName: string; email: string }>;
+              const sellerMap = new Map<string, { id: string; businessName: string; email: string }>();
+              for (const i of order.items) {
+                if (i.seller?.id) sellerMap.set(i.seller.id, i.seller);
+              }
+              const sellers = Array.from(sellerMap.values());
               if (sellers.length === 0) return null;
               return (
                 <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-lg shadow-slate-200/50">
