@@ -5,11 +5,10 @@ import {
   apiSuccess,
   apiForbidden,
   apiNotFound,
+  type ApiRouteContext,
 } from "@/lib/api";
 import { requireSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-
-type RouteContext = { params: Promise<{ orderId: string }> };
 
 const ORDER_STATUS_DISPLAY: Record<OrderStatus, string> = {
   PLACED: "Placed",
@@ -42,13 +41,14 @@ const PAYMENT_STATUS_DISPLAY: Record<PaymentStatus, string> = {
 /**
  * GET /api/admin/orders/[orderId] — fetch single order with full details (admin only).
  */
-export const GET = withApiHandler(async (request: NextRequest, context: RouteContext) => {
+export const GET = withApiHandler(async (request: NextRequest, context?: ApiRouteContext) => {
   const session = await requireSession(request);
   if (session.role !== "ADMIN") {
     return apiForbidden("Admin access required");
   }
 
-  const { orderId } = await context.params;
+  const params = context ? await context.params : {};
+  const orderId = typeof params.orderId === "string" ? params.orderId : undefined;
   if (!orderId?.trim()) return apiNotFound("Order not found.");
 
   const order = await prisma.order.findFirst({

@@ -100,7 +100,7 @@ export const POST = withApiHandler(async (request: NextRequest) => {
   if (typeof couponCode === "string" && couponCode.trim()) {
     const coupon = await prisma.coupon.findFirst({
       where: {
-        code: { equals: couponCode.trim(), mode: "insensitive" },
+        code: couponCode.trim(),
         deletedAt: null,
         validFrom: { lte: new Date() },
         validTo: { gte: new Date() },
@@ -150,7 +150,7 @@ export const POST = withApiHandler(async (request: NextRequest) => {
           unitPrice,
           totalPrice,
           status: "NEW",
-          variantSnapshot: it.variantKey ? { raw: it.variantKey } : null,
+          variantSnapshot: it.variantKey ? { raw: it.variantKey } : undefined,
           sku: p.sku,
         },
       });
