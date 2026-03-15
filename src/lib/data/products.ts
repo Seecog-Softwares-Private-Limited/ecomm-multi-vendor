@@ -4,15 +4,16 @@ import type { ProductDetail, ProductListItem, ReviewItem, ProductQuestionItem } 
 const toNumber = (v: unknown): number => (typeof v === "number" ? v : Number(v) ?? 0);
 
 /**
- * List products (active, not deleted). Optional category or subcategory slug filter.
+ * List products (active, not deleted). Optional category, subcategory, or text search (q).
  */
 export async function getProducts(options: {
   categorySlug?: string;
   subCategorySlug?: string;
+  q?: string;
   limit?: number;
   offset?: number;
 }): Promise<ProductListItem[]> {
-  const { categorySlug, subCategorySlug, limit = 24, offset = 0 } = options;
+  const { categorySlug, subCategorySlug, q: searchQuery, limit = 24, offset = 0 } = options;
 
   let categoryId: string | undefined;
   let subCategoryId: string | undefined;
@@ -36,12 +37,14 @@ export async function getProducts(options: {
     if (!subCategoryId) return [];
   }
 
+  const searchTerm = searchQuery?.trim();
   const list = await prisma.product.findMany({
     where: {
       deletedAt: null,
       status: "ACTIVE",
       ...(categoryId && { categoryId }),
       ...(subCategoryId && { subCategoryId }),
+      ...(searchTerm && searchTerm.length > 0 ? { name: { contains: searchTerm } } : {}),
     },
     orderBy: { createdAt: "desc" },
     take: limit,
