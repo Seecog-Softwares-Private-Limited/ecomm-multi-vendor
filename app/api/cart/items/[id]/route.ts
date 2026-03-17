@@ -6,24 +6,24 @@ import {
   apiUnauthorized,
   apiForbidden,
   apiNotFound,
+  type ApiRouteContext,
 } from "@/lib/api";
 import { getSession } from "@/lib/auth";
 import { updateCartItemQuantity, removeCartItem } from "@/lib/data/cart";
 import { prisma } from "@/lib/prisma";
-
-type RouteContext = { params: Promise<{ id: string }> };
 
 /**
  * PATCH /api/cart/items/[id] — update cart item quantity.
  * Body: { quantity: number }
  * Requires customer session.
  */
-export const PATCH = withApiHandler(async (request: NextRequest, context: RouteContext) => {
+export const PATCH = withApiHandler(async (request: NextRequest, context?: ApiRouteContext) => {
   const session = await getSession(request);
   if (!session) return apiUnauthorized("Please log in to update your cart.");
   if (session.role !== "CUSTOMER") return apiForbidden("Only customers can update the cart.");
 
-  const { id } = await context.params;
+  const params = context ? await context.params : {};
+  const id = typeof params.id === "string" ? params.id : undefined;
   if (!id?.trim()) return apiBadRequest("Cart item id is required.");
 
   let body: unknown;
@@ -55,12 +55,13 @@ export const PATCH = withApiHandler(async (request: NextRequest, context: RouteC
  * DELETE /api/cart/items/[id] — remove item from cart.
  * Requires customer session.
  */
-export const DELETE = withApiHandler(async (request: NextRequest, context: RouteContext) => {
+export const DELETE = withApiHandler(async (request: NextRequest, context?: ApiRouteContext) => {
   const session = await getSession(request);
   if (!session) return apiUnauthorized("Please log in to update your cart.");
   if (session.role !== "CUSTOMER") return apiForbidden("Only customers can update the cart.");
 
-  const { id } = await context.params;
+  const params = context ? await context.params : {};
+  const id = typeof params.id === "string" ? params.id : undefined;
   if (!id?.trim()) return apiBadRequest("Cart item id is required.");
 
   const user = await prisma.user.findUnique({

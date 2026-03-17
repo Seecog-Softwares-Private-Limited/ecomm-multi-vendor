@@ -42,6 +42,7 @@ export function LoginPage() {
         searchParams?.get("returnUrl") ??
         searchParams?.get("callbackUrl") ??
         "/";
+
       const guestItems = getGuestCart();
       if (guestItems.length > 0) {
         for (const it of guestItems) {
@@ -58,6 +59,9 @@ export function LoginPage() {
         }
         clearGuestCart();
       }
+
+      await new Promise((r) => setTimeout(r, 50));
+
       router.push(returnUrl);
       return;
     } catch {
