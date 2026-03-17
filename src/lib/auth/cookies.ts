@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
 import { authConfig } from "./config";
 
-const isProduction = process.env.NODE_ENV === "production";
+const appUrl = (process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "")
+  .trim()
+  .toLowerCase();
+const forceInsecure = process.env.AUTH_COOKIE_SECURE === "false";
+// Secure cookie only when explicitly using HTTPS. Default to false so HTTP (e.g. IP:3004) works without env.
+const cookieSecure =
+  forceInsecure || !appUrl.startsWith("https://") ? false : true;
 
 /**
  * Set the auth token in an HTTP-only cookie on the response.
@@ -10,7 +16,7 @@ const isProduction = process.env.NODE_ENV === "production";
 export function setAuthCookie(response: NextResponse, token: string): void {
   response.cookies.set(authConfig.cookieName, token, {
     httpOnly: true,
-    secure: isProduction,
+    secure: cookieSecure,
     sameSite: "lax",
     maxAge: authConfig.cookieMaxAge,
     path: "/",
@@ -23,7 +29,7 @@ export function setAuthCookie(response: NextResponse, token: string): void {
 export function clearAuthCookie(response: NextResponse): void {
   response.cookies.set(authConfig.cookieName, "", {
     httpOnly: true,
-    secure: isProduction,
+    secure: cookieSecure,
     sameSite: "lax",
     maxAge: 0,
     path: "/",

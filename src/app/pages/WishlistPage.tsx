@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Heart, X, Star } from "lucide-react";
 import { AccountLayout } from "@/components/AccountLayout";
 import { toast } from "sonner";
+import { useCartDrawer } from "@/contexts/CartDrawerContext";
 
 type WishlistProduct = {
   id: string;
@@ -33,6 +34,7 @@ function formatRupee(n: number) {
 }
 
 export function WishlistPage() {
+  const { openCartDrawer } = useCartDrawer();
   const [items, setItems] = useState<WishlistItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -109,6 +111,7 @@ export function WishlistPage() {
         return;
       }
       toast.success("Added to cart");
+      openCartDrawer();
     } catch {
       toast.error("Could not add to cart");
     } finally {

@@ -4,6 +4,7 @@ import { Link } from "../components/Link";
 import { Mail, Lock, Eye, EyeOff, User as UserIcon, Phone } from "lucide-react";
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { getGuestCart, clearGuestCart } from "@/lib/guest-cart";
 
 export function RegisterPage() {
   const router = useRouter();
@@ -68,6 +69,22 @@ export function RegisterPage() {
         return;
       }
       const returnUrl = searchParams?.get("returnUrl") ?? "/";
+      const guestItems = getGuestCart();
+      if (guestItems.length > 0) {
+        for (const it of guestItems) {
+          await fetch("/api/cart/items", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({
+              productId: it.productId,
+              quantity: it.quantity,
+              variantKey: it.variantKey ?? null,
+            }),
+          });
+        }
+        clearGuestCart();
+      }
       router.push(returnUrl);
     } catch {
       setError("Something went wrong. Please try again.");
