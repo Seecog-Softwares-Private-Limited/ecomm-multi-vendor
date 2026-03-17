@@ -18,6 +18,12 @@ import {
 import { TopBar } from "@/components/TopBar";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
+import {
+  getGuestCart,
+  removeFromGuestCart,
+  updateGuestCartQuantity,
+  type GuestCartItem,
+} from "@/lib/guest-cart";
 
 type CartItemApi = {
   id: string;
@@ -35,12 +41,32 @@ type CartItemApi = {
   };
 };
 
+function guestToDisplayItem(g: GuestCartItem): CartItemApi {
+  const id = `guest-${g.productId}-${g.variantKey ?? ""}`;
+  return {
+    id,
+    productId: g.productId,
+    quantity: g.quantity,
+    variantKey: g.variantKey,
+    product: {
+      id: g.productId,
+      name: g.name,
+      sellingPrice: g.price,
+      mrp: g.mrp ?? g.price,
+      stock: 99,
+      status: "ACTIVE",
+      imageUrl: g.imageUrl,
+    },
+  };
+}
+
 const PLACEHOLDER_IMAGE =
   "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400";
 
 export function ShoppingCartPage() {
   const router = useRouter();
   const [items, setItems] = useState<CartItemApi[]>([]);
+  const [isGuestCart, setIsGuestCart] = useState(false);
   const [loading, setLoading] = useState(true);
   const [couponCode, setCouponCode] = useState("");
   const [couponApplied, setCouponApplied] = useState(false);
@@ -51,7 +77,10 @@ export function ShoppingCartPage() {
     try {
       const res = await fetch("/api/cart/items", { credentials: "include" });
       if (res.status === 401 || res.status === 403) {
-        router.push("/login?returnUrl=" + encodeURIComponent("/cart"));
+        const guestItems = getGuestCart().map(guestToDisplayItem);
+        setItems(guestItems);
+        setIsGuestCart(true);
+        setLoading(false);
         return;
       }
       if (!res.ok) {
@@ -61,13 +90,14 @@ export function ShoppingCartPage() {
       }
       const data = await res.json();
       setItems(data?.data?.items ?? []);
+      setIsGuestCart(false);
     } catch {
       toast.error("Could not load cart.");
       setItems([]);
     } finally {
       setLoading(false);
     }
-  }, [router]);
+  }, []);
 
   useEffect(() => {
     fetchCart();
@@ -84,6 +114,15 @@ export function ShoppingCartPage() {
 
   const handleQuantityChange = async (cartItemId: string, newQty: number) => {
     if (newQty < 1 || newQty > 99) return;
+    const it = items.find((i) => i.id === cartItemId);
+    if (!it) return;
+    if (isGuestCart) {
+      setUpdatingId(cartItemId);
+      updateGuestCartQuantity(it.productId, it.variantKey, newQty);
+      setItems(getGuestCart().map(guestToDisplayItem));
+      setUpdatingId(null);
+      return;
+    }
     setUpdatingId(cartItemId);
     try {
       const res = await fetch(`/api/cart/items/${cartItemId}`, {
@@ -98,8 +137,8 @@ export function ShoppingCartPage() {
         return;
       }
       setItems((prev) =>
-        prev.map((it) =>
-          it.id === cartItemId ? { ...it, quantity: newQty } : it
+        prev.map((i) =>
+          i.id === cartItemId ? { ...i, quantity: newQty } : i
         )
       );
     } catch {
@@ -110,6 +149,16 @@ export function ShoppingCartPage() {
   };
 
   const handleRemove = async (cartItemId: string) => {
+    const it = items.find((i) => i.id === cartItemId);
+    if (!it) return;
+    if (isGuestCart) {
+      setRemovingId(cartItemId);
+      removeFromGuestCart(it.productId, it.variantKey);
+      setItems(getGuestCart().map(guestToDisplayItem));
+      setRemovingId(null);
+      toast.success("Item removed from cart.");
+      return;
+    }
     setRemovingId(cartItemId);
     try {
       const res = await fetch(`/api/cart/items/${cartItemId}`, {
@@ -121,7 +170,7 @@ export function ShoppingCartPage() {
         setRemovingId(null);
         return;
       }
-      setItems((prev) => prev.filter((it) => it.id !== cartItemId));
+      setItems((prev) => prev.filter((i) => i.id !== cartItemId));
       toast.success("Item removed from cart.");
     } catch {
       toast.error("Could not remove item.");
@@ -395,11 +444,15 @@ export function ShoppingCartPage() {
 
                 <button
                   type="button"
-                  onClick={() => router.push("/checkout")}
+                  onClick={() =>
+                    isGuestCart
+                      ? router.push("/login?returnUrl=" + encodeURIComponent("/checkout"))
+                      : router.push("/checkout")
+                  }
                   className="w-full py-3.5 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition shadow-md hover:shadow-lg bg-[#FF6A00] hover:bg-[#E55F00]"
                 >
                   <Lock className="w-5 h-5" />
-                  Secure Checkout
+                  {isGuestCart ? "Sign in to Checkout" : "Secure Checkout"}
                 </button>
 
                 <div className="space-y-3 pt-5 mt-5 border-t border-[#E5E7EB]">

@@ -22,6 +22,8 @@ import {
   Plus,
 } from "lucide-react";
 import type { ProductDetail, ProductListItem } from "@/types/catalog";
+import { addToGuestCart } from "@/lib/guest-cart";
+import { useCartDrawer } from "@/contexts/CartDrawerContext";
 
 const PLACEHOLDER_IMAGE = "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=600";
 
@@ -218,6 +220,7 @@ export function ProductDetailPage({
   relatedToItem = [],
 }: ProductDetailPageProps) {
   const router = useRouter();
+  const { openCartDrawer } = useCartDrawer();
   const [activeImage, setActiveImage] = useState(0);
   const variations = product.variations ?? [];
   const specifications = product.specifications ?? [];
@@ -276,9 +279,17 @@ export function ProductDetailPage({
       if (!res.ok) {
         const message = data?.error?.message ?? "Could not add to cart. Please try again.";
         if (res.status === 401 || res.status === 403) {
-          toast.error("Please log in to add items to your cart.");
-          const returnUrl = typeof window !== "undefined" ? encodeURIComponent(window.location.pathname) : "";
-          router.push(`/login?returnUrl=${returnUrl}`);
+          addToGuestCart({
+            productId: product.id,
+            quantity: qty,
+            variantKey,
+            name: product.name,
+            price: product.price,
+            imageUrl: product.images?.[0] ?? null,
+            mrp: product.mrp,
+          });
+          toast.success("Added to cart");
+          openCartDrawer();
           return;
         }
         toast.error(message);
@@ -286,7 +297,7 @@ export function ProductDetailPage({
         return;
       }
       toast.success("Added to cart");
-      router.push("/cart");
+      openCartDrawer();
     } catch {
       toast.error("Could not add to cart. Please try again.");
       setCartError("Could not add to cart. Please try again.");
@@ -317,8 +328,17 @@ export function ProductDetailPage({
       if (!res.ok) {
         const message = data?.error?.message ?? "Could not add to cart. Please try again.";
         if (res.status === 401 || res.status === 403) {
-          toast.error("Please log in to buy this item.");
-          router.push(`/login?returnUrl=${encodeURIComponent("/checkout")}`);
+          addToGuestCart({
+            productId: product.id,
+            quantity: qty,
+            variantKey,
+            name: product.name,
+            price: product.price,
+            imageUrl: product.images?.[0] ?? null,
+            mrp: product.mrp,
+          });
+          toast.success("Added to cart. Sign in to checkout.");
+          router.push("/login?returnUrl=" + encodeURIComponent("/checkout"));
           return;
         }
         toast.error(message);

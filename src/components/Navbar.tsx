@@ -5,6 +5,8 @@ import { Search, User, ShoppingCart, ChevronDown, LogIn, LogOut } from "lucide-r
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { IndovyaparLogo } from "./IndovyaparLogo";
+import { getGuestCartCount, subscribeToGuestCartChanges } from "@/lib/guest-cart";
+import { useCartDrawer } from "@/contexts/CartDrawerContext";
 
 const ACCOUNT_DROPDOWN_LINKS = [
   { href: "/profile", label: "My Profile" },
@@ -14,6 +16,8 @@ const ACCOUNT_DROPDOWN_LINKS = [
   { href: "/support-tickets", label: "Support" },
 ] as const;
 
+const CART_UPDATED_EVENT = "indovyapar-cart-updated";
+
 export function Navbar() {
   const [query, setQuery] = useState("");
   const [cartCount, setCartCount] = useState(0);
@@ -21,6 +25,7 @@ export function Navbar() {
   const [accountDropdownOpen, setAccountDropdownOpen] = useState(false);
   const accountDropdownRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  const { openCartDrawer } = useCartDrawer();
 
   const fetchCartCount = useCallback(async () => {
     try {
@@ -31,23 +36,46 @@ export function Navbar() {
       }
       const json = await res.json().catch(() => ({}));
       const items = json?.data?.items ?? [];
-      setCartCount(Array.isArray(items) ? items.length : 0);
+      const total = Array.isArray(items)
+        ? items.reduce((s: number, i: { quantity?: number }) => s + (i.quantity ?? 1), 0)
+        : 0;
+      setCartCount(total);
     } catch {
       setCartCount(0);
     }
   }, []);
 
   useEffect(() => {
-    fetchCartCount();
-  }, [fetchCartCount]);
+    if (isLoggedIn === true) {
+      fetchCartCount();
+    } else if (isLoggedIn === false) {
+      setCartCount(getGuestCartCount());
+    }
+  }, [isLoggedIn, fetchCartCount]);
+
+  useEffect(() => {
+    if (isLoggedIn !== false) return;
+    const unsub = subscribeToGuestCartChanges(() => setCartCount(getGuestCartCount()));
+    return unsub;
+  }, [isLoggedIn]);
 
   useEffect(() => {
     const onVisibilityChange = () => {
-      if (document.visibilityState === "visible") fetchCartCount();
+      if (document.visibilityState === "visible" && isLoggedIn === true) fetchCartCount();
+      if (document.visibilityState === "visible" && isLoggedIn === false) setCartCount(getGuestCartCount());
     };
     document.addEventListener("visibilitychange", onVisibilityChange);
     return () => document.removeEventListener("visibilitychange", onVisibilityChange);
-  }, [fetchCartCount]);
+  }, [fetchCartCount, isLoggedIn]);
+
+  useEffect(() => {
+    const onCartUpdated = () => {
+      if (isLoggedIn === true) fetchCartCount();
+      if (isLoggedIn === false) setCartCount(getGuestCartCount());
+    };
+    window.addEventListener(CART_UPDATED_EVENT, onCartUpdated);
+    return () => window.removeEventListener(CART_UPDATED_EVENT, onCartUpdated);
+  }, [isLoggedIn, fetchCartCount]);
 
   useEffect(() => {
     fetch("/api/auth/me", { credentials: "include" })
@@ -275,7 +303,7 @@ export function Navbar() {
           Returns &amp; Orders
         </Link>
 
-        <button type="button" className="relative" onClick={() => router.push("/cart")}>
+        <button type="button" className="relative" onClick={openCartDrawer}>
           <ShoppingCart size={24} color="#0A0A0A" />
           {cartCount > 0 && (
             <span
