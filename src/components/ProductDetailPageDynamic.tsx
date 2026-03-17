@@ -21,6 +21,8 @@ import {
   Plus,
 } from "lucide-react";
 import type { ProductDetail } from "@/types/catalog";
+import { addToGuestCart } from "@/lib/guest-cart";
+import { useCartDrawer } from "@/contexts/CartDrawerContext";
 
 export type ProductDetailPageDynamicProps = {
   product: ProductDetail;
@@ -57,6 +59,7 @@ export function ProductDetailPageDynamic({
   brand,
 }: ProductDetailPageDynamicProps) {
   const router = useRouter();
+  const { openCartDrawer } = useCartDrawer();
   const [activeImage, setActiveImage] = useState(0);
   const [wishlisted, setWishlisted] = useState(false);
   const [qty, setQty] = useState(1);
@@ -100,9 +103,17 @@ export function ProductDetailPageDynamic({
       if (!res.ok) {
         const message = data?.error?.message ?? "Could not add to cart. Please try again.";
         if (res.status === 401 || res.status === 403) {
-          toast.error("Please log in to add items to your cart.");
-          const returnUrl = typeof window !== "undefined" ? encodeURIComponent(window.location.pathname) : "";
-          router.push(`/login?returnUrl=${returnUrl}`);
+          addToGuestCart({
+            productId: product.id,
+            quantity: qty,
+            variantKey,
+            name: product.name,
+            price: product.price,
+            imageUrl: product.images?.[0] ?? null,
+            mrp: product.mrp,
+          });
+          toast.success("Added to cart");
+          openCartDrawer();
           return;
         }
         toast.error(message);
@@ -110,7 +121,7 @@ export function ProductDetailPageDynamic({
         return;
       }
       toast.success("Added to cart");
-      router.push("/cart");
+      openCartDrawer();
     } catch {
       toast.error("Could not add to cart. Please try again.");
       setCartError("Could not add to cart. Please try again.");
