@@ -6,23 +6,23 @@ import {
   apiUnauthorized,
   apiForbidden,
   apiNotFound,
+  type ApiRouteContext,
 } from "@/lib/api";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { AddressType } from "@prisma/client";
 
-type RouteContext = { params: Promise<{ id: string }> };
-
 /**
  * PATCH /api/addresses/[id] — update an address (customer's own).
  * Body: { fullName?, phone?, line1?, line2?, city?, state?, pincode?, type?, isDefault? }
  */
-export const PATCH = withApiHandler(async (request: NextRequest, context: RouteContext) => {
+export const PATCH = withApiHandler(async (request: NextRequest, context?: ApiRouteContext) => {
   const session = await getSession(request);
   if (!session) return apiUnauthorized("Please log in to update the address.");
   if (session.role !== "CUSTOMER") return apiForbidden("Only customers can update addresses.");
 
-  const { id } = await context.params;
+  const params = context ? await context.params : {};
+  const id = typeof params.id === "string" ? params.id : undefined;
   if (!id?.trim()) return apiBadRequest("Address id is required.");
 
   let body: unknown;
@@ -118,12 +118,13 @@ export const PATCH = withApiHandler(async (request: NextRequest, context: RouteC
 /**
  * DELETE /api/addresses/[id] — soft-delete an address (customer's own).
  */
-export const DELETE = withApiHandler(async (request: NextRequest, context: RouteContext) => {
+export const DELETE = withApiHandler(async (request: NextRequest, context?: ApiRouteContext) => {
   const session = await getSession(request);
   if (!session) return apiUnauthorized("Please log in to delete the address.");
   if (session.role !== "CUSTOMER") return apiForbidden("Only customers can delete addresses.");
 
-  const { id } = await context.params;
+  const params = context ? await context.params : {};
+  const id = typeof params.id === "string" ? params.id : undefined;
   if (!id?.trim()) return apiBadRequest("Address id is required.");
 
   const existing = await prisma.address.findFirst({

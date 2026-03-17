@@ -211,6 +211,7 @@ export interface VendorProfileBusiness {
   gstin: string;
   gstNotApplicable: boolean;
   pan: string;
+  websiteUrl?: string;
   addressLine1: string;
   addressLine2: string;
   city: string;

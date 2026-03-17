@@ -5,22 +5,22 @@ import {
   apiUnauthorized,
   apiForbidden,
   apiNotFound,
+  type ApiRouteContext,
 } from "@/lib/api";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-
-type RouteContext = { params: Promise<{ id: string }> };
 
 /**
  * GET /api/orders/[id] — get order details (customer's own order only).
  * Used for order confirmation page.
  */
-export const GET = withApiHandler(async (request: NextRequest, context: RouteContext) => {
+export const GET = withApiHandler(async (request: NextRequest, context?: ApiRouteContext) => {
   const session = await getSession(request);
   if (!session) return apiUnauthorized("Please log in to view the order.");
   if (session.role !== "CUSTOMER") return apiForbidden("Only customers can view their orders.");
 
-  const { id } = await context.params;
+  const params = context ? await context.params : {};
+  const id = typeof params.id === "string" ? params.id : undefined;
   if (!id?.trim()) return apiNotFound("Order not found.");
 
   const order = await prisma.order.findFirst({
