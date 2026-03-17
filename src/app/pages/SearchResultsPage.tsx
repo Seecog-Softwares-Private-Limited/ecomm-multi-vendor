@@ -3,8 +3,11 @@
 import { useEffect, useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { toast } from "sonner";
 import { Star, ShoppingCart, Search, SlidersHorizontal, SearchX } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
+import { addToGuestCart } from "@/lib/guest-cart";
+import { useCartDrawer } from "@/contexts/CartDrawerContext";
 
 type ProductItem = {
   id: string;
@@ -32,6 +35,8 @@ export function SearchResultsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [addingToCartId, setAddingToCartId] = useState<string | null>(null);
+  const { openCartDrawer } = useCartDrawer();
 
   const searchTerm = qFromUrl.trim();
 
@@ -229,13 +234,54 @@ export function SearchResultsPage() {
                         <span className="text-sm text-slate-400 line-through">{formatRupee(product.oldPrice)}</span>
                       )}
                     </div>
-                    <Link
-                      href={`/product/${product.id}`}
-                      className="flex items-center justify-center gap-2 w-full py-2.5 bg-[#FF6A00] text-white rounded-xl font-semibold hover:bg-[#E55F00] transition-colors"
+                    <button
+                      type="button"
+                      disabled={addingToCartId === product.id}
+                      onClick={async () => {
+                        setAddingToCartId(product.id);
+                        try {
+                          const res = await fetch("/api/cart/items", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            credentials: "include",
+                            body: JSON.stringify({
+                              productId: product.id,
+                              quantity: 1,
+                              variantKey: null,
+                            }),
+                          });
+                          const data = await res.json().catch(() => ({}));
+                          if (!res.ok) {
+                            if (res.status === 401 || res.status === 403) {
+                              addToGuestCart({
+                                productId: product.id,
+                                quantity: 1,
+                                variantKey: null,
+                                name: product.name,
+                                price: product.price,
+                                imageUrl: product.imageUrl ?? null,
+                                mrp: product.oldPrice ?? product.price,
+                              });
+                              toast.success("Added to cart");
+                              openCartDrawer();
+                            } else {
+                              toast.error(data?.error?.message ?? "Could not add to cart.");
+                            }
+                            return;
+                          }
+                          toast.success("Added to cart");
+                          openCartDrawer();
+                        } catch {
+                          toast.error("Could not add to cart.");
+                        } finally {
+                          setAddingToCartId(null);
+                        }
+                      }}
+                      className="flex items-center justify-center gap-2 w-full py-2.5 bg-[#FF6A00] text-white rounded-xl font-semibold hover:bg-[#E55F00] transition-colors disabled:opacity-60"
                     >
                       <ShoppingCart className="w-4 h-4" />
-                      Add to Cart
-                    </Link>
+                      {addingToCartId === product.id ? "Adding…" : "Add to Cart"}
+                    </button>
                   </div>
                 </div>
               ))}

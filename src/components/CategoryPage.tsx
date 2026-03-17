@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useState, useMemo, useEffect } from "react";
+import { toast } from "sonner";
 import { TopBar } from "./TopBar";
 import { Navbar } from "./Navbar";
 import { CategoryNav } from "./CategoryNav";
@@ -20,6 +21,8 @@ import {
 } from "lucide-react";
 import type { ProductListItem } from "@/types/catalog";
 import { getBaseUrl } from "@/services/client";
+import { addToGuestCart } from "@/lib/guest-cart";
+import { useCartDrawer } from "@/contexts/CartDrawerContext";
 
 export type CategoryPageProps = {
   categoryName: string;
@@ -60,6 +63,8 @@ export function CategoryPage({
   const [inStockOnly, setInStockOnly] = useState(true);
   const [minDiscount, setMinDiscount] = useState<number | null>(null);
   const [sortBy, setSortBy] = useState("popularity");
+  const [addingToCartId, setAddingToCartId] = useState<string | null>(null);
+  const { openCartDrawer } = useCartDrawer();
 
   useEffect(() => {
     if (!apiCategorySlug) {
@@ -388,14 +393,58 @@ export function CategoryPage({
                     </Link>
                     <div className="p-4 pt-0 flex gap-2">
                       <button
-                        className="flex-1 py-2.5 rounded-lg border-2 border-[#FF6A00] text-[#FF6A00] font-semibold text-sm hover:bg-[#FFF4EC] transition"
-                        onClick={() => router.push(`/product/${product.id}`)}
+                        className="flex-1 py-2.5 rounded-lg border-2 border-[#FF6A00] text-[#FF6A00] font-semibold text-sm hover:bg-[#FFF4EC] transition disabled:opacity-60"
+                        disabled={addingToCartId === product.id}
+                        onClick={async (e) => {
+                          e.preventDefault();
+                          setAddingToCartId(product.id);
+                          try {
+                            const res = await fetch("/api/cart/items", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              credentials: "include",
+                              body: JSON.stringify({
+                                productId: product.id,
+                                quantity: 1,
+                                variantKey: null,
+                              }),
+                            });
+                            const data = await res.json().catch(() => ({}));
+                            if (!res.ok) {
+                              if (res.status === 401 || res.status === 403) {
+                                addToGuestCart({
+                                  productId: product.id,
+                                  quantity: 1,
+                                  variantKey: null,
+                                  name: product.name,
+                                  price: product.price,
+                                  imageUrl: product.imageUrl ?? null,
+                                  mrp: product.oldPrice ?? product.price,
+                                });
+                                toast.success("Added to cart");
+                                openCartDrawer();
+                              } else {
+                                toast.error(data?.error?.message ?? "Could not add to cart.");
+                              }
+                              return;
+                            }
+                            toast.success("Added to cart");
+                            openCartDrawer();
+                          } catch {
+                            toast.error("Could not add to cart.");
+                          } finally {
+                            setAddingToCartId(null);
+                          }
+                        }}
                       >
-                        Add to cart
+                        {addingToCartId === product.id ? "Adding…" : "Add to cart"}
                       </button>
                       <button
                         className="flex-1 py-2.5 rounded-lg bg-[#FF6A00] text-white font-semibold text-sm hover:bg-[#E55F00] transition"
-                        onClick={() => router.push(`/product/${product.id}`)}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          router.push(`/product/${product.id}`);
+                        }}
                       >
                         Buy Now
                       </button>

@@ -5,6 +5,7 @@ import { Mail, Lock, Eye, EyeOff, ArrowRight, ShieldCheck, Truck, ShoppingBag } 
 import { useRouter, useSearchParams } from "next/navigation";
 import * as React from "react";
 import { IndovyaparLogo } from "@/components/IndovyaparLogo";
+import { getGuestCart, clearGuestCart } from "@/lib/guest-cart";
 
 export function LoginPage() {
   const router = useRouter();
@@ -41,7 +42,26 @@ export function LoginPage() {
         searchParams?.get("returnUrl") ??
         searchParams?.get("callbackUrl") ??
         "/";
+
+      const guestItems = getGuestCart();
+      if (guestItems.length > 0) {
+        for (const it of guestItems) {
+          await fetch("/api/cart/items", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({
+              productId: it.productId,
+              quantity: it.quantity,
+              variantKey: it.variantKey ?? null,
+            }),
+          });
+        }
+        clearGuestCart();
+      }
+
       await new Promise((r) => setTimeout(r, 50));
+
       router.push(returnUrl);
       return;
     } catch {

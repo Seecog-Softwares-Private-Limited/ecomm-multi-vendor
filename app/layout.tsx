@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Toaster } from "sonner";
+import { CartDrawerProvider } from "@/contexts/CartDrawerContext";
 
 export const metadata: Metadata = {
   title: "E-commerce Website Wireframes",
@@ -15,7 +16,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        {children}
+        <CartDrawerProvider>
+          {children}
+        </CartDrawerProvider>
         <Toaster position="top-center" richColors closeButton />
       </body>
     </html>
