@@ -2,12 +2,11 @@ import { NextRequest } from "next/server";
 import {
   withApiHandler,
   apiSuccess,
-  apiForbidden,
   apiNotFound,
   type ApiRouteContext,
 } from "@/lib/api";
-import { requireSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { requireAdminPermission } from "@/lib/admin-rbac";
 
 /**
  * POST /api/admin/sellers/[sellerId]/kyc/approve — approve KYC for seller (admin only).
@@ -15,10 +14,8 @@ import { prisma } from "@/lib/prisma";
  */
 export const POST = withApiHandler(
   async (request: NextRequest, context?: ApiRouteContext) => {
-    const session = await requireSession(request);
-    if (session.role !== "ADMIN") {
-      return apiForbidden("Admin access required");
-    }
+    const ctx = await requireAdminPermission(request, "seller_management");
+    if (ctx instanceof Response) return ctx;
 
     const params = context ? await context.params : {};
     const sellerId = typeof params.sellerId === "string" ? params.sellerId : "";

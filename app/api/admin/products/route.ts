@@ -3,10 +3,9 @@ import type { Prisma } from "@prisma/client";
 import {
   withApiHandler,
   apiSuccess,
-  apiForbidden,
 } from "@/lib/api";
-import { requireSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { requireAdminPermission } from "@/lib/admin-rbac";
 
 const PAGE_SIZE = 10;
 const STATUS_MAP: Record<string, "DRAFT" | "PENDING_APPROVAL" | "ACTIVE" | "REJECTED" | "INACTIVE"> = {
@@ -23,10 +22,8 @@ const STATUS_MAP: Record<string, "DRAFT" | "PENDING_APPROVAL" | "ACTIVE" | "REJE
  * Query: status (pending|approved|rejected|draft|inactive), category (category slug), page, pageSize.
  */
 export const GET = withApiHandler(async (request: NextRequest) => {
-  const session = await requireSession(request);
-  if (session.role !== "ADMIN") {
-    return apiForbidden("Admin access required");
-  }
+  const ctx = await requireAdminPermission(request, "catalog");
+  if (ctx instanceof Response) return ctx;
 
   const { searchParams } = new URL(request.url);
   const statusParam = searchParams.get("status")?.toLowerCase() ?? "";
