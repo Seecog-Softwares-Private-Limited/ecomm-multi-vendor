@@ -3,11 +3,10 @@ import { OrderStatus } from "@prisma/client";
 import {
   withApiHandler,
   apiSuccess,
-  apiForbidden,
   Status,
 } from "@/lib/api";
-import { requireSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { requireAdminContext } from "@/lib/admin-rbac";
 
 const RECENT_ORDERS_LIMIT = 5;
 const EXCLUDED_ORDER_STATUSES: OrderStatus[] = ["CANCELLED", "RETURNED"];
@@ -33,11 +32,9 @@ function orderStatusToDisplay(s: string): string {
 /**
  * GET /api/admin/dashboard — dashboard stats and recent orders (admin only).
  */
-export const GET = withApiHandler(async (_request: NextRequest) => {
-  const session = await requireSession(_request);
-  if (session.role !== "ADMIN") {
-    return apiForbidden("Admin access required");
-  }
+export const GET = withApiHandler(async (request: NextRequest) => {
+  const ctx = await requireAdminContext(request);
+  if (ctx instanceof Response) return ctx;
 
   const orderWhere = { status: { notIn: EXCLUDED_ORDER_STATUSES } };
 

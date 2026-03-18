@@ -23,5 +23,5 @@ export const authConfig = {
   bcryptRounds: 12,
 } as const;
 
-/** Role claim in JWT. Align with Prisma UserRole when used. */
-export type AuthRole = "CUSTOMER" | "SELLER" | "ADMIN";
+/** Role claim in JWT. Align with Prisma UserRole when used. SUPER_ADMIN for Super Admin panel. */
+export type AuthRole = "CUSTOMER" | "SELLER" | "ADMIN" | "SUPER_ADMIN";

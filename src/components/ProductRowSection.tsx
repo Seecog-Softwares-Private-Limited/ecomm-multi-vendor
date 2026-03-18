@@ -1,9 +1,11 @@
 import { ArrowRight } from "lucide-react";
+import Link from "next/link";
 
 interface ProductRowSectionProps {
   title: string;
   ctaLabel: string;
-  products: { src: string; alt: string }[];
+  ctaHref?: string;
+  products: { src: string; alt: string; href?: string }[];
   bgColor?: string;
 }
 
@@ -11,6 +13,7 @@ export function ProductRowSection({
   title,
   ctaLabel,
   products,
+  ctaHref,
   bgColor = "#FFFFFF",
 }: ProductRowSectionProps) {
   return (
@@ -32,10 +35,17 @@ export function ProductRowSection({
         {/* 5 product images in a row */}
         <div className="flex flex-row gap-6">
           {products.map((p, i) => (
-            <div
+            <Link
               key={i}
-              className="flex-1 overflow-hidden"
+              href={p.href ?? "#"}
+              onClick={(e) => {
+                if (p.href) return;
+                e.preventDefault();
+              }}
+              className="flex-1 overflow-hidden block"
               style={{ borderRadius: 12, aspectRatio: "1" }}
+              aria-label={p.alt}
+              title={p.alt}
             >
               <img
                 src={p.src}
@@ -43,12 +53,17 @@ export function ProductRowSection({
                 className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
                 style={{ borderRadius: 12 }}
               />
-            </div>
+            </Link>
           ))}
         </div>
 
         {/* CTA */}
-        <button
+        <Link
+          href={ctaHref ?? "#"}
+          onClick={(e) => {
+            if (ctaHref) return;
+            e.preventDefault();
+          }}
           className="flex flex-row items-center gap-1.5 self-start"
           style={{
             padding: "9px 17px",
@@ -70,7 +85,7 @@ export function ProductRowSection({
             {ctaLabel}
           </span>
           <ArrowRight size={15} color="#FF6A00" />
-        </button>
+        </Link>
       </div>
     </div>
   );

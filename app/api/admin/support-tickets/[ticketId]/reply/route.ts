@@ -2,13 +2,12 @@ import { NextRequest } from "next/server";
 import {
   withApiHandler,
   apiSuccess,
-  apiForbidden,
   apiNotFound,
   apiBadRequest,
   type ApiRouteContext,
 } from "@/lib/api";
-import { requireSession } from "@/lib/auth";
 import { setVendorSupportTicketReply } from "@/lib/data/vendor-support";
+import { requireAdminPermission } from "@/lib/admin-rbac";
 
 /**
  * PATCH /api/admin/support-tickets/[ticketId]/reply — add admin reply/solution (admin only).
@@ -16,10 +15,8 @@ import { setVendorSupportTicketReply } from "@/lib/data/vendor-support";
  */
 export const PATCH = withApiHandler(
   async (request: NextRequest, context?: ApiRouteContext) => {
-    const session = await requireSession(request);
-    if (session.role !== "ADMIN") {
-      return apiForbidden("Admin access required");
-    }
+    const ctx = await requireAdminPermission(request, "support");
+    if (ctx instanceof Response) return ctx;
 
     const params = context ? await context.params : {};
     const ticketId = typeof params.ticketId === "string" ? params.ticketId : "";

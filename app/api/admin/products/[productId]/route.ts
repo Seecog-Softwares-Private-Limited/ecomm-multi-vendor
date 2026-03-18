@@ -2,22 +2,19 @@ import { NextRequest } from "next/server";
 import {
   withApiHandler,
   apiSuccess,
-  apiForbidden,
   apiNotFound,
   type ApiRouteContext,
 } from "@/lib/api";
-import { requireSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { requireAdminPermission } from "@/lib/admin-rbac";
 
 /**
  * GET /api/admin/products/[productId] — full product details for admin preview (admin only).
  */
 export const GET = withApiHandler(
   async (request: NextRequest, context?: ApiRouteContext) => {
-    const session = await requireSession(request);
-    if (session.role !== "ADMIN") {
-      return apiForbidden("Admin access required");
-    }
+    const ctx = await requireAdminPermission(request, "catalog");
+    if (ctx instanceof Response) return ctx;
 
     const params = context ? await context.params : {};
     const productId = typeof params.productId === "string" ? params.productId : "";

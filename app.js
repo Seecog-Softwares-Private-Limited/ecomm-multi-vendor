@@ -64,10 +64,13 @@ async function main() {
 
   const host = process.env.HOSTNAME || "0.0.0.0";
 
-  // node app.js      -> start
-  // node app.js dev  -> dev
-  // node app.js start-> start
-  const mode = process.argv[2] === "dev" ? "dev" : "start";
+  // node app.js      -> start (or dev if no build); node app.js dev -> dev
+  let mode = process.argv[2] === "dev" ? "dev" : "start";
+  const buildIdPath = resolve(root, ".next", "BUILD_ID");
+  if (mode === "start" && !existsSync(buildIdPath)) {
+    console.log("No production build found. Starting in development mode instead.");
+    mode = "dev";
+  }
 
   const env = {
     ...process.env,
@@ -76,13 +79,19 @@ async function main() {
     HOSTNAME: host,
   };
 
-  const npxCmd = process.platform === "win32" ? "npx.cmd" : "npx";
+  const isWin = process.platform === "win32";
+  const spawnOpts = { stdio: "inherit", cwd: root, env };
 
-  const child = spawn(npxCmd, ["next", mode, "-H", host, "-p", String(port)], {
-    stdio: "inherit",
-    cwd: root,
-    env,
-  });
+  let child;
+  if (isWin) {
+    // On Windows use a single command string with shell to avoid EINVAL and DEP0190
+    const safePort = String(port).replace(/\D/g, "") || "3000";
+    const safeHost = /^[\w.\-:]+$/.test(host) ? host : "0.0.0.0";
+    const cmd = `npx next ${mode} -H ${safeHost} -p ${safePort}`;
+    child = spawn(cmd, { ...spawnOpts, shell: true });
+  } else {
+    child = spawn("npx", ["next", mode, "-H", host, "-p", String(port)], spawnOpts);
+  }
 
   child.on("error", (err) => {
     console.error("Failed to start Next.js:", err);

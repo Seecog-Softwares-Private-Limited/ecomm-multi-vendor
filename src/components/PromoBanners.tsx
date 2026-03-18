@@ -1,4 +1,5 @@
 import { ArrowRight } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 interface PromoCard {
   gradient: string;
@@ -6,6 +7,7 @@ interface PromoCard {
   subtitle: string;
   cta: string;
   image: string;
+  href: string;
 }
 
 const promoCards: PromoCard[] = [
@@ -15,6 +17,7 @@ const promoCards: PromoCard[] = [
     subtitle: "Flat 40% Off + Extra Cashback",
     cta: "Make It Yours",
     image: "https://images.unsplash.com/photo-1765766601447-9e11ad2356da?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=640",
+    href: "/category/home",
   },
   {
     gradient: "linear-gradient(135deg, #FF6A00 0%, #FF8533 100%)",
@@ -22,6 +25,7 @@ const promoCards: PromoCard[] = [
     subtitle: "Up to 55% Off",
     cta: "Get Game Ready",
     image: "https://images.unsplash.com/photo-1722925541311-2117dfa21fe3?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=640",
+    href: "/category/sports",
   },
   {
     gradient: "linear-gradient(135deg, #2F6BFF 0%, #5285FF 100%)",
@@ -29,6 +33,7 @@ const promoCards: PromoCard[] = [
     subtitle: "Up to 70% Off Across Categories",
     cta: "Explore Now",
     image: "https://images.unsplash.com/photo-1754761986430-5d0d44d09d00?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=640",
+    href: "/category/deals",
   },
   {
     gradient: "linear-gradient(135deg, #FFC247 0%, #FFD470 100%)",
@@ -36,6 +41,7 @@ const promoCards: PromoCard[] = [
     subtitle: "From Casual to Festive — Everything You Love",
     cta: "Shop the Look",
     image: "https://images.unsplash.com/photo-1759840279499-f9de9764b2cf?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=640",
+    href: "/category/new-arrivals",
   },
   {
     gradient: "linear-gradient(135deg, #FF4D4D 0%, #FF7070 100%)",
@@ -43,10 +49,12 @@ const promoCards: PromoCard[] = [
     subtitle: "Skincare, Makeup & Grooming — Buy More. Save More.",
     cta: "Glow Now",
     image: "https://images.unsplash.com/photo-1595051665600-afd01ea7c446?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=640",
+    href: "/category/beauty",
   },
 ];
 
 export function PromoBanners() {
+  const router = useRouter();
   return (
     <div className="w-full overflow-x-auto" style={{ scrollbarWidth: "none" }}>
       <div
@@ -102,12 +110,14 @@ export function PromoBanners() {
 
               <button
                 className="flex flex-row items-center gap-1.5 self-start"
+                onClick={() => router.push(card.href)}
                 style={{
                   padding: "9px 17px",
                   background: "rgba(255,255,255,0.95)",
                   boxShadow:
                     "0px 9.39px 14.08px -2.82px rgba(0,0,0,0.1), 0px 3.75px 5.63px -3.75px rgba(0,0,0,0.1)",
                   borderRadius: 9,
+                  cursor: "pointer",
                 }}
               >
                 <span

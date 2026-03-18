@@ -6,8 +6,8 @@ import {
   apiBadRequest,
   apiConflict,
 } from "@/lib/api";
-import { requireSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { requireAdminPermission } from "@/lib/admin-rbac";
 
 /** Normalize slug: lowercase, replace spaces and consecutive dashes with single hyphen. */
 function normalizeSlug(s: string): string {
@@ -24,10 +24,8 @@ function normalizeSlug(s: string): string {
  * Returns id, name, slug, status, createdDate, subcategories[].
  */
 export const GET = withApiHandler(async (request: NextRequest) => {
-  const session = await requireSession(request);
-  if (session.role !== "ADMIN") {
-    return apiForbidden("Admin access required");
-  }
+  const ctx = await requireAdminPermission(request, "catalog");
+  if (ctx instanceof Response) return ctx;
 
   const list = await prisma.category.findMany({
     orderBy: [{ deletedAt: "asc" }, { sortOrder: "asc" }, { createdAt: "asc" }],
@@ -75,10 +73,8 @@ export const GET = withApiHandler(async (request: NextRequest) => {
  * If parentId is provided, creates a subcategory under that category; otherwise creates a root category.
  */
 export const POST = withApiHandler(async (request: NextRequest) => {
-  const session = await requireSession(request);
-  if (session.role !== "ADMIN") {
-    return apiForbidden("Admin access required");
-  }
+  const ctx = await requireAdminPermission(request, "catalog");
+  if (ctx instanceof Response) return ctx;
 
   let body: unknown;
   try {
