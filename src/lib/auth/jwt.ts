@@ -35,7 +35,7 @@ function isJwtPayload(p: unknown): p is JwtPayload {
     typeof (p as JwtPayload).sub === "string" &&
     typeof (p as JwtPayload).email === "string" &&
     typeof (p as JwtPayload).role === "string" &&
-    ["CUSTOMER", "SELLER", "ADMIN"].includes((p as JwtPayload).role)
+    ["CUSTOMER", "SELLER", "ADMIN", "SUPER_ADMIN"].includes((p as JwtPayload).role)
   );
 }
 

@@ -64,7 +64,7 @@ export const PUT = withApiHandler(async (request: NextRequest, context?: RouteCo
 
   const existing = await prisma.product.findFirst({
     where: { id, sellerId, deletedAt: null },
-    select: { id: true },
+    select: { id: true, status: true },
   });
   if (!existing) return apiNotFound("Product not found");
 
@@ -105,7 +105,11 @@ export const PUT = withApiHandler(async (request: NextRequest, context?: RouteCo
 
   const returnPolicy =
     RETURN_POLICY_MAP[parsed.data.returnPolicy ?? "7days"] ?? "DAYS_7";
-  const status = parsed.data.status ?? "DRAFT";
+  // Any update to a previously submitted/approved product must be re-approved by admin.
+  const status =
+    existing.status === "DRAFT"
+      ? (parsed.data.status ?? "DRAFT")
+      : "PENDING_APPROVAL";
 
   const imageUrls = parsed.data.imageUrls ?? [];
   const persistentImageUrls = imageUrls.filter(
@@ -127,6 +131,7 @@ export const PUT = withApiHandler(async (request: NextRequest, context?: RouteCo
       stock,
       returnPolicy,
       status,
+      rejectionReason: null,
       images: {
         deleteMany: {},
         create: persistentImageUrls.map((url, i) => ({

@@ -9,6 +9,7 @@ import {
 } from "@/lib/api";
 import { requireSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { expandAdminPermissions } from "@/lib/admin-rbac";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -23,7 +24,7 @@ export const GET = withApiHandler(async (request: NextRequest) => {
 
   const admin = await prisma.admin.findFirst({
     where: { id: session.sub, deletedAt: null },
-    select: { id: true, email: true, name: true, phone: true },
+    include: { role: true },
   });
 
   if (!admin) {
@@ -34,6 +35,13 @@ export const GET = withApiHandler(async (request: NextRequest) => {
   const [firstName, ...rest] = name.trim().split(/\s+/);
   const lastName = rest.join(" ") || "";
 
+  const permissions =
+    admin.isSuperAdmin
+      ? ["dashboard", "sellers", "categories", "products", "orders", "returns", "settlements", "analytics", "support_tickets", "notifications", "settings"]
+      : Array.isArray(admin.role?.permissions)
+        ? expandAdminPermissions(admin.role?.permissions as unknown as string[])
+        : [];
+
   return apiSuccess({
     id: admin.id,
     email: admin.email,
@@ -41,6 +49,11 @@ export const GET = withApiHandler(async (request: NextRequest) => {
     phone: admin.phone ?? "",
     firstName: firstName || "Admin",
     lastName: lastName || "User",
+    status: admin.status,
+    approvalStatus: admin.approvalStatus,
+    isSuperAdmin: admin.isSuperAdmin,
+    role: admin.role ? { id: admin.role.id, name: admin.role.name } : null,
+    permissions,
   });
 });
 

@@ -1,9 +1,11 @@
 import { ArrowRight } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 interface DealCard {
   title: string;
   cta: string;
   images: string[];
+  href: string;
 }
 
 const dealCards: DealCard[] = [
@@ -16,6 +18,7 @@ const dealCards: DealCard[] = [
       "https://images.unsplash.com/photo-1760520338259-64e68f6850b5?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400",
       "https://images.unsplash.com/photo-1576057122708-9608db46b2f3?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400",
     ],
+    href: "/category/electronics",
   },
   {
     title: "Exchange Offers + Instant Bank Discounts\nSmarter Gadgets. Smarter Prices.",
@@ -26,6 +29,7 @@ const dealCards: DealCard[] = [
       "https://images.unsplash.com/photo-1703482771739-caef1f39797e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400",
       "https://images.unsplash.com/photo-1767608403467-d30e6640b908?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400",
     ],
+    href: "/category/electronics",
   },
   {
     title: "Own It Today. Pay Later.\nNo Cost EMI | 0% Interest | Easy Returns",
@@ -36,10 +40,12 @@ const dealCards: DealCard[] = [
       "https://images.unsplash.com/photo-1758640927926-9f0b1cda712e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400",
       "https://images.unsplash.com/photo-1735980968208-1b85bdcd857b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400",
     ],
+    href: "/category/deals",
   },
 ];
 
 export function DealCards() {
+  const router = useRouter();
   return (
     <div className="w-full flex items-center justify-center px-4 sm:px-6">
       <div
@@ -104,6 +110,7 @@ export function DealCards() {
             {/* CTA Button */}
             <button
               className="flex flex-row items-center gap-1.5 mt-4 self-start"
+              onClick={() => router.push(card.href)}
               style={{
                 padding: "9px 17px",
                 background: "rgba(255,255,255,0.95)",

@@ -5,9 +5,9 @@ import {
   apiBadRequest,
   apiForbidden,
 } from "@/lib/api";
-import { requireSession } from "@/lib/auth";
 import { hashPassword, verifyPassword } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { requireAdminPermission } from "@/lib/admin-rbac";
 
 const NEW_PASSWORD_MIN = 8;
 const NEW_PASSWORD_MAX = 128;
@@ -29,10 +29,8 @@ function validateNewPassword(p: string): string | null {
  * Body: { currentPassword: string, newPassword: string }
  */
 export const PATCH = withApiHandler(async (request: NextRequest) => {
-  const session = await requireSession(request);
-  if (session.role !== "ADMIN") {
-    return apiForbidden("Admin access required");
-  }
+  const ctx = await requireAdminPermission(request, "settings");
+  if (ctx instanceof Response) return ctx;
 
   let body: unknown;
   try {
@@ -59,7 +57,7 @@ export const PATCH = withApiHandler(async (request: NextRequest) => {
   }
 
   const admin = await prisma.admin.findFirst({
-    where: { id: session.sub, deletedAt: null },
+    where: { id: ctx.admin.id, deletedAt: null },
     select: { id: true, passwordHash: true },
   });
 

@@ -44,6 +44,10 @@ export const POST = withApiHandler(async (request: NextRequest) => {
       email: true,
       passwordHash: true,
       name: true,
+      status: true,
+      approvalStatus: true,
+      isSuperAdmin: true,
+      roleId: true,
     },
   });
 
@@ -54,6 +58,19 @@ export const POST = withApiHandler(async (request: NextRequest) => {
   const valid = await verifyPassword(password, admin.passwordHash);
   if (!valid) {
     return apiUnauthorized("Invalid email or password");
+  }
+
+  // Only approved + active admins can login (except super admin)
+  if (!admin.isSuperAdmin) {
+    if (admin.approvalStatus !== "APPROVED") {
+      return apiUnauthorized("Your admin account is not approved yet");
+    }
+    if (admin.status !== "ACTIVE") {
+      return apiUnauthorized("Your admin account is not active");
+    }
+    if (!admin.roleId) {
+      return apiUnauthorized("No role assigned. Please contact Super Admin");
+    }
   }
 
   const token = await signToken({
@@ -68,6 +85,9 @@ export const POST = withApiHandler(async (request: NextRequest) => {
       email: admin.email,
       name: admin.name,
       role: "ADMIN",
+      status: admin.status,
+      approvalStatus: admin.approvalStatus,
+      isSuperAdmin: admin.isSuperAdmin,
     },
   });
 

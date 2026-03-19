@@ -3,12 +3,11 @@ import { OrderStatus, PaymentMode, PaymentStatus } from "@prisma/client";
 import {
   withApiHandler,
   apiSuccess,
-  apiForbidden,
   apiNotFound,
   type ApiRouteContext,
 } from "@/lib/api";
-import { requireSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { requireAdminPermission } from "@/lib/admin-rbac";
 
 const ORDER_STATUS_DISPLAY: Record<OrderStatus, string> = {
   PLACED: "Placed",
@@ -42,10 +41,8 @@ const PAYMENT_STATUS_DISPLAY: Record<PaymentStatus, string> = {
  * GET /api/admin/orders/[orderId] — fetch single order with full details (admin only).
  */
 export const GET = withApiHandler(async (request: NextRequest, context?: ApiRouteContext) => {
-  const session = await requireSession(request);
-  if (session.role !== "ADMIN") {
-    return apiForbidden("Admin access required");
-  }
+  const ctx = await requireAdminPermission(request, "orders");
+  if (ctx instanceof Response) return ctx;
 
   const params = context ? await context.params : {};
   const orderId = typeof params.orderId === "string" ? params.orderId : undefined;
