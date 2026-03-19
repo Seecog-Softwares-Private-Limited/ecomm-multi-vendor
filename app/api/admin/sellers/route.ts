@@ -23,7 +23,7 @@ const KYC_STATUS_MAP = ["PENDING", "APPROVED", "REJECTED"] as const;
  * Query: search, status (active|blocked|draft|submitted|approved|rejected|suspended), kycStatus (pending|approved|rejected), page, pageSize.
  */
 export const GET = withApiHandler(async (request: NextRequest) => {
-  const ctx = await requireAdminPermission(request, "seller_management");
+  const ctx = await requireAdminPermission(request, "sellers");
   if (ctx instanceof Response) return ctx;
 
   const { searchParams } = new URL(request.url);

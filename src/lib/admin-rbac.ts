@@ -5,12 +5,16 @@ import { requireSession } from "@/lib/auth";
 import { apiForbidden, apiUnauthorized } from "@/lib/api";
 
 export type AdminPermission =
-  | "seller_management"
-  | "catalog"
+  | "dashboard"
+  | "sellers"
+  | "categories"
+  | "products"
   | "orders"
-  | "finance"
-  | "marketing"
-  | "support"
+  | "returns"
+  | "settlements"
+  | "analytics"
+  | "support_tickets"
+  | "notifications"
   | "settings";
 
 export type AdminContext = {
@@ -31,6 +35,40 @@ function normalizePermissions(p: unknown): string[] {
   return [];
 }
 
+const LEGACY_TO_GRANULAR: Record<string, AdminPermission[]> = {
+  seller_management: ["sellers"],
+  catalog: ["categories", "products"],
+  orders: ["orders", "returns", "analytics"],
+  finance: ["settlements"],
+  support: ["support_tickets"],
+  settings: ["notifications", "settings"],
+  marketing: [],
+};
+
+const SUPER_ADMIN_ALL_PERMISSIONS: AdminPermission[] = [
+  "dashboard",
+  "sellers",
+  "categories",
+  "products",
+  "orders",
+  "returns",
+  "settlements",
+  "analytics",
+  "support_tickets",
+  "notifications",
+  "settings",
+];
+
+export function expandAdminPermissions(raw: string[]): string[] {
+  const out = new Set<string>();
+  for (const permission of raw) {
+    out.add(permission);
+    const expanded = LEGACY_TO_GRANULAR[permission];
+    if (expanded) expanded.forEach((p) => out.add(p));
+  }
+  return Array.from(out);
+}
+
 export async function requireAdminContext(request: NextRequest): Promise<AdminContext | NextResponse> {
   const session = await requireSession(request);
   if (session.role !== "ADMIN") return apiForbidden("Admin access required");
@@ -48,16 +86,8 @@ export async function requireAdminContext(request: NextRequest): Promise<AdminCo
   }
 
   const permissions = admin.isSuperAdmin
-    ? new Set<string>([
-        "seller_management",
-        "catalog",
-        "orders",
-        "finance",
-        "marketing",
-        "support",
-        "settings",
-      ])
-    : new Set<string>(normalizePermissions(admin.role?.permissions));
+    ? new Set<string>(SUPER_ADMIN_ALL_PERMISSIONS)
+    : new Set<string>(expandAdminPermissions(normalizePermissions(admin.role?.permissions)));
 
   return {
     admin: {

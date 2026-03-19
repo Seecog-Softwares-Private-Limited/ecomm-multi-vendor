@@ -36,7 +36,7 @@ function statusToDisplay(s: ReturnStatus): string {
  * Query: status (pending|approved|rejected|refunded), dateFrom, dateTo, page, pageSize.
  */
 export const GET = withApiHandler(async (request: NextRequest) => {
-  const ctx = await requireAdminPermission(request, "orders");
+  const ctx = await requireAdminPermission(request, "returns");
   if (ctx instanceof Response) return ctx;
 
   const { searchParams } = new URL(request.url);

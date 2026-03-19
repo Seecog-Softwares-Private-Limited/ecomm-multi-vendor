@@ -53,12 +53,16 @@ export async function requireSuperAdmin(
 }
 
 const PERMISSIONS_LIST = [
-  "seller_management",
-  "catalog",
+  "dashboard",
+  "sellers",
+  "categories",
+  "products",
   "orders",
-  "finance",
-  "marketing",
-  "support",
+  "returns",
+  "settlements",
+  "analytics",
+  "support_tickets",
+  "notifications",
   "settings",
 ];
 

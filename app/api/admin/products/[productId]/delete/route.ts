@@ -13,7 +13,7 @@ import { requireAdminPermission } from "@/lib/admin-rbac";
  */
 export const DELETE = withApiHandler(
   async (request: NextRequest, context?: ApiRouteContext) => {
-    const ctx = await requireAdminPermission(request, "catalog");
+    const ctx = await requireAdminPermission(request, "products");
     if (ctx instanceof Response) return ctx;
 
     const params = context ? await context.params : {};

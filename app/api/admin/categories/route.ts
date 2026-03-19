@@ -24,7 +24,7 @@ function normalizeSlug(s: string): string {
  * Returns id, name, slug, status, createdDate, subcategories[].
  */
 export const GET = withApiHandler(async (request: NextRequest) => {
-  const ctx = await requireAdminPermission(request, "catalog");
+  const ctx = await requireAdminPermission(request, "categories");
   if (ctx instanceof Response) return ctx;
 
   const list = await prisma.category.findMany({
@@ -73,7 +73,7 @@ export const GET = withApiHandler(async (request: NextRequest) => {
  * If parentId is provided, creates a subcategory under that category; otherwise creates a root category.
  */
 export const POST = withApiHandler(async (request: NextRequest) => {
-  const ctx = await requireAdminPermission(request, "catalog");
+  const ctx = await requireAdminPermission(request, "categories");
   if (ctx instanceof Response) return ctx;
 
   let body: unknown;

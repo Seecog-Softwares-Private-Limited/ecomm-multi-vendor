@@ -146,11 +146,15 @@ export type AuditLog = {
 export type Pagination = { page: number; limit: number; total: number; totalPages: number };
 
 export const PERMISSION_LABELS: Record<string, string> = {
-  seller_management: "Seller Management (approve/reject sellers)",
-  catalog: "Catalog (categories, products, attributes)",
-  orders: "Orders (view/update)",
-  finance: "Finance (refunds, settlements)",
-  marketing: "Marketing (coupons, banners)",
-  support: "Support (tickets, disputes)",
+  dashboard: "Dashboard",
+  sellers: "Sellers",
+  categories: "Categories",
+  products: "Products",
+  orders: "Orders",
+  returns: "Returns",
+  settlements: "Settlements",
+  analytics: "Analytics",
+  support_tickets: "Support Tickets",
+  notifications: "Notifications",
   settings: "Settings",
 };

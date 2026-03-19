@@ -44,7 +44,7 @@ function formatRupee(n: number): string {
  * Query: period (7d|30d|3m|6m|1y). Default 30d.
  */
 export const GET = withApiHandler(async (request: NextRequest) => {
-  const ctx = await requireAdminPermission(request, "orders");
+  const ctx = await requireAdminPermission(request, "analytics");
   if (ctx instanceof Response) return ctx;
 
   const { searchParams } = new URL(request.url);

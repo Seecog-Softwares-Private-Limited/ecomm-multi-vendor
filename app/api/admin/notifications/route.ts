@@ -23,7 +23,7 @@ const TYPE_MAP: Record<string, NotificationType> = {
  * Query: type (system|order|seller|payment|return), read (true|false), page, pageSize.
  */
 export const GET = withApiHandler(async (request: NextRequest) => {
-  const ctx = await requireAdminPermission(request, "settings");
+  const ctx = await requireAdminPermission(request, "notifications");
   if (ctx instanceof Response) return ctx;
 
   const { searchParams } = new URL(request.url);
