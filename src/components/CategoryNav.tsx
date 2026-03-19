@@ -28,14 +28,15 @@ export function CategoryNav({ onCategoryClick }: CategoryNavProps = {}) {
 
   return (
     <div
-      className="w-full flex items-end justify-center"
+      className="w-full flex items-end justify-center overflow-x-auto"
       style={{
         height: 50,
         background: "#FFFFFF",
         borderBottom: "0.94px solid #E5E7EB",
+        scrollbarWidth: "none",
       }}
     >
-      <div className="flex flex-row items-center gap-2.5">
+      <div className="flex flex-row items-center gap-2.5 px-2 sm:px-0">
         {MENU_ITEMS.map(({ label, slug }) => {
           const isActive = currentSlug === slug;
           return (
