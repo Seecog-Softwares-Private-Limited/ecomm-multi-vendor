@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -23,6 +23,7 @@ import {
 import type { ProductDetail } from "@/types/catalog";
 import { addToGuestCart } from "@/lib/guest-cart";
 import { useCartDrawer } from "@/contexts/CartDrawerContext";
+import { addRecentlyViewedId } from "@/lib/recently-viewed";
 
 export type ProductDetailPageDynamicProps = {
   product: ProductDetail;
@@ -60,6 +61,10 @@ export function ProductDetailPageDynamic({
 }: ProductDetailPageDynamicProps) {
   const router = useRouter();
   const { openCartDrawer } = useCartDrawer();
+
+  useEffect(() => {
+    addRecentlyViewedId(product.id);
+  }, [product.id]);
   const [activeImage, setActiveImage] = useState(0);
   const [wishlisted, setWishlisted] = useState(false);
   const [qty, setQty] = useState(1);

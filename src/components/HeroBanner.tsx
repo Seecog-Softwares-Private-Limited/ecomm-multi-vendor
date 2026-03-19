@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, ArrowLeft } from "lucide-react";
+import type { ProductListItem } from "@/types/catalog";
 
 const slides = [
   {
@@ -11,12 +13,7 @@ const slides = [
     label: "See What's",
     headline: "Trending",
     subline: "",
-    productImages: [
-      "https://images.unsplash.com/photo-1760624294469-550753ec203a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=300",
-      "https://images.unsplash.com/photo-1760520338259-64e68f6850b5?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=300",
-      "https://images.unsplash.com/photo-1762690285055-fa80848e825b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=300",
-      "https://images.unsplash.com/photo-1578517581165-61ec5ab27a19?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=300",
-    ],
+    href: "/category/best-sellers",
   },
   {
     image:
@@ -25,16 +22,46 @@ const slides = [
     label: "New Arrivals Dropped.",
     headline: "Up to 60% Off",
     subline: "From Casual to Festive — Everything You Love",
-    productImages: [],
+    href: "/category/new-arrivals",
   },
 ];
 
 export function HeroBanner() {
   const [current, setCurrent] = useState(0);
+  const [trending, setTrending] = useState<ProductListItem[]>([]);
   const prev = () => setCurrent((c) => (c === 0 ? slides.length - 1 : c - 1));
   const next = () => setCurrent((c) => (c === slides.length - 1 ? 0 : c + 1));
 
   const slide = slides[current];
+  const trendingThumbs = useMemo(
+    () =>
+      trending
+        .filter((p) => typeof p?.id === "string")
+        .slice(0, 4)
+        .map((p) => ({
+          id: p.id,
+          name: p.name,
+          imageUrl:
+            p.imageUrl ??
+            "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=300",
+        })),
+    [trending]
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const res = await fetch("/api/products?limit=8", { credentials: "include" });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) return;
+      const list = Array.isArray(json?.data) ? (json.data as ProductListItem[]) : [];
+      if (cancelled) return;
+      setTrending(list);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <div className="w-full relative overflow-hidden" style={{ height: 430 }}>
@@ -93,22 +120,42 @@ export function HeroBanner() {
             {slide.subline}
           </p>
         )}
+
+        <Link
+          href={slide.href}
+          className="inline-flex items-center gap-2 self-start"
+          style={{
+            padding: "10px 16px",
+            background: "rgba(255,255,255,0.95)",
+            borderRadius: 10,
+            border: "1px solid #FF6A00",
+            boxShadow: "0px 9.39px 14.08px -2.82px rgba(0,0,0,0.1), 0px 3.75px 5.63px -3.75px rgba(0,0,0,0.1)",
+            color: "#FF6A00",
+            fontFamily: "'Manrope', sans-serif",
+            fontWeight: 600,
+            fontSize: 16,
+          }}
+        >
+          Shop now
+          <ArrowRight size={16} color="#FF6A00" />
+        </Link>
       </div>
 
       {/* Right product images grid (only for "Trending" slide) */}
-      {slide.productImages.length > 0 && (
+      {current === 0 && trendingThumbs.length > 0 && (
         <div
           className="absolute grid grid-cols-2 gap-3"
           style={{ right: 80, top: "50%", transform: "translateY(-50%)", width: 340 }}
         >
-          {slide.productImages.map((src, i) => (
-            <img
-              key={i}
-              src={src}
-              alt="product"
-              className="object-cover"
-              style={{ width: "100%", height: 150, borderRadius: 10 }}
-            />
+          {trendingThumbs.map((p) => (
+            <Link key={p.id} href={`/product/${p.id}`} className="block" title={p.name} aria-label={p.name}>
+              <img
+                src={p.imageUrl}
+                alt={p.name}
+                className="object-cover hover:scale-105 transition-transform duration-300"
+                style={{ width: "100%", height: 150, borderRadius: 10 }}
+              />
+            </Link>
           ))}
         </div>
       )}

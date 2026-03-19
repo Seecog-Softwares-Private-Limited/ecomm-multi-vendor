@@ -11,6 +11,11 @@ const VENDOR_PASSWORD = "Vendor@123";
 const ADMIN_EMAIL = "admin@example.com";
 const ADMIN_PASSWORD = "Admin@123";
 
+/** Super Admin (full control): superadmin@example.com / SuperAdmin@123 */
+const SUPER_ADMIN_EMAIL = "superadmin@example.com";
+const SUPER_ADMIN_PASSWORD = "SuperAdmin@123";
+const SUPER_ADMIN_PERMISSIONS = ["seller_management", "catalog", "orders", "finance", "marketing", "support", "settings"];
+
 /** Test customer credentials (for cart, orders): customer@example.com / Customer@123 */
 const CUSTOMER_EMAIL = "customer@example.com";
 const CUSTOMER_PASSWORD = "Customer@123";
@@ -477,6 +482,16 @@ async function main() {
     },
   });
 
+  const superAdminRole = await prisma.adminRole.upsert({
+    where: { name: "Super Admin" },
+    update: { permissions: SUPER_ADMIN_PERMISSIONS as unknown as object },
+    create: {
+      name: "Super Admin",
+      permissions: SUPER_ADMIN_PERMISSIONS as unknown as object,
+      description: "Full access",
+    },
+  });
+
   await prisma.admin.upsert({
     where: { email: ADMIN_EMAIL },
     update: { passwordHash: adminPasswordHash, name: "Admin Demo" },
@@ -484,6 +499,28 @@ async function main() {
       email: ADMIN_EMAIL,
       passwordHash: adminPasswordHash,
       name: "Admin Demo",
+    },
+  });
+
+  const superAdminPasswordHash = await bcrypt.hash(SUPER_ADMIN_PASSWORD, BCRYPT_ROUNDS);
+  await prisma.admin.upsert({
+    where: { email: SUPER_ADMIN_EMAIL },
+    update: {
+      passwordHash: superAdminPasswordHash,
+      name: "Super Admin",
+      roleId: superAdminRole.id,
+      status: "ACTIVE",
+      approvalStatus: "APPROVED",
+      isSuperAdmin: true,
+    },
+    create: {
+      email: SUPER_ADMIN_EMAIL,
+      passwordHash: superAdminPasswordHash,
+      name: "Super Admin",
+      roleId: superAdminRole.id,
+      status: "ACTIVE",
+      approvalStatus: "APPROVED",
+      isSuperAdmin: true,
     },
   });
 
@@ -888,6 +925,7 @@ async function main() {
 
   console.log("Seed complete.");
   console.log("  Admin:   ", ADMIN_EMAIL, "/", ADMIN_PASSWORD, "→ /admin/login");
+  console.log("  Super Admin:", SUPER_ADMIN_EMAIL, "/", SUPER_ADMIN_PASSWORD, "→ /superadmin/login");
   console.log("  Vendor:  ", seller.email, "/ Vendor@123 → /vendor/login");
   console.log("  Customer:", CUSTOMER_EMAIL, "/", CUSTOMER_PASSWORD, "→ /login (for cart)");
   console.log("  Categories: electronics, fashion, home, books, sports, beauty (with sub-categories)");

@@ -3,10 +3,9 @@ import { OrderStatus } from "@prisma/client";
 import {
   withApiHandler,
   apiSuccess,
-  apiForbidden,
 } from "@/lib/api";
-import { requireSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { requireAdminPermission } from "@/lib/admin-rbac";
 
 const VALID_ORDER_STATUSES: OrderStatus[] = [
   "PLACED",
@@ -45,10 +44,8 @@ function formatRupee(n: number): string {
  * Query: period (7d|30d|3m|6m|1y). Default 30d.
  */
 export const GET = withApiHandler(async (request: NextRequest) => {
-  const session = await requireSession(request);
-  if (session.role !== "ADMIN") {
-    return apiForbidden("Admin access required");
-  }
+  const ctx = await requireAdminPermission(request, "analytics");
+  if (ctx instanceof Response) return ctx;
 
   const { searchParams } = new URL(request.url);
   const periodKey = searchParams.get("period")?.toLowerCase() ?? "30d";

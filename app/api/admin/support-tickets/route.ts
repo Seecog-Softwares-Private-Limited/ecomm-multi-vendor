@@ -1,16 +1,14 @@
 import { NextRequest } from "next/server";
-import { withApiHandler, apiSuccess, apiForbidden } from "@/lib/api";
-import { requireSession } from "@/lib/auth";
+import { withApiHandler, apiSuccess } from "@/lib/api";
 import { getAdminVendorSupportTickets } from "@/lib/data/vendor-support";
+import { requireAdminPermission } from "@/lib/admin-rbac";
 
 /**
  * GET /api/admin/support-tickets — list all vendor support tickets (admin only).
  */
 export const GET = withApiHandler(async (request: NextRequest) => {
-  const session = await requireSession(request);
-  if (session.role !== "ADMIN") {
-    return apiForbidden("Admin access required");
-  }
+  const ctx = await requireAdminPermission(request, "support_tickets");
+  if (ctx instanceof Response) return ctx;
   const tickets = await getAdminVendorSupportTickets();
   return apiSuccess(tickets);
 });

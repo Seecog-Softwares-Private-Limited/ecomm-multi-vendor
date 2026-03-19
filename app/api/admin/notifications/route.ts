@@ -4,11 +4,10 @@ import { NotificationType } from "@prisma/client";
 import {
   withApiHandler,
   apiSuccess,
-  apiForbidden,
   Status,
 } from "@/lib/api";
-import { requireSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { requireAdminPermission } from "@/lib/admin-rbac";
 
 const PAGE_SIZE = 10;
 const TYPE_MAP: Record<string, NotificationType> = {
@@ -24,10 +23,8 @@ const TYPE_MAP: Record<string, NotificationType> = {
  * Query: type (system|order|seller|payment|return), read (true|false), page, pageSize.
  */
 export const GET = withApiHandler(async (request: NextRequest) => {
-  const session = await requireSession(request);
-  if (session.role !== "ADMIN") {
-    return apiForbidden("Admin access required");
-  }
+  const ctx = await requireAdminPermission(request, "notifications");
+  if (ctx instanceof Response) return ctx;
 
   const { searchParams } = new URL(request.url);
   const typeParam = searchParams.get("type")?.toLowerCase() ?? "";
@@ -36,7 +33,7 @@ export const GET = withApiHandler(async (request: NextRequest) => {
   const pageSize = Math.min(50, Math.max(1, parseInt(searchParams.get("pageSize") ?? String(PAGE_SIZE), 10) || PAGE_SIZE));
 
   const where: Prisma.NotificationWhereInput = {
-    adminId: session.sub,
+    adminId: ctx.admin.id,
     deletedAt: null,
   };
 
