@@ -60,11 +60,11 @@ export function RecentlyViewed() {
     <div className="w-full flex flex-col gap-5 px-4 sm:px-6 mx-auto max-w-[1440px]">
       {/* Section title */}
       <h2
+        className="text-xl sm:text-2xl"
         style={{
           fontFamily: "'Nunito', 'Manrope', sans-serif",
           fontWeight: 800,
-          fontSize: 24,
-          lineHeight: "39px",
+          lineHeight: "1.4",
           color: "#FF6A00",
           maxWidth: 1280,
           margin: "0 auto",
@@ -79,7 +79,7 @@ export function RecentlyViewed() {
         {/* Left arrow */}
         <button
           onClick={scrollLeft}
-          className="absolute flex items-center justify-center z-10"
+          className="absolute z-10 hidden items-center justify-center sm:flex"
           style={{
             width: 44,
             height: 44,
@@ -98,17 +98,17 @@ export function RecentlyViewed() {
         {/* Scrollable images */}
         <div
           ref={scrollRef}
-          className="flex flex-row overflow-x-auto"
-          style={{ scrollbarWidth: "none", scrollBehavior: "smooth", gap: 32.5 }}
+          className="flex flex-row overflow-x-auto sm:gap-8"
+          style={{ scrollbarWidth: "none", scrollBehavior: "smooth", gap: 12 }}
         >
           {items.map((p) => (
             <Link
               key={p.id}
               href={`/product/${p.id}`}
-              className="shrink-0 block"
+              className="block h-[140px] w-[140px] shrink-0 sm:h-[230px] sm:w-[230px]"
               title={p.name}
               aria-label={p.name}
-              style={{ width: 230, height: 230, borderRadius: 12 }}
+              style={{ borderRadius: 12 }}
             >
               <img
                 src={p.imageUrl}
@@ -126,7 +126,7 @@ export function RecentlyViewed() {
         {/* Right arrow */}
         <button
           onClick={scrollRight}
-          className="absolute flex items-center justify-center z-10"
+          className="absolute z-10 hidden items-center justify-center sm:flex"
           style={{
             width: 44,
             height: 44,

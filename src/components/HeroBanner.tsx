@@ -64,7 +64,7 @@ export function HeroBanner() {
   }, []);
 
   return (
-    <div className="w-full relative overflow-hidden" style={{ height: 430 }}>
+    <div className="relative w-full overflow-hidden h-[260px] sm:h-[320px] lg:h-[430px]">
       {/* BG image */}
       <img
         key={current}
@@ -80,27 +80,22 @@ export function HeroBanner() {
       />
 
       {/* Left text */}
-      <div
-        className="absolute flex flex-col gap-4"
-        style={{ left: 120, top: "50%", transform: "translateY(-50%)" }}
-      >
+      <div className="absolute left-5 top-1/2 flex max-w-[70%] -translate-y-1/2 flex-col gap-2 sm:left-10 sm:gap-3 lg:left-[120px] lg:max-w-[55%] lg:gap-4">
         <p
+          className="leading-tight text-[20px] sm:text-[30px] lg:text-[40px]"
           style={{
             fontFamily: "'Nunito','Manrope',sans-serif",
             fontWeight: 800,
-            fontSize: 40,
-            lineHeight: "61px",
             color: "#FFFFFF",
           }}
         >
           {slide.label}
         </p>
         <p
+          className="leading-tight text-[38px] sm:text-[60px] lg:text-[96px]"
           style={{
             fontFamily: "'Nunito','Manrope',sans-serif",
             fontWeight: 800,
-            fontSize: 96,
-            lineHeight: "72px",
             color: "#FFFFFF",
             marginTop: -8,
           }}
@@ -109,11 +104,10 @@ export function HeroBanner() {
         </p>
         {slide.subline && (
           <p
+            className="text-sm leading-snug sm:text-base lg:text-2xl"
             style={{
               fontFamily: "'Nunito','Manrope',sans-serif",
               fontWeight: 700,
-              fontSize: 24,
-              lineHeight: "61px",
               color: "#FFFFFF",
             }}
           >
@@ -125,7 +119,7 @@ export function HeroBanner() {
           href={slide.href}
           className="inline-flex items-center gap-2 self-start"
           style={{
-            padding: "10px 16px",
+            padding: "8px 12px",
             background: "rgba(255,255,255,0.95)",
             borderRadius: 10,
             border: "1px solid #FF6A00",
@@ -133,7 +127,7 @@ export function HeroBanner() {
             color: "#FF6A00",
             fontFamily: "'Manrope', sans-serif",
             fontWeight: 600,
-            fontSize: 16,
+            fontSize: 14,
           }}
         >
           Shop now
@@ -144,8 +138,7 @@ export function HeroBanner() {
       {/* Right product images grid (only for "Trending" slide) */}
       {current === 0 && trendingThumbs.length > 0 && (
         <div
-          className="absolute grid grid-cols-2 gap-3"
-          style={{ right: 80, top: "50%", transform: "translateY(-50%)", width: 340 }}
+          className="absolute right-4 top-1/2 hidden w-[220px] -translate-y-1/2 grid-cols-2 gap-2 sm:grid md:w-[280px] lg:right-20 lg:w-[340px] lg:gap-3"
         >
           {trendingThumbs.map((p) => (
             <Link key={p.id} href={`/product/${p.id}`} className="block" title={p.name} aria-label={p.name}>
@@ -153,7 +146,7 @@ export function HeroBanner() {
                 src={p.imageUrl}
                 alt={p.name}
                 className="object-cover hover:scale-105 transition-transform duration-300"
-                style={{ width: "100%", height: 150, borderRadius: 10 }}
+                style={{ width: "100%", height: 100, borderRadius: 10 }}
               />
             </Link>
           ))}
@@ -163,7 +156,7 @@ export function HeroBanner() {
       {/* Left arrow */}
       <button
         onClick={prev}
-        className="absolute flex items-center justify-center"
+        className="absolute hidden items-center justify-center sm:flex"
         style={{
           width: 44,
           height: 44,
@@ -182,7 +175,7 @@ export function HeroBanner() {
       {/* Right arrow */}
       <button
         onClick={next}
-        className="absolute flex items-center justify-center"
+        className="absolute hidden items-center justify-center sm:flex"
         style={{
           width: 44,
           height: 44,

@@ -6,3 +6,31 @@
 @import "tw-animate-css";
 @import "../src/styles/theme.css";
 @import "../src/styles/print.css";
+
+/* Mobile-only safety layer for user-facing responsiveness.
+   Keeps desktop layout unchanged while preventing sideways page scroll. */
+@media (max-width: 767px) {
+  html,
+  body {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  main {
+    overflow-x: hidden;
+  }
+
+  img,
+  video,
+  canvas,
+  svg {
+    max-width: 100%;
+    height: auto;
+  }
+
+  table {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+  }
+}

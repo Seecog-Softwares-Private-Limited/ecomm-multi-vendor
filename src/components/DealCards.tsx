@@ -47,10 +47,9 @@ const dealCards: DealCard[] = [
 export function DealCards() {
   const router = useRouter();
   return (
-    <div className="w-full flex items-center justify-center px-4 sm:px-6">
+    <div className="w-full px-4 sm:px-6">
       <div
-        className="flex flex-row justify-between w-full mx-auto max-w-[1440px]"
-        style={{ gap: 43 }}
+        className="mx-auto grid w-full max-w-[1440px] grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:gap-8"
       >
         {dealCards.map((card, i) => (
           <div
@@ -62,7 +61,7 @@ export function DealCards() {
               background: "#FFFFFF",
               boxShadow: "4px 4px 10px 2px rgba(0,0,0,0.1)",
               borderRadius: 12,
-              padding: "20px 20px 20px 20px",
+              padding: "16px",
               gap: 0,
             }}
           >
@@ -71,11 +70,11 @@ export function DealCards() {
               style={{
                 fontFamily: "'Nunito','Manrope',sans-serif",
                 fontWeight: 800,
-                fontSize: 18,
-                lineHeight: "34px",
+                fontSize: 16,
+                lineHeight: "26px",
                 color: "#2B2B2B",
                 whiteSpace: "pre-line",
-                minHeight: 68,
+                minHeight: 52,
                 marginBottom: 16,
                 flexShrink: 0,
               }}
@@ -99,7 +98,7 @@ export function DealCards() {
                   alt="product"
                   className="w-full object-cover"
                   style={{
-                    height: 180,
+                    height: 130,
                     borderRadius: 12,
                     display: "block",
                   }}
@@ -112,7 +111,7 @@ export function DealCards() {
               className="flex flex-row items-center gap-1.5 mt-4 self-start"
               onClick={() => router.push(card.href)}
               style={{
-                padding: "9px 17px",
+                padding: "8px 14px",
                 background: "rgba(255,255,255,0.95)",
                 boxShadow:
                   "0px 9.39px 14.08px -2.82px rgba(0,0,0,0.1), 0px 3.75px 5.63px -3.75px rgba(0,0,0,0.1)",
@@ -125,7 +124,7 @@ export function DealCards() {
                 style={{
                   fontFamily: "'Manrope',sans-serif",
                   fontWeight: 500,
-                  fontSize: 18,
+                  fontSize: 15,
                   color: "#FF6A00",
                 }}
               >
