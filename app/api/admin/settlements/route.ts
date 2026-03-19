@@ -25,7 +25,7 @@ function formatRupee(n: number): string {
  * Query: status (pending|processing|completed), dateFrom (YYYY-MM-DD), dateTo (YYYY-MM-DD), page, pageSize.
  */
 export const GET = withApiHandler(async (request: NextRequest) => {
-  const ctx = await requireAdminPermission(request, "finance");
+  const ctx = await requireAdminPermission(request, "settlements");
   if (ctx instanceof Response) return ctx;
 
   const { searchParams } = new URL(request.url);

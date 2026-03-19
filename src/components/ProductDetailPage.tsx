@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -24,6 +24,7 @@ import {
 import type { ProductDetail, ProductListItem } from "@/types/catalog";
 import { addToGuestCart } from "@/lib/guest-cart";
 import { useCartDrawer } from "@/contexts/CartDrawerContext";
+import { addRecentlyViewedId } from "@/lib/recently-viewed";
 
 const PLACEHOLDER_IMAGE = "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=600";
 
@@ -221,6 +222,10 @@ export function ProductDetailPage({
 }: ProductDetailPageProps) {
   const router = useRouter();
   const { openCartDrawer } = useCartDrawer();
+
+  useEffect(() => {
+    addRecentlyViewedId(product.id);
+  }, [product.id]);
   const [activeImage, setActiveImage] = useState(0);
   const variations = product.variations ?? [];
   const specifications = product.specifications ?? [];

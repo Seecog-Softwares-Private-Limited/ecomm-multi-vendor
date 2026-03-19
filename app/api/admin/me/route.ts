@@ -9,6 +9,7 @@ import {
 } from "@/lib/api";
 import { requireSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { expandAdminPermissions } from "@/lib/admin-rbac";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -36,9 +37,9 @@ export const GET = withApiHandler(async (request: NextRequest) => {
 
   const permissions =
     admin.isSuperAdmin
-      ? ["seller_management", "catalog", "orders", "finance", "marketing", "support", "settings"]
+      ? ["dashboard", "sellers", "categories", "products", "orders", "returns", "settlements", "analytics", "support_tickets", "notifications", "settings"]
       : Array.isArray(admin.role?.permissions)
-        ? (admin.role?.permissions as unknown as string[])
+        ? expandAdminPermissions(admin.role?.permissions as unknown as string[])
         : [];
 
   return apiSuccess({

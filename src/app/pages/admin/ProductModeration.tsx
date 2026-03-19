@@ -13,6 +13,7 @@ type ProductRow = {
   price: number;
   status: string;
   statusDisplay: string;
+  edited?: boolean;
   rejectionReason?: string | null;
   submittedDate: string;
 };
@@ -56,6 +57,7 @@ function formatCurrency(n: number): string {
 function statusBadgeClass(status: string): string {
   const base = "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium";
   const s = status.toLowerCase();
+  if (s.includes("edited")) return `${base} bg-indigo-50 text-indigo-700 ring-1 ring-indigo-600/20`;
   if (s === "pending" || s === "pending_approval") return `${base} bg-amber-50 text-amber-700 ring-1 ring-amber-600/20`;
   if (s === "approved" || s === "active") return `${base} bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/20`;
   if (s === "rejected") return `${base} bg-rose-50 text-rose-700 ring-1 ring-rose-600/20`;
@@ -360,7 +362,14 @@ export function ProductModeration() {
                     products.map((product) => (
                       <tr key={product.id} className="transition-colors hover:bg-slate-50/50">
                         <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-slate-900">
-                          {product.name}
+                          <div className="flex items-center gap-2">
+                            <span>{product.name}</span>
+                            {product.edited && (
+                              <span className="inline-flex items-center rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-700 ring-1 ring-indigo-600/20">
+                                Edited
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-700">
                           {product.sellerName}

@@ -16,7 +16,7 @@ import {
   Lock,
 } from "lucide-react";
 import { IndovyaparLogo } from "@/components/IndovyaparLogo";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 type MenuItem = {
   icon: any;
@@ -26,16 +26,16 @@ type MenuItem = {
 };
 
 const menuItems: MenuItem[] = [
-  { icon: LayoutDashboard, label: "Dashboard", path: "/admin" },
-  { icon: Users, label: "Sellers", path: "/admin/sellers", permission: "seller_management" },
-  { icon: FolderTree, label: "Categories", path: "/admin/categories", permission: "catalog" },
-  { icon: Package, label: "Products", path: "/admin/products", permission: "catalog" },
+  { icon: LayoutDashboard, label: "Dashboard", path: "/admin", permission: "dashboard" },
+  { icon: Users, label: "Sellers", path: "/admin/sellers", permission: "sellers" },
+  { icon: FolderTree, label: "Categories", path: "/admin/categories", permission: "categories" },
+  { icon: Package, label: "Products", path: "/admin/products", permission: "products" },
   { icon: ShoppingBag, label: "Orders", path: "/admin/orders", permission: "orders" },
-  { icon: RotateCcw, label: "Returns", path: "/admin/returns", permission: "orders" },
-  { icon: DollarSign, label: "Settlements", path: "/admin/settlements", permission: "finance" },
-  { icon: BarChart3, label: "Analytics", path: "/admin/analytics", permission: "orders" },
-  { icon: MessageCircle, label: "Support Tickets", path: "/admin/support-tickets", permission: "support" },
-  { icon: Bell, label: "Notifications", path: "/admin/notifications", permission: "settings" },
+  { icon: RotateCcw, label: "Returns", path: "/admin/returns", permission: "returns" },
+  { icon: DollarSign, label: "Settlements", path: "/admin/settlements", permission: "settlements" },
+  { icon: BarChart3, label: "Analytics", path: "/admin/analytics", permission: "analytics" },
+  { icon: MessageCircle, label: "Support Tickets", path: "/admin/support-tickets", permission: "support_tickets" },
+  { icon: Bell, label: "Notifications", path: "/admin/notifications", permission: "notifications" },
   { icon: Settings, label: "Settings", path: "/admin/settings", permission: "settings" },
 ];
 

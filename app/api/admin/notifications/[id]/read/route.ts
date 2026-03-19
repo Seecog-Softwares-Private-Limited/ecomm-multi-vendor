@@ -11,7 +11,7 @@ import { requireAdminPermission } from "@/lib/admin-rbac";
  * PATCH /api/admin/notifications/[id]/read — mark notification as read (admin only).
  */
 export const PATCH = withApiHandler(async (request: NextRequest, context) => {
-  const ctx = await requireAdminPermission(request, "settings");
+  const ctx = await requireAdminPermission(request, "notifications");
   if (ctx instanceof Response) return ctx;
 
   const params = context?.params ? await context.params : {};

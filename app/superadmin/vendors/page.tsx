@@ -34,7 +34,7 @@ export default function SuperAdminVendorsPage() {
   const [items, setItems] = useState<VendorRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("SUBMITTED");
+  const [status, setStatus] = useState("PENDING_VERIFICATION");
 
   const fetchList = useCallback(async () => {
     setLoading(true);
@@ -100,6 +100,7 @@ export default function SuperAdminVendorsPage() {
             onChange={(e) => setStatus(e.target.value)}
             className="px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50/70 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none"
           >
+            <option value="PENDING_VERIFICATION">Pending verification</option>
             <option value="SUBMITTED">Submitted</option>
             <option value="UNDER_REVIEW">Under review</option>
             <option value="APPROVED">Approved</option>

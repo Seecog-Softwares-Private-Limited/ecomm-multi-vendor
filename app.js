@@ -6,7 +6,7 @@
  *   dev             - start development server (next dev)
  */
 
-import { spawn } from "child_process";
+import { spawn, execSync } from "child_process";
 import { createInterface } from "readline";
 import { createReadStream, existsSync } from "fs";
 import { resolve, dirname } from "path";
@@ -81,6 +81,20 @@ async function main() {
 
   const isWin = process.platform === "win32";
   const spawnOpts = { stdio: "inherit", cwd: root, env };
+
+  // On Windows, stale dev processes frequently keep the port busy (EADDRINUSE).
+  // Auto-free the configured port before booting to keep `npm run dev` reliable.
+  if (isWin) {
+    const safePort = String(port).replace(/\D/g, "") || "3000";
+    try {
+      execSync(
+        `powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-NetTCPConnection -LocalPort ${safePort} -State Listen -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }"`,
+        { stdio: "ignore" }
+      );
+    } catch {
+      // Ignore: if command fails or nothing is listening, continue startup.
+    }
+  }
 
   let child;
   if (isWin) {

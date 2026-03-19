@@ -22,7 +22,7 @@ const STATUS_MAP: Record<string, "DRAFT" | "PENDING_APPROVAL" | "ACTIVE" | "REJE
  * Query: status (pending|approved|rejected|draft|inactive), category (category slug), page, pageSize.
  */
 export const GET = withApiHandler(async (request: NextRequest) => {
-  const ctx = await requireAdminPermission(request, "catalog");
+  const ctx = await requireAdminPermission(request, "products");
   if (ctx instanceof Response) return ctx;
 
   const { searchParams } = new URL(request.url);
@@ -57,6 +57,7 @@ export const GET = withApiHandler(async (request: NextRequest) => {
         status: true,
         rejectionReason: true,
         createdAt: true,
+        updatedAt: true,
         seller: { select: { businessName: true } },
         category: { select: { name: true } },
       },
@@ -67,6 +68,8 @@ export const GET = withApiHandler(async (request: NextRequest) => {
   const totalPages = Math.ceil(total / pageSize);
 
   const rows = products.map((p) => ({
+    edited:
+      p.updatedAt.getTime() - p.createdAt.getTime() > 1000,
     id: p.id,
     name: p.name,
     sellerName: p.seller?.businessName ?? "—",
@@ -75,7 +78,9 @@ export const GET = withApiHandler(async (request: NextRequest) => {
     status: p.status,
     statusDisplay:
       p.status === "PENDING_APPROVAL"
-        ? "Pending"
+        ? (p.updatedAt.getTime() - p.createdAt.getTime() > 1000
+            ? "Edited - Pending Approval"
+            : "Pending")
         : p.status === "ACTIVE"
           ? "Approved"
           : p.status === "REJECTED"

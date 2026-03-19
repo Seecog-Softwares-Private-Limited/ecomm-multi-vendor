@@ -8,12 +8,44 @@ import {
 import { prisma } from "@/lib/prisma";
 import { requireAdminPermission } from "@/lib/admin-rbac";
 
+function resolveRequestOrigin(request: NextRequest): string {
+  const host =
+    request.headers.get("x-forwarded-host") ??
+    request.headers.get("host") ??
+    (process.env.PORT ? `localhost:${process.env.PORT}` : "localhost:3000");
+  const proto = request.headers.get("x-forwarded-proto") ?? "http";
+  return `${proto === "https" ? "https" : "http"}://${host}`;
+}
+
+function normalizeUploadUrl(rawUrl: string | null | undefined, request: NextRequest): string | undefined {
+  if (!rawUrl) return undefined;
+  const origin = resolveRequestOrigin(request);
+
+  if (rawUrl.startsWith("/")) {
+    return `${origin}${rawUrl}`;
+  }
+
+  try {
+    const parsed = new URL(rawUrl);
+    const isLocalHost = parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1";
+    const isUploadPath = parsed.pathname.startsWith("/uploads/");
+
+    if (isLocalHost && isUploadPath) {
+      return `${origin}${parsed.pathname}${parsed.search}`;
+    }
+
+    return rawUrl;
+  } catch {
+    return rawUrl;
+  }
+}
+
 /**
  * GET /api/admin/sellers/[sellerId]/kyc — seller info + KYC documents (admin only).
  */
 export const GET = withApiHandler(
   async (request: NextRequest, context?: ApiRouteContext) => {
-    const ctx = await requireAdminPermission(request, "seller_management");
+    const ctx = await requireAdminPermission(request, "sellers");
     if (ctx instanceof Response) return ctx;
 
     const params = context ? await context.params : {};
@@ -77,7 +109,7 @@ export const GET = withApiHandler(
       id: d.id,
       documentType: d.documentType,
       identifier: d.identifier ?? undefined,
-      fileUrl: d.fileUrl ?? undefined,
+      fileUrl: normalizeUploadUrl(d.fileUrl, request),
       status: d.status,
     }));
 

@@ -84,6 +84,9 @@ export async function POST(request: NextRequest) {
   if (!role) {
     return Response.json({ success: false, message: "Invalid role." }, { status: 400 });
   }
+  if (role.name.trim().toLowerCase() === "super admin") {
+    return Response.json({ success: false, message: "Cannot assign Super Admin role to regular admin." }, { status: 400 });
+  }
 
   const existing = await prisma.admin.findFirst({ where: { email, deletedAt: null } });
   if (existing) {

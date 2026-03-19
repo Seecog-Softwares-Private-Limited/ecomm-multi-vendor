@@ -14,7 +14,7 @@ import { requireAdminPermission } from "@/lib/admin-rbac";
  */
 export const POST = withApiHandler(
   async (request: NextRequest, context?: ApiRouteContext) => {
-    const ctx = await requireAdminPermission(request, "seller_management");
+    const ctx = await requireAdminPermission(request, "sellers");
     if (ctx instanceof Response) return ctx;
 
     const params = context ? await context.params : {};

@@ -5,6 +5,7 @@ import { requireSuperAdmin, createAuditLog } from "@/lib/superadmin-auth";
 
 const PAGE_SIZE = 10;
 const SELLER_STATUS_MAP: Record<string, Prisma.SellerWhereInput["status"]> = {
+  pending_verification: "PENDING_VERIFICATION",
   active: "APPROVED",
   blocked: "SUSPENDED",
   draft: "DRAFT",
