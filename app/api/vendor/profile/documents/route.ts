@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
+import { getKycUploadDir } from "@/lib/uploads/storage";
 import {
   withApiHandler,
   apiSuccess,
@@ -68,7 +69,7 @@ export const POST = withApiHandler(async (request: NextRequest) => {
   const ext = path.extname(file.name) || ".pdf";
   const safeExt = /^\.(jpe?g|png|webp|gif|pdf)$/i.test(ext) ? ext : ".pdf";
   const filename = `kyc-${documentType}-${crypto.randomUUID()}${safeExt}`;
-  const uploadsDir = path.join(process.cwd(), "public", "uploads", "kyc");
+  const uploadsDir = getKycUploadDir();
   const filePath = path.join(uploadsDir, filename);
 
   await mkdir(uploadsDir, { recursive: true });

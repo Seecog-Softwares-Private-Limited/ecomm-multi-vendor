@@ -61,9 +61,19 @@ function handleRouteError(err: unknown): NextResponse {
   }
 
   if (typeof err === "object" && err !== null && "code" in err) {
-    const prismaErr = err as { code?: string; meta?: { cause?: string } };
+    const prismaErr = err as { code?: string; meta?: { cause?: string }; message?: string };
     if (prismaErr.code === "P2025") {
       return apiError("Record not found", Status.NOT_FOUND, "NOT_FOUND");
+    }
+    // DB unreachable / connection refused / auth to MySQL failed
+    const dbCodes = ["P1001", "P1000", "P1017", "P1008", "P1011"];
+    if (prismaErr.code && dbCodes.includes(prismaErr.code)) {
+      console.error("[api] Database error:", prismaErr.code, prismaErr.message);
+      return apiError(
+        "Database is unavailable. Check DATABASE_URL and that MySQL is reachable from this server.",
+        Status.SERVICE_UNAVAILABLE,
+        "DATABASE_UNAVAILABLE"
+      );
     }
   }
 

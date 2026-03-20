@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
+import { getPublicUploadsRoot } from "@/lib/uploads/storage";
 import {
   withApiHandler,
   apiSuccess,
@@ -48,7 +49,7 @@ export const POST = withApiHandler(async (request: NextRequest) => {
   const ext = path.extname(file.name) || ".jpg";
   const safeExt = /^\.(jpe?g|png|webp|gif)$/i.test(ext) ? ext : ".jpg";
   const filename = `${crypto.randomUUID()}${safeExt}`;
-  const uploadsDir = path.join(process.cwd(), "public", "uploads");
+  const uploadsDir = getPublicUploadsRoot();
   const filePath = path.join(uploadsDir, filename);
 
   await mkdir(uploadsDir, { recursive: true });
