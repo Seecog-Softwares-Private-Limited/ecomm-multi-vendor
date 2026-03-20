@@ -6,7 +6,7 @@ const topLinkClass =
 
 export function TopBar() {
   return (
-    <div className="w-full flex flex-row justify-between items-center px-4 sm:px-6 h-9 bg-white border-b border-gray-100">
+    <div className="hidden w-full flex-row justify-between items-center px-4 sm:px-6 h-9 bg-white border-b border-gray-100 md:flex">
       {/* Left */}
       <div className="flex flex-row items-center gap-6">
         <button className={`flex flex-row items-center gap-1.5 ${topLinkClass}`}>

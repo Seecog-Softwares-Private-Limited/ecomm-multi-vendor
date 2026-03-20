@@ -126,21 +126,93 @@ export function Navbar() {
 
   return (
     <div
-      className="w-full flex flex-row justify-between items-center px-4 sm:px-6 border-b border-gray-100"
-      style={{ height: 70, background: "#FFFFFF" }}
+      ref={accountDropdownRef}
+      className="relative w-full border-b border-gray-100 px-3 py-2 sm:px-6 md:flex md:h-[70px] md:flex-row md:items-center md:justify-between md:py-0"
+      style={{ background: "#FFFFFF" }}
     >
       {/* Logo */}
-      <div className="flex-shrink-0 cursor-pointer" onClick={() => router.push("/")}>
-        <h1 style={{ margin: 0 }}>
-          <IndovyaparLogo fontSize={26} />
-        </h1>
+      <div className="flex items-center justify-between md:block">
+        <div className="flex-shrink-0 cursor-pointer" onClick={() => router.push("/")}>
+          <h1 className="md:hidden" style={{ margin: 0 }}>
+            <IndovyaparLogo fontSize={20} />
+          </h1>
+          <h1 className="hidden md:block" style={{ margin: 0 }}>
+            <IndovyaparLogo fontSize={26} />
+          </h1>
+        </div>
+
+        {/* Right actions - mobile */}
+        <div className="flex flex-row items-center gap-3 shrink-0 md:hidden">
+          {isLoggedIn === null ? (
+            <span
+              className="opacity-70"
+              style={{
+                fontFamily: "'Manrope', sans-serif",
+                fontWeight: 500,
+                fontSize: 14,
+                color: "#0A0A0A",
+                whiteSpace: "nowrap",
+              }}
+            >
+              Account
+            </span>
+          ) : !isLoggedIn ? (
+            <Link
+              href="/login"
+              className="flex flex-row items-center gap-1 hover:opacity-90 transition-opacity"
+              style={{
+                fontFamily: "'Manrope', sans-serif",
+                fontWeight: 600,
+                fontSize: 14,
+                color: "#FF6A00",
+                whiteSpace: "nowrap",
+              }}
+            >
+              <LogIn size={16} />
+              <span>Login</span>
+            </Link>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setAccountDropdownOpen((o) => !o)}
+              className="flex flex-row items-center gap-1 hover:opacity-90 transition-opacity"
+              style={{
+                fontFamily: "'Manrope', sans-serif",
+                fontWeight: 500,
+                fontSize: 14,
+                color: "#0A0A0A",
+                whiteSpace: "nowrap",
+              }}
+            >
+              <User size={16} color="#0A0A0A" />
+              <span>Account</span>
+              <ChevronDown
+                size={14}
+                color="#0A0A0A"
+                className={`transition-transform ${accountDropdownOpen ? "rotate-180" : ""}`}
+              />
+            </button>
+          )}
+
+          <button type="button" className="relative" onClick={openCartDrawer}>
+            <ShoppingCart size={20} color="#0A0A0A" />
+            {cartCount > 0 && (
+              <span
+                className="absolute flex items-center justify-center bg-red-500 text-white font-bold text-[10px] rounded-full min-w-[18px] h-[18px] px-1"
+                style={{ top: -7, left: 10 }}
+              >
+                {cartCount > 99 ? "99+" : cartCount}
+              </span>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Search Bar */}
       <div
-        className="flex flex-row items-center flex-1 max-w-2xl mx-6"
+        className="mt-2 flex flex-row items-center md:mt-0 md:mx-6 md:flex-1 md:max-w-2xl"
         style={{
-          height: 44,
+          height: 40,
           background: "#FFFFFF",
           border: "1px solid #D1D5DC",
           boxShadow: "0px 1px 2px rgba(0,0,0,0.1)",
@@ -149,7 +221,7 @@ export function Navbar() {
       >
         {/* All dropdown */}
         <button
-          className="flex flex-row items-center gap-2 px-3 shrink-0"
+          className="hidden md:flex flex-row items-center gap-2 px-3 shrink-0"
           style={{
             height: 44,
             borderRight: "1px solid #D1D5DC",
@@ -180,7 +252,7 @@ export function Navbar() {
           style={{
             fontFamily: "'Manrope', sans-serif",
             fontWeight: 400,
-            fontSize: 18,
+            fontSize: 14,
             color: "rgba(10,10,10,0.5)",
           }}
         />
@@ -191,20 +263,20 @@ export function Navbar() {
           onClick={handleSearch}
           className="flex items-center justify-center shrink-0"
           style={{
-            width: 64,
-            height: 44,
+            width: 48,
+            height: 40,
             background: "#FF6A00",
             borderRadius: "0 10px 10px 0",
           }}
         >
-          <Search size={22} color="#FFFFFF" strokeWidth={2} />
+          <Search size={18} color="#FFFFFF" strokeWidth={2} />
         </button>
       </div>
 
       {/* Right actions */}
-      <div className="flex flex-row items-center gap-5 shrink-0">
+      <div className="hidden md:flex flex-row items-center gap-5 shrink-0">
         {/* Account / Login */}
-        <div className="relative" ref={accountDropdownRef}>
+        <div className="relative">
           {isLoggedIn === null ? (
             <div
               className="flex flex-row items-center gap-2 opacity-70"
@@ -256,35 +328,6 @@ export function Navbar() {
                   className={`transition-transform ${accountDropdownOpen ? "rotate-180" : ""}`}
                 />
               </button>
-              {accountDropdownOpen && (
-                <div
-                  className="absolute right-0 top-full mt-1 py-2 w-52 bg-white rounded-xl shadow-lg border border-slate-200 z-50"
-                  role="menu"
-                >
-                  {ACCOUNT_DROPDOWN_LINKS.map(({ href, label }) => (
-                    <Link
-                      key={label}
-                      href={href}
-                      className="block px-4 py-2.5 text-slate-800 font-medium hover:bg-[#FFF5EF] hover:text-[#FF6A00] transition-colors"
-                      style={{ fontFamily: "'Manrope', sans-serif", fontSize: 15 }}
-                      onClick={() => setAccountDropdownOpen(false)}
-                    >
-                      {label}
-                    </Link>
-                  ))}
-                  <div className="border-t border-slate-200 mt-2 pt-2">
-                    <button
-                      type="button"
-                      onClick={handleLogout}
-                      className="flex w-full items-center gap-2 px-4 py-2.5 text-slate-800 font-medium hover:bg-red-50 hover:text-red-600 transition-colors"
-                      style={{ fontFamily: "'Manrope', sans-serif", fontSize: 15 }}
-                    >
-                      <LogOut size={16} />
-                      Logout
-                    </button>
-                  </div>
-                </div>
-              )}
             </>
           )}
         </div>
@@ -318,6 +361,37 @@ export function Navbar() {
           )}
         </button>
       </div>
+
+      {/* Account dropdown panel rendered for both mobile/desktop toggles */}
+      {accountDropdownOpen && (
+        <div
+          className="absolute right-3 top-12 z-50 mt-1 w-52 rounded-xl border border-slate-200 bg-white py-2 shadow-lg md:right-6 md:top-[62px]"
+          role="menu"
+        >
+          {ACCOUNT_DROPDOWN_LINKS.map(({ href, label }) => (
+            <Link
+              key={label}
+              href={href}
+              className="block px-4 py-2.5 text-slate-800 font-medium hover:bg-[#FFF5EF] hover:text-[#FF6A00] transition-colors"
+              style={{ fontFamily: "'Manrope', sans-serif", fontSize: 15 }}
+              onClick={() => setAccountDropdownOpen(false)}
+            >
+              {label}
+            </Link>
+          ))}
+          <div className="border-t border-slate-200 mt-2 pt-2">
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="flex w-full items-center gap-2 px-4 py-2.5 text-slate-800 font-medium hover:bg-red-50 hover:text-red-600 transition-colors"
+              style={{ fontFamily: "'Manrope', sans-serif", fontSize: 15 }}
+            >
+              <LogOut size={16} />
+              Logout
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
