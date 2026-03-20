@@ -11,7 +11,8 @@
     "app": "node app.js",
     "app:prod": "node app.js start",
     "lint": "next lint",
-    "seed": "prisma db seed"
+    "seed": "prisma db seed",
+    "ensure-superadmin": "tsx scripts/ensure-superadmin.ts"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",

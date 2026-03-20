@@ -7,6 +7,7 @@ import {
 } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { requireAdminPermission } from "@/lib/admin-rbac";
+import { formatBusinessAddressFromProfileExtras } from "@/lib/data/vendor-profile";
 
 function resolveRequestOrigin(request: NextRequest): string {
   const host =
@@ -181,14 +182,27 @@ export const GET = withApiHandler(
     const avgRating = avgRatingResult._avg.avgRating ?? null;
 
     let gstNumber: string | undefined;
+    let profileExtrasParsed: Record<string, unknown> = {};
     if (seller.profileExtras) {
       try {
-        const extras = JSON.parse(seller.profileExtras) as { gstin?: string };
-        gstNumber = typeof extras?.gstin === "string" ? extras.gstin.trim() || undefined : undefined;
+        profileExtrasParsed = JSON.parse(seller.profileExtras) as Record<string, unknown>;
+        const g = profileExtrasParsed.gstin;
+        gstNumber = typeof g === "string" ? g.trim() || undefined : undefined;
       } catch {
-        // ignore
+        profileExtrasParsed = {};
       }
     }
+
+    const addressFromExtras = formatBusinessAddressFromProfileExtras({
+      addressLine1: profileExtrasParsed.addressLine1 as string | undefined,
+      addressLine2: profileExtrasParsed.addressLine2 as string | undefined,
+      city: profileExtrasParsed.city as string | undefined,
+      state: profileExtrasParsed.state as string | undefined,
+      pincode: profileExtrasParsed.pincode as string | undefined,
+    });
+    const businessAddress =
+      addressFromExtras?.trim() ||
+      (seller.businessAddress?.trim() ? seller.businessAddress.trim() : undefined);
 
     const docLabels: Record<string, string> = {
       PAN: "PAN Card",
@@ -203,7 +217,7 @@ export const GET = withApiHandler(
         ownerName: seller.ownerName,
         email: seller.email,
         phone: seller.phone ?? undefined,
-        businessAddress: seller.businessAddress ?? undefined,
+        businessAddress,
         gstNumber,
         status: seller.status,
         statusReason: seller.statusReason ?? undefined,
