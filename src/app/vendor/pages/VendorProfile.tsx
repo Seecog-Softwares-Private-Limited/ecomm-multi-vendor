@@ -25,11 +25,17 @@ import {
   type TabName,
 } from "@/lib/utils/vendorValidation";
 import * as React from "react";
+import {
+  VENDOR_BUSINESS_TYPE_OPTIONS,
+  parseStoredVendorBusinessType,
+  resolveVendorBusinessTypeForApi,
+} from "@/lib/constants/vendor-business-type";
 
 const defaultFormData = {
   displayName: "",
   legalName: "",
-  businessType: "company",
+  businessType: "proprietorship",
+  businessTypeCustom: "",
   gstin: "",
   gstNotApplicable: false,
   pan: "",
@@ -106,11 +112,14 @@ export function VendorProfile() {
     }
     if (hasSyncedProfileRef.current) return;
     hasSyncedProfileRef.current = true;
-    setFormData((prev) => ({
+    setFormData((prev) => {
+      const bt = parseStoredVendorBusinessType(profile.business.businessType);
+      return {
       ...prev,
       displayName: profile.business.displayName,
       legalName: profile.business.legalName,
-      businessType: profile.business.businessType,
+      businessType: bt.value,
+      businessTypeCustom: bt.custom,
       gstin: profile.business.gstin,
       gstNotApplicable: profile.business.gstNotApplicable,
       pan: profile.business.pan,
@@ -134,7 +143,8 @@ export function VendorProfile() {
       storeDescription: profile.business.storeDescription ?? "",
       primaryCategoryId: profile.primaryCategoryId ?? "",
       allowedCategoryIds: profile.allowedCategoryIds ?? (profile.primaryCategoryId ? [profile.primaryCategoryId] : []),
-    }));
+    };
+    });
   }, [profile]);
 
   React.useEffect(() => {
@@ -217,16 +227,32 @@ export function VendorProfile() {
     }
   }
 
+  const validateBusinessType = (): string | null => {
+    if (formData.businessType === "other" && !formData.businessTypeCustom.trim()) {
+      return 'Please enter your business type when "Others" is selected.';
+    }
+    return null;
+  };
+
   const handleSaveDraft = async () => {
     setSaving(true);
     setSuccessMessage(null);
     setSubmitError(null);
+    const btErr = validateBusinessType();
+    if (btErr) {
+      setSubmitError(btErr);
+      setSaving(false);
+      return;
+    }
     try {
       await vendorService.updateProfile({
         business: {
           displayName: formData.displayName,
           legalName: formData.legalName,
-          businessType: formData.businessType,
+          businessType: resolveVendorBusinessTypeForApi(
+            formData.businessType,
+            formData.businessTypeCustom
+          ),
           pan: formData.pan,
           gstin: formData.gstin,
           gstNotApplicable: formData.gstNotApplicable,
@@ -271,13 +297,22 @@ export function VendorProfile() {
     setSaving(true);
     setSuccessMessage(null);
     setSubmitError(null);
+    const btErr = validateBusinessType();
+    if (btErr) {
+      setSubmitError(btErr);
+      setSaving(false);
+      return;
+    }
     try {
       // Save current form data first so the server validates the latest values
       await vendorService.updateProfile({
         business: {
           displayName: formData.displayName,
           legalName: formData.legalName,
-          businessType: formData.businessType,
+          businessType: resolveVendorBusinessTypeForApi(
+            formData.businessType,
+            formData.businessTypeCustom
+          ),
           pan: formData.pan,
           gstin: formData.gstin,
           gstNotApplicable: formData.gstNotApplicable,
@@ -578,17 +613,38 @@ export function VendorProfile() {
                   )}
                 </div>
               </div>
-              <Select
-                label="Business Type"
-                value={formData.businessType}
-                onChange={(e) => setFormData({ ...formData, businessType: e.target.value })}
-                options={[
-                  { value: "individual", label: "Individual" },
-                  { value: "proprietor", label: "Proprietorship" },
-                  { value: "partnership", label: "Partnership" },
-                  { value: "company", label: "Company" },
-                ]}
-              />
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-slate-700">Business Type</label>
+                <select
+                  className="w-full cursor-pointer rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 shadow-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                  value={formData.businessType}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setFormData((fd) => ({
+                      ...fd,
+                      businessType: v,
+                      businessTypeCustom: v === "other" ? fd.businessTypeCustom : "",
+                    }));
+                  }}
+                >
+                  {VENDOR_BUSINESS_TYPE_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {formData.businessType === "other" && (
+                <Input
+                  label="Specify business type"
+                  value={formData.businessTypeCustom}
+                  onChange={(e) =>
+                    setFormData({ ...formData, businessTypeCustom: e.target.value })
+                  }
+                  helperText="Enter your business structure if it is not listed above"
+                  required
+                />
+              )}
               <div className="relative" ref={categoriesDropdownRef}>
                 <label className="mb-2 block text-sm font-medium text-slate-700">
                   Categories you sell in

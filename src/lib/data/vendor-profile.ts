@@ -103,6 +103,30 @@ function parseProfileExtras(raw: string | null): ProfileExtras {
   }
 }
 
+/**
+ * Single formatted line for admin / Seller.businessAddress column.
+ * Vendor profile stores lines + city/state/pin in profileExtras JSON only.
+ */
+export function formatBusinessAddressFromProfileExtras(extras: {
+  addressLine1?: string | null;
+  addressLine2?: string | null;
+  city?: string | null;
+  state?: string | null;
+  pincode?: string | null;
+}): string | undefined {
+  const line1 = extras.addressLine1?.trim();
+  const line2 = extras.addressLine2?.trim();
+  const city = extras.city?.trim();
+  const state = extras.state?.trim();
+  const pin = extras.pincode?.trim();
+  const tail = [city, state].filter(Boolean).join(", ");
+  const tailWithPin =
+    tail && pin ? `${tail} - ${pin}` : tail || pin || "";
+  const parts = [line1, line2, tailWithPin].filter((p) => p && p.length > 0);
+  const s = parts.join(" · ").trim();
+  return s.length > 0 ? s : undefined;
+}
+
 function mapSellerStatus(s: string): VendorProfileData["status"] {
   switch (s) {
     case "DRAFT":
@@ -167,7 +191,7 @@ export async function getVendorProfile(sellerId: string): Promise<VendorProfileD
     business: {
       displayName: seller.businessName ?? "",
       legalName: extras.legalName ?? "",
-      businessType: extras.businessType ?? "company",
+      businessType: extras.businessType ?? "Proprietorship",
       pan: extras.pan ?? "",
       gstin: extras.gstin ?? "",
       gstNotApplicable: !!extras.gstNotApplicable,
@@ -254,6 +278,7 @@ export async function updateVendorProfile(
     phone?: string | null;
     email?: string;
     profileExtras?: string;
+    businessAddress?: string | null;
     status?: "DRAFT" | "SUBMITTED";
     primaryCategoryId?: string | null;
   } = {};
@@ -279,6 +304,8 @@ export async function updateVendorProfile(
       ...(b.storeDescription !== undefined && { storeDescription: b.storeDescription }),
     };
     sellerUpdate.profileExtras = JSON.stringify(newExtras);
+    const addrLine = formatBusinessAddressFromProfileExtras(newExtras);
+    sellerUpdate.businessAddress = addrLine ? addrLine.slice(0, 500) : null;
   }
 
   if (payload.owner) {
