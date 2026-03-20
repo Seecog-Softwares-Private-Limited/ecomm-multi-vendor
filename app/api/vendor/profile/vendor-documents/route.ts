@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
+import { getVendorDocsUploadDir } from "@/lib/uploads/storage";
 import {
   withApiHandler,
   apiSuccess,
@@ -63,7 +64,7 @@ export const POST = withApiHandler(async (request: NextRequest) => {
   const safeExt = /^\.(jpe?g|png|webp|gif|pdf)$/i.test(ext) ? ext : ".pdf";
   const safeName = documentName.trim().replace(/[^a-zA-Z0-9_\-\s]/g, "_").slice(0, 200);
   const filename = `vendor-doc-${safeName}-${crypto.randomUUID()}${safeExt}`.replace(/\s+/g, "-");
-  const uploadsDir = path.join(process.cwd(), "public", "uploads", "vendor-docs");
+  const uploadsDir = getVendorDocsUploadDir();
   const filePath = path.join(uploadsDir, filename);
 
   await mkdir(uploadsDir, { recursive: true });
