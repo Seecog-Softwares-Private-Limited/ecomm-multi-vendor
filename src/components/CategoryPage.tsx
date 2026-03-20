@@ -283,6 +283,52 @@ export function CategoryPage({
 
         {/* Main content */}
         <div className="flex-1 min-w-0">
+          {/* Mobile filter chips (Amazon-like compact controls) */}
+          <div className="lg:hidden mb-3 -mx-1 px-1 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+            <div className="flex items-center gap-2 min-w-max">
+              <button
+                type="button"
+                className="inline-flex items-center gap-1.5 rounded-full border border-[#CBD5E1] bg-white px-3 py-1.5 text-xs font-semibold text-[#334155]"
+                onClick={clearFilters}
+              >
+                <Filter className="w-3.5 h-3.5" />
+                Filters
+              </button>
+              <button
+                type="button"
+                className="inline-flex items-center gap-1 rounded-full border border-[#CBD5E1] bg-white px-3 py-1.5 text-xs font-semibold text-[#334155]"
+                onClick={() => setSortBy("rating")}
+              >
+                <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+                Top Rated
+              </button>
+              <button
+                type="button"
+                className="rounded-full border border-[#CBD5E1] bg-white px-3 py-1.5 text-xs font-semibold text-[#334155]"
+                onClick={() => setMinDiscount(25)}
+              >
+                25%+ Off
+              </button>
+              <button
+                type="button"
+                className="rounded-full border border-[#CBD5E1] bg-white px-3 py-1.5 text-xs font-semibold text-[#334155]"
+                onClick={() => setInStockOnly((v) => !v)}
+              >
+                {inStockOnly ? "In Stock" : "All Stock"}
+              </button>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="rounded-full border border-[#CBD5E1] bg-white px-3 py-1.5 text-xs font-semibold text-[#334155] outline-none"
+              >
+                <option value="popularity">Popularity</option>
+                <option value="price-asc">Price Low-High</option>
+                <option value="price-desc">Price High-Low</option>
+                <option value="rating">Rating</option>
+              </select>
+            </div>
+          </div>
+
           {/* Title, results count, sort */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
             <h1
@@ -295,7 +341,7 @@ export function CategoryPage({
             >
               {categoryName}
             </h1>
-            <div className="flex items-center gap-3 flex-wrap">
+            <div className="hidden sm:flex items-center gap-3 flex-wrap">
               <span className="text-sm text-gray-500">{resultsText}</span>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-gray-600">Sort:</span>
@@ -325,7 +371,7 @@ export function CategoryPage({
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-5">
               {filtered.map((product) => {
                 const discountPct =
                   product.oldPrice != null && product.oldPrice > product.price
@@ -334,7 +380,7 @@ export function CategoryPage({
                 return (
                   <div
                     key={product.id}
-                    className="group bg-white border border-gray-100 rounded-xl overflow-hidden hover:shadow-lg transition-all flex flex-col"
+                    className="group bg-white border border-gray-100 rounded-lg sm:rounded-xl overflow-hidden hover:shadow-lg transition-all flex flex-col"
                   >
                     <Link href={`/product/${product.id}`} className="block flex-1">
                       <div className="relative aspect-square overflow-hidden bg-gray-50">
@@ -351,49 +397,49 @@ export function CategoryPage({
                         )}
                         {discountPct > 0 && (
                           <span
-                            className="absolute top-2 left-2 px-2 py-1 text-xs font-bold text-white rounded"
+                            className="absolute top-1.5 left-1.5 px-1.5 py-0.5 text-[10px] sm:text-xs font-bold text-white rounded"
                             style={{ background: "#EF4444" }}
                           >
                             SALE {discountPct}% OFF
                           </span>
                         )}
                         <button
-                          className="absolute top-2 right-2 w-9 h-9 rounded-full bg-white/90 flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition shadow"
+                          className="absolute top-1.5 right-1.5 w-7 h-7 sm:w-9 sm:h-9 rounded-full bg-white/90 flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition shadow"
                           aria-label="Wishlist"
                           onClick={(e) => e.preventDefault()}
                         >
-                          <Heart className="w-4 h-4" />
+                          <Heart className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                         </button>
                       </div>
-                      <div className="p-4 flex-1 flex flex-col">
-                        <h3 className="font-medium text-[#111827] line-clamp-2 text-sm leading-snug mb-2 group-hover:text-[#FF6A00] transition-colors">
+                      <div className="p-2.5 sm:p-4 flex-1 flex flex-col">
+                        <h3 className="font-medium text-[#111827] line-clamp-2 text-[13px] sm:text-sm leading-snug mb-1.5 sm:mb-2 group-hover:text-[#FF6A00] transition-colors">
                           {product.name}
                         </h3>
                         <div
-                          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium text-[#0F766E] bg-[#CCFBF1] w-fit mb-2"
+                          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] sm:text-xs font-medium text-[#0F766E] bg-[#CCFBF1] w-fit mb-1.5 sm:mb-2"
                         >
-                          <Star className="w-3.5 h-3.5 fill-current" />
+                          <Star className="w-3 h-3 sm:w-3.5 sm:h-3.5 fill-current" />
                           {product.rating.toFixed(1)} ({product.reviews.toLocaleString()})
                         </div>
-                        <div className="flex items-center gap-2 flex-wrap mt-auto">
-                          <span className="font-bold text-[#FF6A00] text-lg">
+                        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap mt-auto">
+                          <span className="font-bold text-[#FF6A00] text-base sm:text-lg">
                             ₹{product.price.toLocaleString("en-IN")}
                           </span>
                           {product.oldPrice != null && product.oldPrice > product.price && (
-                            <span className="text-sm text-gray-400 line-through">
+                            <span className="text-xs sm:text-sm text-gray-400 line-through">
                               ₹{product.oldPrice.toLocaleString("en-IN")}
                             </span>
                           )}
                         </div>
-                        <p className="flex items-center gap-1 text-xs text-gray-500 mt-2">
-                          <Truck className="w-3.5 h-3.5" />
+                        <p className="flex items-center gap-1 text-[10px] sm:text-xs text-gray-500 mt-1.5 sm:mt-2">
+                          <Truck className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                           Free delivery by Tomorrow
                         </p>
                       </div>
                     </Link>
-                    <div className="p-4 pt-0 flex gap-2">
+                    <div className="p-2.5 sm:p-4 pt-0 flex gap-1.5 sm:gap-2">
                       <button
-                        className="flex-1 py-2.5 rounded-lg border-2 border-[#FF6A00] text-[#FF6A00] font-semibold text-sm hover:bg-[#FFF4EC] transition disabled:opacity-60"
+                        className="flex-1 py-2 sm:py-2.5 rounded-full sm:rounded-lg border-2 border-[#FF6A00] text-[#FF6A00] font-semibold text-xs sm:text-sm hover:bg-[#FFF4EC] transition disabled:opacity-60"
                         disabled={addingToCartId === product.id}
                         onClick={async (e) => {
                           e.preventDefault();
@@ -437,10 +483,10 @@ export function CategoryPage({
                           }
                         }}
                       >
-                        {addingToCartId === product.id ? "Adding…" : "Add to cart"}
+                        {addingToCartId === product.id ? "Adding..." : "Add to cart"}
                       </button>
                       <button
-                        className="flex-1 py-2.5 rounded-lg bg-[#FF6A00] text-white font-semibold text-sm hover:bg-[#E55F00] transition"
+                        className="hidden sm:block flex-1 py-2.5 rounded-lg bg-[#FF6A00] text-white font-semibold text-sm hover:bg-[#E55F00] transition"
                         onClick={(e) => {
                           e.preventDefault();
                           router.push(`/product/${product.id}`);

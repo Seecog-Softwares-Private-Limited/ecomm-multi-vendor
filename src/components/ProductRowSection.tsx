@@ -21,10 +21,10 @@ export function ProductRowSection({
       <div className="mx-auto flex flex-col gap-4 py-8 px-4 sm:px-6 max-w-[1440px]">
         {/* Title */}
         <p
+          className="text-base sm:text-lg"
           style={{
             fontFamily: "'Nunito','Manrope',sans-serif",
             fontWeight: 800,
-            fontSize: 18,
             lineHeight: "34px",
             color: "#2B2B2B",
           }}
@@ -32,8 +32,8 @@ export function ProductRowSection({
           {title}
         </p>
 
-        {/* 5 product images in a row */}
-        <div className="flex flex-row gap-6">
+        {/* Horizontal scroll on small screens, 5-across on desktop */}
+        <div className="flex flex-nowrap gap-3 overflow-x-auto pb-2 sm:grid sm:grid-cols-5 sm:gap-6 sm:overflow-visible">
           {products.map((p, i) => (
             <Link
               key={i}
@@ -42,7 +42,7 @@ export function ProductRowSection({
                 if (p.href) return;
                 e.preventDefault();
               }}
-              className="flex-1 overflow-hidden block"
+              className="block min-w-[130px] overflow-hidden sm:min-w-0"
               style={{ borderRadius: 12, aspectRatio: "1" }}
               aria-label={p.alt}
               title={p.alt}
@@ -66,7 +66,7 @@ export function ProductRowSection({
           }}
           className="flex flex-row items-center gap-1.5 self-start"
           style={{
-            padding: "9px 17px",
+            padding: "8px 14px",
             background: "rgba(255,255,255,0.95)",
             boxShadow:
               "0px 9.39px 14.08px -2.82px rgba(0,0,0,0.1), 0px 3.75px 5.63px -3.75px rgba(0,0,0,0.1)",
@@ -78,7 +78,7 @@ export function ProductRowSection({
             style={{
               fontFamily: "'Manrope',sans-serif",
               fontWeight: 500,
-              fontSize: 18,
+              fontSize: 15,
               color: "#FF6A00",
             }}
           >
