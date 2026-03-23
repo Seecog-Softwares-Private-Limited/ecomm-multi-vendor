@@ -38,6 +38,10 @@ function getTransporter(): nodemailer.Transporter | null {
         emailConfig.user && emailConfig.pass
           ? { user: emailConfig.user, pass: emailConfig.pass }
           : undefined,
+      // Avoid hanging the API route if SMTP is slow or unreachable
+      connectionTimeout: 12_000,
+      greetingTimeout: 12_000,
+      socketTimeout: 12_000,
     });
     return transporter;
   } catch (err) {
