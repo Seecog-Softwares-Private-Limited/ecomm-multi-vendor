@@ -50,13 +50,8 @@ const nextConfig: NextConfig = {
    * even when public-file handling or cwd differs from dev.
    */
   async rewrites() {
-    return {
-      beforeFiles: [
-        { source: "/uploads/:path*", destination: "/api/uploads/:path*" },
-      ],
-      afterFiles: [],
-      fallback: [],
-    };
+    /* Array form avoids object-shape edge cases in some Next 15 + TS setups */
+    return [{ source: "/uploads/:path*", destination: "/api/uploads/:path*" }];
   },
   async redirects() {
     return [

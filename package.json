@@ -12,7 +12,8 @@
     "app:prod": "node app.js start",
     "lint": "next lint",
     "seed": "prisma db seed",
-    "ensure-superadmin": "tsx scripts/ensure-superadmin.ts"
+    "ensure-superadmin": "tsx scripts/ensure-superadmin.ts",
+    "delete-customers-by-email": "tsx scripts/delete-customers-by-email.ts"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",
