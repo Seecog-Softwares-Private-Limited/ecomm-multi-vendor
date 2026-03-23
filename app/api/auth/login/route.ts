@@ -39,6 +39,7 @@ export const POST = withApiHandler(async (request: NextRequest) => {
       firstName: true,
       lastName: true,
       phone: true,
+      emailVerified: true,
     },
   });
 
@@ -49,6 +50,12 @@ export const POST = withApiHandler(async (request: NextRequest) => {
   const valid = await verifyPassword(password, user.passwordHash);
   if (!valid) {
     return apiUnauthorized("Invalid email or password");
+  }
+
+  if (!user.emailVerified) {
+    return apiUnauthorized(
+      "Please confirm your email first. Check your inbox for the sign-up link, or resend it from the register page."
+    );
   }
 
   const token = await signToken({

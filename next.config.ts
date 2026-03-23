@@ -54,6 +54,8 @@ const nextConfig: NextConfig = {
       beforeFiles: [
         { source: "/uploads/:path*", destination: "/api/uploads/:path*" },
       ],
+      afterFiles: [],
+      fallback: [],
     };
   },
   async redirects() {
