@@ -19,18 +19,33 @@ export function ProductRowSection({
   return (
     <div className="w-full" style={{ background: bgColor }}>
       <div className="mx-auto flex flex-col gap-4 py-8 px-4 sm:px-6 max-w-[1440px]">
-        {/* Title */}
-        <p
-          className="text-base sm:text-lg"
-          style={{
-            fontFamily: "'Nunito','Manrope',sans-serif",
-            fontWeight: 800,
-            lineHeight: "34px",
-            color: "#2B2B2B",
-          }}
-        >
-          {title}
-        </p>
+        {/* Title — same destination as section CTA when href is set */}
+        {ctaHref ? (
+          <Link
+            href={ctaHref}
+            className="text-base sm:text-lg block w-fit no-underline hover:opacity-90 transition-opacity rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF6A00]"
+            style={{
+              fontFamily: "'Nunito','Manrope',sans-serif",
+              fontWeight: 800,
+              lineHeight: "34px",
+              color: "#2B2B2B",
+            }}
+          >
+            {title}
+          </Link>
+        ) : (
+          <p
+            className="text-base sm:text-lg"
+            style={{
+              fontFamily: "'Nunito','Manrope',sans-serif",
+              fontWeight: 800,
+              lineHeight: "34px",
+              color: "#2B2B2B",
+            }}
+          >
+            {title}
+          </p>
+        )}
 
         {/* Horizontal scroll on small screens, 5-across on desktop */}
         <div className="flex flex-nowrap gap-3 overflow-x-auto pb-2 sm:grid sm:grid-cols-5 sm:gap-6 sm:overflow-visible">

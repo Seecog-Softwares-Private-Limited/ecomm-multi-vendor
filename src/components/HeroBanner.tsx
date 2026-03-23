@@ -69,18 +69,31 @@ export function HeroBanner() {
       <img
         key={current}
         src={slide.image}
-        alt="hero"
-        className="absolute inset-0 w-full h-full object-cover"
+        alt=""
+        className="absolute inset-0 z-0 w-full h-full object-cover"
+        aria-hidden
       />
 
       {/* Overlay */}
       <div
-        className="absolute inset-0"
+        className="absolute inset-0 z-[1]"
         style={{ background: slide.overlay }}
       />
 
-      {/* Left text */}
-      <div className="absolute left-5 top-1/2 flex max-w-[70%] -translate-y-1/2 flex-col gap-2 sm:left-10 sm:gap-3 lg:left-[120px] lg:max-w-[55%] lg:gap-4">
+      {/* Full-slide tap target (below thumbs & nav controls) */}
+      <Link
+        href={slide.href}
+        className="absolute inset-0 z-[2] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-white"
+        aria-label={`${slide.label} ${slide.headline}. Shop now`}
+      >
+        <span className="sr-only">
+          {slide.label} {slide.headline}
+          {slide.subline ? ` ${slide.subline}` : ""} — shop now
+        </span>
+      </Link>
+
+      {/* Left text — visual only; clicks fall through to full-slide Link */}
+      <div className="absolute left-5 top-1/2 z-[3] flex max-w-[70%] -translate-y-1/2 flex-col gap-2 pointer-events-none sm:left-10 sm:gap-3 lg:left-[120px] lg:max-w-[55%] lg:gap-4">
         <p
           className="leading-tight text-[20px] sm:text-[30px] lg:text-[40px]"
           style={{
@@ -115,8 +128,7 @@ export function HeroBanner() {
           </p>
         )}
 
-        <Link
-          href={slide.href}
+        <span
           className="inline-flex items-center gap-2 self-start"
           style={{
             padding: "8px 12px",
@@ -131,14 +143,14 @@ export function HeroBanner() {
           }}
         >
           Shop now
-          <ArrowRight size={16} color="#FF6A00" />
-        </Link>
+          <ArrowRight size={16} color="#FF6A00" aria-hidden />
+        </span>
       </div>
 
-      {/* Right product images grid (only for "Trending" slide) */}
+      {/* Right product images grid (only for "Trending" slide) — above slide link */}
       {current === 0 && trendingThumbs.length > 0 && (
         <div
-          className="absolute right-4 top-1/2 hidden w-[220px] -translate-y-1/2 grid-cols-2 gap-2 sm:grid md:w-[280px] lg:right-20 lg:w-[340px] lg:gap-3"
+          className="absolute right-4 top-1/2 z-10 hidden w-[220px] -translate-y-1/2 grid grid-cols-2 gap-2 sm:grid md:w-[280px] lg:right-20 lg:w-[340px] lg:gap-3"
         >
           {trendingThumbs.map((p) => (
             <Link key={p.id} href={`/product/${p.id}`} className="block" title={p.name} aria-label={p.name}>
@@ -174,8 +186,9 @@ export function HeroBanner() {
 
       {/* Right arrow */}
       <button
+        type="button"
         onClick={next}
-        className="absolute hidden items-center justify-center sm:flex"
+        className="absolute z-20 hidden items-center justify-center sm:flex"
         style={{
           width: 44,
           height: 44,
@@ -193,11 +206,12 @@ export function HeroBanner() {
 
       {/* Dots */}
       <div
-        className="absolute flex flex-row gap-2 items-center justify-center"
+        className="absolute z-20 flex flex-row gap-2 items-center justify-center"
         style={{ bottom: 16, left: "50%", transform: "translateX(-50%)" }}
       >
         {slides.map((_, i) => (
           <button
+            type="button"
             key={i}
             onClick={() => setCurrent(i)}
             style={{

@@ -404,9 +404,13 @@ export function CategoryPage({
                           </span>
                         )}
                         <button
-                          className="absolute top-1.5 right-1.5 w-7 h-7 sm:w-9 sm:h-9 rounded-full bg-white/90 flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition shadow"
+                          type="button"
+                          className="absolute top-1.5 right-1.5 z-[1] w-7 h-7 sm:w-9 sm:h-9 rounded-full bg-white/90 flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition shadow"
                           aria-label="Wishlist"
-                          onClick={(e) => e.preventDefault()}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                          }}
                         >
                           <Heart className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                         </button>

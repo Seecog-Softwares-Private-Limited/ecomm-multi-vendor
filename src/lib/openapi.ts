@@ -48,7 +48,11 @@ export const openApiSpec = {
             },
           },
         },
-        responses: { "200": { description: "Success, sets cookie" }, "400": { description: "Validation error" }, "409": { description: "Email exists" } },
+        responses: {
+          "201": { description: "Account created; confirmation email sent (no cookie until /verify-email)" },
+          "400": { description: "Validation error" },
+          "409": { description: "Email already registered and verified" },
+        },
       },
     },
     "/api/auth/login": {

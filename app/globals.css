@@ -1,11 +1,27 @@
-@import url('https://fonts.googleapis.com/css2?family=Katibeh&family=Manrope:wght@400;500;600;700&family=Nunito:wght@700;800&display=swap');
-
+/* Tailwind + local theme first — external font CSS @import can fail under Brave/ad-block
+   and must not run before @import "tailwindcss" in some pipelines. */
 @import "tailwindcss";
-@source "../src/**/*.{js,ts,jsx,tsx}";
+/*
+ * Scan all UI sources for class names. Use explicit globs (no brace expansion) so
+ * Windows + Tailwind v4 reliably pick up utilities; missing scan = almost no CSS → broken layout.
+ */
+@source "../src/**/*.tsx";
+@source "../src/**/*.ts";
+@source "../src/**/*.jsx";
+@source "../src/**/*.js";
+@source "../app/**/*.tsx";
+@source "../app/**/*.ts";
+@source "../app/**/*.jsx";
+@source "../app/**/*.js";
 
 @import "tw-animate-css";
 @import "../src/styles/theme.css";
 @import "../src/styles/print.css";
+
+/* Default body font when components don’t set inline fontFamily (next/font sets --font-manrope on <html>) */
+body {
+  font-family: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+}
 
 /* Mobile-only safety layer for user-facing responsiveness.
    Keeps desktop layout unchanged while preventing sideways page scroll. */
