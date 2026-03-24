@@ -5,8 +5,10 @@ import {
   apiUnauthorized,
   apiForbidden,
   apiBadRequest,
+  apiConflict,
 } from "@/lib/api";
 import { getSession } from "@/lib/auth";
+import { normalizeIndianPhone, INDIAN_MOBILE_HINT } from "@/lib/auth/phone";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -72,12 +74,29 @@ export const PATCH = withApiHandler(async (request: NextRequest) => {
   const b = body as Record<string, unknown>;
   const firstName = typeof b.firstName === "string" ? b.firstName.trim() || null : undefined;
   const lastName = typeof b.lastName === "string" ? b.lastName.trim() || null : undefined;
-  const phone = typeof b.phone === "string" ? b.phone.trim() || null : undefined;
+  const phoneRaw = typeof b.phone === "string" ? b.phone.trim() || null : undefined;
 
   const updateData: { firstName?: string | null; lastName?: string | null; phone?: string | null } = {};
   if (firstName !== undefined) updateData.firstName = firstName;
   if (lastName !== undefined) updateData.lastName = lastName;
-  if (phone !== undefined) updateData.phone = phone;
+  if (phoneRaw !== undefined) {
+    if (phoneRaw === null) {
+      updateData.phone = null;
+    } else {
+      const norm = normalizeIndianPhone(phoneRaw);
+      if (!norm) {
+        return apiBadRequest(INDIAN_MOBILE_HINT);
+      }
+      const taken = await prisma.user.findFirst({
+        where: { phone: norm, deletedAt: null, id: { not: session.sub } },
+        select: { id: true },
+      });
+      if (taken) {
+        return apiConflict("This phone number is already used by another account.");
+      }
+      updateData.phone = norm;
+    }
+  }
 
   if (Object.keys(updateData).length === 0) {
     return apiBadRequest("Provide at least one of firstName, lastName, phone.");

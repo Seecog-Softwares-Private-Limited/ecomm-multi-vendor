@@ -1,20 +1,145 @@
 "use client";
 
 import { Link } from "../components/Link";
-import { Mail, Lock, Eye, EyeOff, ArrowRight, ShieldCheck, Truck, ShoppingBag } from "lucide-react";
+import {
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  ArrowRight,
+  ShieldCheck,
+  Truck,
+  ShoppingBag,
+  Smartphone,
+} from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import * as React from "react";
 import { IndovyaparLogo } from "@/components/IndovyaparLogo";
 import { getGuestCart, clearGuestCart } from "@/lib/guest-cart";
+import { normalizeIndianPhone, INDIAN_MOBILE_HINT } from "@/lib/auth/phone";
+
+type LoginMode = "email" | "phone";
+type PhoneStep = "number" | "otp";
 
 export function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [loginMode, setLoginMode] = React.useState<LoginMode>("phone");
+  const [phoneStep, setPhoneStep] = React.useState<PhoneStep>("number");
   const [showPassword, setShowPassword] = React.useState(false);
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
+  const [phone, setPhone] = React.useState("");
+  const [otpCode, setOtpCode] = React.useState("");
   const [loading, setLoading] = React.useState(false);
+  const [sendOtpLoading, setSendOtpLoading] = React.useState(false);
+  const [verifyOtpLoading, setVerifyOtpLoading] = React.useState(false);
+  const [resendSeconds, setResendSeconds] = React.useState(0);
+  const [devOtpHint, setDevOtpHint] = React.useState<string | null>(null);
+  const [smsTraceId, setSmsTraceId] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
+
+  const returnUrl =
+    searchParams?.get("returnUrl") ?? searchParams?.get("callbackUrl") ?? "/";
+
+  const mergeGuestCartAndGoHome = React.useCallback(async () => {
+    const guestItems = getGuestCart();
+    if (guestItems.length > 0) {
+      for (const it of guestItems) {
+        await fetch("/api/cart/items", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            productId: it.productId,
+            quantity: it.quantity,
+            variantKey: it.variantKey ?? null,
+          }),
+        });
+      }
+      clearGuestCart();
+    }
+    await new Promise((r) => setTimeout(r, 50));
+    router.push(returnUrl);
+  }, [router, returnUrl]);
+
+  React.useEffect(() => {
+    if (resendSeconds <= 0) return;
+    const t = setInterval(() => setResendSeconds((s) => (s > 0 ? s - 1 : 0)), 1000);
+    return () => clearInterval(t);
+  }, [resendSeconds]);
+
+  const requestOtp = async () => {
+    setError(null);
+    setDevOtpHint(null);
+    setSmsTraceId(null);
+    const trimmed = phone.trim();
+    if (!trimmed) {
+      setError("Please enter your mobile number.");
+      return;
+    }
+    if (!normalizeIndianPhone(trimmed)) {
+      setError(INDIAN_MOBILE_HINT);
+      return;
+    }
+    setSendOtpLoading(true);
+    try {
+      const res = await fetch("/api/auth/phone-otp/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: trimmed }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data?.error?.message ?? "Could not send OTP. Try again.");
+        return;
+      }
+      const d = data?.data;
+      setDevOtpHint(typeof d?.devOtp === "string" ? d.devOtp : null);
+      setSmsTraceId(typeof d?.smsTraceId === "string" ? d.smsTraceId : null);
+      setPhoneStep("otp");
+      setOtpCode("");
+      setResendSeconds(60);
+    } catch {
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setSendOtpLoading(false);
+    }
+  };
+
+  const handleSendOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await requestOtp();
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    if (!/^\d{6}$/.test(otpCode.trim())) {
+      setError("Enter the 6-digit code from your SMS.");
+      return;
+    }
+    setVerifyOtpLoading(true);
+    try {
+      const res = await fetch("/api/auth/phone-otp/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ phone: phone.trim(), code: otpCode.trim() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data?.error?.message ?? "Invalid or expired code.");
+        setVerifyOtpLoading(false);
+        return;
+      }
+      await mergeGuestCartAndGoHome();
+    } catch {
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setVerifyOtpLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,31 +163,7 @@ export function LoginPage() {
         setLoading(false);
         return;
       }
-      const returnUrl =
-        searchParams?.get("returnUrl") ??
-        searchParams?.get("callbackUrl") ??
-        "/";
-
-      const guestItems = getGuestCart();
-      if (guestItems.length > 0) {
-        for (const it of guestItems) {
-          await fetch("/api/cart/items", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify({
-              productId: it.productId,
-              quantity: it.quantity,
-              variantKey: it.variantKey ?? null,
-            }),
-          });
-        }
-        clearGuestCart();
-      }
-
-      await new Promise((r) => setTimeout(r, 50));
-
-      router.push(returnUrl);
+      await mergeGuestCartAndGoHome();
       return;
     } catch {
       setError("Something went wrong. Please try again.");
@@ -151,90 +252,260 @@ export function LoginPage() {
               </div>
             )}
 
-            <form className="space-y-5" onSubmit={handleSubmit}>
-              <div>
-                <label
-                  htmlFor="user-email"
-                  className="block text-sm font-semibold text-slate-700 mb-1.5"
+            <div className="mb-6 flex rounded-xl bg-slate-100/90 p-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setLoginMode("phone");
+                  setError(null);
+                  setDevOtpHint(null);
+                }}
+                className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-semibold transition ${
+                  loginMode === "phone"
+                    ? "bg-white text-slate-900 shadow-sm"
+                    : "text-slate-600 hover:text-slate-800"
+                }`}
+              >
+                <Smartphone className="h-4 w-4" />
+                Mobile OTP
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setLoginMode("email");
+                  setError(null);
+                  setDevOtpHint(null);
+                  setPhoneStep("number");
+                }}
+                className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-semibold transition ${
+                  loginMode === "email"
+                    ? "bg-white text-slate-900 shadow-sm"
+                    : "text-slate-600 hover:text-slate-800"
+                }`}
+              >
+                <Mail className="h-4 w-4" />
+                Email
+              </button>
+            </div>
+
+            {loginMode === "email" ? (
+              <form className="space-y-5" onSubmit={handleSubmit}>
+                <div>
+                  <label
+                    htmlFor="user-email"
+                    className="block text-sm font-semibold text-slate-700 mb-1.5"
+                  >
+                    Email address
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                    <input
+                      id="user-email"
+                      type="email"
+                      placeholder="you@example.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      autoComplete="email"
+                      required
+                      className="block w-full rounded-xl border border-slate-200 bg-slate-50/50 py-3 pl-12 pr-4 text-slate-900 placeholder:text-slate-400 transition focus:border-[#FF6A00] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6A00]/20"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="user-password"
+                    className="block text-sm font-semibold text-slate-700 mb-1.5"
+                  >
+                    Password
+                  </label>
+                  <div className="relative">
+                    <Lock className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                    <input
+                      id="user-password"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      autoComplete="current-password"
+                      required
+                      className="block w-full rounded-xl border border-slate-200 bg-slate-50/50 py-3 pl-12 pr-12 text-slate-900 placeholder:text-slate-400 transition focus:border-[#FF6A00] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6A00]/20"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      className="absolute inset-y-0 right-0 flex items-center pr-4 text-slate-400 hover:text-slate-600 transition"
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <label className="flex cursor-pointer items-center gap-2.5">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-slate-300 text-[#FF6A00] focus:ring-[#FF6A00]/30"
+                    />
+                    <span className="text-sm text-slate-600">Remember me</span>
+                  </label>
+                  <Link
+                    href="/forgot-password"
+                    className="text-sm font-semibold text-[#FF6A00] hover:text-[#E55F00] transition"
+                  >
+                    Forgot password?
+                  </Link>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#FF6A00] py-3.5 text-sm font-semibold text-white shadow-lg shadow-orange-500/25 transition hover:bg-[#E55F00] focus:outline-none focus:ring-2 focus:ring-[#FF6A00] focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-60"
                 >
-                  Email address
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                  {loading ? (
+                    <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  ) : (
+                    <>
+                      Sign in
+                      <ArrowRight className="h-4 w-4" />
+                    </>
+                  )}
+                </button>
+              </form>
+            ) : phoneStep === "number" ? (
+              <form className="space-y-5" onSubmit={handleSendOtp}>
+                <div>
+                  <label
+                    htmlFor="login-phone"
+                    className="block text-sm font-semibold text-slate-700 mb-1.5"
+                  >
+                    Mobile number
+                  </label>
+                  <div className="relative">
+                    <Smartphone className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                    <input
+                      id="login-phone"
+                      type="tel"
+                      inputMode="numeric"
+                      autoComplete="tel"
+                      placeholder="98765 43210"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      className="block w-full rounded-xl border border-slate-200 bg-slate-50/50 py-3 pl-12 pr-4 text-slate-900 placeholder:text-slate-400 transition focus:border-[#FF6A00] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6A00]/20"
+                    />
+                  </div>
+                  <p className="mt-2 text-xs text-slate-500">
+                    We&apos;ll send a one-time code by SMS. Enter 10 digits starting with 6–9 (e.g.
+                    9876543210). +91 optional.
+                  </p>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={sendOtpLoading}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#FF6A00] py-3.5 text-sm font-semibold text-white shadow-lg shadow-orange-500/25 transition hover:bg-[#E55F00] focus:outline-none focus:ring-2 focus:ring-[#FF6A00] focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-60"
+                >
+                  {sendOtpLoading ? (
+                    <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  ) : (
+                    <>
+                      Get OTP
+                      <ArrowRight className="h-4 w-4" />
+                    </>
+                  )}
+                </button>
+              </form>
+            ) : (
+              <form className="space-y-5" onSubmit={handleVerifyOtp}>
+                <p className="text-sm text-slate-600">
+                  Enter the 6-digit code sent to{" "}
+                  <span className="font-semibold text-slate-900">{phone.trim()}</span>
+                </p>
+                {devOtpHint && (
+                  <div className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-200/80">
+                    SMS not configured (local only). Your OTP:{" "}
+                    <span className="font-mono font-bold">{devOtpHint}</span>
+                  </div>
+                )}
+                <div className="rounded-lg bg-slate-50 px-3 py-2.5 text-xs text-slate-600 leading-relaxed ring-1 ring-slate-100">
+                  <p>
+                    On <strong>iPhone</strong>, also open <strong>Primary</strong> and{" "}
+                    <strong>Transactions</strong>, pull down to search <strong>Indovyapar</strong> or the OTP
+                    digits. Quick SMS often lands outside Promotions. If the dashboard shows “Delivered” but
+                    nothing appears, your operator may still be filtering — use Fast2SMS{" "}
+                    <strong>DLT</strong> (<code className="text-[11px]">FAST2SMS_ROUTE=dlt</code>) for
+                    transactional delivery.
+                  </p>
+                  {smsTraceId && (
+                    <p className="mt-2 font-mono text-[11px] text-slate-700 break-all">
+                      Dev trace: {smsTraceId} — find this in Fast2SMS dashboard → Reports / delivery logs.
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label
+                    htmlFor="login-otp"
+                    className="block text-sm font-semibold text-slate-700 mb-1.5"
+                  >
+                    One-time password
+                  </label>
                   <input
-                    id="user-email"
-                    type="email"
-                    placeholder="you@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    autoComplete="email"
-                    required
-                    className="block w-full rounded-xl border border-slate-200 bg-slate-50/50 py-3 pl-12 pr-4 text-slate-900 placeholder:text-slate-400 transition focus:border-[#FF6A00] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6A00]/20"
+                    id="login-otp"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    maxLength={6}
+                    placeholder="000000"
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    className="block w-full rounded-xl border border-slate-200 bg-slate-50/50 py-3 px-4 text-center font-mono text-2xl tracking-[0.35em] text-slate-900 placeholder:text-slate-300 transition focus:border-[#FF6A00] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6A00]/20"
                   />
                 </div>
-              </div>
 
-              <div>
-                <label
-                  htmlFor="user-password"
-                  className="block text-sm font-semibold text-slate-700 mb-1.5"
-                >
-                  Password
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
-                  <input
-                    id="user-password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    autoComplete="current-password"
-                    required
-                    className="block w-full rounded-xl border border-slate-200 bg-slate-50/50 py-3 pl-12 pr-12 text-slate-900 placeholder:text-slate-400 transition focus:border-[#FF6A00] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6A00]/20"
-                  />
+                <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
                   <button
                     type="button"
-                    onClick={() => setShowPassword((v) => !v)}
-                    className="absolute inset-y-0 right-0 flex items-center pr-4 text-slate-400 hover:text-slate-600 transition"
-                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    onClick={() => {
+                      setPhoneStep("number");
+                      setOtpCode("");
+                      setError(null);
+                      setDevOtpHint(null);
+                      setSmsTraceId(null);
+                    }}
+                    className="font-semibold text-slate-600 hover:text-slate-900"
                   >
-                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    Change number
                   </button>
+                  {resendSeconds > 0 ? (
+                    <span className="text-slate-500">Resend in {resendSeconds}s</span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => void requestOtp()}
+                      className="font-semibold text-[#FF6A00] hover:text-[#E55F00]"
+                    >
+                      Resend OTP
+                    </button>
+                  )}
                 </div>
-              </div>
 
-              <div className="flex items-center justify-between">
-                <label className="flex cursor-pointer items-center gap-2.5">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 rounded border-slate-300 text-[#FF6A00] focus:ring-[#FF6A00]/30"
-                  />
-                  <span className="text-sm text-slate-600">Remember me</span>
-                </label>
-                <Link
-                  href="/forgot-password"
-                  className="text-sm font-semibold text-[#FF6A00] hover:text-[#E55F00] transition"
+                <button
+                  type="submit"
+                  disabled={verifyOtpLoading}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#FF6A00] py-3.5 text-sm font-semibold text-white shadow-lg shadow-orange-500/25 transition hover:bg-[#E55F00] focus:outline-none focus:ring-2 focus:ring-[#FF6A00] focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-60"
                 >
-                  Forgot password?
-                </Link>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#FF6A00] py-3.5 text-sm font-semibold text-white shadow-lg shadow-orange-500/25 transition hover:bg-[#E55F00] focus:outline-none focus:ring-2 focus:ring-[#FF6A00] focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-60"
-              >
-                {loading ? (
-                  <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                ) : (
-                  <>
-                    Sign in
-                    <ArrowRight className="h-4 w-4" />
-                  </>
-                )}
-              </button>
-            </form>
+                  {verifyOtpLoading ? (
+                    <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  ) : (
+                    <>
+                      Verify &amp; sign in
+                      <ArrowRight className="h-4 w-4" />
+                    </>
+                  )}
+                </button>
+              </form>
+            )}
 
             <p className="mt-8 pt-6 border-t border-slate-100 text-center text-sm text-slate-600">
               Don&apos;t have an account?{" "}
