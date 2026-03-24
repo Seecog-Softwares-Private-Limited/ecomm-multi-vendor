@@ -1,5 +1,5 @@
 import { ArrowRight } from "lucide-react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 interface DealCard {
   title: string;
@@ -45,16 +45,16 @@ const dealCards: DealCard[] = [
 ];
 
 export function DealCards() {
-  const router = useRouter();
   return (
     <div className="w-full px-4 sm:px-6">
       <div
         className="mx-auto grid w-full max-w-[1440px] grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:gap-8"
       >
         {dealCards.map((card, i) => (
-          <div
+          <Link
             key={i}
-            className="flex flex-col"
+            href={card.href}
+            className="flex flex-col no-underline text-inherit rounded-xl transition-shadow hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF6A00]"
             style={{
               flex: 1,
               minWidth: 0,
@@ -64,9 +64,10 @@ export function DealCards() {
               padding: "16px",
               gap: 0,
             }}
+            aria-label={card.title.replace(/\n/g, ". ") + `. ${card.cta}`}
           >
-            {/* Title — fixed min-height so images never bleed over it */}
             <p
+              className="pointer-events-none"
               style={{
                 fontFamily: "'Nunito','Manrope',sans-serif",
                 fontWeight: 800,
@@ -82,9 +83,8 @@ export function DealCards() {
               {card.title}
             </p>
 
-            {/* 2×2 image grid */}
             <div
-              className="grid"
+              className="grid pointer-events-none"
               style={{
                 gridTemplateColumns: "1fr 1fr",
                 gap: 10,
@@ -95,29 +95,26 @@ export function DealCards() {
                 <img
                   key={j}
                   src={src}
-                  alt="product"
+                  alt=""
                   className="w-full object-cover"
                   style={{
                     height: 130,
                     borderRadius: 12,
                     display: "block",
                   }}
+                  draggable={false}
                 />
               ))}
             </div>
 
-            {/* CTA Button */}
-            <button
-              className="flex flex-row items-center gap-1.5 mt-4 self-start"
-              onClick={() => router.push(card.href)}
+            <span
+              className="flex flex-row items-center gap-1.5 mt-4 self-start w-fit pointer-events-none"
               style={{
                 padding: "8px 14px",
                 background: "rgba(255,255,255,0.95)",
                 boxShadow:
                   "0px 9.39px 14.08px -2.82px rgba(0,0,0,0.1), 0px 3.75px 5.63px -3.75px rgba(0,0,0,0.1)",
                 borderRadius: 9,
-                border: "none",
-                cursor: "pointer",
               }}
             >
               <span
@@ -130,9 +127,9 @@ export function DealCards() {
               >
                 {card.cta}
               </span>
-              <ArrowRight size={15} color="#FF6A00" />
-            </button>
-          </div>
+              <ArrowRight size={15} color="#FF6A00" aria-hidden />
+            </span>
+          </Link>
         ))}
       </div>
     </div>

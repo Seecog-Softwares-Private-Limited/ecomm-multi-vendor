@@ -1,5 +1,5 @@
 import { ArrowRight } from "lucide-react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 interface PromoCard {
   gradient: string;
@@ -54,7 +54,6 @@ const promoCards: PromoCard[] = [
 ];
 
 export function PromoBanners() {
-  const router = useRouter();
   return (
     <div className="w-full overflow-x-auto" style={{ scrollbarWidth: "none" }}>
       <div
@@ -62,26 +61,27 @@ export function PromoBanners() {
         style={{ gap: 10, width: "max-content" }}
       >
         {promoCards.map((card, i) => (
-          <div
+          <Link
             key={i}
-            className="relative shrink-0 overflow-hidden"
+            href={card.href}
+            className="relative shrink-0 overflow-hidden block no-underline text-inherit rounded-xl transition-opacity hover:opacity-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF6A00]"
             style={{
               width: 320,
               height: 200,
               borderRadius: 12,
               background: card.gradient,
             }}
+            aria-label={`${card.title}. ${card.subtitle}. ${card.cta}`}
           >
-            {/* Background image with low opacity */}
             <img
               src={card.image}
               alt=""
-              className="absolute inset-0 w-full h-full object-cover"
+              className="absolute inset-0 w-full h-full object-cover pointer-events-none"
               style={{ opacity: 0.2, borderRadius: 12 }}
+              draggable={false}
             />
 
-            {/* Content */}
-            <div className="absolute inset-0 flex flex-col justify-between p-5">
+            <div className="absolute inset-0 flex flex-col justify-between p-5 pointer-events-none">
               <div>
                 <p
                   style={{
@@ -108,16 +108,14 @@ export function PromoBanners() {
                 </p>
               </div>
 
-              <button
-                className="flex flex-row items-center gap-1.5 self-start"
-                onClick={() => router.push(card.href)}
+              <span
+                className="flex flex-row items-center gap-1.5 self-start w-fit"
                 style={{
                   padding: "9px 17px",
                   background: "rgba(255,255,255,0.95)",
                   boxShadow:
                     "0px 9.39px 14.08px -2.82px rgba(0,0,0,0.1), 0px 3.75px 5.63px -3.75px rgba(0,0,0,0.1)",
                   borderRadius: 9,
-                  cursor: "pointer",
                 }}
               >
                 <span
@@ -131,10 +129,10 @@ export function PromoBanners() {
                 >
                   {card.cta}
                 </span>
-                <ArrowRight size={15} color="#FF6A00" />
-              </button>
+                <ArrowRight size={15} color="#FF6A00" aria-hidden />
+              </span>
             </div>
-          </div>
+          </Link>
         ))}
       </div>
     </div>

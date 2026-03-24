@@ -31,6 +31,8 @@ export const ADMIN_PREFIX = "/admin";
 export const AUTH_PAGES = [
   "/login",
   "/register",
+  "/verify-email",
+  "/verify_email",
   "/forgot-password",
   "/reset-password",
   "/otp-verification",
@@ -62,8 +64,17 @@ export const SELLER_ROLES: AuthRole[] = ["SELLER", "ADMIN"];
 /** Role that can access admin routes. */
 export const ADMIN_ROLE: AuthRole = "ADMIN";
 
+/** Normalize pathname for comparisons (trailing slash, except root). */
+function normalizePath(pathname: string): string {
+  if (pathname.length > 1 && pathname.endsWith("/")) {
+    return pathname.slice(0, -1);
+  }
+  return pathname;
+}
+
 export function isAuthPage(pathname: string): boolean {
-  return (AUTH_PAGES as readonly string[]).includes(pathname);
+  const p = normalizePath(pathname);
+  return (AUTH_PAGES as readonly string[]).includes(p);
 }
 
 export function isSellerRoute(pathname: string): boolean {
