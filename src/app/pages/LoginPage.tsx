@@ -430,22 +430,35 @@ export function LoginPage() {
                 </p>
                 {devOtpHint && (
                   <div className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-200/80">
-                    SMS not configured (local only). Your OTP:{" "}
-                    <span className="font-mono font-bold">{devOtpHint}</span>
+                    <strong>Development only:</strong> use this code if SMS did not arrive (SNS sandbox, India DLT,
+                    or no provider). Your OTP:{" "}
+                    <span className="font-mono font-bold tracking-wider">{devOtpHint}</span>
                   </div>
                 )}
-                <div className="rounded-lg bg-slate-50 px-3 py-2.5 text-xs text-slate-600 leading-relaxed ring-1 ring-slate-100">
+                <div className="rounded-lg bg-slate-50 px-3 py-2.5 text-xs text-slate-600 leading-relaxed ring-1 ring-slate-100 space-y-2">
                   <p>
-                    On <strong>iPhone</strong>, also open <strong>Primary</strong> and{" "}
-                    <strong>Transactions</strong>, pull down to search <strong>Indovyapar</strong> or the OTP
-                    digits. Quick SMS often lands outside Promotions. If the dashboard shows “Delivered” but
-                    nothing appears, your operator may still be filtering — use Fast2SMS{" "}
-                    <strong>DLT</strong> (<code className="text-[11px]">FAST2SMS_ROUTE=dlt</code>) for
-                    transactional delivery.
+                    On <strong>iPhone</strong>, check <strong>Primary</strong> and{" "}
+                    <strong>Transactions</strong> and search for the OTP digits.
                   </p>
+                  <p>
+                    <strong>AWS SNS</strong> can return a MessageId even when the phone never gets the text.
+                    Fix in AWS: <strong>SNS → Text messaging (SMS)</strong> — verify <strong>+91…</strong> in{" "}
+                    <strong>sandbox</strong>, raise <strong>spend limit</strong>, or exit sandbox. For{" "}
+                    <strong>India</strong>, transactional SMS often needs <strong>DLT</strong>-registered
+                    templates and a compliant route; many teams use an India SMS aggregator (e.g. MSG91,
+                    Gupshup) or <strong>Amazon Pinpoint</strong> with proper origination — plain SNS to +91 is
+                    unreliable until AWS/carrier requirements are met.
+                  </p>
+                  {process.env.NODE_ENV === "development" && (
+                    <p className="text-amber-900 bg-amber-50/80 rounded-md px-2 py-1.5 ring-1 ring-amber-200/60">
+                      <strong>Local dev:</strong> the OTP appears in the <strong>yellow box above</strong> and in
+                      the <strong>terminal</strong> running <code className="text-[11px]">npm run dev</code>.
+                    </p>
+                  )}
                   {smsTraceId && (
-                    <p className="mt-2 font-mono text-[11px] text-slate-700 break-all">
-                      Dev trace: {smsTraceId} — find this in Fast2SMS dashboard → Reports / delivery logs.
+                    <p className="font-mono text-[11px] text-slate-700 break-all">
+                      SNS MessageId: {smsTraceId} — use CloudWatch / SNS delivery logs if delivery fails after
+                      leaving sandbox.
                     </p>
                   )}
                 </div>
