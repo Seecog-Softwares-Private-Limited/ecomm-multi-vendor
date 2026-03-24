@@ -69,5 +69,35 @@ export function validateVendorRegister(
   return { success: false, errors: result.error.issues };
 }
 
+/** Body for POST /api/auth/phone-otp/send */
+export const phoneOtpSendSchema = z.object({
+  phone: z.string().min(10, "Enter a valid mobile number").max(32).trim(),
+});
+
+/** Body for POST /api/auth/phone-otp/verify */
+export const phoneOtpVerifySchema = z.object({
+  phone: z.string().min(10, "Enter a valid mobile number").max(32).trim(),
+  code: z.string().regex(/^\d{6}$/, "Enter the 6-digit OTP"),
+});
+
+export type PhoneOtpSendInput = z.infer<typeof phoneOtpSendSchema>;
+export type PhoneOtpVerifyInput = z.infer<typeof phoneOtpVerifySchema>;
+
+export function validatePhoneOtpSend(
+  body: unknown
+): ValidationResult<PhoneOtpSendInput> | ValidationError {
+  const result = phoneOtpSendSchema.safeParse(body);
+  if (result.success) return { success: true, data: result.data };
+  return { success: false, errors: result.error.issues };
+}
+
+export function validatePhoneOtpVerify(
+  body: unknown
+): ValidationResult<PhoneOtpVerifyInput> | ValidationError {
+  const result = phoneOtpVerifySchema.safeParse(body);
+  if (result.success) return { success: true, data: result.data };
+  return { success: false, errors: result.error.issues };
+}
+
 /** Format Zod issues for API error details. Re-exported from shared validation. */
 export { formatValidationDetails } from "@/lib/validation";
