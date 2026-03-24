@@ -28,6 +28,13 @@ const LOGIN_PATH = "/login";
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // Typo / relative link: from /login, "admin/login" resolves to /login/admin/login — fix to real route
+  if (pathname === "/login/admin/login") {
+    const url = request.nextUrl.clone();
+    url.pathname = "/admin/login";
+    return NextResponse.redirect(url);
+  }
+
   // Allow auth pages (login, register, forgot-password, reset-password, etc.)
   if (
     isAuthPage(pathname) ||

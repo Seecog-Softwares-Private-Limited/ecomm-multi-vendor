@@ -2,6 +2,9 @@ import { NextRequest } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireSuperAdmin, createAuditLog } from "@/lib/superadmin-auth";
+import { ADMIN_ASSIGNABLE_PERMISSION_KEYS } from "@/lib/admin-assignable-permissions";
+
+const ASSIGNABLE_PERM_SET = new Set<string>(ADMIN_ASSIGNABLE_PERMISSION_KEYS);
 
 export async function PUT(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const { session, errorResponse } = await requireSuperAdmin(request);
@@ -21,11 +24,40 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
   const updates: Parameters<typeof prisma.admin.update>[0]["data"] = {};
   if (typeof body.name === "string") updates.name = body.name.trim();
   if (typeof body.email === "string") updates.email = body.email.trim().toLowerCase();
+
+  /** Direct module assignment: one hidden role per admin (`Direct:{adminId}`). Settings is never assignable. */
+  if (Array.isArray((body as { permissions?: unknown }).permissions)) {
+    const raw = (body as { permissions: unknown }).permissions;
+    const list = Array.isArray(raw) ? raw.filter((x): x is string => typeof x === "string") : [];
+    const valid = list.filter((p) => ASSIGNABLE_PERM_SET.has(p));
+    const roleName = `Direct:${id}`.slice(0, 100);
+    const existing = await prisma.adminRole.findFirst({
+      where: { name: roleName, deletedAt: null },
+    });
+    const permJson = valid as unknown as Prisma.InputJsonValue;
+    const directRole = existing
+      ? await prisma.adminRole.update({
+          where: { id: existing.id },
+          data: {
+            permissions: permJson,
+            description: "Direct permissions (set from Super Admin)",
+          },
+        })
+      : await prisma.adminRole.create({
+          data: {
+            name: roleName,
+            permissions: permJson,
+            description: "Direct permissions (set from Super Admin)",
+          },
+        });
+    updates.role = { connect: { id: directRole.id } };
+  }
+
   const roleIdsInput = Array.isArray(body.roleIds)
     ? body.roleIds.filter((x: unknown): x is string => typeof x === "string" && x.trim().length > 0)
     : [];
 
-  if (roleIdsInput.length > 0) {
+  if (!updates.role && roleIdsInput.length > 0) {
     const selectedRoles = await prisma.adminRole.findMany({
       where: { id: { in: roleIdsInput }, deletedAt: null },
       select: { id: true, name: true, permissions: true },
@@ -70,7 +102,7 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
           });
       updates.role = { connect: { id: mergedRole.id } };
     }
-  } else if (typeof body.roleId === "string") {
+  } else if (!updates.role && typeof body.roleId === "string") {
     const role = await prisma.adminRole.findFirst({ where: { id: body.roleId, deletedAt: null } });
     if (!role) return Response.json({ success: false, message: "Invalid role." }, { status: 400 });
     if (role.name.trim().toLowerCase() === "super admin") {

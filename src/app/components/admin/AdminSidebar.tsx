@@ -14,6 +14,7 @@ import {
   FolderTree,
   MessageCircle,
   Lock,
+  FileText,
 } from "lucide-react";
 import { IndovyaparLogo } from "@/components/IndovyaparLogo";
 import { useEffect, useState } from "react";
@@ -37,6 +38,7 @@ const menuItems: MenuItem[] = [
   { icon: MessageCircle, label: "Support Tickets", path: "/admin/support-tickets", permission: "support_tickets" },
   { icon: Bell, label: "Notifications", path: "/admin/notifications", permission: "notifications" },
   { icon: Settings, label: "Settings", path: "/admin/settings", permission: "settings" },
+  { icon: FileText, label: "CMS", path: "/admin/cms", permission: "cms" },
 ];
 
 export type AdminSidebarProps = {
@@ -70,7 +72,10 @@ export function AdminSidebar({ activePath = "" }: AdminSidebarProps) {
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5">
         {menuItems.map((item) => {
           const Icon = item.icon;
-          const isActive = activePath === item.path;
+          const isActive =
+            item.path === "/admin"
+              ? activePath === "/admin"
+              : activePath === item.path || activePath.startsWith(`${item.path}/`);
           const locked = item.permission ? (permissions ? !permissions.has(item.permission) : true) : false;
 
           return (
