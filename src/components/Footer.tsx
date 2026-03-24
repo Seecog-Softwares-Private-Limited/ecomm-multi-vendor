@@ -1,24 +1,7 @@
+import Link from "next/link";
 import { Facebook, Twitter, Instagram, Youtube, Smartphone } from "lucide-react";
 import { IndovyaparLogo } from "./IndovyaparLogo";
-
-const footerCols = [
-  {
-    title: "About Us",
-    links: ["About Indovyapar", "Careers", "Press", "Corporate Information"],
-  },
-  {
-    title: "Sell With Us",
-    links: ["Sell on Indovyapar", "Become a Supplier", "Advertise Your Products", "Partner Programs"],
-  },
-  {
-    title: "Customer Support",
-    links: ["Help Center", "Track Your Order", "Returns & Refunds", "Contact Us"],
-  },
-  {
-    title: "Policies",
-    links: ["Privacy Policy", "Terms of Service", "Shipping Policy", "Cancellation Policy"],
-  },
-];
+import { CMS_FOOTER_SECTIONS, cmsFooterPublicPath } from "@/lib/cms-footer-pages";
 
 export function Footer() {
   return (
@@ -32,8 +15,8 @@ export function Footer() {
       >
         {/* Top 4-column links */}
         <div className="grid grid-cols-2 gap-6 pb-8 sm:grid-cols-2 lg:grid-cols-4 lg:gap-8 lg:pb-10">
-          {footerCols.map((col) => (
-            <div key={col.title} className="flex flex-col gap-3.5">
+          {CMS_FOOTER_SECTIONS.map((col) => (
+            <div key={col.id} className="flex flex-col gap-3.5">
               <h3
                 style={{
                   fontFamily: "'Nunito', 'Manrope', sans-serif",
@@ -46,10 +29,10 @@ export function Footer() {
                 {col.title}
               </h3>
               <ul className="flex flex-col gap-2.5">
-                {col.links.map((link) => (
-                  <li key={link}>
-                    <a
-                      href="#"
+                {col.pages.map((page) => (
+                  <li key={page.slug}>
+                    <Link
+                      href={cmsFooterPublicPath(page.slug)}
                       style={{
                         fontFamily: "'Manrope', sans-serif",
                         fontWeight: 400,
@@ -59,8 +42,8 @@ export function Footer() {
                         textDecoration: "none",
                       }}
                     >
-                      {link}
-                    </a>
+                      {page.label}
+                    </Link>
                   </li>
                 ))}
               </ul>

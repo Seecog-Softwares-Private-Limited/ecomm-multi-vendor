@@ -77,6 +77,34 @@ export const POST = withApiHandler(async (request: NextRequest) => {
     return apiError(message, Status.BAD_GATEWAY, "SMS_SEND_FAILED");
   }
 
+  const expiresInSeconds = Math.floor(OTP_EXPIRY_MS / 1000);
+
+  // No FAST2SMS_API_KEY / Twilio in process env → treat as local dev only.
+  if (!sms.sent && !providerConfigured) {
+    if (process.env.NODE_ENV === "production") {
+      return apiError(
+        "SMS is not configured on this server. Set FAST2SMS_API_KEY (or Twilio vars) in the same environment as the Node process, restart the app, then try again. A .env file on your laptop is not used unless it exists on the VPS and is loaded at startup.",
+        Status.SERVICE_UNAVAILABLE,
+        "SMS_NOT_CONFIGURED"
+      );
+    }
+    await prisma.customerPhoneOtp.create({
+      data: {
+        id: randomUUID(),
+        phoneNorm,
+        codeHash,
+        expiresAt,
+      },
+    });
+    return apiSuccess({
+      message:
+        "No SMS provider configured — use the code below locally only. Add FAST2SMS_API_KEY to .env for real SMS.",
+      expiresInSeconds,
+      smsSent: false as const,
+      devOtp: code,
+    });
+  }
+
   await prisma.customerPhoneOtp.create({
     data: {
       id: randomUUID(),
@@ -85,19 +113,6 @@ export const POST = withApiHandler(async (request: NextRequest) => {
       expiresAt,
     },
   });
-
-  const expiresInSeconds = Math.floor(OTP_EXPIRY_MS / 1000);
-
-  if (!sms.sent && !providerConfigured) {
-    const payload = {
-      message:
-        "No SMS provider configured — use the code below locally only. Add FAST2SMS_API_KEY to .env for real SMS.",
-      expiresInSeconds,
-      smsSent: false as const,
-      devOtp: code,
-    };
-    return apiSuccess(payload);
-  }
 
   return apiSuccess({
     message: "We sent a verification code to your mobile number.",

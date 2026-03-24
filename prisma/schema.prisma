@@ -910,3 +910,21 @@ model Notification {
   @@index([deletedAt])
   @@map("notifications")
 }
+
+// =============================================================================
+// CMS — storefront footer info pages (editable in admin)
+// =============================================================================
+
+model CmsFooterPage {
+  id        String   @id @default(uuid()) @db.Char(36)
+  slug      String   @unique @db.VarChar(120)
+  sectionId String   @map("section_id") @db.VarChar(80)
+  title     String   @db.VarChar(255)
+  /// Trusted HTML from admins only (rendered with dangerouslySetInnerHTML on /info/[slug]).
+  content   String   @db.LongText
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  @@index([sectionId])
+  @@map("cms_footer_pages")
+}
