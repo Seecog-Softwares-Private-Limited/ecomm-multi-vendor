@@ -14,6 +14,7 @@ import {
   formatValidationDetails,
   hashPassword,
 } from "@/lib/auth";
+import { normalizeIndianPhone, INDIAN_MOBILE_HINT } from "@/lib/auth/phone";
 import { emailConfig, sendCustomerVerificationEmail } from "@/lib/email";
 
 const VERIFICATION_TOKEN_BYTES = 32;
@@ -38,6 +39,23 @@ export const POST = withApiHandler(async (request: NextRequest) => {
 
   const { email, password, firstName, lastName, phone } = validation.data;
 
+  let phoneNorm: string | null = null;
+  if (phone) {
+    phoneNorm = normalizeIndianPhone(phone);
+    if (!phoneNorm) {
+      return apiBadRequest(INDIAN_MOBILE_HINT);
+    }
+    const phoneTaken = await prisma.user.findFirst({
+      where: { phone: phoneNorm, deletedAt: null },
+      select: { id: true },
+    });
+    if (phoneTaken) {
+      return apiConflict(
+        "This phone number is already in use. Sign in with OTP or use a different number."
+      );
+    }
+  }
+
   const passwordHash = await hashPassword(password);
   const verificationToken = randomBytes(VERIFICATION_TOKEN_BYTES).toString("hex");
   const verificationTokenExpires = new Date(Date.now() + VERIFICATION_EXPIRY_HOURS * 60 * 60 * 1000);
@@ -58,7 +76,7 @@ export const POST = withApiHandler(async (request: NextRequest) => {
         passwordHash,
         firstName: firstName ?? null,
         lastName: lastName ?? null,
-        phone: phone ?? null,
+        phone: phoneNorm,
         emailVerified: false,
         verificationToken,
         verificationTokenExpires,
@@ -71,7 +89,7 @@ export const POST = withApiHandler(async (request: NextRequest) => {
         passwordHash,
         firstName: firstName ?? null,
         lastName: lastName ?? null,
-        phone: phone ?? null,
+        phone: phoneNorm,
         emailVerified: false,
         verificationToken,
         verificationTokenExpires,
