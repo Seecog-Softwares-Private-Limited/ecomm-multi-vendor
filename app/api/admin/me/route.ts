@@ -9,7 +9,7 @@ import {
 } from "@/lib/api";
 import { requireSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { expandAdminPermissions } from "@/lib/admin-rbac";
+import { getAdminPermissionsForSession, requireAdminContext } from "@/lib/admin-rbac";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -35,12 +35,7 @@ export const GET = withApiHandler(async (request: NextRequest) => {
   const [firstName, ...rest] = name.trim().split(/\s+/);
   const lastName = rest.join(" ") || "";
 
-  const permissions =
-    admin.isSuperAdmin
-      ? ["dashboard", "sellers", "categories", "products", "orders", "returns", "settlements", "analytics", "support_tickets", "notifications", "settings"]
-      : Array.isArray(admin.role?.permissions)
-        ? expandAdminPermissions(admin.role?.permissions as unknown as string[])
-        : [];
+  const permissions = getAdminPermissionsForSession(admin.isSuperAdmin, admin.role?.permissions);
 
   return apiSuccess({
     id: admin.id,
@@ -62,10 +57,8 @@ export const GET = withApiHandler(async (request: NextRequest) => {
  * Body: { firstName?, lastName?, email?, phone? }
  */
 export const PATCH = withApiHandler(async (request: NextRequest) => {
-  const session = await requireSession(request);
-  if (session.role !== "ADMIN") {
-    return apiForbidden("Admin access required");
-  }
+  const ctx = await requireAdminContext(request);
+  if (ctx instanceof Response) return ctx;
 
   let body: unknown;
   try {
@@ -96,13 +89,13 @@ export const PATCH = withApiHandler(async (request: NextRequest) => {
       where: { email, deletedAt: null },
       select: { id: true },
     });
-    if (existing && existing.id !== session.sub) {
+    if (existing && existing.id !== ctx.admin.id) {
       return apiConflict("An account with this email already exists");
     }
   }
 
   await prisma.admin.update({
-    where: { id: session.sub },
+    where: { id: ctx.admin.id },
     data: {
       name,
       ...(email !== undefined && { email }),

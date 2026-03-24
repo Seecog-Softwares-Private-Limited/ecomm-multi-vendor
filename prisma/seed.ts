@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcrypt";
+import { getAllCmsFooterSeeds } from "../src/lib/cms-footer-pages";
 
 const prisma = new PrismaClient();
 
@@ -921,6 +922,22 @@ async function main() {
         });
       }
     }
+  }
+
+  for (const row of getAllCmsFooterSeeds()) {
+    await prisma.cmsFooterPage.upsert({
+      where: { slug: row.slug },
+      create: {
+        slug: row.slug,
+        sectionId: row.sectionId,
+        title: row.title,
+        content: "",
+      },
+      update: {
+        title: row.title,
+        sectionId: row.sectionId,
+      },
+    });
   }
 
   console.log("Seed complete.");

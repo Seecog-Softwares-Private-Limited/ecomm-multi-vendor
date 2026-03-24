@@ -91,7 +91,13 @@ export function LoginPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(data?.error?.message ?? "Could not send OTP. Try again.");
+        const apiMsg = data?.error?.message ?? "Could not send OTP. Try again.";
+        const apiCode = data?.error?.code as string | undefined;
+        setError(
+          apiCode === "INTERNAL_ERROR"
+            ? `${apiMsg} On the live server, check the app logs (e.g. pm2 logs / Docker logs) — production hides the real reason.`
+            : apiMsg
+        );
         return;
       }
       const d = data?.data;
@@ -518,9 +524,15 @@ export function LoginPage() {
             </p>
           </div>
 
-          <p className="mt-8 text-center text-sm text-slate-500">
+          <p className="mt-8 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center text-sm text-slate-500">
             <Link href="/vendor/login" className="hover:text-slate-700 transition">
-              Are you a vendor? Sign in here
+              Vendor sign in
+            </Link>
+            <span className="text-slate-300" aria-hidden>
+              ·
+            </span>
+            <Link href="/admin/login" className="hover:text-slate-700 transition">
+              Admin sign in
             </Link>
           </p>
         </div>

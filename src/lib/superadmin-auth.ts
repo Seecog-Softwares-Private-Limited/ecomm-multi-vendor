@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyToken } from "@/lib/auth";
+import { ADMIN_ASSIGNABLE_PERMISSION_KEYS } from "@/lib/admin-assignable-permissions";
 
 export type SuperAdminSession = {
   id: string;
@@ -52,22 +53,9 @@ export async function requireSuperAdmin(
   return { session, errorResponse: null };
 }
 
-const PERMISSIONS_LIST = [
-  "dashboard",
-  "sellers",
-  "categories",
-  "products",
-  "orders",
-  "returns",
-  "settlements",
-  "analytics",
-  "support_tickets",
-  "notifications",
-  "settings",
-];
-
+/** Same keys as admin panel assignable modules (Settings is Super Admin only — not listed here). */
 export function getPermissionsList(): string[] {
-  return PERMISSIONS_LIST;
+  return [...ADMIN_ASSIGNABLE_PERMISSION_KEYS];
 }
 
 export async function createAuditLog(

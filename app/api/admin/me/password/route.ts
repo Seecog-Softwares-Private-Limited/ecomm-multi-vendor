@@ -7,7 +7,7 @@ import {
 } from "@/lib/api";
 import { hashPassword, verifyPassword } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { requireAdminPermission } from "@/lib/admin-rbac";
+import { requireAdminContext } from "@/lib/admin-rbac";
 
 const NEW_PASSWORD_MIN = 8;
 const NEW_PASSWORD_MAX = 128;
@@ -29,7 +29,7 @@ function validateNewPassword(p: string): string | null {
  * Body: { currentPassword: string, newPassword: string }
  */
 export const PATCH = withApiHandler(async (request: NextRequest) => {
-  const ctx = await requireAdminPermission(request, "settings");
+  const ctx = await requireAdminContext(request);
   if (ctx instanceof Response) return ctx;
 
   let body: unknown;

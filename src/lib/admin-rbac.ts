@@ -3,6 +3,9 @@ import type { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth";
 import { apiForbidden, apiUnauthorized } from "@/lib/api";
+import { ADMIN_ASSIGNABLE_PERMISSION_KEYS } from "./admin-assignable-permissions";
+
+export { ADMIN_ASSIGNABLE_PERMISSION_KEYS } from "./admin-assignable-permissions";
 
 export type AdminPermission =
   | "dashboard"
@@ -15,7 +18,8 @@ export type AdminPermission =
   | "analytics"
   | "support_tickets"
   | "notifications"
-  | "settings";
+  | "settings"
+  | "cms";
 
 export type AdminContext = {
   admin: {
@@ -41,7 +45,8 @@ const LEGACY_TO_GRANULAR: Record<string, AdminPermission[]> = {
   orders: ["orders", "returns", "analytics"],
   finance: ["settlements"],
   support: ["support_tickets"],
-  settings: ["notifications", "settings"],
+  /** Legacy bundle name; expands to notifications + cms (Settings page is granted to all admins in code). */
+  settings: ["notifications", "cms"],
   marketing: [],
 };
 
@@ -57,6 +62,7 @@ const SUPER_ADMIN_ALL_PERMISSIONS: AdminPermission[] = [
   "support_tickets",
   "notifications",
   "settings",
+  "cms",
 ];
 
 export function expandAdminPermissions(raw: string[]): string[] {
@@ -67,6 +73,19 @@ export function expandAdminPermissions(raw: string[]): string[] {
     if (expanded) expanded.forEach((p) => out.add(p));
   }
   return Array.from(out);
+}
+
+/**
+ * Ordered list for /api/admin/me and sidebar. Every approved admin always gets `settings`
+ * (account / password) regardless of role JSON.
+ */
+export function getAdminPermissionsForSession(isSuperAdmin: boolean, rolePermissionsRaw: unknown): string[] {
+  if (isSuperAdmin) {
+    return [...SUPER_ADMIN_ALL_PERMISSIONS];
+  }
+  const effective = new Set(expandAdminPermissions(normalizePermissions(rolePermissionsRaw)));
+  const moduleList = ADMIN_ASSIGNABLE_PERMISSION_KEYS.filter((p) => effective.has(p));
+  return [...moduleList, "settings"];
 }
 
 export async function requireAdminContext(request: NextRequest): Promise<AdminContext | NextResponse> {
@@ -87,7 +106,11 @@ export async function requireAdminContext(request: NextRequest): Promise<AdminCo
 
   const permissions = admin.isSuperAdmin
     ? new Set<string>(SUPER_ADMIN_ALL_PERMISSIONS)
-    : new Set<string>(expandAdminPermissions(normalizePermissions(admin.role?.permissions)));
+    : (() => {
+        const s = new Set(expandAdminPermissions(normalizePermissions(admin.role?.permissions)));
+        s.add("settings");
+        return s;
+      })();
 
   return {
     admin: {
