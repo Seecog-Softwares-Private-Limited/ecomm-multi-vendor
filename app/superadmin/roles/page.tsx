@@ -3,45 +3,80 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { superadminApi, type Admin, type Role, PERMISSION_LABELS } from "@/lib/superadmin-api";
-import { Plus, Pencil, Save } from "lucide-react";
+import { ADMIN_ASSIGNABLE_PERMISSION_KEYS } from "@/lib/admin-assignable-permissions";
+import { Plus, Save } from "lucide-react";
 
+const ASSIGNABLE_PERM_SET = new Set<string>(ADMIN_ASSIGNABLE_PERMISSION_KEYS);
+
+function assignablePermsFromAdmin(admin: Admin | undefined): string[] {
+  if (!admin?.role) return [];
+  const rp = (admin.role as { permissions?: string[] }).permissions;
+  return Array.isArray(rp) ? rp.filter((p) => ASSIGNABLE_PERM_SET.has(p)) : [];
+}
+
+function formatAdminDropdownSuffix(admin: Admin): string {
+  const name = (admin.role as { name?: string } | undefined)?.name;
+  if (!name) return "(No role)";
+  if (name.startsWith("Direct:")) return "(Custom permissions)";
+  return `(${name})`;
+}
+
+function formatOverviewRoleCell(admin: Admin): string {
+  const name = (admin.role as { name?: string } | undefined)?.name;
+  if (!name) return "—";
+  if (name.startsWith("Direct:")) {
+    const labels = assignablePermsFromAdmin(admin)
+      .map((p) => PERMISSION_LABELS[p] || p)
+      .join(" · ");
+    return labels || "Custom permissions";
+  }
+  return name;
+}
+
+/** Starter roles use the same eleven permission keys shown in the UI (no Settings). */
 const DEFAULT_ROLE_TEMPLATES: Array<{ name: string; permissions: string[]; description: string }> = [
   {
-    name: "Seller Manager",
+    name: "Vendor onboarding",
     permissions: ["sellers", "support_tickets"],
-    description: "Manages vendor onboarding, status, and basic seller support.",
+    description: "Sellers Approval & Support Tickets",
   },
   {
-    name: "Catalog Manager",
+    name: "Catalog",
     permissions: ["categories", "products"],
-    description: "Manages categories and product catalog quality.",
+    description: "Categories & Products Approval",
   },
   {
-    name: "Operations Manager",
+    name: "Operations",
     permissions: ["orders", "returns", "analytics", "support_tickets"],
-    description: "Handles orders, escalations, and customer support workflows.",
+    description: "Orders Management, Returns, Analytics, Support Tickets",
   },
   {
-    name: "Finance Manager",
+    name: "Finance",
     permissions: ["settlements"],
-    description: "Handles settlements, refunds, and finance operations.",
+    description: "Settlements",
+  },
+  {
+    name: "Content & alerts",
+    permissions: ["notifications", "cms"],
+    description: "Notifications & CMS",
   },
 ];
 
 export default function SuperAdminRolesPage() {
   const [roles, setRoles] = useState<Role[]>([]);
   const [permissions, setPermissions] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
   const [admins, setAdmins] = useState<Admin[]>([]);
   const [loadingAdmins, setLoadingAdmins] = useState(true);
   const [modal, setModal] = useState<"create" | "edit" | null>(null);
   const [editing, setEditing] = useState<Role | null>(null);
+  const [quickEditRoleId, setQuickEditRoleId] = useState("");
   const [formName, setFormName] = useState("");
   const [formPerms, setFormPerms] = useState<string[]>([]);
   const [formDesc, setFormDesc] = useState("");
 
   const [assignAdminId, setAssignAdminId] = useState<string>("");
-  const [assignRoleIds, setAssignRoleIds] = useState<string[]>([]);
+  /** Permissions for the selected admin in "Assign permissions" (eleven modules). */
+  const [assignAdminPermissions, setAssignAdminPermissions] = useState<string[]>([]);
 
   const safeRoles = useMemo(() => (Array.isArray(roles) ? roles.filter(Boolean) : []), [roles]);
   const safeAdmins = useMemo(() => (Array.isArray(admins) ? admins.filter(Boolean) : []), [admins]);
@@ -55,9 +90,7 @@ export default function SuperAdminRolesPage() {
   );
 
   const fetchData = async () => {
-    setLoading(true);
     const res = await superadminApi.roles.list();
-    setLoading(false);
     if (res.success && res.data) {
       let loadedRoles = res.data.roles;
       const hasNonSuperRole = loadedRoles.some(
@@ -104,29 +137,15 @@ export default function SuperAdminRolesPage() {
     fetchAdmins();
   }, []);
 
-  const roleOptions = useMemo(
-    () =>
-      assignableRoles
-        .filter((r) => !!r?.id)
-        .map((r) => ({ id: r.id, name: r.name || "Untitled role" })),
-    [assignableRoles]
-  );
   useEffect(() => {
     if ((!assignAdminId || !assignableAdmins.some((a) => a.id === assignAdminId)) && assignableAdmins.length > 0) {
       setAssignAdminId(assignableAdmins[0]!.id);
     }
   }, [assignAdminId, assignableAdmins]);
   useEffect(() => {
-    const validSet = new Set(roleOptions.map((r) => r.id));
-    const cleaned = assignRoleIds.filter((id) => validSet.has(id));
-    if (cleaned.length !== assignRoleIds.length) {
-      setAssignRoleIds(cleaned);
-      return;
-    }
-    if (cleaned.length === 0 && roleOptions.length > 0) {
-      setAssignRoleIds([roleOptions[0]!.id]);
-    }
-  }, [assignRoleIds, roleOptions]);
+    const admin = admins.find((a) => a.id === assignAdminId && !a.isSuperAdmin);
+    setAssignAdminPermissions(assignablePermsFromAdmin(admin));
+  }, [assignAdminId, admins]);
 
   const openCreate = () => {
     setFormName("");
@@ -138,7 +157,7 @@ export default function SuperAdminRolesPage() {
   const openEdit = (r: Role) => {
     setEditing(r);
     setFormName(r.name);
-    setFormPerms(r.permissions || []);
+    setFormPerms((r.permissions || []).filter((p) => ASSIGNABLE_PERM_SET.has(p)));
     setFormDesc(r.description || "");
     setModal("edit");
   };
@@ -149,6 +168,10 @@ export default function SuperAdminRolesPage() {
 
   const togglePerm = (p: string) => {
     setFormPerms((prev) => (prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]));
+  };
+
+  const toggleAssignAdminPerm = (p: string) => {
+    setAssignAdminPermissions((prev) => (prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]));
   };
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -185,30 +208,22 @@ export default function SuperAdminRolesPage() {
     } else toast.error((res as { message?: string }).message);
   };
 
-  const handleAssignRole = async (e: React.FormEvent) => {
+  const handleSaveAdminPermissions = async (e: React.FormEvent) => {
     e.preventDefault();
     const adminId = assignAdminId.trim();
-    const roleIds = assignRoleIds.filter(Boolean);
-    if (!adminId || roleIds.length === 0) return;
+    if (!adminId) return;
     const admin = safeAdmins.find((a) => a.id === adminId);
     if (admin?.isSuperAdmin) {
-      toast.error("Super Admin role cannot be changed.");
+      toast.error("Super Admin permissions cannot be changed here.");
       return;
     }
-    if (!roleIds.every((id) => roleOptions.some((r) => r.id === id))) {
-      toast.error("Please select valid non-super-admin roles.");
-      return;
-    }
-    const res =
-      roleIds.length === 1
-        ? await superadminApi.admins.update(adminId, { roleId: roleIds[0] })
-        : await superadminApi.admins.update(adminId, { roleIds } as any);
+    const res = await superadminApi.admins.update(adminId, { permissions: assignAdminPermissions });
     if (res.success) {
-      toast.success(roleIds.length > 1 ? "Multiple roles assigned." : "Role assigned.");
+      toast.success("Permissions saved.");
       fetchAdmins();
       fetchData();
     } else {
-      toast.error((res as { message?: string }).message ?? "Failed to assign role");
+      toast.error((res as { message?: string }).message ?? "Failed to save permissions");
     }
   };
 
@@ -219,26 +234,61 @@ export default function SuperAdminRolesPage() {
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
             Roles & Permissions
           </h1>
-          <p className="text-slate-600 mt-1">
-            Define access modules and assign them to admins.
+          <p className="text-slate-600 mt-1 max-w-2xl">
+            Assign the eleven admin modules to each admin, or define reusable roles with Create Role.{" "}
+            <span className="text-slate-500">
+              <strong className="font-semibold text-slate-700">Settings</strong> (profile / password) is{" "}
+              always available to every admin in the admin panel and is not part of this permission list.
+            </span>
           </p>
         </div>
-        <button
-          type="button"
-          onClick={openCreate}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white font-semibold shadow-sm hover:shadow-md transition"
-          style={{ background: "linear-gradient(135deg, #FF6A00 0%, #E55F00 55%, #16A34A 160%)" }}
-        >
-          <Plus className="w-4 h-4" />
-          Create Role
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          {assignableRoles.length > 0 && (
+            <>
+              <select
+                value={quickEditRoleId}
+                onChange={(e) => setQuickEditRoleId(e.target.value)}
+                className="min-w-[200px] px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-800 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none"
+              >
+                <option value="">Edit existing role…</option>
+                {assignableRoles
+                  .filter((r) => !!r?.id)
+                  .map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name || "Untitled"}
+                    </option>
+                  ))}
+              </select>
+              <button
+                type="button"
+                disabled={!quickEditRoleId}
+                onClick={() => {
+                  const r = assignableRoles.find((x) => x.id === quickEditRoleId);
+                  if (r) openEdit(r);
+                }}
+                className="px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-800 text-sm font-semibold hover:bg-slate-50 disabled:opacity-50 disabled:pointer-events-none"
+              >
+                Edit
+              </button>
+            </>
+          )}
+          <button
+            type="button"
+            onClick={openCreate}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white font-semibold shadow-sm hover:shadow-md transition"
+            style={{ background: "linear-gradient(135deg, #FF6A00 0%, #E55F00 55%, #16A34A 160%)" }}
+          >
+            <Plus className="w-4 h-4" />
+            Create Role
+          </button>
+        </div>
       </div>
 
-      {/* Assign roles to admins (top placement for visibility) */}
+      {/* Assign module permissions directly to each admin */}
       <div className="mb-6 bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4 sm:p-5">
         <div className="flex flex-wrap items-end justify-between gap-3 mb-4">
           <div>
-            <h2 className="text-lg font-bold text-slate-900">Assign Role to Admin</h2>
+            <h2 className="text-lg font-bold text-slate-900">Assign permissions to admin</h2>
             <p className="text-sm text-slate-600 mt-0.5">
               Admins loaded from API: <span className="font-semibold">{safeAdmins.length}</span>
             </p>
@@ -258,97 +308,51 @@ export default function SuperAdminRolesPage() {
           <div className="py-8 text-center text-slate-500">
             No admins returned from API. Create an admin first from the Admins page.
           </div>
-        ) : roleOptions.length === 0 ? (
-          <div className="py-8 text-center text-slate-500">
-            Create at least one non-Super-Admin role to assign admins.
-          </div>
         ) : (
-          <form onSubmit={handleAssignRole} className="flex flex-wrap gap-3 items-end">
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-slate-700">Admin</label>
-              <select
-                value={assignAdminId}
-                onChange={(e) => setAssignAdminId(e.target.value)}
-                className="min-w-72 px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50/70 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none"
+          <form onSubmit={handleSaveAdminPermissions} className="flex flex-col gap-4">
+            <div className="flex flex-wrap gap-4 items-end">
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-slate-700">Admin</label>
+                <select
+                  value={assignAdminId}
+                  onChange={(e) => setAssignAdminId(e.target.value)}
+                  className="min-w-72 px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50/70 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none"
+                >
+                  {assignableAdmins.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {(a.name || "Admin")} — {a.email} {formatAdminDropdownSuffix(a)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <button
+                type="submit"
+                className="px-5 py-2.5 rounded-xl text-white font-semibold shadow-sm hover:shadow-md transition"
+                style={{ background: "linear-gradient(135deg, #FF6A00 0%, #E55F00 55%, #16A34A 160%)" }}
               >
-                {assignableAdmins.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {(a.name || "Admin")} — {a.email} {(a.role as any)?.name ? `(${(a.role as any).name})` : "(No role)"}
-                  </option>
-                ))}
-              </select>
+                Save permissions
+              </button>
             </div>
-
             <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-slate-700">Role</label>
-              <div className="min-w-72 border border-slate-200 rounded-xl bg-slate-50/70 p-2 max-h-36 overflow-y-auto">
-                {roleOptions.map((r) => (
-                  <label key={r.id} className="flex items-center gap-2 py-1 px-1 cursor-pointer">
+              <label className="text-sm font-medium text-slate-700">Modules</label>
+              <p className="text-xs text-slate-500 mb-1">
+                Select any combination. Account Settings is always on for all admins and is not listed here.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 border border-slate-200 rounded-xl bg-slate-50/70 p-3 max-h-64 overflow-y-auto">
+                {(permissions.length ? permissions : [...ADMIN_ASSIGNABLE_PERMISSION_KEYS]).map((p) => (
+                  <label key={p} className="flex items-center gap-2 py-1 px-1 cursor-pointer">
                     <input
                       type="checkbox"
-                      checked={assignRoleIds.includes(r.id)}
-                      onChange={(e) => {
-                        setAssignRoleIds((prev) =>
-                          e.target.checked ? [...prev, r.id] : prev.filter((id) => id !== r.id)
-                        );
-                      }}
+                      checked={assignAdminPermissions.includes(p)}
+                      onChange={() => toggleAssignAdminPerm(p)}
                       className="rounded border-slate-300 text-amber-500 focus:ring-amber-500"
                     />
-                    <span className="text-sm text-slate-700">{r.name}</span>
+                    <span className="text-sm text-slate-700">{PERMISSION_LABELS[p] || p}</span>
                   </label>
                 ))}
               </div>
-              <p className="text-xs text-slate-500">Select one or multiple roles.</p>
             </div>
-
-            <button
-              type="submit"
-              className="px-5 py-2.5 rounded-xl text-white font-semibold shadow-sm hover:shadow-md transition"
-              style={{ background: "linear-gradient(135deg, #FF6A00 0%, #E55F00 55%, #16A34A 160%)" }}
-            >
-              Assign Role
-            </button>
           </form>
-        )}
-      </div>
-
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
-        {loading ? (
-          <div className="p-12 text-center text-slate-500">Loading…</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-slate-50 border-b border-slate-200">
-                <tr>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Role</th>
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Permissions</th>
-                  <th className="text-right py-3 px-4 text-sm font-semibold text-slate-700">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {safeRoles.map((r) => (
-                  <tr key={r.id} className="border-b border-slate-100 hover:bg-slate-50/50">
-                    <td className="py-3 px-4 font-medium text-slate-900">{r.name}</td>
-                    <td className="py-3 px-4 text-slate-600 text-sm">
-                      <span className="inline-flex px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 text-slate-700">
-                        {(r.permissions || []).length} module(s)
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-right">
-                      <button
-                        type="button"
-                        onClick={() => openEdit(r)}
-                        className="p-2 text-slate-500 hover:text-[#FF6A00] rounded-lg hover:bg-[#FFF4EC] transition"
-                        title="Edit"
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
         )}
       </div>
 
@@ -356,9 +360,9 @@ export default function SuperAdminRolesPage() {
       <div className="mt-6 bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4 sm:p-5">
         <div className="flex flex-wrap items-end justify-between gap-3 mb-4">
           <div>
-            <h2 className="text-lg font-bold text-slate-900">Admin Role Overview</h2>
+            <h2 className="text-lg font-bold text-slate-900">Admin permissions overview</h2>
             <p className="text-sm text-slate-600 mt-0.5">
-              Admins with no assigned role will show as “—”.
+              Direct assignments show module names; legacy named roles show the role title.
             </p>
           </div>
         </div>
@@ -372,7 +376,7 @@ export default function SuperAdminRolesPage() {
                 <thead className="bg-slate-50 border border-slate-200 rounded-xl">
                   <tr>
                     <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Admin</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Current Role</th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Role / permissions</th>
                     <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Status</th>
                     <th className="text-left py-3 px-4 text-sm font-semibold text-slate-700">Approval</th>
                   </tr>
@@ -386,8 +390,8 @@ export default function SuperAdminRolesPage() {
                           <div className="font-semibold text-slate-900">{a.name || "Admin"}</div>
                           <div className="text-sm text-slate-600">{a.email}</div>
                         </td>
-                        <td className="py-3 px-4 text-slate-700">
-                          {(a.role as any)?.name ?? "—"}
+                        <td className="py-3 px-4 text-slate-700 text-sm max-w-md">
+                          {formatOverviewRoleCell(a)}
                         </td>
                         <td className="py-3 px-4 text-slate-700">{a.status}</td>
                         <td className="py-3 px-4 text-slate-700">{a.approvalStatus}</td>
@@ -424,9 +428,12 @@ export default function SuperAdminRolesPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Permissions</label>
-                <div className="border border-slate-200 rounded-xl p-3 space-y-2 max-h-56 overflow-y-auto bg-slate-50/40">
-                  {(permissions.length ? permissions : Object.keys(PERMISSION_LABELS)).map((p) => (
+                <label className="block text-sm font-medium text-slate-700 mb-1">Permissions</label>
+                <p className="text-xs text-slate-500 mb-2">
+                  Same modules as the admin sidebar except Settings (always enabled for every admin).
+                </p>
+                <div className="border border-slate-200 rounded-xl p-3 space-y-2 max-h-64 overflow-y-auto bg-slate-50/40">
+                  {(permissions.length ? permissions : [...ADMIN_ASSIGNABLE_PERMISSION_KEYS]).map((p) => (
                     <label key={p} className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"

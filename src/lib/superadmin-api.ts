@@ -79,8 +79,19 @@ export const superadminApi = {
     },
     create: (body: { name: string; email: string; password: string; roleId: string; status?: string; approvalStatus?: string }) =>
       request<{ admin: Admin }>("/admins", { method: "POST", body }),
-    update: (id: string, body: { name?: string; email?: string; roleId?: string; status?: string; approvalStatus?: string }) =>
-      request<{ admin: Admin }>(`/admins/${id}`, { method: "PUT", body }),
+    update: (
+      id: string,
+      body: {
+        name?: string;
+        email?: string;
+        roleId?: string;
+        roleIds?: string[];
+        /** Eleven assignable modules; creates/updates hidden role `Direct:{adminId}`. Settings is not allowed. */
+        permissions?: string[];
+        status?: string;
+        approvalStatus?: string;
+      }
+    ) => request<{ admin: Admin }>(`/admins/${id}`, { method: "PUT", body }),
     delete: (id: string) => request<{ deleted: boolean }>(`/admins/${id}`, { method: "DELETE" }),
     updateStatus: (id: string, status: string) =>
       request<{ admin: { id: string; status: string } }>(`/admins/${id}/status`, { method: "PUT", body: { status } }),
@@ -145,16 +156,18 @@ export type AuditLog = {
 
 export type Pagination = { page: number; limit: number; total: number; totalPages: number };
 
+/** Labels for role editor and tables. `settings` is not assignable here — all admins get Settings in /admin by default. */
 export const PERMISSION_LABELS: Record<string, string> = {
   dashboard: "Dashboard",
-  sellers: "Sellers",
+  sellers: "Sellers Approval",
   categories: "Categories",
-  products: "Products",
-  orders: "Orders",
+  products: "Products Approval",
+  orders: "Orders Management",
   returns: "Returns",
   settlements: "Settlements",
   analytics: "Analytics",
   support_tickets: "Support Tickets",
   notifications: "Notifications",
-  settings: "Settings",
+  cms: "CMS",
+  settings: "Settings (built-in for all admins — not assignable here)",
 };

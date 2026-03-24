@@ -65,6 +65,14 @@ function handleRouteError(err: unknown): NextResponse {
     if (prismaErr.code === "P2025") {
       return apiError("Record not found", Status.NOT_FOUND, "NOT_FOUND");
     }
+    if (prismaErr.code === "P2021") {
+      console.error("[api] Prisma missing table:", prismaErr.message);
+      return apiError(
+        "Database schema is missing on this server. Run: npx prisma migrate deploy (same DATABASE_URL as the app).",
+        Status.INTERNAL_SERVER_ERROR,
+        "DATABASE_SCHEMA"
+      );
+    }
     // DB unreachable / connection refused / auth to MySQL failed
     const dbCodes = ["P1001", "P1000", "P1017", "P1008", "P1011"];
     if (prismaErr.code && dbCodes.includes(prismaErr.code)) {
@@ -76,6 +84,8 @@ function handleRouteError(err: unknown): NextResponse {
       );
     }
   }
+
+  console.error("[api] Unhandled route error:", err);
 
   const isDev = process.env.NODE_ENV === "development";
   const message =

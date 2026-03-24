@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { User, Lock, Shield, LogOut, Save, CheckCircle2 } from "lucide-react";
+import { User, Lock, LogOut, Save, CheckCircle2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { authService } from "@/services/auth.service";
 
@@ -303,53 +303,6 @@ export function AdminProfileSettings() {
                 ) : null}
                 {updatingPassword ? "Updating…" : "Update Password"}
               </button>
-            </div>
-          </section>
-
-          {/* Role & Permissions */}
-          <section className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-md shadow-slate-200/30 sm:p-8 ring-1 ring-slate-100/50">
-            <div className="mb-6 flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-100 text-orange-600">
-                <Shield className="h-5 w-5" />
-              </div>
-              <div>
-                <h2 className="text-lg font-semibold text-slate-900">Role & Permissions</h2>
-                <p className="text-sm text-slate-500">Your access level and capabilities</p>
-              </div>
-            </div>
-            <div className="space-y-5">
-              <div>
-                <label className={labelBase}>Current Role</label>
-                <div className="rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3">
-                  <span className="inline-flex items-center rounded-lg bg-orange-100 px-3 py-1.5 text-sm font-semibold text-orange-800 ring-1 ring-orange-200/80">
-                    Super Admin
-                  </span>
-                </div>
-              </div>
-              <div>
-                <label className="mb-3 block text-sm font-medium text-slate-700">Permissions</label>
-                <div className="space-y-2">
-                  {[
-                    "Manage Sellers",
-                    "Manage Products",
-                    "Manage Orders",
-                    "View Analytics",
-                    "Manage Settlements",
-                  ].map((perm) => (
-                    <label
-                      key={perm}
-                      className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 transition hover:bg-slate-50 hover:border-slate-300 focus-within:ring-2 focus-within:ring-amber-500/20"
-                    >
-                      <input
-                        type="checkbox"
-                        defaultChecked
-                        className="h-4 w-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500/30"
-                      />
-                      <span className="text-sm font-medium text-slate-800">{perm}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
             </div>
           </section>
 
