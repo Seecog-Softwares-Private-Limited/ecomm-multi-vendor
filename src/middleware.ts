@@ -92,13 +92,9 @@ function redirectToLogin(
 export const config = {
   matcher: [
     /*
-     * Match all pathnames except:
-     * - _next/static (static files)
-     * - _next/image (image optimization)
-     * - favicon.ico
-     * - public folder
-     * - api routes
+     * Never run auth on Next internals (_next/*), static assets, uploads, or API.
+     * Excluding all of /_next/ avoids dev/HMR and RSC requests touching middleware.
      */
-    "/((?!_next/static|_next/image|favicon.ico|uploads/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|pdf)$|api/).*)",
+    "/((?!_next/|favicon\\.ico|uploads/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|woff2?|ttf|eot|pdf)$|api/).*)",
   ],
 };

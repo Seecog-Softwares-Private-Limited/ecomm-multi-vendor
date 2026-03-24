@@ -24,7 +24,7 @@ export function IndovyaparLogo({
 }: IndovyaparLogoProps) {
   const green = variant === "light" ? LOGO_GREEN_LIGHT : LOGO_GREEN_DARK;
   const baseStyle: React.CSSProperties = {
-    fontFamily: "'Katibeh', cursive",
+    fontFamily: "var(--font-katibeh), cursive",
     fontWeight: 400,
     lineHeight: "32px",
     ...(fontSize !== undefined && { fontSize }),

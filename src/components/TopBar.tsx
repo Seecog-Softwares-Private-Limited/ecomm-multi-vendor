@@ -1,8 +1,9 @@
 import { MapPin, Headphones, Package } from "lucide-react";
 import Link from "next/link";
 
+/* Inherits Manrope from root layout (next/font); avoid font-['Manrope'] — name may not match bundled font */
 const topLinkClass =
-  "font-['Manrope'] font-medium text-[13px] text-gray-500 hover:text-gray-700 whitespace-nowrap transition";
+  "font-medium text-[13px] text-gray-500 hover:text-gray-700 whitespace-nowrap transition";
 
 export function TopBar() {
   return (
