@@ -3,13 +3,12 @@ import {
   withApiHandler,
   apiSuccess,
   apiBadRequest,
-  apiNotFound,
   apiValidationError,
   type ApiRouteContext,
 } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { requireAdminPermission } from "@/lib/admin-rbac";
-import { isValidCmsFooterSlug } from "@/lib/cms-footer-pages";
+import { getCmsFooterPageMeta, isValidCmsFooterSlug } from "@/lib/cms-footer-pages";
 
 /**
  * GET /api/admin/cms/footer-pages/[slug] — single page for editor (admin).
@@ -35,8 +34,20 @@ export const GET = withApiHandler(
         updatedAt: true,
       },
     });
-    if (!row) return apiNotFound("Page not found");
-    return apiSuccess(row);
+    if (row) {
+      return apiSuccess(row);
+    }
+    const meta = getCmsFooterPageMeta(slug);
+    if (!meta) {
+      return apiBadRequest("Invalid slug");
+    }
+    return apiSuccess({
+      slug,
+      sectionId: meta.sectionId,
+      title: meta.label,
+      content: "",
+      updatedAt: null,
+    });
   }
 );
 
@@ -69,15 +80,20 @@ export const PUT = withApiHandler(
       return apiValidationError("Validation failed", { content: "Must be a string" });
     }
 
-    const existing = await prisma.cmsFooterPage.findUnique({
-      where: { slug },
-      select: { id: true },
-    });
-    if (!existing) return apiNotFound("Page not found");
+    const meta = getCmsFooterPageMeta(slug);
+    if (!meta) {
+      return apiBadRequest("Invalid slug");
+    }
 
-    await prisma.cmsFooterPage.update({
+    await prisma.cmsFooterPage.upsert({
       where: { slug },
-      data: { content },
+      create: {
+        slug,
+        sectionId: meta.sectionId,
+        title: meta.label,
+        content,
+      },
+      update: { content },
     });
 
     return apiSuccess({ message: "Saved", slug });

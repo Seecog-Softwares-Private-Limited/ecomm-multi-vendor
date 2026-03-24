@@ -34,10 +34,23 @@ export function AdminCmsEditorPage() {
       credentials: "include",
       cache: "no-store",
     })
-      .then((r) => r.json())
-      .then((json) => {
+      .then(async (r) => {
+        const json = (await r.json().catch(() => ({}))) as {
+          success?: boolean;
+          data?: Record<string, unknown>;
+          error?: { message?: string };
+        };
         if (cancelled) return;
-        const d = json?.success ? (json.data as Record<string, unknown>) : null;
+        if (!json?.success) {
+          setMessage({
+            type: "error",
+            text: json?.error?.message ?? `Could not load page (${r.status}).`,
+          });
+          setTitle(meta.label);
+          setContent("");
+          return;
+        }
+        const d = json.data;
         if (d) {
           setTitle(typeof d.title === "string" ? d.title : meta.label);
           setContent(typeof d.content === "string" ? d.content : "");
