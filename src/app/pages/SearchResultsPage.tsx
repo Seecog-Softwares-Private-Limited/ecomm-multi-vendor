@@ -8,6 +8,7 @@ import { Star, ShoppingCart, Search, SlidersHorizontal, SearchX } from "lucide-r
 import { Navbar } from "@/components/Navbar";
 import { addToGuestCart } from "@/lib/guest-cart";
 import { useCartDrawer } from "@/contexts/CartDrawerContext";
+import { useDeliveryLocation } from "@/contexts/DeliveryLocationContext";
 
 type ProductItem = {
   id: string;
@@ -37,6 +38,7 @@ export function SearchResultsPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [addingToCartId, setAddingToCartId] = useState<string | null>(null);
   const { openCartDrawer } = useCartDrawer();
+  const { location } = useDeliveryLocation();
 
   const searchTerm = qFromUrl.trim();
 
@@ -49,6 +51,8 @@ export function SearchResultsPage() {
     setLoading(true);
     setError(false);
     const params = new URLSearchParams({ q: searchTerm, limit: "48" });
+    const pin = (location.pincode ?? "").replace(/\D/g, "").slice(0, 6);
+    if (/^\d{6}$/.test(pin)) params.set("pincode", pin);
     fetch(`/api/products?${params.toString()}`, { credentials: "include" })
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error("Failed"))))
       .then((data) => {
@@ -67,7 +71,7 @@ export function SearchResultsPage() {
       })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
-  }, [searchTerm]);
+  }, [searchTerm, location.pincode]);
 
   useEffect(() => {
     setQuery(qFromUrl);

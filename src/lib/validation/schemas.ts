@@ -57,6 +57,20 @@ const searchQueryParam = z
   })
   .optional();
 
+/** Optional 6-digit Indian PIN from query string. */
+const pincodeQueryParam = z
+  .string()
+  .optional()
+  .transform((s) => {
+    if (!s?.trim()) return undefined;
+    const d = s.replace(/\D/g, "").slice(0, 6);
+    return /^\d{6}$/.test(d) ? d : undefined;
+  });
+
+const menuTypeSlug = z
+  .enum(["deals", "new-arrivals", "best-sellers"])
+  .optional();
+
 /** GET /api/products — query params. */
 export const getProductsQuerySchema = z.object({
   categorySlug: slug,
@@ -64,6 +78,8 @@ export const getProductsQuerySchema = z.object({
   q: searchQueryParam,
   limit: limitSchema,
   offset: offsetSchema,
+  pincode: pincodeQueryParam,
+  menuType: menuTypeSlug,
 });
 
 export type GetProductsQuery = z.infer<typeof getProductsQuerySchema>;
@@ -108,3 +124,38 @@ export const createVendorProductSchema = z.object({
 });
 
 export type CreateVendorProductInput = z.infer<typeof createVendorProductSchema>;
+
+/** 6-digit Indian PIN (digits only after transform). */
+export const indianPincodeField = z
+  .string()
+  .min(1, "PIN is required")
+  .transform((s) => s.replace(/\D/g, "").slice(0, 6))
+  .refine((d) => /^\d{6}$/.test(d), "Enter a valid 6-digit PIN");
+
+/** POST /api/vendor/service-pincodes — single PIN */
+export const vendorAddServicePincodeSchema = z.object({
+  pincode: indianPincodeField,
+});
+
+export type VendorAddServicePincodeInput = z.infer<typeof vendorAddServicePincodeSchema>;
+
+/** POST /api/vendor/service-pincodes — single PIN or pasted list (newlines / commas) */
+export const vendorAddServicePincodesBodySchema = z.union([
+  z.object({ pincode: indianPincodeField }),
+  z.object({
+    bulkText: z
+      .string()
+      .max(50_000, "Too many characters")
+      .transform((s) => s.trim())
+      .refine((s) => s.length > 0, { message: "Paste at least one PIN" }),
+  }),
+]);
+
+export type VendorAddServicePincodesBody = z.infer<typeof vendorAddServicePincodesBodySchema>;
+
+/** PATCH /api/vendor/service-pincodes — delivery scope toggle */
+export const vendorDeliveryScopePatchSchema = z.object({
+  restrictDeliveryToPincodes: z.boolean(),
+});
+
+export type VendorDeliveryScopePatch = z.infer<typeof vendorDeliveryScopePatchSchema>;

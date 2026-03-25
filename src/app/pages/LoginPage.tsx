@@ -17,6 +17,7 @@ import * as React from "react";
 import { IndovyaparLogo } from "@/components/IndovyaparLogo";
 import { getGuestCart, clearGuestCart } from "@/lib/guest-cart";
 import { normalizeIndianPhone, INDIAN_MOBILE_HINT } from "@/lib/auth/phone";
+import { syncCustomerDefaultAddressToDeliveryLocation } from "@/lib/delivery-location";
 
 type LoginMode = "email" | "phone";
 type PhoneStep = "number" | "otp";
@@ -59,6 +60,7 @@ export function LoginPage() {
       }
       clearGuestCart();
     }
+    await syncCustomerDefaultAddressToDeliveryLocation();
     await new Promise((r) => setTimeout(r, 50));
     router.push(returnUrl);
   }, [router, returnUrl]);

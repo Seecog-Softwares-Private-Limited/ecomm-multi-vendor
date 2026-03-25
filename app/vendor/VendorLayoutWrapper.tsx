@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { VendorLayout } from "@/app/vendor/components/VendorLayout";
 import { VendorStatusCard } from "@/app/vendor/components/VendorStatusCard";
@@ -52,6 +52,8 @@ type MeData = {
   businessName: string | null;
 };
 
+const VENDOR_ME_TIMEOUT_MS = 20_000;
+
 export function VendorLayoutWrapper({
   children,
 }: {
@@ -59,8 +61,11 @@ export function VendorLayoutWrapper({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const routerRef = useRef(router);
+  routerRef.current = router;
   const [me, setMe] = useState<MeData | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
+  const [bootstrapError, setBootstrapError] = useState<string | null>(null);
 
   const fetchMe = useCallback(() => {
     return fetch("/api/vendor/me", { credentials: "include" })
@@ -82,40 +87,62 @@ export function VendorLayoutWrapper({
       setAuthChecked(true);
       return;
     }
+    setBootstrapError(null);
     let cancelled = false;
-    fetch("/api/vendor/me", { credentials: "include" })
+    const ac = new AbortController();
+    const t = window.setTimeout(() => ac.abort(), VENDOR_ME_TIMEOUT_MS);
+
+    fetch("/api/vendor/me", { credentials: "include", signal: ac.signal })
       .then((res) => {
         if (cancelled) return res;
         if (res.status === 401 || res.status === 403) {
           const callbackUrl = encodeURIComponent(pathname ?? "/vendor");
-          router.replace(`${VENDOR_LOGIN_PATH}?callbackUrl=${callbackUrl}`);
+          routerRef.current.replace(`${VENDOR_LOGIN_PATH}?callbackUrl=${callbackUrl}`);
           return res;
         }
         return res.json();
       })
       .then((json) => {
         if (cancelled) return;
-        if (json?.success && json.data) {
+        if (json && typeof json === "object" && "success" in json && json.success && json.data) {
           setMe(json.data as MeData);
-          const status = json.data.status as VendorStatusDisplay;
-          const approved = status === "approved";
-          if (!approved && !isAllowedWhenNotApproved(pathname)) {
-            router.replace(VENDOR_STATUS_PATH);
-          }
+          setBootstrapError(null);
         }
       })
-      .catch(() => {
-        if (!cancelled) {
-          router.replace(`${VENDOR_LOGIN_PATH}?callbackUrl=${encodeURIComponent(pathname ?? "/vendor")}`);
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        const aborted =
+          err instanceof DOMException && err.name === "AbortError";
+        if (aborted) {
+          setBootstrapError(
+            "Vendor session check timed out. Is MySQL running and DATABASE_URL correct? Try refreshing the page."
+          );
+          return;
         }
+        routerRef.current.replace(
+          `${VENDOR_LOGIN_PATH}?callbackUrl=${encodeURIComponent(pathname ?? "/vendor")}`
+        );
       })
       .finally(() => {
+        window.clearTimeout(t);
         if (!cancelled) setAuthChecked(true);
       });
     return () => {
       cancelled = true;
+      ac.abort();
+      window.clearTimeout(t);
     };
-  }, [pathname, router]);
+  }, [pathname]);
+
+  /** Never call router.replace during render — it can break navigation and leave the shell stuck loading. */
+  useEffect(() => {
+    if (!authChecked || isVendorAuthPage(pathname ?? null)) return;
+    const approved = me?.status === "approved";
+    if (approved) return;
+    if (!isAllowedWhenNotApproved(pathname)) {
+      routerRef.current.replace(VENDOR_STATUS_PATH);
+    }
+  }, [authChecked, pathname, me]);
 
   // When not approved, refetch status on tab focus and every 20s so vendor sees approval without manual refresh
   const approved = me?.status === "approved";
@@ -155,23 +182,42 @@ export function VendorLayoutWrapper({
     );
   }
 
+  if (bootstrapError) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#F8FAFC] px-6 text-center">
+        <p className="max-w-md text-sm text-[#64748B]">{bootstrapError}</p>
+        <button
+          type="button"
+          className="rounded-xl bg-[#3B82F6] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#2563EB]"
+          onClick={() => window.location.reload()}
+        >
+          Refresh page
+        </button>
+      </div>
+    );
+  }
+
   const allowedPath = isAllowedWhenNotApproved(pathname);
 
   if (!approved && !allowedPath) {
-    router.replace(VENDOR_STATUS_PATH);
     return (
       <div className="flex min-h-screen flex-col bg-[#F8FAFC]">
         <header className="flex h-14 items-center justify-between border-b border-[#E2E8F0] bg-white px-4">
           <span className="text-lg font-bold text-[#1E293B]">Indovypar</span>
         </header>
         <main className="flex-1 overflow-y-auto">
-          {me && (
+          {me ? (
             <VendorStatusCard
               status={me.status}
               rawStatus={me.rawStatus}
               statusReason={me.statusReason}
               businessName={me.businessName}
             />
+          ) : (
+            <div className="flex min-h-[40vh] flex-col items-center justify-center gap-2 px-4 text-center text-sm text-[#64748B]">
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
+              <p>Redirecting to your vendor status…</p>
+            </div>
           )}
         </main>
       </div>

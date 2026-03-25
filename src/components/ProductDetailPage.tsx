@@ -17,6 +17,7 @@ import {
   ChevronRight,
   ChevronLeft,
   MapPin,
+  AlertTriangle,
   CheckCircle2,
   Minus,
   Plus,
@@ -24,6 +25,7 @@ import {
 import type { ProductDetail, ProductListItem } from "@/types/catalog";
 import { addToGuestCart } from "@/lib/guest-cart";
 import { useCartDrawer } from "@/contexts/CartDrawerContext";
+import { useDeliveryLocation } from "@/contexts/DeliveryLocationContext";
 import { addRecentlyViewedId } from "@/lib/recently-viewed";
 
 const PLACEHOLDER_IMAGE = "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=600";
@@ -222,10 +224,44 @@ export function ProductDetailPage({
 }: ProductDetailPageProps) {
   const router = useRouter();
   const { openCartDrawer } = useCartDrawer();
+  const { deliverToLabel, openDeliveryModal, location } = useDeliveryLocation();
+
+  const [deliveryEligible, setDeliveryEligible] = useState<boolean | null>(null);
 
   useEffect(() => {
     addRecentlyViewedId(product.id);
   }, [product.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const pc = (location.pincode ?? "").trim();
+    if (!/^\d{6}$/.test(pc)) {
+      setDeliveryEligible(true);
+      return () => {
+        cancelled = true;
+      };
+    }
+    setDeliveryEligible(null);
+    (async () => {
+      try {
+        const res = await fetch(
+          `/api/products/${encodeURIComponent(product.id)}/delivery-eligibility?pincode=${encodeURIComponent(pc)}`
+        );
+        const json = await res.json().catch(() => ({}));
+        if (cancelled) return;
+        if (!res.ok || json?.success !== true) {
+          setDeliveryEligible(true);
+          return;
+        }
+        setDeliveryEligible(json?.data?.eligible !== false);
+      } catch {
+        if (!cancelled) setDeliveryEligible(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [product.id, location.pincode]);
   const [activeImage, setActiveImage] = useState(0);
   const variations = product.variations ?? [];
   const specifications = product.specifications ?? [];
@@ -263,6 +299,11 @@ export function ProductDetailPage({
   ];
 
   const handleAddToCart = async () => {
+    if (deliveryEligible === false) {
+      toast.error("This item is not deliverable to your PIN. Change delivery location or choose another seller.");
+      openDeliveryModal();
+      return;
+    }
     setCartError(null);
     setAddingToCart(true);
     try {
@@ -312,6 +353,11 @@ export function ProductDetailPage({
   };
 
   const handleBuyNow = async () => {
+    if (deliveryEligible === false) {
+      toast.error("This item is not deliverable to your PIN. Change delivery location or choose another seller.");
+      openDeliveryModal();
+      return;
+    }
     setCartError(null);
     setBuyNowLoading(true);
     try {
@@ -713,9 +759,11 @@ export function ProductDetailPage({
                 }}
               >
                 Deliver to{" "}
-                <span style={{ color: "#374151", fontWeight: 500 }}>Mumbai, 400001</span>
+                <span style={{ color: "#374151", fontWeight: 500 }}>{deliverToLabel}</span>
               </span>
-              <span
+              <button
+                type="button"
+                onClick={openDeliveryModal}
                 style={{
                   fontFamily: "'Manrope', sans-serif",
                   fontSize: 12,
@@ -723,11 +771,74 @@ export function ProductDetailPage({
                   fontWeight: 500,
                   cursor: "pointer",
                   textDecoration: "underline",
+                  background: "none",
+                  border: "none",
+                  padding: 0,
                 }}
               >
                 Change
-              </span>
+              </button>
             </div>
+
+            {deliveryEligible === false && (
+              <div
+                role="alert"
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 10,
+                  padding: "12px 14px",
+                  borderRadius: 10,
+                  background: "#FEF3C7",
+                  border: "1px solid #F59E0B",
+                  maxWidth: 420,
+                }}
+              >
+                <AlertTriangle size={18} color="#B45309" style={{ flexShrink: 0, marginTop: 1 }} />
+                <div>
+                  <p
+                    style={{
+                      fontFamily: "'Manrope', sans-serif",
+                      fontSize: 13,
+                      fontWeight: 700,
+                      color: "#92400E",
+                      margin: "0 0 4px",
+                    }}
+                  >
+                    Not deliverable to {location.pincode}
+                  </p>
+                  <p
+                    style={{
+                      fontFamily: "'Manrope', sans-serif",
+                      fontSize: 12,
+                      color: "#78350F",
+                      margin: 0,
+                      lineHeight: 1.45,
+                    }}
+                  >
+                    This seller does not ship to your PIN. Update your delivery location or browse products available in your area.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={openDeliveryModal}
+                    style={{
+                      marginTop: 8,
+                      fontFamily: "'Manrope', sans-serif",
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: "#B45309",
+                      textDecoration: "underline",
+                      background: "none",
+                      border: "none",
+                      padding: 0,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Change delivery location
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* In Stock */}
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -1084,14 +1195,15 @@ export function ProductDetailPage({
             <button
               type="button"
               onClick={handleAddToCart}
-              disabled={addingToCart}
+              disabled={addingToCart || deliveryEligible === false}
               style={{
                 width: "100%",
                 height: 44,
-                background: addingToCart ? "#CC5500" : "#FF6A00",
+                background:
+                  addingToCart || deliveryEligible === false ? "#CC5500" : "#FF6A00",
                 border: "none",
                 borderRadius: 10,
-                cursor: addingToCart ? "wait" : "pointer",
+                cursor: addingToCart || deliveryEligible === false ? "not-allowed" : "pointer",
                 fontFamily: "'Manrope', sans-serif",
                 fontWeight: 700,
                 fontSize: 15,
@@ -1099,41 +1211,45 @@ export function ProductDetailPage({
                 transition: "background 0.15s",
               }}
               onMouseEnter={(e) => {
-                if (!addingToCart) (e.currentTarget as HTMLButtonElement).style.background = "#E55F00";
+                if (!addingToCart && deliveryEligible !== false)
+                  (e.currentTarget as HTMLButtonElement).style.background = "#E55F00";
               }}
               onMouseLeave={(e) => {
-                if (!addingToCart) (e.currentTarget as HTMLButtonElement).style.background = "#FF6A00";
+                if (!addingToCart && deliveryEligible !== false)
+                  (e.currentTarget as HTMLButtonElement).style.background = "#FF6A00";
               }}
             >
-              {addingToCart ? "Adding…" : "Add to Cart"}
+              {addingToCart ? "Adding…" : deliveryEligible === false ? "Not deliverable here" : "Add to Cart"}
             </button>
 
             {/* Buy Now */}
             <button
               onClick={handleBuyNow}
-              disabled={buyNowLoading}
+              disabled={buyNowLoading || deliveryEligible === false}
               style={{
                 width: "100%",
                 height: 44,
                 background: "#FFF0E0",
                 border: "2px solid #FF6A00",
                 borderRadius: 10,
-                cursor: buyNowLoading ? "wait" : "pointer",
+                cursor: buyNowLoading || deliveryEligible === false ? "not-allowed" : "pointer",
                 fontFamily: "'Manrope', sans-serif",
                 fontWeight: 700,
                 fontSize: 15,
                 color: "#FF6A00",
                 transition: "background 0.15s",
-                opacity: buyNowLoading ? 0.8 : 1,
+                opacity: buyNowLoading || deliveryEligible === false ? 0.65 : 1,
               }}
               onMouseEnter={(e) => {
-                if (!buyNowLoading) (e.currentTarget as HTMLButtonElement).style.background = "#FFE0C0";
+                if (!buyNowLoading && deliveryEligible !== false)
+                  (e.currentTarget as HTMLButtonElement).style.background = "#FFE0C0";
               }}
               onMouseLeave={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.background = "#FFF0E0";
+                if (!buyNowLoading && deliveryEligible !== false)
+                  (e.currentTarget as HTMLButtonElement).style.background = "#FFF0E0";
               }}
             >
-              {buyNowLoading ? "Adding…" : "Buy Now"}
+              {buyNowLoading ? "Adding…" : deliveryEligible === false ? "Not deliverable here" : "Buy Now"}
             </button>
 
             {/* Wishlist */}

@@ -23,6 +23,7 @@ import {
 import type { ProductDetail } from "@/types/catalog";
 import { addToGuestCart } from "@/lib/guest-cart";
 import { useCartDrawer } from "@/contexts/CartDrawerContext";
+import { useDeliveryLocation } from "@/contexts/DeliveryLocationContext";
 import { addRecentlyViewedId } from "@/lib/recently-viewed";
 
 export type ProductDetailPageDynamicProps = {
@@ -61,6 +62,7 @@ export function ProductDetailPageDynamic({
 }: ProductDetailPageDynamicProps) {
   const router = useRouter();
   const { openCartDrawer } = useCartDrawer();
+  const { deliverToLabel, openDeliveryModal } = useDeliveryLocation();
 
   useEffect(() => {
     addRecentlyViewedId(product.id);
@@ -264,9 +266,15 @@ export function ProductDetailPageDynamic({
             <div className="flex items-center gap-1.5">
               <MapPin size={14} className="text-[#6B7280]" />
               <span className="text-[12px] text-[#6B7280]">
-                Deliver to <span className="text-[#374151] font-medium">Mumbai, 400001</span>
+                Deliver to <span className="text-[#374151] font-medium">{deliverToLabel}</span>
               </span>
-              <span className="text-[12px] text-[#FF6A00] font-medium underline cursor-pointer">Change</span>
+              <button
+                type="button"
+                onClick={openDeliveryModal}
+                className="text-[12px] text-[#FF6A00] font-medium underline cursor-pointer bg-transparent border-0 p-0"
+              >
+                Change
+              </button>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="font-bold text-[13px] text-[#16A34A]">• In Stock</span>

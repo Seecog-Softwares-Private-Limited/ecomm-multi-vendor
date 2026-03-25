@@ -19,25 +19,14 @@ export type VendorOrderDetailOrder = {
   id: string;
   date: string;
   status: string;
+  /** From latest CANCELLED status event (e.g. customer cancellation reason). */
+  cancellationNote?: string | null;
   customer: { name: string; phone: string; email: string };
   address: { line1: string; line2: string; city: string; state: string; pincode: string };
   items: Array<{ name: string; sku: string; qty: number; price: number; image: string }>;
   payment: { mode: string; status: string; transactionId: string };
   earnings: { itemTotal: number; commissionPercent: number; commissionAmount: number; netPayable: number };
-};
-
-const defaultOrder: VendorOrderDetailOrder = {
-  id: "#ORD-1234",
-  date: "2026-02-25 10:30 AM",
-  status: "new",
-  customer: { name: "Rajesh Kumar", phone: "+91 98765*****", email: "rajesh.k@example.com" },
-  address: { line1: "123, MG Road, Koramangala", line2: "Near Starbucks", city: "Bangalore", state: "Karnataka", pincode: "560034" },
-  items: [
-    { name: "Wireless Bluetooth Headphones", sku: "WBH-001", qty: 1, price: 2499, image: "https://via.placeholder.com/100" },
-    { name: "USB-C Cable", sku: "USBC-002", qty: 2, price: 299, image: "https://via.placeholder.com/100" },
-  ],
-  payment: { mode: "Prepaid", status: "Paid", transactionId: "TXN123456789" },
-  earnings: { itemTotal: 3097, commissionPercent: 10, commissionAmount: 310, netPayable: 2787 },
+  timeline: Array<{ label: string; date: string; completed: boolean }>;
 };
 
 export type VendorOrderDetailProps = {
@@ -47,7 +36,61 @@ export type VendorOrderDetailProps = {
 };
 
 export function VendorOrderDetail({ orderId = "", order: orderProp, onBack }: VendorOrderDetailProps) {
-  const order = orderProp ?? { ...defaultOrder, id: orderId || defaultOrder.id };
+  const [order, setOrder] = React.useState<VendorOrderDetailOrder | null>(
+    orderProp ?? null
+  );
+  const [loading, setLoading] = React.useState(!orderProp && Boolean(orderId?.trim()));
+  const [loadError, setLoadError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (orderProp) {
+      setOrder(orderProp);
+      setLoading(false);
+      setLoadError(null);
+      return;
+    }
+    const id = orderId?.trim();
+    if (!id) {
+      setOrder(null);
+      setLoading(false);
+      setLoadError("Missing order ID.");
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    setLoadError(null);
+    fetch(`/api/vendor/orders/${encodeURIComponent(id)}`, { credentials: "include", cache: "no-store" })
+      .then(async (res) => {
+        const json = (await res.json().catch(() => ({}))) as {
+          success?: boolean;
+          data?: VendorOrderDetailOrder;
+          error?: { message?: string };
+        };
+        if (cancelled) return;
+        if (!res.ok || !json?.success) {
+          setOrder(null);
+          setLoadError(json?.error?.message ?? `Could not load order (${res.status}).`);
+          return;
+        }
+        if (!json.data) {
+          setLoadError("Invalid response from server.");
+          return;
+        }
+        setOrder(json.data);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setOrder(null);
+          setLoadError("Failed to load order. Check your connection and try again.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [orderId, orderProp]);
 
   const [showRejectModal, setShowRejectModal] = React.useState(false);
   const [showShipModal, setShowShipModal] = React.useState(false);
@@ -60,36 +103,93 @@ export function VendorOrderDetail({ orderId = "", order: orderProp, onBack }: Ve
   const [cancelReason, setCancelReason] = React.useState("");
   const [disputeType, setDisputeType] = React.useState("");
   const [disputeDetails, setDisputeDetails] = React.useState("");
+  const [actionBusy, setActionBusy] = React.useState(false);
+  const [banner, setBanner] = React.useState<{ type: "success" | "error"; message: string } | null>(
+    null
+  );
 
-  const handleAcceptOrder = () => {
-    alert("Order accepted successfully!");
-    onBack?.();
+  const patchOrder = React.useCallback(
+    async (body: Record<string, unknown>) => {
+      const id = orderId?.trim();
+      if (!id || orderProp) return false;
+      setActionBusy(true);
+      setBanner(null);
+      try {
+        const res = await fetch(`/api/vendor/orders/${encodeURIComponent(id)}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify(body),
+        });
+        const json = (await res.json().catch(() => ({}))) as {
+          success?: boolean;
+          data?: VendorOrderDetailOrder;
+          error?: { message?: string };
+        };
+        if (!res.ok || !json?.success) {
+          setBanner({
+            type: "error",
+            message: json?.error?.message ?? `Request failed (${res.status}).`,
+          });
+          return false;
+        }
+        if (json.data) {
+          setOrder(json.data);
+        }
+        return true;
+      } catch {
+        setBanner({ type: "error", message: "Network error. Try again." });
+        return false;
+      } finally {
+        setActionBusy(false);
+      }
+    },
+    [orderId, orderProp]
+  );
+
+  const handleAcceptOrder = async () => {
+    const ok = await patchOrder({ action: "accept" });
+    if (ok) {
+      setBanner({ type: "success", message: "Order accepted. You can ship when ready." });
+    }
   };
 
-  const handleRejectOrder = () => {
+  const handleRejectOrder = async () => {
     if (!rejectReason.trim()) {
-      alert("Please provide a reason for rejection");
+      setBanner({ type: "error", message: "Please provide a reason for rejection." });
       return;
     }
-    alert(`Order rejected: ${rejectReason}`);
-    setShowRejectModal(false);
-    onBack?.();
+    const ok = await patchOrder({ action: "reject", reason: rejectReason.trim() });
+    if (ok) {
+      setShowRejectModal(false);
+      setRejectReason("");
+      setBanner({ type: "success", message: "Order rejected." });
+    }
   };
 
-  const handleShipOrder = () => {
+  const handleShipOrder = async () => {
     if (!courierName.trim()) {
-      alert("Please provide courier name");
+      setBanner({ type: "error", message: "Please enter the courier name." });
       return;
     }
-    alert(`Order marked as shipped via ${courierName}`);
-    setShowShipModal(false);
-    onBack?.();
+    const ok = await patchOrder({
+      action: "ship",
+      courierName: courierName.trim(),
+      trackingLink: trackingLink.trim() || undefined,
+    });
+    if (ok) {
+      setShowShipModal(false);
+      setCourierName("");
+      setTrackingLink("");
+      setBanner({ type: "success", message: "Marked as shipped." });
+    }
   };
 
-  const handleDeliverOrder = () => {
-    if (window.confirm("Mark this order as delivered?")) {
-      alert("Order marked as delivered!");
-      onBack?.();
+  const handleDeliverOrder = async () => {
+    if (!window.confirm("Mark this order as delivered?")) return;
+    const ok = await patchOrder({ action: "deliver" });
+    if (ok) {
+      setBanner({ type: "success", message: "Marked as delivered." });
     }
   };
 
@@ -112,14 +212,6 @@ export function VendorOrderDetail({ orderId = "", order: orderProp, onBack }: Ve
     setShowDisputeModal(false);
   };
 
-  const statusTimeline = [
-    { label: "Order Placed", date: "2026-02-25 10:30 AM", completed: true },
-    { label: "Accepted by Vendor", date: "", completed: false },
-    { label: "Shipped", date: "", completed: false },
-    { label: "Out for Delivery", date: "", completed: false },
-    { label: "Delivered", date: "", completed: false },
-  ];
-
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
       new: "bg-blue-500",
@@ -132,12 +224,52 @@ export function VendorOrderDetail({ orderId = "", order: orderProp, onBack }: Ve
     return colors[status] || "bg-gray-500";
   };
 
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[40vh] gap-4">
+        <div className="h-10 w-10 animate-spin rounded-full border-2 border-[#3B82F6] border-t-transparent" />
+        <p className="text-[#64748B] text-sm">Loading order…</p>
+      </div>
+    );
+  }
+
+  if (loadError || !order) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <button
+            type="button"
+            onClick={() => onBack?.()}
+            className="p-2 hover:bg-[#F8FAFC] rounded-lg transition-colors"
+          >
+            <ArrowLeft className="w-6 h-6 text-[#64748B]" />
+          </button>
+          <h1 className="text-2xl font-bold text-[#1E293B]">Order</h1>
+        </div>
+        <Alert type="error" message={loadError ?? "Order not found."} />
+        <Button variant="secondary" onClick={() => onBack?.()}>
+          Back to orders
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
+      {banner ? (
+        <Alert
+          type={banner.type === "success" ? "success" : "error"}
+          message={banner.message}
+          dismissible
+          onDismiss={() => setBanner(null)}
+        />
+      ) : null}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <button
+            type="button"
             onClick={() => onBack?.()}
             className="p-2 hover:bg-[#F8FAFC] rounded-lg transition-colors"
           >
@@ -157,15 +289,30 @@ export function VendorOrderDetail({ orderId = "", order: orderProp, onBack }: Ve
         </div>
       </div>
 
+      {order.status === "cancelled" && (
+        <Alert
+          type="warning"
+          title="This order was cancelled"
+          message={
+            order.cancellationNote?.trim() ||
+            "No cancellation message was recorded for this order."
+          }
+        />
+      )}
+
       {/* Action Buttons */}
       {order.status === "new" && (
         <Card>
           <div className="flex items-center gap-4">
-            <Button variant="primary" onClick={handleAcceptOrder}>
+            <Button variant="primary" disabled={actionBusy} onClick={() => void handleAcceptOrder()}>
               <CheckCircle className="w-5 h-5" />
               Accept Order
             </Button>
-            <Button variant="danger" onClick={() => setShowRejectModal(true)}>
+            <Button
+              variant="danger"
+              disabled={actionBusy}
+              onClick={() => setShowRejectModal(true)}
+            >
               <XCircle className="w-5 h-5" />
               Reject Order
             </Button>
@@ -176,11 +323,11 @@ export function VendorOrderDetail({ orderId = "", order: orderProp, onBack }: Ve
       {order.status === "accepted" && (
         <Card>
           <div className="flex items-center gap-4">
-            <Button variant="primary" onClick={() => setShowShipModal(true)}>
+            <Button variant="primary" disabled={actionBusy} onClick={() => setShowShipModal(true)}>
               <Truck className="w-5 h-5" />
               Mark as Shipped
             </Button>
-            <Button variant="secondary" onClick={() => setShowCancelModal(true)}>
+            <Button variant="secondary" disabled={actionBusy} onClick={() => setShowCancelModal(true)}>
               <XCircle className="w-5 h-5" />
               Cancel Order
             </Button>
@@ -191,11 +338,11 @@ export function VendorOrderDetail({ orderId = "", order: orderProp, onBack }: Ve
       {order.status === "shipped" && (
         <Card>
           <div className="flex items-center gap-4">
-            <Button variant="primary" onClick={handleDeliverOrder}>
+            <Button variant="primary" disabled={actionBusy} onClick={() => void handleDeliverOrder()}>
               <CheckCircle className="w-5 h-5" />
               Mark as Delivered
             </Button>
-            <Button variant="secondary" onClick={() => setShowDisputeModal(true)}>
+            <Button variant="secondary" disabled={actionBusy} onClick={() => setShowDisputeModal(true)}>
               <AlertTriangle className="w-5 h-5" />
               Report an Issue
             </Button>
@@ -212,7 +359,7 @@ export function VendorOrderDetail({ orderId = "", order: orderProp, onBack }: Ve
             <div className="space-y-4">
               {order.items.map((item, index) => (
                 <div
-                  key={index}
+                  key={`${item.sku}-${index}`}
                   className="flex items-center gap-4 p-4 bg-[#F8FAFC] rounded-xl"
                 >
                   <img
@@ -263,7 +410,9 @@ export function VendorOrderDetail({ orderId = "", order: orderProp, onBack }: Ve
               <MapPin className="w-5 h-5 text-[#64748B] mt-1" />
               <div>
                 <p className="text-[#1E293B] mb-1">{order.address.line1}</p>
-                <p className="text-[#1E293B] mb-1">{order.address.line2}</p>
+                {order.address.line2 ? (
+                  <p className="text-[#1E293B] mb-1">{order.address.line2}</p>
+                ) : null}
                 <p className="text-[#1E293B]">
                   {order.address.city}, {order.address.state} - {order.address.pincode}
                 </p>
@@ -274,7 +423,7 @@ export function VendorOrderDetail({ orderId = "", order: orderProp, onBack }: Ve
           {/* Status Timeline */}
           <Card title="Order Status Timeline">
             <div className="space-y-4">
-              {statusTimeline.map((step, index) => (
+              {order.timeline.map((step, index) => (
                 <div key={index} className="flex items-start gap-4">
                   <div className="flex flex-col items-center">
                     <div
@@ -290,7 +439,7 @@ export function VendorOrderDetail({ orderId = "", order: orderProp, onBack }: Ve
                         <span className="text-xs font-bold">{index + 1}</span>
                       )}
                     </div>
-                    {index < statusTimeline.length - 1 && (
+                    {index < order.timeline.length - 1 && (
                       <div
                         className={`w-0.5 h-12 ${
                           step.completed ? "bg-green-500" : "bg-[#E2E8F0]"
@@ -328,12 +477,12 @@ export function VendorOrderDetail({ orderId = "", order: orderProp, onBack }: Ve
                   <p className="text-sm text-[#64748B]">{order.payment.status}</p>
                 </div>
               </div>
-              {order.payment.transactionId && (
+              {order.payment.transactionId ? (
                 <div className="p-3 bg-[#F8FAFC] rounded-lg">
                   <p className="text-xs text-[#64748B] mb-1">Transaction ID</p>
-                  <p className="text-sm font-mono text-[#1E293B]">{order.payment.transactionId}</p>
+                  <p className="text-sm font-mono text-[#1E293B] break-all">{order.payment.transactionId}</p>
                 </div>
-              )}
+              ) : null}
             </div>
           </Card>
 
@@ -397,7 +546,7 @@ export function VendorOrderDetail({ orderId = "", order: orderProp, onBack }: Ve
             <Button variant="ghost" onClick={() => setShowRejectModal(false)}>
               Cancel
             </Button>
-            <Button variant="danger" onClick={handleRejectOrder}>
+            <Button variant="danger" disabled={actionBusy} onClick={() => void handleRejectOrder()}>
               Reject Order
             </Button>
           </div>
@@ -429,7 +578,7 @@ export function VendorOrderDetail({ orderId = "", order: orderProp, onBack }: Ve
             <Button variant="ghost" onClick={() => setShowShipModal(false)}>
               Cancel
             </Button>
-            <Button variant="primary" onClick={handleShipOrder}>
+            <Button variant="primary" disabled={actionBusy} onClick={() => void handleShipOrder()}>
               Confirm Shipment
             </Button>
           </div>
