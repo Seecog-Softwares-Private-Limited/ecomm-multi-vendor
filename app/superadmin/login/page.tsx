@@ -12,19 +12,24 @@ export default function SuperAdminLoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError(null);
     if (!email.trim() || !password) {
-      toast.error("Email and password are required.");
+      const msg = "Email and password are required.";
+      setFormError(msg);
+      toast.error(msg);
       return;
     }
     setLoading(true);
     try {
       const res = await superadminApi.auth.login(email.trim(), password);
       if (!res.success || !res.data) {
-        const msg = (res as { message?: string }).message;
-        toast.error(msg || "Login failed.");
+        const msg = (res as { message?: string }).message || "Login failed.";
+        setFormError(msg);
+        toast.error(msg);
         return;
       }
       setToken(res.data.token);
@@ -34,11 +39,11 @@ export default function SuperAdminLoginPage() {
     } catch (err) {
       const message = err instanceof Error ? err.message : "Network error";
       const isNetwork = /fetch|network|failed|refused/i.test(message);
-      toast.error(
-        isNetwork
-          ? "Cannot reach Super Admin. Check that the app is running and try again."
-          : message
-      );
+      const msg = isNetwork
+        ? "Cannot reach the server. Check that the app is running and try again."
+        : message;
+      setFormError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -103,7 +108,12 @@ export default function SuperAdminLoginPage() {
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form
+            method="post"
+            onSubmit={handleSubmit}
+            className="space-y-5"
+            noValidate
+          >
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-1.5">Email</label>
               <div className="relative">
@@ -118,6 +128,15 @@ export default function SuperAdminLoginPage() {
                 />
               </div>
             </div>
+
+            {formError && (
+              <div
+                className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+                role="alert"
+              >
+                {formError}
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-1.5">Password</label>

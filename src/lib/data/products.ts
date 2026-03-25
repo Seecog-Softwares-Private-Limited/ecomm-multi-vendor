@@ -1,5 +1,11 @@
+import type { Prisma } from "@prisma/client";
+import type { MenuTypeSlug } from "@/lib/catalog-constants";
 import { prisma } from "@/lib/prisma";
+import { productPinServiceableWhereAsync } from "@/lib/data/product-pin-filter";
 import type { ProductDetail, ProductListItem, ReviewItem, ProductQuestionItem } from "@/types/catalog";
+
+export type { MenuTypeSlug } from "@/lib/catalog-constants";
+export { MENU_TYPE_SLUGS, isMenuTypeSlug } from "@/lib/catalog-constants";
 
 const toNumber = (v: unknown): number => (typeof v === "number" ? v : Number(v) ?? 0);
 
@@ -12,8 +18,10 @@ export async function getProducts(options: {
   q?: string;
   limit?: number;
   offset?: number;
+  /** If set (6 digits), only sellers with no PIN list or matching PIN. */
+  pincode?: string;
 }): Promise<ProductListItem[]> {
-  const { categorySlug, subCategorySlug, q: searchQuery, limit = 24, offset = 0 } = options;
+  const { categorySlug, subCategorySlug, q: searchQuery, limit = 24, offset = 0, pincode } = options;
 
   let categoryId: string | undefined;
   let subCategoryId: string | undefined;
@@ -38,10 +46,12 @@ export async function getProducts(options: {
   }
 
   const searchTerm = searchQuery?.trim();
+  const pinWhere = await productPinServiceableWhereAsync(pincode);
   const list = await prisma.product.findMany({
     where: {
       deletedAt: null,
       status: "ACTIVE",
+      ...pinWhere,
       ...(categoryId && { categoryId }),
       ...(subCategoryId && { subCategoryId }),
       ...(searchTerm && searchTerm.length > 0 ? { name: { contains: searchTerm } } : {}),
@@ -80,9 +90,10 @@ export async function getRelatedProducts(
     categorySlug?: string;
     subCategorySlug?: string;
     limit?: number;
+    pincode?: string;
   }
 ): Promise<ProductListItem[]> {
-  const { categorySlug, subCategorySlug, limit = 12 } = options;
+  const { categorySlug, subCategorySlug, limit = 12, pincode } = options;
   let categoryId: string | undefined;
   let subCategoryId: string | undefined;
 
@@ -106,11 +117,13 @@ export async function getRelatedProducts(
     return [];
   }
 
+  const pinWhere = await productPinServiceableWhereAsync(pincode);
   const list = await prisma.product.findMany({
     where: {
       id: { not: excludeProductId },
       deletedAt: null,
       status: "ACTIVE",
+      ...pinWhere,
       ...(categoryId && { categoryId }),
       ...(subCategoryId && { subCategoryId }),
     },
@@ -138,8 +151,6 @@ export async function getRelatedProducts(
   }));
 }
 
-export type MenuTypeSlug = "deals" | "new-arrivals" | "best-sellers";
-
 const MENU_TYPE_NAMES: Record<MenuTypeSlug, string> = {
   "deals": "Deals",
   "new-arrivals": "New Arrivals",
@@ -155,9 +166,10 @@ export function getMenuTypeDisplayName(slug: MenuTypeSlug): string {
  */
 export async function getProductsByMenuType(
   type: MenuTypeSlug,
-  options: { limit?: number; offset?: number } = {}
+  options: { limit?: number; offset?: number; pincode?: string } = {}
 ): Promise<ProductListItem[]> {
-  const { limit = 48, offset = 0 } = options;
+  const { limit = 48, offset = 0, pincode } = options;
+  const svc = await productPinServiceableWhereAsync(pincode);
 
   const select = {
     id: true,
@@ -171,7 +183,7 @@ export async function getProductsByMenuType(
 
   if (type === "deals") {
     const list = await prisma.product.findMany({
-      where: { deletedAt: null, status: "ACTIVE" },
+      where: { deletedAt: null, status: "ACTIVE", ...svc },
       orderBy: { createdAt: "desc" },
       take: 500,
       select,
@@ -197,7 +209,7 @@ export async function getProductsByMenuType(
 
   if (type === "new-arrivals") {
     const list = await prisma.product.findMany({
-      where: { deletedAt: null, status: "ACTIVE" },
+      where: { deletedAt: null, status: "ACTIVE", ...svc },
       orderBy: { createdAt: "desc" },
       take: limit,
       skip: offset,
@@ -216,7 +228,7 @@ export async function getProductsByMenuType(
 
   if (type === "best-sellers") {
     const list = await prisma.product.findMany({
-      where: { deletedAt: null, status: "ACTIVE" },
+      where: { deletedAt: null, status: "ACTIVE", ...svc },
       orderBy: [{ reviewCount: "desc" }, { createdAt: "desc" }],
       take: limit,
       skip: offset,
@@ -243,8 +255,9 @@ export async function getProductsByMenuType(
 export async function getBrandsForCategory(options: {
   categorySlug?: string;
   subCategorySlug?: string;
+  pincode?: string;
 }): Promise<string[]> {
-  const { categorySlug, subCategorySlug } = options;
+  const { categorySlug, subCategorySlug, pincode } = options;
   let categoryId: string | undefined;
   let subCategoryId: string | undefined;
 
@@ -265,9 +278,11 @@ export async function getBrandsForCategory(options: {
     subCategoryId = sub?.id;
   }
 
-  const productWhere = {
+  const pinWhere = await productPinServiceableWhereAsync(pincode);
+  const productWhere: Prisma.ProductWhereInput = {
     deletedAt: null,
-    status: "ACTIVE" as const,
+    status: "ACTIVE",
+    ...pinWhere,
     ...(categoryId && { categoryId }),
     ...(subCategoryId && { subCategoryId }),
   };
@@ -306,8 +321,9 @@ export type RatingFacet = { minRating: number; label: string; count: number };
 export async function getRatingFacetsForCategory(options: {
   categorySlug?: string;
   subCategorySlug?: string;
+  pincode?: string;
 }): Promise<RatingFacet[]> {
-  const { categorySlug, subCategorySlug } = options;
+  const { categorySlug, subCategorySlug, pincode } = options;
   let categoryId: string | undefined;
   let subCategoryId: string | undefined;
 
@@ -328,9 +344,11 @@ export async function getRatingFacetsForCategory(options: {
     subCategoryId = sub?.id;
   }
 
-  const productWhere = {
+  const pinWhereFacets = await productPinServiceableWhereAsync(pincode);
+  const productWhere: Prisma.ProductWhereInput = {
     deletedAt: null,
-    status: "ACTIVE" as const,
+    status: "ACTIVE",
+    ...pinWhereFacets,
     ...(categoryId && { categoryId }),
     ...(subCategoryId && { subCategoryId }),
   };
@@ -399,6 +417,7 @@ export async function getProductById(id: string): Promise<ProductDetail | null> 
 
   return {
     id: product.id,
+    sellerId: product.sellerId,
     name: product.name,
     description: product.description,
     price: toNumber(product.sellingPrice),

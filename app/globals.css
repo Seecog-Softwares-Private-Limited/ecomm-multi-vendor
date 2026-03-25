@@ -13,6 +13,11 @@
 @source "../app/**/*.ts";
 @source "../app/**/*.jsx";
 @source "../app/**/*.js";
+/* Explicit globs — avoids rare Windows/OneDrive scan misses that strip utilities (broken admin layout). */
+@source "../src/app/layouts/**/*.tsx";
+@source "../src/app/components/admin/**/*.tsx";
+@source "../src/app/components/delivery-areas/**/*.tsx";
+@source "../src/app/pages/admin/**/*.tsx";
 
 @import "tw-animate-css";
 @import "../src/styles/theme.css";

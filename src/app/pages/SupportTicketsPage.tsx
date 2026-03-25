@@ -14,6 +14,8 @@ type Ticket = {
   orderId: string | null;
   createdAt: string;
   lastUpdateAt: string | null;
+  adminReply?: string | null;
+  adminRepliedAt?: string | null;
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -63,31 +65,54 @@ function formatRelative(iso: string) {
 export function SupportTicketsPage() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<(typeof FILTERS)[number]>("ALL");
   const [newTicketOpen, setNewTicketOpen] = useState(false);
   const [detailTicket, setDetailTicket] = useState<Ticket | null>(null);
   const [newSubject, setNewSubject] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const fetchTickets = useCallback((status?: string) => {
+  const fetchTickets = useCallback(async (status?: string) => {
     const url =
       status && status !== "ALL"
         ? `/api/support-tickets?status=${encodeURIComponent(status)}`
         : "/api/support-tickets";
-    return fetch(url, { credentials: "include" })
-      .then((res) => (res.ok ? res.json() : Promise.reject(new Error("Failed"))))
-      .then((data) => {
-        if (data?.data?.tickets) setTickets(data.data.tickets);
-      })
-      .catch(() => setError(true))
-      .finally(() => setLoading(false));
+    try {
+      const res = await fetch(url, { credentials: "include" });
+      let data: { success?: boolean; data?: { tickets?: Ticket[] }; error?: { message?: string } } = {};
+      try {
+        data = await res.json();
+      } catch {
+        setError("Invalid response from server.");
+        setTickets([]);
+        return;
+      }
+      if (!res.ok || data.success === false) {
+        const msg =
+          data?.error?.message ??
+          (res.status === 401
+            ? "Please sign in again to view your tickets."
+            : res.status === 403
+              ? "This page is only available for customer accounts."
+              : `Could not load tickets (${res.status}).`);
+        setError(msg);
+        setTickets([]);
+        return;
+      }
+      setError(null);
+      setTickets(Array.isArray(data?.data?.tickets) ? data.data!.tickets! : []);
+    } catch {
+      setError("Network error. Check your connection and try again.");
+      setTickets([]);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
     setLoading(true);
-    setError(false);
-    fetchTickets(statusFilter === "ALL" ? undefined : statusFilter);
+    setError(null);
+    void fetchTickets(statusFilter === "ALL" ? undefined : statusFilter);
   }, [statusFilter, fetchTickets]);
 
   const handleCreateTicket = async (e: React.FormEvent) => {
@@ -114,8 +139,8 @@ export function SupportTicketsPage() {
       setNewSubject("");
       setNewTicketOpen(false);
       setLoading(true);
-      setError(false);
-      fetchTickets(statusFilter === "ALL" ? undefined : statusFilter);
+      setError(null);
+      void fetchTickets(statusFilter === "ALL" ? undefined : statusFilter);
     } catch {
       toast.error("Failed to create ticket");
     } finally {
@@ -170,8 +195,8 @@ export function SupportTicketsPage() {
         )}
 
         {error && (
-          <div className="py-12 text-center text-red-600 font-medium">
-            Failed to load tickets. Please try again.
+          <div className="py-12 text-center text-red-600 font-medium max-w-lg mx-auto px-2">
+            {error}
           </div>
         )}
 
@@ -339,6 +364,19 @@ export function SupportTicketsPage() {
                       View order #{detailTicket.orderId.slice(0, 8).toUpperCase()}
                     </Link>
                   </dd>
+                </div>
+              )}
+              {detailTicket.adminReply && (
+                <div>
+                  <dt className="text-sm font-semibold text-gray-500">Response from support</dt>
+                  <dd className="text-[#111827] whitespace-pre-wrap rounded-lg bg-emerald-50 border border-emerald-100 p-3 mt-1">
+                    {detailTicket.adminReply}
+                  </dd>
+                  {detailTicket.adminRepliedAt && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      {formatDate(detailTicket.adminRepliedAt)}
+                    </p>
+                  )}
                 </div>
               )}
             </dl>
