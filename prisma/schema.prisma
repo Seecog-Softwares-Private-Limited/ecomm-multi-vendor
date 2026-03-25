@@ -271,6 +271,8 @@ model Seller {
   status                    SellerStatus @default(PENDING_VERIFICATION)
   statusReason              String?      @map("status_reason") @db.Text
   primaryCategoryId         String?      @map("primary_category_id") @db.Char(36)
+  /// When false, catalog treats seller as pan-India (PIN list is stored but ignored). When true, use serviceablePincodes rules.
+  restrictDeliveryToPincodes Boolean     @default(false) @map("restrict_delivery_to_pincodes")
   createdAt                 DateTime     @default(now()) @map("created_at") @db.DateTime(3)
   updatedAt                 DateTime     @updatedAt @map("updated_at") @db.DateTime(3)
   deletedAt                 DateTime?    @map("deleted_at") @db.DateTime(3)
@@ -287,6 +289,8 @@ model Seller {
   notifications              Notification[]
   questionsAnswered          ProductQuestion[] @relation("ProductQuestionAnsweredBy")
   supportTickets            VendorSupportTicket[]
+  /// If this list is empty, seller is treated as pan-India; otherwise only listed pincodes are serviceable.
+  serviceablePincodes       SellerServiceablePincode[]
 
   @@index([email])
   @@index([status])
@@ -315,6 +319,40 @@ model VendorSupportTicket {
   @@index([createdAt])
   @@index([deletedAt])
   @@map("vendor_support_tickets")
+}
+
+model SellerServiceablePincode {
+  id        String   @id @default(uuid()) @db.Char(36)
+  sellerId  String   @map("seller_id") @db.Char(36)
+  pincode   String   @db.VarChar(10)
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+
+  seller Seller @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+
+  @@unique([sellerId, pincode])
+  @@index([pincode])
+  @@map("seller_serviceable_pincodes")
+}
+
+/// Single-row config: when restrict is true and the platform PIN list is non-empty, only those PINs are serviceable site-wide (catalog + PDP).
+model PlatformDeliveryConfig {
+  id                         String   @id @default("default") @db.VarChar(36)
+  restrictDeliveryToPincodes Boolean  @default(false) @map("restrict_delivery_to_pincodes")
+  createdAt                  DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt                  DateTime @updatedAt @map("updated_at") @db.DateTime(3)
+
+  @@map("platform_delivery_config")
+}
+
+/// Marketplace-wide serviceable PINs (admin-managed). Ignores per-seller lists when restrict mode is on.
+model PlatformServiceablePincode {
+  id        String   @id @default(uuid()) @db.Char(36)
+  pincode   String   @db.VarChar(10)
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+
+  @@unique([pincode])
+  @@index([pincode])
+  @@map("platform_serviceable_pincodes")
 }
 
 // =============================================================================
@@ -725,6 +763,8 @@ model SupportTicket {
   orderId    String?             @map("order_id") @db.Char(36)
   subject    String              @db.VarChar(500)
   status     SupportTicketStatus @default(OPEN)
+  adminReply     String?   @map("admin_reply") @db.Text
+  adminRepliedAt DateTime? @map("admin_replied_at") @db.DateTime(3)
   lastUpdateAt DateTime?         @map("last_update_at") @db.DateTime(3)
   createdAt  DateTime            @default(now()) @map("created_at") @db.DateTime(3)
   updatedAt  DateTime            @updatedAt @map("updated_at") @db.DateTime(3)

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import Link from "next/link";
 import { Plus, Edit2, Trash2, MapPin, X } from "lucide-react";
 import { toast } from "sonner";
 import { AccountLayout } from "@/components/AccountLayout";
@@ -21,15 +20,30 @@ type AddressItem = {
   address: string;
 };
 
+type ModalMode = "add" | "edit";
+
+const initialForm = () => ({
+  fullName: "",
+  phone: "",
+  line1: "",
+  line2: "",
+  city: "",
+  state: "",
+  pincode: "",
+  isDefault: true,
+});
+
 export function AddressManagementPage() {
   const [addresses, setAddresses] = useState<AddressItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [settingDefaultId, setSettingDefaultId] = useState<string | null>(null);
-  const [editingAddress, setEditingAddress] = useState<AddressItem | null>(null);
-  const [editForm, setEditForm] = useState({ fullName: "", phone: "", line1: "", line2: "", city: "", state: "", pincode: "" });
-  const [savingEdit, setSavingEdit] = useState(false);
+
+  const [modalMode, setModalMode] = useState<ModalMode | null>(null);
+  const [editTarget, setEditTarget] = useState<AddressItem | null>(null);
+  const [form, setForm] = useState(() => initialForm());
+  const [saving, setSaving] = useState(false);
 
   const fetchAddresses = useCallback(async () => {
     try {
@@ -48,6 +62,103 @@ export function AddressManagementPage() {
   useEffect(() => {
     fetchAddresses();
   }, [fetchAddresses]);
+
+  const closeModal = () => {
+    setModalMode(null);
+    setEditTarget(null);
+    setForm(initialForm());
+  };
+
+  const openAddModal = () => {
+    setModalMode("add");
+    setEditTarget(null);
+    setForm({
+      ...initialForm(),
+      isDefault: addresses.length === 0,
+    });
+  };
+
+  const openEditModal = (a: AddressItem) => {
+    setModalMode("edit");
+    setEditTarget(a);
+    setForm({
+      fullName: a.fullName,
+      phone: a.phone,
+      line1: a.line1,
+      line2: a.line2 ?? "",
+      city: a.city,
+      state: a.state,
+      pincode: a.pincode,
+      isDefault: a.isDefault,
+    });
+  };
+
+  const handleSaveAddress = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!modalMode) return;
+
+    const { fullName, phone, line1, city, state, pincode } = form;
+    if (!fullName.trim() || !phone.trim() || !line1.trim() || !city.trim() || !state.trim() || !pincode.trim()) {
+      toast.error("Please fill all required fields.");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      if (modalMode === "add") {
+        const res = await fetch("/api/addresses", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            fullName: fullName.trim(),
+            phone: phone.trim(),
+            line1: line1.trim(),
+            line2: form.line2.trim() || null,
+            city: city.trim(),
+            state: state.trim(),
+            pincode: pincode.trim(),
+            type: "HOME",
+            isDefault: form.isDefault,
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          toast.error(data?.error?.message ?? "Could not add address.");
+          return;
+        }
+        toast.success("Address added");
+      } else if (editTarget) {
+        const res = await fetch(`/api/addresses/${editTarget.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            fullName: fullName.trim(),
+            phone: phone.trim(),
+            line1: line1.trim(),
+            line2: form.line2.trim() || null,
+            city: city.trim(),
+            state: state.trim(),
+            pincode: pincode.trim(),
+          }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          toast.error(data?.error?.message ?? "Could not update address.");
+          return;
+        }
+        toast.success("Address updated");
+      }
+
+      closeModal();
+      await fetchAddresses();
+    } catch {
+      toast.error(modalMode === "add" ? "Could not add address." : "Could not update address.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleSetDefault = async (id: string) => {
     setSettingDefaultId(id);
@@ -86,67 +197,26 @@ export function AddressManagementPage() {
     }
   };
 
-  const openEdit = (a: AddressItem) => {
-    setEditingAddress(a);
-    setEditForm({
-      fullName: a.fullName,
-      phone: a.phone,
-      line1: a.line1,
-      line2: a.line2 ?? "",
-      city: a.city,
-      state: a.state,
-      pincode: a.pincode,
-    });
-  };
-
-  const handleSaveEdit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingAddress) return;
-    setSavingEdit(true);
-    try {
-      const res = await fetch(`/api/addresses/${editingAddress.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          fullName: editForm.fullName.trim(),
-          phone: editForm.phone.trim(),
-          line1: editForm.line1.trim(),
-          line2: editForm.line2.trim() || null,
-          city: editForm.city.trim(),
-          state: editForm.state.trim(),
-          pincode: editForm.pincode.trim(),
-        }),
-      });
-      if (!res.ok) throw new Error("Failed");
-      toast.success("Address updated");
-      setEditingAddress(null);
-      await fetchAddresses();
-    } catch {
-      toast.error("Could not update address");
-    } finally {
-      setSavingEdit(false);
-    }
-  };
+  const inputClass =
+    "w-full px-4 py-2.5 border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-[#FF6A00]/20 focus:border-[#FF6A00] outline-none transition";
 
   return (
     <AccountLayout>
       <div className="bg-white rounded-2xl shadow-md border border-slate-200/80 p-6 sm:p-8">
         <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
           <h1 className="text-2xl font-bold text-slate-900">Saved Addresses</h1>
-          <Link
-            href="/add-address"
+          <button
+            type="button"
+            onClick={openAddModal}
             className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#FF6A00] text-white rounded-xl font-semibold hover:bg-[#E55F00] transition-colors shadow-md"
           >
             <Plus className="w-5 h-5" />
             Add New Address
-          </Link>
+          </button>
         </div>
 
         {loading && (
-          <div className="py-12 text-center text-slate-500 font-medium">
-            Loading addresses…
-          </div>
+          <div className="py-12 text-center text-slate-500 font-medium">Loading addresses…</div>
         )}
 
         {error && (
@@ -158,13 +228,14 @@ export function AddressManagementPage() {
         {!loading && !error && addresses.length === 0 && (
           <div className="py-12 text-center text-slate-600">
             <p className="font-medium mb-2">No saved addresses.</p>
-            <Link
-              href="/add-address"
+            <button
+              type="button"
+              onClick={openAddModal}
               className="inline-flex items-center gap-2 text-[#FF6A00] font-semibold hover:underline"
             >
               <Plus className="w-4 h-4" />
               Add your first address
-            </Link>
+            </button>
           </div>
         )}
 
@@ -193,9 +264,7 @@ export function AddressManagementPage() {
                   </div>
                   <div className="pl-0">
                     <p className="text-slate-700 mb-1">{address.line1}</p>
-                    {address.line2 && (
-                      <p className="text-slate-700 mb-1">{address.line2}</p>
-                    )}
+                    {address.line2 && <p className="text-slate-700 mb-1">{address.line2}</p>}
                     <p className="text-slate-700 mb-2">
                       {address.city}, {address.state} {address.pincode}
                     </p>
@@ -206,7 +275,7 @@ export function AddressManagementPage() {
                 <div className="flex gap-3 pt-4 border-t border-slate-100">
                   <button
                     type="button"
-                    onClick={() => openEdit(address)}
+                    onClick={() => openEditModal(address)}
                     className="flex-1 flex items-center justify-center gap-2 py-2.5 border-2 border-[#FF6A00] text-[#FF6A00] hover:bg-[#FF6A00] hover:text-white rounded-xl font-semibold transition-colors text-sm"
                   >
                     <Edit2 className="w-4 h-4" />
@@ -245,58 +314,81 @@ export function AddressManagementPage() {
         )}
       </div>
 
-      {/* Edit modal */}
-      {editingAddress && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-slate-900">Edit Address</h2>
+      {/* Add / Edit — same layout as edit popup */}
+      {modalMode && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+          onClick={() => {
+            if (!saving) closeModal();
+          }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="address-modal-title"
+        >
+          <div
+            className="bg-white rounded-2xl shadow-xl border border-slate-100 max-w-md w-full max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sticky top-0 bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between rounded-t-2xl">
+              <h2 id="address-modal-title" className="text-xl font-bold text-slate-900">
+                {modalMode === "add" ? "Add New Address" : "Edit Address"}
+              </h2>
               <button
                 type="button"
-                onClick={() => setEditingAddress(null)}
-                className="p-2 text-slate-500 hover:text-slate-700 rounded-lg"
+                onClick={() => {
+                  if (!saving) closeModal();
+                }}
+                className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition"
+                aria-label="Close"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <form onSubmit={handleSaveEdit} className="space-y-4">
+
+            <form onSubmit={handleSaveAddress} className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
                 <input
                   type="text"
-                  value={editForm.fullName}
-                  onChange={(e) => setEditForm((f) => ({ ...f, fullName: e.target.value }))}
-                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#FF6A00]/20 focus:border-[#FF6A00]"
+                  value={form.fullName}
+                  onChange={(e) => setForm((f) => ({ ...f, fullName: e.target.value }))}
+                  className={inputClass}
                   required
+                  autoComplete="name"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Phone</label>
                 <input
                   type="tel"
-                  value={editForm.phone}
-                  onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))}
-                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#FF6A00]/20 focus:border-[#FF6A00]"
+                  value={form.phone}
+                  onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                  className={inputClass}
                   required
+                  autoComplete="tel"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Address line 1</label>
                 <input
                   type="text"
-                  value={editForm.line1}
-                  onChange={(e) => setEditForm((f) => ({ ...f, line1: e.target.value }))}
-                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#FF6A00]/20 focus:border-[#FF6A00]"
+                  value={form.line1}
+                  onChange={(e) => setForm((f) => ({ ...f, line1: e.target.value }))}
+                  className={inputClass}
                   required
+                  autoComplete="street-address"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Address line 2 (optional)</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Address line 2 <span className="text-slate-400 font-normal">(optional)</span>
+                </label>
                 <input
                   type="text"
-                  value={editForm.line2}
-                  onChange={(e) => setEditForm((f) => ({ ...f, line2: e.target.value }))}
-                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#FF6A00]/20 focus:border-[#FF6A00]"
+                  value={form.line2}
+                  onChange={(e) => setForm((f) => ({ ...f, line2: e.target.value }))}
+                  className={inputClass}
+                  autoComplete="address-line2"
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -304,20 +396,22 @@ export function AddressManagementPage() {
                   <label className="block text-sm font-medium text-slate-700 mb-1">City</label>
                   <input
                     type="text"
-                    value={editForm.city}
-                    onChange={(e) => setEditForm((f) => ({ ...f, city: e.target.value }))}
-                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#FF6A00]/20 focus:border-[#FF6A00]"
+                    value={form.city}
+                    onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
+                    className={inputClass}
                     required
+                    autoComplete="address-level2"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">State</label>
                   <input
                     type="text"
-                    value={editForm.state}
-                    onChange={(e) => setEditForm((f) => ({ ...f, state: e.target.value }))}
-                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#FF6A00]/20 focus:border-[#FF6A00]"
+                    value={form.state}
+                    onChange={(e) => setForm((f) => ({ ...f, state: e.target.value }))}
+                    className={inputClass}
                     required
+                    autoComplete="address-level1"
                   />
                 </div>
               </div>
@@ -325,26 +419,44 @@ export function AddressManagementPage() {
                 <label className="block text-sm font-medium text-slate-700 mb-1">Pincode</label>
                 <input
                   type="text"
-                  value={editForm.pincode}
-                  onChange={(e) => setEditForm((f) => ({ ...f, pincode: e.target.value }))}
-                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#FF6A00]/20 focus:border-[#FF6A00]"
+                  value={form.pincode}
+                  onChange={(e) => setForm((f) => ({ ...f, pincode: e.target.value }))}
+                  className={inputClass}
                   required
+                  autoComplete="postal-code"
                 />
               </div>
+
+              {modalMode === "add" && (
+                <div className="flex items-center gap-2.5 pt-1">
+                  <input
+                    type="checkbox"
+                    id="addr-default-new"
+                    checked={form.isDefault}
+                    onChange={(e) => setForm((f) => ({ ...f, isDefault: e.target.checked }))}
+                    className="h-4 w-4 rounded border-slate-300 text-[#FF6A00] focus:ring-[#FF6A00]"
+                  />
+                  <label htmlFor="addr-default-new" className="text-sm font-medium text-slate-700 cursor-pointer">
+                    Set as default address
+                  </label>
+                </div>
+              )}
+
               <div className="flex gap-3 pt-4">
                 <button
                   type="button"
-                  onClick={() => setEditingAddress(null)}
-                  className="flex-1 py-2.5 border border-slate-200 text-slate-700 rounded-xl font-semibold hover:bg-slate-50"
+                  disabled={saving}
+                  onClick={closeModal}
+                  className="flex-1 py-2.5 border-2 border-[#FF6A00] text-[#FF6A00] bg-white rounded-xl font-semibold hover:bg-orange-50 transition disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={savingEdit}
-                  className="flex-1 py-2.5 bg-[#FF6A00] text-white rounded-xl font-semibold hover:bg-[#E55F00] disabled:opacity-60"
+                  disabled={saving}
+                  className="flex-1 py-2.5 bg-[#FF6A00] text-white rounded-xl font-semibold hover:bg-[#E55F00] transition disabled:opacity-60"
                 >
-                  {savingEdit ? "Saving…" : "Save"}
+                  {saving ? "Saving…" : "Save"}
                 </button>
               </div>
             </form>

@@ -214,6 +214,49 @@ export const openApiSpec = {
         responses: { "200": { description: "Orders" } },
       },
     },
+    "/api/vendor/orders/{orderId}": {
+      get: {
+        tags: ["Vendor"],
+        summary: "Order detail (vendor line items only)",
+        parameters: [{ name: "orderId", in: "path", required: true, schema: { type: "string" } }],
+        responses: {
+          "200": { description: "Order detail" },
+          "404": { description: "Not found or not your order" },
+        },
+      },
+      patch: {
+        tags: ["Vendor"],
+        summary: "Accept, reject, ship, or deliver (vendor line items)",
+        parameters: [{ name: "orderId", in: "path", required: true, schema: { type: "string" } }],
+        requestBody: {
+          content: {
+            "application/json": {
+              schema: {
+                oneOf: [
+                  { type: "object", required: ["action"], properties: { action: { const: "accept" } } },
+                  {
+                    type: "object",
+                    required: ["action", "reason"],
+                    properties: { action: { const: "reject" }, reason: { type: "string" } },
+                  },
+                  {
+                    type: "object",
+                    required: ["action", "courierName"],
+                    properties: {
+                      action: { const: "ship" },
+                      courierName: { type: "string" },
+                      trackingLink: { type: "string" },
+                    },
+                  },
+                  { type: "object", required: ["action"], properties: { action: { const: "deliver" } } },
+                ],
+              },
+            },
+          },
+        },
+        responses: { "200": { description: "Updated order detail" }, "400": { description: "Bad request" } },
+      },
+    },
     "/api/vendor/products": {
       get: {
         tags: ["Vendor"],

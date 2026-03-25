@@ -12,12 +12,19 @@ import { ProductRowSection } from "./ProductRowSection";
 import { InspiredSection } from "./InspiredSection";
 import { Footer } from "./Footer";
 import type { ProductListItem } from "@/types/catalog";
+import { useDeliveryLocation } from "@/contexts/DeliveryLocationContext";
 
 const PLACEHOLDER =
   "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400";
 
-async function fetchProductsByCategory(categorySlug: string, limit: number): Promise<ProductListItem[]> {
+async function fetchProductsByCategory(
+  categorySlug: string,
+  limit: number,
+  pincode: string
+): Promise<ProductListItem[]> {
   const params = new URLSearchParams({ categorySlug, limit: String(limit) });
+  const pin = pincode.replace(/\D/g, "").slice(0, 6);
+  if (/^\d{6}$/.test(pin)) params.set("pincode", pin);
   const res = await fetch(`/api/products?${params.toString()}`, { credentials: "include" });
   if (!res.ok) return [];
   const json = await res.json().catch(() => ({}));
@@ -25,6 +32,7 @@ async function fetchProductsByCategory(categorySlug: string, limit: number): Pro
 }
 
 export function HomePage() {
+  const { location } = useDeliveryLocation();
   const [electronics, setElectronics] = useState<ProductListItem[]>([]);
   const [home, setHome] = useState<ProductListItem[]>([]);
   const [beauty, setBeauty] = useState<ProductListItem[]>([]);
@@ -33,13 +41,14 @@ export function HomePage() {
 
   useEffect(() => {
     let cancelled = false;
+    const pin = location.pincode ?? "";
     (async () => {
       const [e, h, b, f, s] = await Promise.all([
-        fetchProductsByCategory("electronics", 5),
-        fetchProductsByCategory("home", 5),
-        fetchProductsByCategory("beauty", 5),
-        fetchProductsByCategory("fashion", 5),
-        fetchProductsByCategory("sports", 5),
+        fetchProductsByCategory("electronics", 5, pin),
+        fetchProductsByCategory("home", 5, pin),
+        fetchProductsByCategory("beauty", 5, pin),
+        fetchProductsByCategory("fashion", 5, pin),
+        fetchProductsByCategory("sports", 5, pin),
       ]);
       if (cancelled) return;
       setElectronics(e);
@@ -51,7 +60,7 @@ export function HomePage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [location.pincode]);
 
   const electronicsRow = useMemo(
     () => ({

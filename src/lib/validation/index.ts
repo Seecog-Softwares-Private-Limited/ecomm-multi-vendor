@@ -14,12 +14,18 @@ export {
   productIdParamSchema,
   limitOnlyQuerySchema,
   createVendorProductSchema,
+  vendorAddServicePincodeSchema,
+  vendorAddServicePincodesBodySchema,
+  vendorDeliveryScopePatchSchema,
 } from "./schemas";
 export type {
   GetProductsQuery,
   ProductIdParam,
   LimitOnlyQuery,
   CreateVendorProductInput,
+  VendorAddServicePincodeInput,
+  VendorAddServicePincodesBody,
+  VendorDeliveryScopePatch,
 } from "./schemas";
 
 export {

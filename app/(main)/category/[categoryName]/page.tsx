@@ -1,14 +1,12 @@
 import Link from "next/link";
 import { CategoryPage } from "@/components/CategoryPage";
 import { getCategoryBySlug, getSubCategoryBySlug } from "@/lib/data/categories";
+import { MENU_TYPE_SLUGS, type MenuTypeSlug } from "@/lib/catalog-constants";
 import {
   getProducts,
   getProductsByMenuType,
   getMenuTypeDisplayName,
-  type MenuTypeSlug,
 } from "@/lib/data/products";
-
-const MENU_TYPE_SLUGS: MenuTypeSlug[] = ["deals", "new-arrivals", "best-sellers"];
 
 export default async function Page({
   params,

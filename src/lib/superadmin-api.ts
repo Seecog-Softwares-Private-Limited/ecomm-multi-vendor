@@ -54,9 +54,22 @@ async function request<T>(path: string, options: Req = {}): Promise<{ success: b
     body: options.body ? JSON.stringify(options.body) : undefined,
     credentials: "include",
   });
-  const json = await res.json().catch(() => ({}));
+  const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   if (!res.ok) {
-    return { success: false, message: json.message || "Request failed" };
+    const msg =
+      (typeof json.message === "string" && json.message) ||
+      (typeof (json.error as { message?: string } | undefined)?.message === "string" &&
+        (json.error as { message: string }).message) ||
+      "Request failed";
+    return { success: false, message: msg };
+  }
+  if (json.success === false) {
+    const msg =
+      (typeof json.message === "string" && json.message) ||
+      (typeof (json.error as { message?: string } | undefined)?.message === "string" &&
+        (json.error as { message: string }).message) ||
+      "Request failed";
+    return { success: false, message: msg };
   }
   return json as { success: true; data: T };
 }

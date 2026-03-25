@@ -23,6 +23,8 @@ export interface ProductListItem {
 
 export interface ProductDetail {
   id: string;
+  /** Seller owning the product; used for PIN / service-area checks on PDP. */
+  sellerId: string;
   name: string;
   description: string | null;
   price: number;

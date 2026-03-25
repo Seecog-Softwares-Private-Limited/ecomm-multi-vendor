@@ -11,6 +11,9 @@ export const GET = withApiHandler(async (request: NextRequest) => {
   const { searchParams } = new URL(request.url);
   const categorySlug = searchParams.get("categorySlug") ?? undefined;
   const subCategorySlug = searchParams.get("subCategorySlug") ?? undefined;
+  const pinRaw = searchParams.get("pincode") ?? "";
+  const pinDigits = pinRaw.replace(/\D/g, "").slice(0, 6);
+  const pincode = /^\d{6}$/.test(pinDigits) ? pinDigits : undefined;
 
   if (!categorySlug?.trim()) {
     return apiValidationError("Validation failed", { categorySlug: "categorySlug is required" });
@@ -19,6 +22,7 @@ export const GET = withApiHandler(async (request: NextRequest) => {
   const facets = await getRatingFacetsForCategory({
     categorySlug: categorySlug.trim(),
     subCategorySlug: subCategorySlug?.trim(),
+    pincode,
   });
 
   return apiSuccess(facets);
