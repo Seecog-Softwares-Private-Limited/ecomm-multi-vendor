@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { useState, useMemo, useEffect } from "react";
 import { toast } from "sonner";
@@ -23,6 +23,8 @@ import type { ProductListItem } from "@/types/catalog";
 import { getBaseUrl } from "@/services/client";
 import { addToGuestCart } from "@/lib/guest-cart";
 import { useCartDrawer } from "@/contexts/CartDrawerContext";
+import { useDeliveryLocation } from "@/contexts/DeliveryLocationContext";
+import { isMenuTypeSlug } from "@/lib/catalog-constants";
 
 export type CategoryPageProps = {
   categoryName: string;
@@ -53,6 +55,7 @@ export function CategoryPage({
   apiSubCategorySlug,
 }: CategoryPageProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const [brands, setBrands] = useState<string[]>([]);
   const [brandsLoading, setBrandsLoading] = useState(!!apiCategorySlug);
   const [ratingFacets, setRatingFacets] = useState<{ minRating: number; label: string; count: number }[]>([]);
@@ -64,7 +67,69 @@ export function CategoryPage({
   const [minDiscount, setMinDiscount] = useState<number | null>(null);
   const [sortBy, setSortBy] = useState("popularity");
   const [addingToCartId, setAddingToCartId] = useState<string | null>(null);
+  /** productId -> wishlist row id (for toggle/remove) */
+  const [wishlistByProductId, setWishlistByProductId] = useState<Record<string, string>>({});
+  const [wishlistTogglingId, setWishlistTogglingId] = useState<string | null>(null);
   const { openCartDrawer } = useCartDrawer();
+  const { location } = useDeliveryLocation();
+
+  const [catalogProducts, setCatalogProducts] = useState<ProductListItem[]>(products);
+  const [catalogLoading, setCatalogLoading] = useState(false);
+
+  useEffect(() => {
+    const pin = (location.pincode || "").replace(/\D/g, "").slice(0, 6);
+    const pinOk = /^\d{6}$/.test(pin);
+
+    let cancelled = false;
+    if (apiCategorySlug) {
+      const params = new URLSearchParams({ categorySlug: apiCategorySlug, limit: "100" });
+      if (apiSubCategorySlug) params.set("subCategorySlug", apiSubCategorySlug);
+      if (pinOk) params.set("pincode", pin);
+      setCatalogLoading(true);
+      const base = getBaseUrl();
+      fetch(`${base}/api/products?${params.toString()}`, { credentials: "include" })
+        .then((res) => res.json())
+        .then((json) => {
+          if (cancelled) return;
+          const list = Array.isArray(json?.data) ? (json.data as ProductListItem[]) : [];
+          setCatalogProducts(list);
+        })
+        .catch(() => {
+          if (!cancelled) setCatalogProducts(products);
+        })
+        .finally(() => {
+          if (!cancelled) setCatalogLoading(false);
+        });
+      return () => {
+        cancelled = true;
+      };
+    }
+    if (isMenuTypeSlug(categorySlug)) {
+      const params = new URLSearchParams({ menuType: categorySlug, limit: "100" });
+      if (pinOk) params.set("pincode", pin);
+      setCatalogLoading(true);
+      const base = getBaseUrl();
+      fetch(`${base}/api/products?${params.toString()}`, { credentials: "include" })
+        .then((res) => res.json())
+        .then((json) => {
+          if (cancelled) return;
+          const list = Array.isArray(json?.data) ? (json.data as ProductListItem[]) : [];
+          setCatalogProducts(list);
+        })
+        .catch(() => {
+          if (!cancelled) setCatalogProducts(products);
+        })
+        .finally(() => {
+          if (!cancelled) setCatalogLoading(false);
+        });
+      return () => {
+        cancelled = true;
+      };
+    }
+    setCatalogProducts(products);
+    setCatalogLoading(false);
+    return undefined;
+  }, [location.pincode, apiCategorySlug, apiSubCategorySlug, categorySlug, products]);
 
   useEffect(() => {
     if (!apiCategorySlug) {
@@ -72,8 +137,10 @@ export function CategoryPage({
       setRatingFacetsLoading(false);
       return;
     }
+    const pin = (location.pincode || "").replace(/\D/g, "").slice(0, 6);
     const params = new URLSearchParams({ categorySlug: apiCategorySlug });
     if (apiSubCategorySlug) params.set("subCategorySlug", apiSubCategorySlug);
+    if (/^\d{6}$/.test(pin)) params.set("pincode", pin);
     const base = getBaseUrl();
     Promise.all([
       fetch(`${base}/api/products/brands?${params.toString()}`, { credentials: "include" })
@@ -92,10 +159,31 @@ export function CategoryPage({
       setBrandsLoading(false);
       setRatingFacetsLoading(false);
     });
-  }, [apiCategorySlug, apiSubCategorySlug]);
+  }, [apiCategorySlug, apiSubCategorySlug, location.pincode]);
+
+  useEffect(() => {
+    const base = getBaseUrl();
+    fetch(`${base}/api/wishlist`, { credentials: "include" })
+      .then((res) => {
+        if (!res.ok) return null;
+        return res.json();
+      })
+      .then((json) => {
+        const items = json?.data?.items;
+        if (!Array.isArray(items)) return;
+        const map: Record<string, string> = {};
+        for (const row of items) {
+          if (row?.productId && row?.id && map[row.productId] === undefined) {
+            map[row.productId] = row.id;
+          }
+        }
+        setWishlistByProductId(map);
+      })
+      .catch(() => {});
+  }, []);
 
   const filtered = useMemo(() => {
-    let list = [...products];
+    let list = [...catalogProducts];
     list = list.filter((p) => p.price <= priceMax);
     if (selectedBrands.length > 0) {
       list = list.filter((p) =>
@@ -114,7 +202,7 @@ export function CategoryPage({
     else if (sortBy === "rating") list.sort((a, b) => b.rating - a.rating);
     else if (sortBy === "popularity") list.sort((a, b) => (b.reviews ?? 0) - (a.reviews ?? 0));
     return list;
-  }, [products, priceMax, selectedBrands, minRating, minDiscount, sortBy]);
+  }, [catalogProducts, priceMax, selectedBrands, minRating, minDiscount, sortBy]);
 
   const clearFilters = () => {
     setPriceMax(150000);
@@ -359,16 +447,43 @@ export function CategoryPage({
             </div>
           </div>
 
+          {/^\d{6}$/.test((location.pincode || "").replace(/\D/g, "")) && (
+            <p className="text-xs text-gray-500 mb-3">
+              Showing items serviceable to PIN{" "}
+              <span className="font-semibold text-gray-700">{location.pincode.replace(/\D/g, "").slice(0, 6)}</span>
+              . Change location in the top bar to update.
+            </p>
+          )}
+
           {/* Product grid */}
-          {filtered.length === 0 ? (
+          {catalogLoading && catalogProducts.length === 0 ? (
             <div className="py-20 text-center bg-gray-50 rounded-xl">
-              <p className="text-gray-600 font-medium">No products match your filters.</p>
-              <button
-                onClick={clearFilters}
-                className="mt-3 text-[#FF6A00] font-medium hover:underline"
-              >
-                Clear filters
-              </button>
+              <div className="inline-block h-10 w-10 animate-spin rounded-full border-2 border-[#FF6A00] border-t-transparent mb-3" />
+              <p className="text-gray-600 font-medium">Loading products for your area…</p>
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="py-20 text-center bg-gray-50 rounded-xl px-4">
+              {catalogProducts.length === 0 ? (
+                <>
+                  <p className="text-gray-600 font-medium">
+                    No products are available for delivery to your selected PIN.
+                  </p>
+                  <p className="text-sm text-gray-500 mt-2 max-w-md mx-auto">
+                    Try another PIN from the top bar or pick a saved address after signing in.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-gray-600 font-medium">No products match your filters.</p>
+                  <button
+                    type="button"
+                    onClick={clearFilters}
+                    className="mt-3 text-[#FF6A00] font-medium hover:underline"
+                  >
+                    Clear filters
+                  </button>
+                </>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-5">
@@ -377,17 +492,22 @@ export function CategoryPage({
                   product.oldPrice != null && product.oldPrice > product.price
                     ? getDiscountPercent(product.price, product.oldPrice)
                     : 0;
+                const inWishlist = Boolean(wishlistByProductId[product.id]);
                 return (
                   <div
                     key={product.id}
                     className="group bg-white border border-gray-100 rounded-lg sm:rounded-xl overflow-hidden hover:shadow-lg transition-all flex flex-col"
                   >
-                    <Link href={`/product/${product.id}`} className="block flex-1">
-                      <div className="relative aspect-square overflow-hidden bg-gray-50">
+                    <div className="relative aspect-square overflow-hidden bg-gray-50">
+                      <Link
+                        href={`/product/${product.id}`}
+                        className="absolute inset-0 z-0 block outline-none"
+                        aria-label={product.name}
+                      >
                         {product.imageUrl ? (
                           <img
                             src={product.imageUrl}
-                            alt={product.name}
+                            alt=""
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                           />
                         ) : (
@@ -395,51 +515,109 @@ export function CategoryPage({
                             No image
                           </div>
                         )}
-                        {discountPct > 0 && (
-                          <span
-                            className="absolute top-1.5 left-1.5 px-1.5 py-0.5 text-[10px] sm:text-xs font-bold text-white rounded"
-                            style={{ background: "#EF4444" }}
-                          >
-                            SALE {discountPct}% OFF
+                      </Link>
+                      {discountPct > 0 && (
+                        <span
+                          className="pointer-events-none absolute top-1.5 left-1.5 z-[5] px-1.5 py-0.5 text-[10px] sm:text-xs font-bold text-white rounded"
+                          style={{ background: "#EF4444" }}
+                        >
+                          SALE {discountPct}% OFF
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        disabled={wishlistTogglingId === product.id}
+                        className="absolute top-1.5 right-1.5 z-10 w-7 h-7 sm:w-9 sm:h-9 rounded-full bg-white/90 flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition shadow disabled:opacity-60"
+                        aria-label={inWishlist ? "Remove from wishlist" : "Add to wishlist"}
+                        onClick={async (e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          if (wishlistTogglingId) return;
+                          setWishlistTogglingId(product.id);
+                          try {
+                            const itemId = wishlistByProductId[product.id];
+                            if (itemId) {
+                              const res = await fetch(`/api/wishlist/${itemId}`, {
+                                method: "DELETE",
+                                credentials: "include",
+                              });
+                              const data = await res.json().catch(() => ({}));
+                              if (!res.ok) {
+                                toast.error(data?.error?.message ?? "Could not update wishlist.");
+                                return;
+                              }
+                              setWishlistByProductId((prev) => {
+                                const next = { ...prev };
+                                delete next[product.id];
+                                return next;
+                              });
+                              toast.success("Removed from wishlist");
+                              return;
+                            }
+                            const res = await fetch("/api/wishlist", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              credentials: "include",
+                              body: JSON.stringify({ productId: product.id, variantKey: null }),
+                            });
+                            const data = await res.json().catch(() => ({}));
+                            if (!res.ok) {
+                              if (res.status === 401) {
+                                const ret =
+                                  pathname && pathname !== "/login"
+                                    ? pathname
+                                    : `/category/${categorySlug}`;
+                                router.push(`/login?returnUrl=${encodeURIComponent(ret)}`);
+                                toast.info("Sign in to save items to your wishlist.");
+                                return;
+                              }
+                              toast.error(data?.error?.message ?? "Could not add to wishlist.");
+                              return;
+                            }
+                            const newId = data?.data?.id;
+                            if (typeof newId === "string") {
+                              setWishlistByProductId((prev) => ({ ...prev, [product.id]: newId }));
+                            }
+                            toast.success("Added to wishlist");
+                          } catch {
+                            toast.error("Could not update wishlist.");
+                          } finally {
+                            setWishlistTogglingId(null);
+                          }
+                        }}
+                      >
+                        <Heart
+                          className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${inWishlist ? "fill-red-500 text-red-500" : ""}`}
+                        />
+                      </button>
+                    </div>
+                    <Link
+                      href={`/product/${product.id}`}
+                      className="block flex-1 p-2.5 sm:p-4 flex flex-col min-h-0"
+                    >
+                      <h3 className="font-medium text-[#111827] line-clamp-2 text-[13px] sm:text-sm leading-snug mb-1.5 sm:mb-2 group-hover:text-[#FF6A00] transition-colors">
+                        {product.name}
+                      </h3>
+                      <div
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] sm:text-xs font-medium text-[#0F766E] bg-[#CCFBF1] w-fit mb-1.5 sm:mb-2"
+                      >
+                        <Star className="w-3 h-3 sm:w-3.5 sm:h-3.5 fill-current" />
+                        {product.rating.toFixed(1)} ({product.reviews.toLocaleString()})
+                      </div>
+                      <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap mt-auto">
+                        <span className="font-bold text-[#FF6A00] text-base sm:text-lg">
+                          ₹{product.price.toLocaleString("en-IN")}
+                        </span>
+                        {product.oldPrice != null && product.oldPrice > product.price && (
+                          <span className="text-xs sm:text-sm text-gray-400 line-through">
+                            ₹{product.oldPrice.toLocaleString("en-IN")}
                           </span>
                         )}
-                        <button
-                          type="button"
-                          className="absolute top-1.5 right-1.5 z-[1] w-7 h-7 sm:w-9 sm:h-9 rounded-full bg-white/90 flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition shadow"
-                          aria-label="Wishlist"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                          }}
-                        >
-                          <Heart className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                        </button>
                       </div>
-                      <div className="p-2.5 sm:p-4 flex-1 flex flex-col">
-                        <h3 className="font-medium text-[#111827] line-clamp-2 text-[13px] sm:text-sm leading-snug mb-1.5 sm:mb-2 group-hover:text-[#FF6A00] transition-colors">
-                          {product.name}
-                        </h3>
-                        <div
-                          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] sm:text-xs font-medium text-[#0F766E] bg-[#CCFBF1] w-fit mb-1.5 sm:mb-2"
-                        >
-                          <Star className="w-3 h-3 sm:w-3.5 sm:h-3.5 fill-current" />
-                          {product.rating.toFixed(1)} ({product.reviews.toLocaleString()})
-                        </div>
-                        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap mt-auto">
-                          <span className="font-bold text-[#FF6A00] text-base sm:text-lg">
-                            ₹{product.price.toLocaleString("en-IN")}
-                          </span>
-                          {product.oldPrice != null && product.oldPrice > product.price && (
-                            <span className="text-xs sm:text-sm text-gray-400 line-through">
-                              ₹{product.oldPrice.toLocaleString("en-IN")}
-                            </span>
-                          )}
-                        </div>
-                        <p className="flex items-center gap-1 text-[10px] sm:text-xs text-gray-500 mt-1.5 sm:mt-2">
-                          <Truck className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                          Free delivery by Tomorrow
-                        </p>
-                      </div>
+                      <p className="flex items-center gap-1 text-[10px] sm:text-xs text-gray-500 mt-1.5 sm:mt-2">
+                        <Truck className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                        Free delivery by Tomorrow
+                      </p>
                     </Link>
                     <div className="p-2.5 sm:p-4 pt-0 flex gap-1.5 sm:gap-2">
                       <button

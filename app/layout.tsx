@@ -3,6 +3,7 @@ import "./globals.css";
 import { Manrope, Nunito, Katibeh } from "next/font/google";
 import { Toaster } from "sonner";
 import { CartDrawerProvider } from "@/contexts/CartDrawerContext";
+import { DeliveryLocationProvider } from "@/contexts/DeliveryLocationContext";
 
 const manrope = Manrope({
   subsets: ["latin"],
@@ -41,7 +42,7 @@ export default function RootLayout({
     >
       <body className={manrope.className}>
         <CartDrawerProvider>
-          {children}
+          <DeliveryLocationProvider>{children}</DeliveryLocationProvider>
         </CartDrawerProvider>
         <Toaster position="top-center" richColors closeButton />
       </body>

@@ -44,18 +44,39 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const token = await signToken({
-      sub: admin.id,
-      email: admin.email,
-      role: admin.isSuperAdmin ? "SUPER_ADMIN" : "ADMIN",
-    });
+    let token: string;
+    try {
+      token = await signToken({
+        sub: admin.id,
+        email: admin.email,
+        role: admin.isSuperAdmin ? "SUPER_ADMIN" : "ADMIN",
+      });
+    } catch (signErr) {
+      const m = signErr instanceof Error ? signErr.message : String(signErr);
+      const isJwt = /JWT_SECRET|jwt/i.test(m);
+      console.error("[superadmin/login] signToken failed:", signErr);
+      return Response.json(
+        {
+          success: false,
+          message: isJwt
+            ? "Server is missing JWT_SECRET. Add JWT_SECRET to .env (e.g. openssl rand -base64 32), restart the app, then try again."
+            : "Could not create session. Check server logs.",
+        },
+        { status: 503 }
+      );
+    }
 
     await prisma.admin.update({
       where: { id: admin.id },
       data: { lastLoginAt: new Date() },
     });
 
-    await createAuditLog(admin.id, admin.email, "login", "auth", {}, request);
+    try {
+      await createAuditLog(admin.id, admin.email, "login", "auth", {}, request);
+    } catch (auditErr) {
+      /* Login must succeed even if audit table is missing or DB write fails */
+      console.error("[superadmin/login] audit log failed (non-fatal):", auditErr);
+    }
 
     return Response.json({
       success: true,

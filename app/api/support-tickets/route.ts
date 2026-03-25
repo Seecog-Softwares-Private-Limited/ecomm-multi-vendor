@@ -9,6 +9,7 @@ import {
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { SupportTicketStatus } from "@prisma/client";
+import { listCustomerSupportTicketsForUser } from "@/lib/data/support-ticket-customer-read";
 
 const VALID_STATUSES: SupportTicketStatus[] = ["OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED"];
 
@@ -24,36 +25,12 @@ export const GET = withApiHandler(async (request: NextRequest) => {
   const { searchParams } = new URL(request.url);
   const statusParam = searchParams.get("status")?.trim().toUpperCase();
 
-  const where: { userId: string; deletedAt: null; status?: SupportTicketStatus } = {
-    userId: session.sub,
-    deletedAt: null,
-  };
-  if (statusParam && VALID_STATUSES.includes(statusParam as SupportTicketStatus)) {
-    where.status = statusParam as SupportTicketStatus;
-  }
+  const statusFilter =
+    statusParam && VALID_STATUSES.includes(statusParam as SupportTicketStatus)
+      ? (statusParam as SupportTicketStatus)
+      : undefined;
 
-  const tickets = await prisma.supportTicket.findMany({
-    where,
-    orderBy: { createdAt: "desc" },
-    select: {
-      id: true,
-      subject: true,
-      status: true,
-      orderId: true,
-      createdAt: true,
-      lastUpdateAt: true,
-    },
-  });
-
-  const list = tickets.map((t) => ({
-    id: t.id,
-    shortId: `#TKT-${t.id.slice(0, 8).toUpperCase()}`,
-    subject: t.subject,
-    status: t.status,
-    orderId: t.orderId,
-    createdAt: t.createdAt.toISOString(),
-    lastUpdateAt: t.lastUpdateAt?.toISOString() ?? null,
-  }));
+  const list = await listCustomerSupportTicketsForUser(session.sub, statusFilter);
 
   return apiSuccess({ tickets: list });
 });

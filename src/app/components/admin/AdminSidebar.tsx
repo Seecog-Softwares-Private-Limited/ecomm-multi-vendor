@@ -15,6 +15,7 @@ import {
   MessageCircle,
   Lock,
   FileText,
+  MapPin,
 } from "lucide-react";
 import { IndovyaparLogo } from "@/components/IndovyaparLogo";
 import { useEffect, useState } from "react";
@@ -29,6 +30,7 @@ type MenuItem = {
 const menuItems: MenuItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/admin", permission: "dashboard" },
   { icon: Users, label: "Sellers", path: "/admin/sellers", permission: "sellers" },
+  { icon: MapPin, label: "Website delivery", path: "/admin/delivery-areas", permission: "sellers" },
   { icon: FolderTree, label: "Categories", path: "/admin/categories", permission: "categories" },
   { icon: Package, label: "Products", path: "/admin/products", permission: "products" },
   { icon: ShoppingBag, label: "Orders", path: "/admin/orders", permission: "orders" },

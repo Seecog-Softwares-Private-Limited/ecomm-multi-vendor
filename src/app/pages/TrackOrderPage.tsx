@@ -25,6 +25,33 @@ function formatRupee(n: number) {
   }).format(n);
 }
 
+/** Match http(s) URLs in vendor/admin timeline notes (e.g. courier tracking). */
+const NOTE_URL_REGEX = /(https?:\/\/[^\s<>"']+)/gi;
+
+function TimelineNote({ text }: { text: string }) {
+  const parts = text.split(NOTE_URL_REGEX);
+  return (
+    <p className="text-sm text-slate-600 break-words">
+      {parts.map((part, i) => {
+        if (/^https?:\/\//i.test(part)) {
+          return (
+            <a
+              key={i}
+              href={part}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#2563EB] underline underline-offset-2 hover:text-[#1D4ED8] break-all font-medium"
+            >
+              {part}
+            </a>
+          );
+        }
+        return part ? <span key={i}>{part}</span> : null;
+      })}
+    </p>
+  );
+}
+
 export function TrackOrderPage() {
   const params = useParams();
   const orderId = typeof params?.orderId === "string" ? params.orderId : "";
@@ -128,9 +155,7 @@ export function TrackOrderPage() {
                         <p className="font-semibold text-slate-900">
                           {STATUS_LABEL[event.status] ?? event.status}
                         </p>
-                        {event.note && (
-                          <p className="text-sm text-slate-600">{event.note}</p>
-                        )}
+                        {event.note ? <TimelineNote text={event.note} /> : null}
                         <p className="text-xs text-slate-500 mt-1">
                           {new Date(event.occurredAt).toLocaleString("en-IN")}
                         </p>
