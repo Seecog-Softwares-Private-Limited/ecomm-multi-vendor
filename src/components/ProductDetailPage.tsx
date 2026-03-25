@@ -49,7 +49,7 @@ function RelatedProductCard({ item }: { item: ProductListItem }) {
   return (
     <Link
       href={`/product/${item.id}`}
-      className="flex-shrink-0 w-[220px] sm:w-[240px] bg-white border border-gray-100 rounded-xl overflow-hidden hover:shadow-lg transition-all flex flex-col group"
+      className="flex w-[200px] shrink-0 flex-col overflow-hidden rounded-xl border border-gray-100 bg-white transition-all hover:shadow-lg group sm:w-[220px] md:w-[240px]"
     >
       <div className="relative aspect-square overflow-hidden bg-gray-50">
         {item.imageUrl ? (
@@ -129,30 +129,25 @@ function RelatedProductsSection({
   if (items.length === 0) return null;
 
   return (
-    <div className="mx-auto" style={{ maxWidth: 1360, padding: "0 40px 24px" }}>
+    <div className="mx-auto w-full max-w-[1360px] px-3 pb-6 sm:px-5 lg:px-10">
       <h2
-        style={{
-          fontFamily: "'Manrope', sans-serif",
-          fontWeight: 700,
-          fontSize: 20,
-          color: "#111827",
-          marginBottom: 16,
-        }}
+        className="mb-3 text-lg font-bold text-[#111827] sm:text-xl"
+        style={{ fontFamily: "'Manrope', sans-serif" }}
       >
         {title}
       </h2>
-      <div className="relative flex items-center gap-2">
+      <div className="relative flex items-center gap-1 sm:gap-2">
         <button
           type="button"
           onClick={() => scroll("left")}
-          className="flex-shrink-0 w-10 h-10 rounded-full border border-gray-200 bg-white shadow-sm flex items-center justify-center hover:bg-gray-50 transition"
+          className="hidden sm:flex flex-shrink-0 w-9 h-9 sm:w-10 sm:h-10 rounded-full border border-gray-200 bg-white shadow-sm items-center justify-center hover:bg-gray-50 transition"
           aria-label="Scroll left"
         >
           <ChevronLeft size={20} color="#374151" />
         </button>
         <div
           ref={scrollRef}
-          className="flex gap-4 overflow-x-auto scroll-smooth py-2 [&::-webkit-scrollbar]:hidden"
+          className="flex min-w-0 flex-1 gap-3 overflow-x-auto scroll-smooth py-2 sm:gap-4 [&::-webkit-scrollbar]:hidden"
           style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
         >
           {items.map((item) => (
@@ -162,7 +157,7 @@ function RelatedProductsSection({
         <button
           type="button"
           onClick={() => scroll("right")}
-          className="flex-shrink-0 w-10 h-10 rounded-full border border-gray-200 bg-white shadow-sm flex items-center justify-center hover:bg-gray-50 transition"
+          className="hidden sm:flex flex-shrink-0 w-9 h-9 sm:w-10 sm:h-10 rounded-full border border-gray-200 bg-white shadow-sm items-center justify-center hover:bg-gray-50 transition"
           aria-label="Scroll right"
         >
           <ChevronRight size={20} color="#374151" />
@@ -408,7 +403,7 @@ export function ProductDetailPage({
 
   return (
     <div
-      className="w-full min-h-screen"
+      className="w-full min-h-screen pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] lg:pb-0"
       style={{ background: "#FFFFFF", fontFamily: "'Manrope', sans-serif" }}
     >
       <TopBar />
@@ -421,79 +416,44 @@ export function ProductDetailPage({
           borderBottom: "1px solid #E5E7EB",
         }}
       >
-        <div
-          className="mx-auto flex items-center"
-          style={{ maxWidth: 1360, padding: "8px 40px", gap: 4 }}
-        >
+        <div className="mx-auto flex max-w-[1360px] items-center gap-1 overflow-x-auto px-3 py-2 sm:px-5 lg:px-10 [&::-webkit-scrollbar]:h-0">
           {breadcrumbs.map((crumb, i, arr) => (
-            <div key={i} className="flex items-center" style={{ gap: 4 }}>
+            <div key={i} className="flex shrink-0 items-center gap-1">
               {crumb.href ? (
                 <Link
                   href={crumb.href}
-                  style={{
-                    fontFamily: "'Manrope', sans-serif",
-                    fontSize: 12,
-                    color: "#FF6A00",
-                    fontWeight: 400,
-                    textDecoration: "underline",
-                    textUnderlineOffset: 2,
-                  }}
+                  className="whitespace-nowrap text-[11px] text-[#FF6A00] underline underline-offset-2 sm:text-xs"
+                  style={{ fontFamily: "'Manrope', sans-serif", fontWeight: 400 }}
                 >
                   {crumb.label}
                 </Link>
               ) : (
                 <span
-                  style={{
-                    fontFamily: "'Manrope', sans-serif",
-                    fontSize: 12,
-                    color: "#374151",
-                    fontWeight: 500,
-                  }}
+                  className="max-w-[min(42vw,220px)] truncate text-[11px] font-medium text-[#374151] sm:max-w-[min(50vw,360px)] sm:text-xs"
+                  style={{ fontFamily: "'Manrope', sans-serif" }}
+                  title={crumb.label}
                 >
                   {crumb.label}
                 </span>
               )}
-              {i < arr.length - 1 && <ChevronRight size={12} color="#9CA3AF" />}
+              {i < arr.length - 1 && <ChevronRight size={12} color="#9CA3AF" className="shrink-0" />}
             </div>
           ))}
         </div>
       </div>
 
       {/* ── Main product area ─────────────────────────────────────────────── */}
-      <div
-        className="mx-auto"
-        style={{ maxWidth: 1360, padding: "28px 40px", display: "flex", gap: 32 }}
-      >
+      <div className="mx-auto flex w-full max-w-[1360px] flex-col gap-6 px-3 py-4 sm:px-5 sm:py-6 lg:flex-row lg:gap-8 lg:px-10 lg:py-7">
         {/* ── LEFT: Image Gallery ─────────────────────────────────── */}
-        <div
-          style={{
-            width: 420,
-            flexShrink: 0,
-            display: "flex",
-            flexDirection: "column",
-            gap: 12,
-          }}
-        >
+        <div className="flex w-full max-w-full shrink-0 flex-col gap-3 lg:w-[420px] lg:max-w-[420px]">
           {/* Main image */}
           <div
-            style={{
-              width: "100%",
-              height: 420,
-              background: "#F3F4F6",
-              borderRadius: 12,
-              border: "1px solid #E5E7EB",
-              overflow: "hidden",
-              position: "relative",
-            }}
+            className="relative aspect-square w-full max-h-[min(92vw,420px)] overflow-hidden rounded-xl border border-[#E5E7EB] bg-[#F3F4F6] lg:max-h-none"
           >
             <img
               src={images[activeImage]}
               alt={product.name}
-              style={{
-                width: "100%",
-                height: "100%",
-                objectFit: "cover",
-              }}
+              className="h-full w-full object-cover"
             />
             {discount > 0 && (
             <div
@@ -546,14 +506,15 @@ export function ProductDetailPage({
           </div>
 
           {/* Thumbnails */}
-          <div style={{ display: "flex", gap: 10 }}>
+          <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sm:flex-wrap sm:gap-2.5 sm:overflow-visible [&::-webkit-scrollbar]:h-1">
             {images.map((img, i) => (
               <button
                 key={i}
                 onClick={() => setActiveImage(i)}
+                type="button"
                 style={{
-                  width: 72,
-                  height: 72,
+                  width: 64,
+                  height: 64,
                   borderRadius: 8,
                   overflow: "hidden",
                   border: i === activeImage ? "2px solid #FF6A00" : "2px solid #E5E7EB",
@@ -563,6 +524,7 @@ export function ProductDetailPage({
                   background: "#F3F4F6",
                   transition: "border-color 0.15s",
                 }}
+                className="sm:h-[72px] sm:w-[72px]"
               >
                 <img
                   src={img}
@@ -575,7 +537,7 @@ export function ProductDetailPage({
         </div>
 
         {/* ── MIDDLE: Product Details ─────────────────────────────── */}
-        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 14 }}>
+        <div className="flex w-full min-w-0 flex-col gap-3 sm:gap-3.5 lg:flex-1 lg:gap-3.5">
           {/* Brand */}
           <p
             style={{
@@ -591,20 +553,14 @@ export function ProductDetailPage({
 
           {/* Title (from API: product.name) */}
           <h1
-            style={{
-              fontFamily: "'Manrope', sans-serif",
-              fontWeight: 700,
-              fontSize: 22,
-              color: "#111827",
-              margin: 0,
-              lineHeight: "30px",
-            }}
+            className="text-lg leading-snug text-[#111827] sm:text-xl sm:leading-8 lg:text-[22px] lg:leading-[30px]"
+            style={{ fontFamily: "'Manrope', sans-serif", fontWeight: 700, margin: 0 }}
           >
             {product.name}
           </h1>
 
           {/* Rating (from API: product.avgRating, product.reviewCount) */}
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
             <StarRow rating={rating} count={reviewCount} />
             <span
               style={{
@@ -631,12 +587,12 @@ export function ProductDetailPage({
 
           {/* Price block */}
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
               <span
+                className="text-2xl sm:text-3xl lg:text-[30px]"
                 style={{
                   fontFamily: "'Manrope', sans-serif",
                   fontWeight: 800,
-                  fontSize: 30,
                   color: "#FF6A00",
                 }}
               >
@@ -783,6 +739,7 @@ export function ProductDetailPage({
             {deliveryEligible === false && (
               <div
                 role="alert"
+                className="max-w-full"
                 style={{
                   display: "flex",
                   alignItems: "flex-start",
@@ -791,7 +748,6 @@ export function ProductDetailPage({
                   borderRadius: 10,
                   background: "#FEF3C7",
                   border: "1px solid #F59E0B",
-                  maxWidth: 420,
                 }}
               >
                 <AlertTriangle size={18} color="#B45309" style={{ flexShrink: 0, marginTop: 1 }} />
@@ -999,15 +955,9 @@ export function ProductDetailPage({
           )}
         </div>
 
-        {/* ── RIGHT: Buy Box ──────────────────────────────────────── */}
+        {/* ── RIGHT: Buy Box (desktop only; mobile uses fixed bar below) ── */}
         <div
-          style={{
-            width: 280,
-            flexShrink: 0,
-            alignSelf: "flex-start",
-            position: "sticky",
-            top: 16,
-          }}
+          className="hidden w-full shrink-0 self-start lg:block lg:w-[280px] lg:sticky lg:top-4"
         >
           <div
             style={{
@@ -1311,41 +1261,16 @@ export function ProductDetailPage({
       </div>
 
       {/* ── Product Description / Specs ───────────────────────────────────── */}
-      <div
-        className="mx-auto"
-        style={{ maxWidth: 1360, padding: "0 40px 40px" }}
-      >
-        <div
-          style={{
-            border: "1px solid #E5E7EB",
-            borderRadius: 12,
-            padding: "24px 32px",
-            background: "#FFFFFF",
-          }}
-        >
+      <div className="mx-auto w-full max-w-[1360px] px-3 pb-8 sm:px-5 lg:px-10 lg:pb-10">
+        <div className="rounded-xl border border-[#E5E7EB] bg-white p-4 sm:p-6 lg:p-8">
           <h2
-            style={{
-              fontFamily: "'Manrope', sans-serif",
-              fontWeight: 700,
-              fontSize: 18,
-              color: "#111827",
-              marginBottom: 16,
-              paddingBottom: 12,
-              borderBottom: "2px solid #FF6A00",
-              display: "inline-block",
-            }}
+            className="mb-3 inline-block border-b-2 border-[#FF6A00] pb-2 text-base font-bold text-[#111827] sm:text-lg"
+            style={{ fontFamily: "'Manrope', sans-serif" }}
           >
             Product Description
           </h2>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: 32,
-              marginTop: 12,
-            }}
-          >
+          <div className="mt-3 grid grid-cols-1 gap-6 md:grid-cols-2 md:gap-8">
             {/* Left description */}
             <div>
               <p
@@ -1362,8 +1287,8 @@ export function ProductDetailPage({
             </div>
 
             {/* Right specs table */}
-            <div>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <div className="min-w-0 overflow-x-auto">
+              <table className="min-w-[280px] w-full" style={{ borderCollapse: "collapse" }}>
                 <tbody>
                   {(product.specifications ?? []).map((s, i) => (
                     <tr
@@ -1416,6 +1341,73 @@ export function ProductDetailPage({
         title="Product related to this item"
         items={relatedToItem}
       />
+
+      {/* Mobile: fixed Add to Cart / Buy Now (desktop uses right column) */}
+      <div
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-[#E5E7EB] bg-white/95 backdrop-blur-sm lg:hidden"
+        style={{
+          paddingBottom: "max(12px, env(safe-area-inset-bottom, 0px))",
+          paddingTop: 12,
+          paddingLeft: 12,
+          paddingRight: 12,
+          boxShadow: "0 -4px 24px rgba(0,0,0,0.08)",
+        }}
+      >
+        {cartError && (
+          <p
+            className="mb-2 text-center text-xs text-red-600"
+            style={{ fontFamily: "'Manrope', sans-serif" }}
+          >
+            {cartError}
+          </p>
+        )}
+        <div className="mx-auto flex max-w-lg items-center gap-3">
+          <div className="flex shrink-0 items-center overflow-hidden rounded-lg border border-[#D1D5DC]">
+            <button
+              type="button"
+              onClick={() => setQty((q) => Math.max(1, q - 1))}
+              className="flex h-9 w-9 items-center justify-center bg-[#F9FAFB]"
+              aria-label="Decrease quantity"
+            >
+              <Minus size={12} color="#374151" />
+            </button>
+            <span
+              className="min-w-[2rem] text-center text-sm font-bold text-[#111827]"
+              style={{ fontFamily: "'Manrope', sans-serif" }}
+            >
+              {qty}
+            </span>
+            <button
+              type="button"
+              onClick={() => setQty((q) => q + 1)}
+              className="flex h-9 w-9 items-center justify-center bg-[#F9FAFB]"
+              aria-label="Increase quantity"
+            >
+              <Plus size={12} color="#374151" />
+            </button>
+          </div>
+          <div className="grid min-w-0 flex-1 grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={handleAddToCart}
+              disabled={addingToCart || deliveryEligible === false}
+              className="h-10 rounded-lg bg-[#FF6A00] text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-70 sm:text-sm"
+              style={{ fontFamily: "'Manrope', sans-serif" }}
+            >
+              {addingToCart ? "…" : deliveryEligible === false ? "N/A" : "Add to Cart"}
+            </button>
+            <button
+              type="button"
+              onClick={handleBuyNow}
+              disabled={buyNowLoading || deliveryEligible === false}
+              className="h-10 rounded-lg border-2 border-[#FF6A00] bg-[#FFF0E0] text-xs font-bold text-[#FF6A00] disabled:cursor-not-allowed disabled:opacity-65 sm:text-sm"
+              style={{ fontFamily: "'Manrope', sans-serif" }}
+            >
+              {buyNowLoading ? "…" : deliveryEligible === false ? "N/A" : "Buy Now"}
+            </button>
+          </div>
+        </div>
+      </div>
 
       <Footer />
     </div>
