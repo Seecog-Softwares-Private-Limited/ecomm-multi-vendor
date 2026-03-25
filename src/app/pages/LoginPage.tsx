@@ -22,14 +22,19 @@ import { syncCustomerDefaultAddressToDeliveryLocation } from "@/lib/delivery-loc
 type LoginMode = "email" | "phone";
 type PhoneStep = "number" | "otp";
 
+/** Matches prisma/seed.ts demo customer (development convenience only). */
+const SEED_CUSTOMER_EMAIL = "customer@example.com";
+const SEED_CUSTOMER_PASSWORD = "Customer@123";
+
 export function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [loginMode, setLoginMode] = React.useState<LoginMode>("phone");
+  const isDev = process.env.NODE_ENV === "development";
+  const [loginMode, setLoginMode] = React.useState<LoginMode>(isDev ? "email" : "phone");
   const [phoneStep, setPhoneStep] = React.useState<PhoneStep>("number");
   const [showPassword, setShowPassword] = React.useState(false);
-  const [email, setEmail] = React.useState("");
-  const [password, setPassword] = React.useState("");
+  const [email, setEmail] = React.useState(isDev ? SEED_CUSTOMER_EMAIL : "");
+  const [password, setPassword] = React.useState(isDev ? SEED_CUSTOMER_PASSWORD : "");
   const [phone, setPhone] = React.useState("");
   const [otpCode, setOtpCode] = React.useState("");
   const [loading, setLoading] = React.useState(false);
@@ -42,6 +47,11 @@ export function LoginPage() {
 
   const returnUrl =
     searchParams?.get("returnUrl") ?? searchParams?.get("callbackUrl") ?? "/";
+
+  React.useEffect(() => {
+    const fromUrl = searchParams?.get("email")?.trim();
+    if (fromUrl) setEmail(fromUrl);
+  }, [searchParams]);
 
   const mergeGuestCartAndGoHome = React.useCallback(async () => {
     const guestItems = getGuestCart();
