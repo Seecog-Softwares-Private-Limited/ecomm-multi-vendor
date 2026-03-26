@@ -129,7 +129,7 @@ function RelatedProductsSection({
   if (items.length === 0) return null;
 
   return (
-    <div className="mx-auto" style={{ maxWidth: 1360, padding: "0 40px 24px" }}>
+    <div className="mx-auto w-full max-w-[1360px] px-3 pb-6 sm:px-4 lg:px-10">
       <h2
         style={{
           fontFamily: "'Manrope', sans-serif",
@@ -175,7 +175,7 @@ function RelatedProductsSection({
 // ─── Star Rating Row (dynamic: rating and count from API) ─────────────────────
 function StarRow({ rating, count }: { rating: number; count: number }) {
   return (
-    <div className="flex items-center" style={{ gap: 6 }}>
+    <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
       <div className="flex items-center" style={{ gap: 2 }}>
         {[1, 2, 3, 4, 5].map((s) => {
           const filled = rating >= s;
@@ -298,6 +298,7 @@ export function ProductDetailPage({
     { label: product.name, href: undefined as undefined },
   ];
 
+
   const handleAddToCart = async () => {
     if (deliveryEligible === false) {
       toast.error("This item is not deliverable to your PIN. Change delivery location or choose another seller.");
@@ -406,6 +407,307 @@ export function ProductDetailPage({
     }
   };
 
+  const buyBoxCard = (
+    <div
+                style={{
+                  border: "1px solid #E5E7EB",
+                  borderRadius: 12,
+                  padding: "20px",
+                  background: "#FFFFFF",
+                  boxShadow: "0 2px 12px rgba(0,0,0,0.07)",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 14,
+                }}
+              >
+                {/* Price */}
+                <div>
+                  <p
+                    style={{
+                      fontFamily: "'Manrope', sans-serif",
+                      fontWeight: 800,
+                      fontSize: 26,
+                      color: "#FF6A00",
+                      margin: 0,
+                    }}
+                  >
+                    ₹{price.toLocaleString("en-IN")}
+                  </p>
+                  <p
+                    style={{
+                      fontFamily: "'Manrope', sans-serif",
+                      fontSize: 12,
+                      color: "#9CA3AF",
+                      margin: "2px 0 0",
+                      textDecoration: "line-through",
+                    }}
+                  >
+                    M.R.P ₹{mrp.toLocaleString("en-IN")}
+                  </p>
+                </div>
+    
+                {/* Delivery */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <Truck size={14} color="#16A34A" />
+                    <span
+                      style={{
+                        fontFamily: "'Manrope', sans-serif",
+                        fontSize: 13,
+                        color: "#16A34A",
+                        fontWeight: 600,
+                      }}
+                    >
+                      FREE Delivery
+                    </span>
+                  </div>
+                  <p
+                    style={{
+                      fontFamily: "'Manrope', sans-serif",
+                      fontSize: 12,
+                      color: "#374151",
+                      margin: 0,
+                    }}
+                  >
+                    Get it by{" "}
+                    <span style={{ fontWeight: 700, color: "#111827" }}>{deliveryStr}</span>
+                  </p>
+                  <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                    <span
+                      style={{
+                        fontFamily: "'Manrope', sans-serif",
+                        fontSize: 11,
+                        color: "#6B7280",
+                      }}
+                    >
+                      Order from:
+                    </span>
+                    <span
+                      style={{
+                        fontFamily: "'Manrope', sans-serif",
+                        fontSize: 11,
+                        color: "#374151",
+                        fontWeight: 600,
+                      }}
+                    >
+                      Google Pay / PhonePe
+                    </span>
+                  </div>
+                </div>
+    
+                {/* In Stock */}
+                <div
+                  style={{
+                    background: "#F0FDF4",
+                    borderRadius: 6,
+                    padding: "6px 10px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                  }}
+                >
+                  <CheckCircle2 size={14} color="#16A34A" />
+                  <span
+                    style={{
+                      fontFamily: "'Manrope', sans-serif",
+                      fontWeight: 700,
+                      fontSize: 13,
+                      color: "#16A34A",
+                    }}
+                  >
+                    In Stock
+                  </span>
+                </div>
+    
+                {/* Qty */}
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span
+                    style={{
+                      fontFamily: "'Manrope', sans-serif",
+                      fontSize: 13,
+                      color: "#374151",
+                      fontWeight: 500,
+                    }}
+                  >
+                    Qty:
+                  </span>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      border: "1px solid #D1D5DC",
+                      borderRadius: 8,
+                      overflow: "hidden",
+                    }}
+                  >
+                    <button
+                      onClick={() => setQty((q) => Math.max(1, q - 1))}
+                      style={{
+                        width: 32,
+                        height: 32,
+                        background: "#F9FAFB",
+                        border: "none",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <Minus size={12} color="#374151" />
+                    </button>
+                    <span
+                      style={{
+                        width: 36,
+                        textAlign: "center",
+                        fontFamily: "'Manrope', sans-serif",
+                        fontWeight: 700,
+                        fontSize: 14,
+                        color: "#111827",
+                      }}
+                    >
+                      {qty}
+                    </span>
+                    <button
+                      onClick={() => setQty((q) => q + 1)}
+                      style={{
+                        width: 32,
+                        height: 32,
+                        background: "#F9FAFB",
+                        border: "none",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <Plus size={12} color="#374151" />
+                    </button>
+                  </div>
+                </div>
+    
+                {cartError && (
+                  <p style={{ fontFamily: "'Manrope', sans-serif", fontSize: 13, color: "#DC2626", margin: "0 0 8px" }}>
+                    {cartError}
+                  </p>
+                )}
+                {/* Add to Cart */}
+                <button
+                  type="button"
+                  onClick={handleAddToCart}
+                  disabled={addingToCart || deliveryEligible === false}
+                  style={{
+                    width: "100%",
+                    height: 44,
+                    background:
+                      addingToCart || deliveryEligible === false ? "#CC5500" : "#FF6A00",
+                    border: "none",
+                    borderRadius: 10,
+                    cursor: addingToCart || deliveryEligible === false ? "not-allowed" : "pointer",
+                    fontFamily: "'Manrope', sans-serif",
+                    fontWeight: 700,
+                    fontSize: 15,
+                    color: "#FFFFFF",
+                    transition: "background 0.15s",
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!addingToCart && deliveryEligible !== false)
+                      (e.currentTarget as HTMLButtonElement).style.background = "#E55F00";
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!addingToCart && deliveryEligible !== false)
+                      (e.currentTarget as HTMLButtonElement).style.background = "#FF6A00";
+                  }}
+                >
+                  {addingToCart ? "Adding…" : deliveryEligible === false ? "Not deliverable here" : "Add to Cart"}
+                </button>
+    
+                {/* Buy Now */}
+                <button
+                  onClick={handleBuyNow}
+                  disabled={buyNowLoading || deliveryEligible === false}
+                  style={{
+                    width: "100%",
+                    height: 44,
+                    background: "#FFF0E0",
+                    border: "2px solid #FF6A00",
+                    borderRadius: 10,
+                    cursor: buyNowLoading || deliveryEligible === false ? "not-allowed" : "pointer",
+                    fontFamily: "'Manrope', sans-serif",
+                    fontWeight: 700,
+                    fontSize: 15,
+                    color: "#FF6A00",
+                    transition: "background 0.15s",
+                    opacity: buyNowLoading || deliveryEligible === false ? 0.65 : 1,
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!buyNowLoading && deliveryEligible !== false)
+                      (e.currentTarget as HTMLButtonElement).style.background = "#FFE0C0";
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!buyNowLoading && deliveryEligible !== false)
+                      (e.currentTarget as HTMLButtonElement).style.background = "#FFF0E0";
+                  }}
+                >
+                  {buyNowLoading ? "Adding…" : deliveryEligible === false ? "Not deliverable here" : "Buy Now"}
+                </button>
+    
+                {/* Wishlist */}
+                <button
+                  onClick={() => setWishlisted((w) => !w)}
+                  style={{
+                    width: "100%",
+                    height: 36,
+                    background: "none",
+                    border: "1px solid #E5E7EB",
+                    borderRadius: 8,
+                    cursor: "pointer",
+                    fontFamily: "'Manrope', sans-serif",
+                    fontWeight: 500,
+                    fontSize: 13,
+                    color: "#374151",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 6,
+                    transition: "border-color 0.15s",
+                  }}
+                >
+                  <Heart
+                    size={14}
+                    fill={wishlisted ? "#FF4D4D" : "none"}
+                    color={wishlisted ? "#FF4D4D" : "#6B7280"}
+                  />
+                  {wishlisted ? "Wishlisted" : "Add to Wishlist"}
+                </button>
+    
+                {/* Divider */}
+                <div style={{ borderTop: "1px solid #E5E7EB" }} />
+    
+                {/* Trust badges */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {[
+                    { Icon: ShieldCheck, color: "#16A34A", text: "100% Secure Checkout" },
+                    { Icon: RotateCcw, color: "#2563EB", text: "7 Day Easy Returns" },
+                    { Icon: Award, color: "#7C3AED", text: "1 Year Warranty" },
+                  ].map(({ Icon, color, text }) => (
+                    <div key={text} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <Icon size={16} color={color} />
+                      <span
+                        style={{
+                          fontFamily: "'Manrope', sans-serif",
+                          fontSize: 12,
+                          color: "#374151",
+                          fontWeight: 500,
+                        }}
+                      >
+                        {text}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+  );
+
   return (
     <div
       className="w-full min-h-screen"
@@ -421,15 +723,13 @@ export function ProductDetailPage({
           borderBottom: "1px solid #E5E7EB",
         }}
       >
-        <div
-          className="mx-auto flex items-center"
-          style={{ maxWidth: 1360, padding: "8px 40px", gap: 4 }}
-        >
+        <div className="mx-auto flex max-w-[1360px] flex-wrap items-baseline gap-x-1 gap-y-1 px-3 py-2 sm:px-4 lg:px-10">
           {breadcrumbs.map((crumb, i, arr) => (
-            <div key={i} className="flex items-center" style={{ gap: 4 }}>
+            <div key={i} className="flex min-w-0 max-w-full items-baseline gap-1">
               {crumb.href ? (
                 <Link
                   href={crumb.href}
+                  className="shrink-0"
                   style={{
                     fontFamily: "'Manrope', sans-serif",
                     fontSize: 12,
@@ -443,6 +743,7 @@ export function ProductDetailPage({
                 </Link>
               ) : (
                 <span
+                  className="min-w-0 break-words"
                   style={{
                     fontFamily: "'Manrope', sans-serif",
                     fontSize: 12,
@@ -460,15 +761,11 @@ export function ProductDetailPage({
       </div>
 
       {/* ── Main product area ─────────────────────────────────────────────── */}
-      <div
-        className="mx-auto"
-        style={{ maxWidth: 1360, padding: "28px 40px", display: "flex", gap: 32 }}
-      >
+      <div className="mx-auto flex w-full max-w-[1360px] flex-col gap-6 px-3 py-4 sm:px-4 lg:flex-row lg:gap-8 lg:px-10 lg:py-7">
         {/* ── LEFT: Image Gallery ─────────────────────────────────── */}
         <div
+          className="mx-auto w-full max-w-[420px] shrink-0 lg:mx-0"
           style={{
-            width: 420,
-            flexShrink: 0,
             display: "flex",
             flexDirection: "column",
             gap: 12,
@@ -476,14 +773,12 @@ export function ProductDetailPage({
         >
           {/* Main image */}
           <div
+            className="relative aspect-square w-full lg:aspect-auto lg:h-[420px]"
             style={{
-              width: "100%",
-              height: 420,
               background: "#F3F4F6",
               borderRadius: 12,
               border: "1px solid #E5E7EB",
               overflow: "hidden",
-              position: "relative",
             }}
           >
             <img
@@ -575,7 +870,7 @@ export function ProductDetailPage({
         </div>
 
         {/* ── MIDDLE: Product Details ─────────────────────────────── */}
-        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 14 }}>
+        <div className="min-w-0 flex-1" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           {/* Brand */}
           <p
             style={{
@@ -604,7 +899,7 @@ export function ProductDetailPage({
           </h1>
 
           {/* Rating (from API: product.avgRating, product.reviewCount) */}
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
             <StarRow rating={rating} count={reviewCount} />
             <span
               style={{
@@ -687,6 +982,8 @@ export function ProductDetailPage({
               </span>
             </div>
           </div>
+
+          <div className="w-full lg:hidden">{buyBoxCard}</div>
 
           {/* Delivery info */}
           <div
@@ -999,330 +1296,15 @@ export function ProductDetailPage({
           )}
         </div>
 
-        {/* ── RIGHT: Buy Box ──────────────────────────────────────── */}
-        <div
-          style={{
-            width: 280,
-            flexShrink: 0,
-            alignSelf: "flex-start",
-            position: "sticky",
-            top: 16,
-          }}
-        >
-          <div
-            style={{
-              border: "1px solid #E5E7EB",
-              borderRadius: 12,
-              padding: "20px",
-              background: "#FFFFFF",
-              boxShadow: "0 2px 12px rgba(0,0,0,0.07)",
-              display: "flex",
-              flexDirection: "column",
-              gap: 14,
-            }}
-          >
-            {/* Price */}
-            <div>
-              <p
-                style={{
-                  fontFamily: "'Manrope', sans-serif",
-                  fontWeight: 800,
-                  fontSize: 26,
-                  color: "#FF6A00",
-                  margin: 0,
-                }}
-              >
-                ₹{price.toLocaleString("en-IN")}
-              </p>
-              <p
-                style={{
-                  fontFamily: "'Manrope', sans-serif",
-                  fontSize: 12,
-                  color: "#9CA3AF",
-                  margin: "2px 0 0",
-                  textDecoration: "line-through",
-                }}
-              >
-                M.R.P ₹{mrp.toLocaleString("en-IN")}
-              </p>
-            </div>
-
-            {/* Delivery */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <Truck size={14} color="#16A34A" />
-                <span
-                  style={{
-                    fontFamily: "'Manrope', sans-serif",
-                    fontSize: 13,
-                    color: "#16A34A",
-                    fontWeight: 600,
-                  }}
-                >
-                  FREE Delivery
-                </span>
-              </div>
-              <p
-                style={{
-                  fontFamily: "'Manrope', sans-serif",
-                  fontSize: 12,
-                  color: "#374151",
-                  margin: 0,
-                }}
-              >
-                Get it by{" "}
-                <span style={{ fontWeight: 700, color: "#111827" }}>{deliveryStr}</span>
-              </p>
-              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                <span
-                  style={{
-                    fontFamily: "'Manrope', sans-serif",
-                    fontSize: 11,
-                    color: "#6B7280",
-                  }}
-                >
-                  Order from:
-                </span>
-                <span
-                  style={{
-                    fontFamily: "'Manrope', sans-serif",
-                    fontSize: 11,
-                    color: "#374151",
-                    fontWeight: 600,
-                  }}
-                >
-                  Google Pay / PhonePe
-                </span>
-              </div>
-            </div>
-
-            {/* In Stock */}
-            <div
-              style={{
-                background: "#F0FDF4",
-                borderRadius: 6,
-                padding: "6px 10px",
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-              }}
-            >
-              <CheckCircle2 size={14} color="#16A34A" />
-              <span
-                style={{
-                  fontFamily: "'Manrope', sans-serif",
-                  fontWeight: 700,
-                  fontSize: 13,
-                  color: "#16A34A",
-                }}
-              >
-                In Stock
-              </span>
-            </div>
-
-            {/* Qty */}
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span
-                style={{
-                  fontFamily: "'Manrope', sans-serif",
-                  fontSize: 13,
-                  color: "#374151",
-                  fontWeight: 500,
-                }}
-              >
-                Qty:
-              </span>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  border: "1px solid #D1D5DC",
-                  borderRadius: 8,
-                  overflow: "hidden",
-                }}
-              >
-                <button
-                  onClick={() => setQty((q) => Math.max(1, q - 1))}
-                  style={{
-                    width: 32,
-                    height: 32,
-                    background: "#F9FAFB",
-                    border: "none",
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <Minus size={12} color="#374151" />
-                </button>
-                <span
-                  style={{
-                    width: 36,
-                    textAlign: "center",
-                    fontFamily: "'Manrope', sans-serif",
-                    fontWeight: 700,
-                    fontSize: 14,
-                    color: "#111827",
-                  }}
-                >
-                  {qty}
-                </span>
-                <button
-                  onClick={() => setQty((q) => q + 1)}
-                  style={{
-                    width: 32,
-                    height: 32,
-                    background: "#F9FAFB",
-                    border: "none",
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <Plus size={12} color="#374151" />
-                </button>
-              </div>
-            </div>
-
-            {cartError && (
-              <p style={{ fontFamily: "'Manrope', sans-serif", fontSize: 13, color: "#DC2626", margin: "0 0 8px" }}>
-                {cartError}
-              </p>
-            )}
-            {/* Add to Cart */}
-            <button
-              type="button"
-              onClick={handleAddToCart}
-              disabled={addingToCart || deliveryEligible === false}
-              style={{
-                width: "100%",
-                height: 44,
-                background:
-                  addingToCart || deliveryEligible === false ? "#CC5500" : "#FF6A00",
-                border: "none",
-                borderRadius: 10,
-                cursor: addingToCart || deliveryEligible === false ? "not-allowed" : "pointer",
-                fontFamily: "'Manrope', sans-serif",
-                fontWeight: 700,
-                fontSize: 15,
-                color: "#FFFFFF",
-                transition: "background 0.15s",
-              }}
-              onMouseEnter={(e) => {
-                if (!addingToCart && deliveryEligible !== false)
-                  (e.currentTarget as HTMLButtonElement).style.background = "#E55F00";
-              }}
-              onMouseLeave={(e) => {
-                if (!addingToCart && deliveryEligible !== false)
-                  (e.currentTarget as HTMLButtonElement).style.background = "#FF6A00";
-              }}
-            >
-              {addingToCart ? "Adding…" : deliveryEligible === false ? "Not deliverable here" : "Add to Cart"}
-            </button>
-
-            {/* Buy Now */}
-            <button
-              onClick={handleBuyNow}
-              disabled={buyNowLoading || deliveryEligible === false}
-              style={{
-                width: "100%",
-                height: 44,
-                background: "#FFF0E0",
-                border: "2px solid #FF6A00",
-                borderRadius: 10,
-                cursor: buyNowLoading || deliveryEligible === false ? "not-allowed" : "pointer",
-                fontFamily: "'Manrope', sans-serif",
-                fontWeight: 700,
-                fontSize: 15,
-                color: "#FF6A00",
-                transition: "background 0.15s",
-                opacity: buyNowLoading || deliveryEligible === false ? 0.65 : 1,
-              }}
-              onMouseEnter={(e) => {
-                if (!buyNowLoading && deliveryEligible !== false)
-                  (e.currentTarget as HTMLButtonElement).style.background = "#FFE0C0";
-              }}
-              onMouseLeave={(e) => {
-                if (!buyNowLoading && deliveryEligible !== false)
-                  (e.currentTarget as HTMLButtonElement).style.background = "#FFF0E0";
-              }}
-            >
-              {buyNowLoading ? "Adding…" : deliveryEligible === false ? "Not deliverable here" : "Buy Now"}
-            </button>
-
-            {/* Wishlist */}
-            <button
-              onClick={() => setWishlisted((w) => !w)}
-              style={{
-                width: "100%",
-                height: 36,
-                background: "none",
-                border: "1px solid #E5E7EB",
-                borderRadius: 8,
-                cursor: "pointer",
-                fontFamily: "'Manrope', sans-serif",
-                fontWeight: 500,
-                fontSize: 13,
-                color: "#374151",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 6,
-                transition: "border-color 0.15s",
-              }}
-            >
-              <Heart
-                size={14}
-                fill={wishlisted ? "#FF4D4D" : "none"}
-                color={wishlisted ? "#FF4D4D" : "#6B7280"}
-              />
-              {wishlisted ? "Wishlisted" : "Add to Wishlist"}
-            </button>
-
-            {/* Divider */}
-            <div style={{ borderTop: "1px solid #E5E7EB" }} />
-
-            {/* Trust badges */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {[
-                { Icon: ShieldCheck, color: "#16A34A", text: "100% Secure Checkout" },
-                { Icon: RotateCcw, color: "#2563EB", text: "7 Day Easy Returns" },
-                { Icon: Award, color: "#7C3AED", text: "1 Year Warranty" },
-              ].map(({ Icon, color, text }) => (
-                <div key={text} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <Icon size={16} color={color} />
-                  <span
-                    style={{
-                      fontFamily: "'Manrope', sans-serif",
-                      fontSize: 12,
-                      color: "#374151",
-                      fontWeight: 500,
-                    }}
-                  >
-                    {text}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
+        {/* ── RIGHT: Buy Box (desktop) ──────────────────────────────────────── */}
+        <div className="hidden w-full shrink-0 self-start lg:sticky lg:top-4 lg:block lg:w-[280px]">
+          {buyBoxCard}
         </div>
       </div>
 
       {/* ── Product Description / Specs ───────────────────────────────────── */}
-      <div
-        className="mx-auto"
-        style={{ maxWidth: 1360, padding: "0 40px 40px" }}
-      >
-        <div
-          style={{
-            border: "1px solid #E5E7EB",
-            borderRadius: 12,
-            padding: "24px 32px",
-            background: "#FFFFFF",
-          }}
-        >
+      <div className="mx-auto w-full max-w-[1360px] px-3 pb-8 sm:px-4 lg:px-10 lg:pb-10">
+        <div className="rounded-xl border border-[#E5E7EB] bg-white p-4 sm:p-6 md:px-8 md:py-6">
           <h2
             style={{
               fontFamily: "'Manrope', sans-serif",
@@ -1338,14 +1320,7 @@ export function ProductDetailPage({
             Product Description
           </h2>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: 32,
-              marginTop: 12,
-            }}
-          >
+          <div className="mt-3 grid grid-cols-1 gap-6 md:grid-cols-2 md:gap-8">
             {/* Left description */}
             <div>
               <p
