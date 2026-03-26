@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { apiError, apiInternalError } from "./response";
 import { Status, type StatusCode } from "./status";
 
@@ -60,6 +61,41 @@ function handleRouteError(err: unknown): NextResponse {
     return apiError(err.message, err.status as StatusCode, err.code, err.details);
   }
 
+  if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+    console.error("[api] Unique constraint:", err.meta);
+    return apiError(
+      "This email or phone is already in use. Sign in instead, or use a different email or phone.",
+      Status.CONFLICT,
+      "UNIQUE_CONSTRAINT"
+    );
+  }
+
+  /** Wrong generated client vs schema, or query uses fields the client does not know */
+  if (err instanceof Prisma.PrismaClientValidationError) {
+    const msg = err.message;
+    if (/Unknown field|Unknown argument|Invalid `.+` invocation/i.test(msg)) {
+      console.error("[api] Prisma validation (client/schema mismatch):", msg.slice(0, 400));
+      return apiError(
+        "Server build is out of sync with the database schema. On the server: run npx prisma migrate deploy, then npm ci && npm run build (or redeploy), then restart the app.",
+        Status.INTERNAL_SERVER_ERROR,
+        "SCHEMA_MISMATCH"
+      );
+    }
+  }
+
+  const errMessage = err instanceof Error ? err.message : "";
+  if (
+    errMessage &&
+    /Unknown column|does not exist in the current database|column .* does not exist/i.test(errMessage)
+  ) {
+    console.error("[api] Database column mismatch:", errMessage.slice(0, 400));
+    return apiError(
+      "Database is missing columns required by this app. On the server run: npx prisma migrate deploy (using the same DATABASE_URL as the app), then restart.",
+      Status.INTERNAL_SERVER_ERROR,
+      "DATABASE_SCHEMA"
+    );
+  }
+
   if (typeof err === "object" && err !== null && "code" in err) {
     const prismaErr = err as { code?: string; meta?: { cause?: string }; message?: string };
     if (prismaErr.code === "P2025") {
@@ -73,6 +109,14 @@ function handleRouteError(err: unknown): NextResponse {
         "DATABASE_SCHEMA"
       );
     }
+    if (prismaErr.code === "P2022") {
+      console.error("[api] Prisma missing column:", prismaErr.message);
+      return apiError(
+        "Database is missing columns required by this app. On the server run: npx prisma migrate deploy, then restart the app.",
+        Status.INTERNAL_SERVER_ERROR,
+        "DATABASE_SCHEMA"
+      );
+    }
     // DB unreachable / connection refused / auth to MySQL failed
     const dbCodes = ["P1001", "P1000", "P1017", "P1008", "P1011"];
     if (prismaErr.code && dbCodes.includes(prismaErr.code)) {
@@ -81,6 +125,14 @@ function handleRouteError(err: unknown): NextResponse {
         "Database is unavailable. Check DATABASE_URL and that MySQL is reachable from this server.",
         Status.SERVICE_UNAVAILABLE,
         "DATABASE_UNAVAILABLE"
+      );
+    }
+    if (prismaErr.code?.startsWith("P") && prismaErr.message) {
+      console.error("[api] Prisma error:", prismaErr.code, prismaErr.message.slice(0, 300));
+      return apiError(
+        "A database error occurred. If you recently deployed, run npx prisma migrate deploy on the server and restart the app.",
+        Status.INTERNAL_SERVER_ERROR,
+        "DATABASE_ERROR"
       );
     }
   }
