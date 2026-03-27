@@ -56,7 +56,7 @@ const promoCards: PromoCard[] = [
   },
 ];
 
-const CARD_STEP = 320 + 10;
+const CARD_STEP = 320 + 12;
 
 export function PromoBanners() {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -84,11 +84,11 @@ export function PromoBanners() {
   }, []);
 
   return (
-    <div className="relative w-full">
+    <div className="relative w-full px-2 sm:px-4">
       <button
         type="button"
         onClick={() => scroll("left")}
-        className="absolute left-1 sm:left-2 top-1/2 z-20 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white shadow-md transition hover:bg-gray-50 sm:h-10 sm:w-10"
+        className="absolute left-3 top-1/2 z-20 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-white/60 bg-white/85 shadow-lg backdrop-blur transition hover:bg-white sm:left-4 sm:h-10 sm:w-10"
         aria-label="Scroll promotions left"
       >
         <ChevronLeft size={20} color="#374151" />
@@ -96,7 +96,7 @@ export function PromoBanners() {
       <button
         type="button"
         onClick={() => scroll("right")}
-        className="absolute right-1 sm:right-2 top-1/2 z-20 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white shadow-md transition hover:bg-gray-50 sm:h-10 sm:w-10"
+        className="absolute right-3 top-1/2 z-20 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-white/60 bg-white/85 shadow-lg backdrop-blur transition hover:bg-white sm:right-4 sm:h-10 sm:w-10"
         aria-label="Scroll promotions right"
       >
         <ChevronRight size={20} color="#374151" />
@@ -104,21 +104,18 @@ export function PromoBanners() {
 
       <div
         ref={scrollRef}
-        className="w-full overflow-x-auto scroll-smooth px-10 sm:px-12 [&::-webkit-scrollbar]:hidden"
+        className="w-full snap-x snap-mandatory overflow-x-auto scroll-smooth [&::-webkit-scrollbar]:hidden"
         style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
       >
         <div
-          className="flex flex-row px-4 box-border sm:px-6"
-          style={{ gap: 10, width: "max-content" }}
+          className="flex w-max flex-row gap-3 px-6 py-1 sm:px-8"
         >
           {promoCards.map((card, i) => (
             <Link
               key={i}
               href={card.href}
-              className="relative shrink-0 overflow-hidden block no-underline text-inherit rounded-xl transition-opacity hover:opacity-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF6A00]"
+              className="relative block h-[200px] w-[min(82vw,320px)] snap-start overflow-hidden rounded-xl no-underline text-inherit transition-opacity hover:opacity-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF6A00] sm:w-[320px]"
               style={{
-                width: 320,
-                height: 200,
                 borderRadius: 12,
                 background: card.gradient,
               }}

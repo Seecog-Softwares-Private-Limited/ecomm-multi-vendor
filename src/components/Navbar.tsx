@@ -127,8 +127,11 @@ export function Navbar() {
   return (
     <div
       ref={accountDropdownRef}
-      className="relative w-full border-b border-gray-100 px-3 py-2 sm:px-6 md:flex md:h-[70px] md:flex-row md:items-center md:justify-between md:py-0"
-      style={{ background: "#FFFFFF" }}
+      className="relative w-full border-b border-white/60 px-3 py-2 backdrop-blur-xl sm:px-6 md:flex md:h-[70px] md:flex-row md:items-center md:justify-between md:py-0"
+      style={{
+        background:
+          "linear-gradient(180deg, rgba(255,255,255,0.86) 0%, rgba(255,255,255,0.74) 100%)",
+      }}
     >
       {/* Logo */}
       <div className="flex items-center justify-between md:block">
@@ -213,10 +216,11 @@ export function Navbar() {
         className="mt-2 flex flex-row items-center md:mt-0 md:mx-6 md:flex-1 md:max-w-2xl"
         style={{
           height: 40,
-          background: "#FFFFFF",
-          border: "1px solid #D1D5DC",
-          boxShadow: "0px 1px 2px rgba(0,0,0,0.1)",
-          borderRadius: 10,
+          background: "rgba(255,255,255,0.72)",
+          border: "1px solid rgba(255,255,255,0.8)",
+          boxShadow: "0px 10px 28px rgba(17,24,39,0.08), 0px 2px 6px rgba(17,24,39,0.05)",
+          borderRadius: 14,
+          backdropFilter: "blur(10px)",
         }}
       >
         {/* All dropdown */}
