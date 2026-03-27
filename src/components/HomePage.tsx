@@ -13,8 +13,6 @@ import { InspiredSection } from "./InspiredSection";
 import { Footer } from "./Footer";
 import type { ProductListItem } from "@/types/catalog";
 import { useDeliveryLocation } from "@/contexts/DeliveryLocationContext";
-import Link from "next/link";
-import { Home, LayoutGrid, ClipboardList, Heart, User } from "lucide-react";
 
 const PLACEHOLDER =
   "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400";
@@ -141,7 +139,7 @@ export function HomePage() {
 
   return (
     <div
-      className="w-full min-h-screen pb-[calc(78px+env(safe-area-inset-bottom,0px))] md:pb-0"
+      className="w-full min-h-screen"
       style={{ background: "#FFFFFF", fontFamily: "'Manrope', sans-serif" }}
     >
       <TopBar />
@@ -176,53 +174,6 @@ export function HomePage() {
 
       <InspiredSection />
       <Footer />
-
-      {/* Mobile app-style bottom navigation */}
-      <nav
-        className="fixed inset-x-0 bottom-0 z-50 border-t border-gray-200 bg-white/95 backdrop-blur md:hidden"
-        style={{
-          paddingBottom: "max(8px, env(safe-area-inset-bottom, 0px))",
-        }}
-        aria-label="Mobile bottom navigation"
-      >
-        <div className="mx-auto flex h-[68px] max-w-[560px] items-center justify-around px-2">
-          <Link
-            href="/"
-            className="flex min-w-[60px] flex-col items-center justify-center gap-1 rounded-xl px-2 py-1.5 text-[#FF6A00]"
-          >
-            <Home size={20} />
-            <span className="text-[11px] font-semibold">Home</span>
-          </Link>
-          <Link
-            href="/category/electronics"
-            className="flex min-w-[60px] flex-col items-center justify-center gap-1 rounded-xl px-2 py-1.5 text-[#6B7280]"
-          >
-            <LayoutGrid size={20} />
-            <span className="text-[11px] font-medium">Categories</span>
-          </Link>
-          <Link
-            href="/my-orders"
-            className="flex min-w-[60px] flex-col items-center justify-center gap-1 rounded-xl px-2 py-1.5 text-[#6B7280]"
-          >
-            <ClipboardList size={20} />
-            <span className="text-[11px] font-medium">Orders</span>
-          </Link>
-          <Link
-            href="/wishlist"
-            className="flex min-w-[60px] flex-col items-center justify-center gap-1 rounded-xl px-2 py-1.5 text-[#6B7280]"
-          >
-            <Heart size={20} />
-            <span className="text-[11px] font-medium">Wishlist</span>
-          </Link>
-          <Link
-            href="/profile"
-            className="flex min-w-[60px] flex-col items-center justify-center gap-1 rounded-xl px-2 py-1.5 text-[#6B7280]"
-          >
-            <User size={20} />
-            <span className="text-[11px] font-medium">Account</span>
-          </Link>
-        </div>
-      </nav>
     </div>
   );
 }
