@@ -28,11 +28,11 @@ export function CategoryNav({ onCategoryClick }: CategoryNavProps = {}) {
 
   return (
     <div
-      className="w-full flex items-end justify-center overflow-x-auto"
+      className="w-full flex items-end justify-center overflow-x-auto backdrop-blur-md"
       style={{
         height: 50,
-        background: "#FFFFFF",
-        borderBottom: "0.94px solid #E5E7EB",
+        background: "rgba(255,255,255,0.82)",
+        borderBottom: "1px solid rgba(229,231,235,0.9)",
         scrollbarWidth: "none",
       }}
     >
