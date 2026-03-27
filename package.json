@@ -16,7 +16,7 @@
     "delete-customers-by-email": "tsx scripts/delete-customers-by-email.ts"
   },
   "dependencies": {
-    "@aws-sdk/client-sns": "^3.1015.0",
+    "@aws-sdk/client-sns": "^3.1018.0",
     "@emotion/react": "11.14.0",
     "@emotion/styled": "11.14.1",
     "@mui/icons-material": "7.3.5",
