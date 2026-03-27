@@ -74,8 +74,8 @@ export function Footer() {
         <div
           className="flex flex-row justify-between items-center py-8"
         >
-          {/* Download App */}
-          <div className="flex flex-col gap-3">
+          {/* Download App (desktop/tablet only) */}
+          <div className="hidden lg:flex flex-col gap-3">
             <h4
               style={{
                 fontFamily: "'Nunito', 'Manrope', sans-serif",
