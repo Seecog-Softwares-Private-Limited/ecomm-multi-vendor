@@ -1,4 +1,7 @@
-import { ArrowRight } from "lucide-react";
+"use client";
+
+import { useCallback, useEffect, useRef } from "react";
+import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 
 interface PromoCard {
@@ -53,87 +56,136 @@ const promoCards: PromoCard[] = [
   },
 ];
 
+const CARD_STEP = 320 + 10;
+
 export function PromoBanners() {
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const scroll = useCallback((dir: "left" | "right") => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const step = Math.max(CARD_STEP, Math.min(CARD_STEP * 2, Math.floor(el.clientWidth * 0.75)));
+    el.scrollBy({ left: dir === "left" ? -step : step, behavior: "smooth" });
+  }, []);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const onWheel = (e: WheelEvent) => {
+      if (el.scrollWidth <= el.clientWidth + 1) return;
+      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+      e.preventDefault();
+      el.scrollLeft += e.deltaY;
+    };
+
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, []);
+
   return (
-    <div className="w-full overflow-x-auto" style={{ scrollbarWidth: "none" }}>
-      <div
-        className="flex flex-row px-4 sm:px-6 box-border"
-        style={{ gap: 10, width: "max-content" }}
+    <div className="relative w-full">
+      <button
+        type="button"
+        onClick={() => scroll("left")}
+        className="absolute left-1 sm:left-2 top-1/2 z-20 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white shadow-md transition hover:bg-gray-50 sm:h-10 sm:w-10"
+        aria-label="Scroll promotions left"
       >
-        {promoCards.map((card, i) => (
-          <Link
-            key={i}
-            href={card.href}
-            className="relative shrink-0 overflow-hidden block no-underline text-inherit rounded-xl transition-opacity hover:opacity-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF6A00]"
-            style={{
-              width: 320,
-              height: 200,
-              borderRadius: 12,
-              background: card.gradient,
-            }}
-            aria-label={`${card.title}. ${card.subtitle}. ${card.cta}`}
-          >
-            <img
-              src={card.image}
-              alt=""
-              className="absolute inset-0 w-full h-full object-cover pointer-events-none"
-              style={{ opacity: 0.2, borderRadius: 12 }}
-              draggable={false}
-            />
+        <ChevronLeft size={20} color="#374151" />
+      </button>
+      <button
+        type="button"
+        onClick={() => scroll("right")}
+        className="absolute right-1 sm:right-2 top-1/2 z-20 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white shadow-md transition hover:bg-gray-50 sm:h-10 sm:w-10"
+        aria-label="Scroll promotions right"
+      >
+        <ChevronRight size={20} color="#374151" />
+      </button>
 
-            <div className="absolute inset-0 flex flex-col justify-between p-5 pointer-events-none">
-              <div>
-                <p
-                  style={{
-                    fontFamily: "'Nunito', 'Manrope', sans-serif",
-                    fontWeight: 800,
-                    fontSize: 18,
-                    lineHeight: "34px",
-                    color: "#FFFFFF",
-                  }}
-                >
-                  {card.title}
-                </p>
-                <p
-                  style={{
-                    fontFamily: "'Manrope', sans-serif",
-                    fontWeight: 400,
-                    fontSize: 16,
-                    lineHeight: "21px",
-                    color: "rgba(255,255,255,0.9)",
-                    marginTop: 0,
-                  }}
-                >
-                  {card.subtitle}
-                </p>
-              </div>
+      <div
+        ref={scrollRef}
+        className="w-full overflow-x-auto scroll-smooth px-10 sm:px-12 [&::-webkit-scrollbar]:hidden"
+        style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+      >
+        <div
+          className="flex flex-row px-4 box-border sm:px-6"
+          style={{ gap: 10, width: "max-content" }}
+        >
+          {promoCards.map((card, i) => (
+            <Link
+              key={i}
+              href={card.href}
+              className="relative shrink-0 overflow-hidden block no-underline text-inherit rounded-xl transition-opacity hover:opacity-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF6A00]"
+              style={{
+                width: 320,
+                height: 200,
+                borderRadius: 12,
+                background: card.gradient,
+              }}
+              aria-label={`${card.title}. ${card.subtitle}. ${card.cta}`}
+            >
+              <img
+                src={card.image}
+                alt=""
+                className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+                style={{ opacity: 0.2, borderRadius: 12 }}
+                draggable={false}
+              />
 
-              <span
-                className="flex flex-row items-center gap-1.5 self-start w-fit"
-                style={{
-                  padding: "9px 17px",
-                  background: "rgba(255,255,255,0.95)",
-                  boxShadow:
-                    "0px 9.39px 14.08px -2.82px rgba(0,0,0,0.1), 0px 3.75px 5.63px -3.75px rgba(0,0,0,0.1)",
-                  borderRadius: 9,
-                }}
-              >
+              <div className="absolute inset-0 flex flex-col justify-between p-5 pointer-events-none">
+                <div>
+                  <p
+                    style={{
+                      fontFamily: "'Nunito', 'Manrope', sans-serif",
+                      fontWeight: 800,
+                      fontSize: 18,
+                      lineHeight: "34px",
+                      color: "#FFFFFF",
+                    }}
+                  >
+                    {card.title}
+                  </p>
+                  <p
+                    style={{
+                      fontFamily: "'Manrope', sans-serif",
+                      fontWeight: 400,
+                      fontSize: 16,
+                      lineHeight: "21px",
+                      color: "rgba(255,255,255,0.9)",
+                      marginTop: 0,
+                    }}
+                  >
+                    {card.subtitle}
+                  </p>
+                </div>
+
                 <span
+                  className="flex flex-row items-center gap-1.5 self-start w-fit"
                   style={{
-                    fontFamily: "'Manrope', sans-serif",
-                    fontWeight: 500,
-                    fontSize: 18,
-                    color: "#FF6A00",
-                    whiteSpace: "nowrap",
+                    padding: "9px 17px",
+                    background: "rgba(255,255,255,0.95)",
+                    boxShadow:
+                      "0px 9.39px 14.08px -2.82px rgba(0,0,0,0.1), 0px 3.75px 5.63px -3.75px rgba(0,0,0,0.1)",
+                    borderRadius: 9,
                   }}
                 >
-                  {card.cta}
+                  <span
+                    style={{
+                      fontFamily: "'Manrope', sans-serif",
+                      fontWeight: 500,
+                      fontSize: 18,
+                      color: "#FF6A00",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {card.cta}
+                  </span>
+                  <ArrowRight size={15} color="#FF6A00" aria-hidden />
                 </span>
-                <ArrowRight size={15} color="#FF6A00" aria-hidden />
-              </span>
-            </div>
-          </Link>
-        ))}
+              </div>
+            </Link>
+          ))}
+        </div>
       </div>
     </div>
   );
