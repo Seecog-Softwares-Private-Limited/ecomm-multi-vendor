@@ -127,7 +127,7 @@ export function Navbar() {
   return (
     <div
       ref={accountDropdownRef}
-      className="relative w-full border-b border-white/60 px-3 py-2 backdrop-blur-xl sm:px-6 md:flex md:h-[70px] md:flex-row md:items-center md:justify-between md:py-0"
+      className="relative z-[60] w-full border-b border-white/60 px-3 py-2 backdrop-blur-xl sm:px-6 md:flex md:h-[70px] md:flex-row md:items-center md:justify-between md:py-0"
       style={{
         background:
           "linear-gradient(180deg, rgba(255,255,255,0.86) 0%, rgba(255,255,255,0.74) 100%)",
@@ -369,7 +369,7 @@ export function Navbar() {
       {/* Account dropdown panel rendered for both mobile/desktop toggles */}
       {accountDropdownOpen && (
         <div
-          className="absolute right-3 top-12 z-50 mt-1 w-52 rounded-xl border border-slate-200 bg-white py-2 shadow-lg md:right-6 md:top-[62px]"
+          className="fixed left-3 right-3 top-[108px] z-[120] mt-0 rounded-2xl border border-slate-200 bg-white py-2 shadow-2xl md:absolute md:left-auto md:right-6 md:top-[62px] md:z-[70] md:mt-1 md:w-52 md:rounded-xl md:shadow-lg"
           role="menu"
         >
           {ACCOUNT_DROPDOWN_LINKS.map(({ href, label }) => (
