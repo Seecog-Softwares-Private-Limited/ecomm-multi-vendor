@@ -25,8 +25,36 @@ export function AccountLayout({
     <div className="min-h-screen bg-[#F9FAFB]">
       <Navbar />
       <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Mobile tabs */}
+        <div className="lg:hidden mb-4">
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-2 shadow-sm">
+            <nav className="flex gap-2 overflow-x-auto whitespace-nowrap [&::-webkit-scrollbar]:hidden">
+              {SIDEBAR_LINKS.map(({ href, label, icon: Icon }) => {
+                const isActive =
+                  pathname === href ||
+                  pathname.startsWith(href + "/") ||
+                  (href === "/my-orders" &&
+                    (pathname.startsWith("/order-detail/") || pathname.startsWith("/track-order/")));
+
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${
+                      isActive ? "bg-[#FF6A00] text-white" : "bg-slate-50 text-slate-700"
+                    }`}
+                  >
+                    <Icon className="h-4 w-4 shrink-0" />
+                    {label}
+                  </Link>
+                );
+              })}
+            </nav>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          <aside className="lg:col-span-1">
+          <aside className="hidden lg:block lg:col-span-1">
             <div className="bg-white rounded-2xl shadow-md border border-slate-200/80 p-5 sticky top-24">
               <nav className="space-y-1">
                 {SIDEBAR_LINKS.map(({ href, label, icon: Icon }) => {

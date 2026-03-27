@@ -178,55 +178,55 @@ export function MyProfilePage() {
 
   return (
     <AccountLayout>
-      <div className="space-y-8">
-        <div className="bg-white rounded-2xl shadow-md border border-slate-200/80 p-6 sm:p-8">
-          <div className="flex items-start justify-between mb-8">
-            <div className="flex items-center gap-6">
+      <div className="space-y-5 sm:space-y-8">
+        <div className="bg-white rounded-2xl shadow-md border border-slate-200/80 p-4 sm:p-8">
+          <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex min-w-0 items-center gap-3 sm:gap-6">
               <div className="relative">
-                <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[#FF6A00] to-[#166534] flex items-center justify-center text-white text-3xl font-bold">
+                <div className="h-20 w-20 rounded-full bg-gradient-to-br from-[#FF6A00] to-[#166534] flex items-center justify-center text-white text-2xl sm:text-3xl font-bold sm:h-24 sm:w-24">
                   {initials}
                 </div>
                 <button
                   type="button"
-                  className="absolute bottom-0 right-0 w-8 h-8 bg-[#FF6A00] rounded-full flex items-center justify-center text-white hover:bg-[#E55F00] transition-colors shadow-lg"
+                  className="absolute bottom-0 right-0 h-7 w-7 bg-[#FF6A00] rounded-full flex items-center justify-center text-white hover:bg-[#E55F00] transition-colors shadow-lg sm:h-8 sm:w-8"
                   aria-label="Change photo"
                 >
-                  <Camera className="w-4 h-4" />
+                  <Camera className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 </button>
               </div>
-              <div>
-                <h2 className="text-2xl font-bold text-[#111827] mb-1">{displayName}</h2>
-                <p className="text-gray-600">{user.email}</p>
-                {user.phone && <p className="text-gray-600">{user.phone}</p>}
+              <div className="min-w-0">
+                <h2 className="mb-1 text-2xl font-bold text-[#111827] leading-tight break-words">{displayName}</h2>
+                <p className="text-gray-600 break-all">{user.email}</p>
+                {user.phone && <p className="text-gray-600 break-words">{user.phone}</p>}
               </div>
             </div>
             <button
               type="button"
               onClick={() => setEditOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 border-2 border-[#FF6A00] text-[#FF6A00] rounded-xl hover:bg-[#FF6A00] hover:text-white transition-colors font-semibold"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 border-2 border-[#FF6A00] text-[#FF6A00] rounded-xl hover:bg-[#FF6A00] hover:text-white transition-colors font-semibold"
             >
               <Edit2 className="w-4 h-4" />
               Edit Profile
             </button>
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
-            <div className="bg-[#F9FAFB] rounded-xl p-4 text-center">
-              <p className="text-3xl font-bold text-[#111827] mb-1">{stats?.orderCount ?? 0}</p>
-              <p className="text-sm text-gray-600">Total Orders</p>
+          <div className="grid grid-cols-3 gap-2 sm:gap-4">
+            <div className="bg-[#F9FAFB] rounded-xl p-3 sm:p-4 text-center">
+              <p className="text-2xl sm:text-3xl font-bold text-[#111827] mb-1">{stats?.orderCount ?? 0}</p>
+              <p className="text-xs sm:text-sm text-gray-600 leading-tight">Total Orders</p>
             </div>
-            <div className="bg-[#F9FAFB] rounded-xl p-4 text-center">
-              <p className="text-3xl font-bold text-[#111827] mb-1">{stats?.wishlistCount ?? 0}</p>
-              <p className="text-sm text-gray-600">Wishlist Items</p>
+            <div className="bg-[#F9FAFB] rounded-xl p-3 sm:p-4 text-center">
+              <p className="text-2xl sm:text-3xl font-bold text-[#111827] mb-1">{stats?.wishlistCount ?? 0}</p>
+              <p className="text-xs sm:text-sm text-gray-600 leading-tight">Wishlist Items</p>
             </div>
-            <div className="bg-[#F9FAFB] rounded-xl p-4 text-center">
-              <p className="text-3xl font-bold text-[#111827] mb-1">{stats?.addressCount ?? 0}</p>
-              <p className="text-sm text-gray-600">Saved Addresses</p>
+            <div className="bg-[#F9FAFB] rounded-xl p-3 sm:p-4 text-center">
+              <p className="text-2xl sm:text-3xl font-bold text-[#111827] mb-1">{stats?.addressCount ?? 0}</p>
+              <p className="text-xs sm:text-sm text-gray-600 leading-tight">Saved Addresses</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-lg p-8">
+        <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-8">
           <h3 className="text-xl font-bold text-[#111827] mb-6">Personal Information</h3>
           <dl className="space-y-4">
             <div>
@@ -248,7 +248,7 @@ export function MyProfilePage() {
           </dl>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-lg p-8">
+        <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-8">
           <h3 className="text-xl font-bold text-[#111827] mb-6">Change Password</h3>
           <button
             type="button"
@@ -259,7 +259,7 @@ export function MyProfilePage() {
           </button>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-lg p-8">
+        <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-8">
           <h3 className="text-xl font-bold text-[#111827] mb-6">Logout</h3>
           <p className="text-slate-600 mb-4">Sign out of your account on this device.</p>
           <button
