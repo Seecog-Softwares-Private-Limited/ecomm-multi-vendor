@@ -70,6 +70,7 @@ export function CategoryPage({
   /** productId -> wishlist row id (for toggle/remove) */
   const [wishlistByProductId, setWishlistByProductId] = useState<Record<string, string>>({});
   const [wishlistTogglingId, setWishlistTogglingId] = useState<string | null>(null);
+  const [customerLoggedIn, setCustomerLoggedIn] = useState(false);
   const { openCartDrawer } = useCartDrawer();
   const { location } = useDeliveryLocation();
 
@@ -163,6 +164,26 @@ export function CategoryPage({
 
   useEffect(() => {
     const base = getBaseUrl();
+    fetch(`${base}/api/auth/me`, { credentials: "include" })
+      .then((res) => {
+        if (!res.ok) {
+          setCustomerLoggedIn(false);
+          return null;
+        }
+        return res.json();
+      })
+      .then((data) => {
+        setCustomerLoggedIn(Boolean(data?.data?.user && data.data.user.role === "CUSTOMER"));
+      })
+      .catch(() => setCustomerLoggedIn(false));
+  }, []);
+
+  useEffect(() => {
+    if (!customerLoggedIn) {
+      setWishlistByProductId({});
+      return;
+    }
+    const base = getBaseUrl();
     fetch(`${base}/api/wishlist`, { credentials: "include" })
       .then((res) => {
         if (!res.ok) return null;
@@ -180,7 +201,7 @@ export function CategoryPage({
         setWishlistByProductId(map);
       })
       .catch(() => {});
-  }, []);
+  }, [customerLoggedIn]);
 
   const filtered = useMemo(() => {
     let list = [...catalogProducts];
@@ -230,7 +251,7 @@ export function CategoryPage({
     >
       <TopBar />
       <Navbar />
-      <CategoryNav onCategoryClick={() => router.push("/category/mobile-phones")} />
+      <CategoryNav />
 
       {/* Breadcrumb: Category > Category (current in orange) */}
       <div className="mx-auto max-w-[1440px] px-4 sm:px-6 py-4">
@@ -524,6 +545,7 @@ export function CategoryPage({
                           SALE {discountPct}% OFF
                         </span>
                       )}
+                      {customerLoggedIn ? (
                       <button
                         type="button"
                         disabled={wishlistTogglingId === product.id}
@@ -590,6 +612,7 @@ export function CategoryPage({
                           className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${inWishlist ? "fill-red-500 text-red-500" : ""}`}
                         />
                       </button>
+                      ) : null}
                     </div>
                     <Link
                       href={`/product/${product.id}`}
