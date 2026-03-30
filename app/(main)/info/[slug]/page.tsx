@@ -1,11 +1,47 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { getCmsFooterPageMeta, isValidCmsFooterSlug } from "@/lib/cms-footer-pages";
+import {
+  getCmsFooterPageMeta,
+  isStaticStorefrontFooterSlug,
+  isValidCmsFooterSlug,
+} from "@/lib/cms-footer-pages";
 import { isLikelyHtmlContent } from "@/lib/cms-content-render";
+import type { ComponentType } from "react";
+import { AboutIndovyaparPage } from "@/components/AboutIndovyaparPage";
+import { CareersPage, type CareerOpeningCard } from "@/components/CareersPage";
+
+const STATIC_INFO_PAGES: Record<string, ComponentType> = {
+  "about-indovyapar": AboutIndovyaparPage,
+};
 
 /** Always load from DB at request time (empty/missing DB rows must not 404 after deploy). */
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  if (!slug || !isValidCmsFooterSlug(slug)) {
+    return { title: "Page" };
+  }
+  const meta = getCmsFooterPageMeta(slug);
+  if (!meta) {
+    return { title: "Page" };
+  }
+  return {
+    title: `${meta.label} | Indovyapar`,
+    description:
+      slug === "about-indovyapar"
+        ? "Learn who we are, what we offer, and why shoppers and sellers choose Indovyapar."
+        : slug === "careers"
+          ? "Build your career at Indovyapar — openings, hiring process, and how to apply."
+          : undefined,
+  };
+}
 
 export default async function Page({
   params,
@@ -20,6 +56,32 @@ export default async function Page({
   const meta = getCmsFooterPageMeta(slug);
   if (!meta) {
     notFound();
+  }
+
+  if (slug === "careers") {
+    let openings: CareerOpeningCard[] = [];
+    try {
+      openings = await prisma.careerOpening.findMany({
+        where: { published: true },
+        orderBy: [{ sortOrder: "asc" }, { title: "asc" }],
+        select: {
+          id: true,
+          title: true,
+          department: true,
+          location: true,
+          employmentType: true,
+          description: true,
+        },
+      });
+    } catch {
+      openings = [];
+    }
+    return <CareersPage openings={openings} />;
+  }
+
+  const StaticInfoPage = STATIC_INFO_PAGES[slug];
+  if (StaticInfoPage) {
+    return <StaticInfoPage />;
   }
 
   let title = meta.label;
