@@ -56,7 +56,7 @@ const promoCards: PromoCard[] = [
   },
 ];
 
-const CARD_STEP = 320 + 12;
+const CARD_STEP_DESKTOP = 320 + 12;
 
 export function PromoBanners() {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -64,7 +64,14 @@ export function PromoBanners() {
   const scroll = useCallback((dir: "left" | "right") => {
     const el = scrollRef.current;
     if (!el) return;
-    const step = Math.max(CARD_STEP, Math.min(CARD_STEP * 2, Math.floor(el.clientWidth * 0.75)));
+    const slide = el.querySelector("[data-promo-slide]") as HTMLElement | null;
+    const isMobile = typeof window !== "undefined" && window.matchMedia("(max-width: 639px)").matches;
+    const gap = isMobile ? 0 : 12;
+    const slideW = slide?.getBoundingClientRect().width ?? 0;
+    const step =
+      slideW > 0
+        ? slideW + gap
+        : Math.max(CARD_STEP_DESKTOP, Math.min(CARD_STEP_DESKTOP * 2, Math.floor(el.clientWidth * 0.75)));
     el.scrollBy({ left: dir === "left" ? -step : step, behavior: "smooth" });
   }, []);
 
@@ -84,7 +91,7 @@ export function PromoBanners() {
   }, []);
 
   return (
-    <div className="relative w-full px-2 sm:px-4">
+    <div className="relative w-full px-2 [container-type:inline-size] sm:px-4">
       <button
         type="button"
         onClick={() => scroll("left")}
@@ -104,17 +111,16 @@ export function PromoBanners() {
 
       <div
         ref={scrollRef}
-        className="w-full snap-x snap-mandatory overflow-x-auto scroll-smooth [&::-webkit-scrollbar]:hidden"
+        className="w-full snap-x snap-mandatory overflow-x-auto scroll-smooth scroll-px-0 [&::-webkit-scrollbar]:hidden"
         style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
       >
-        <div
-          className="flex w-max flex-row gap-3 px-6 py-1 sm:px-8"
-        >
+        <div className="flex w-max flex-row gap-0 py-1 sm:gap-3 sm:px-8">
           {promoCards.map((card, i) => (
             <Link
               key={i}
+              data-promo-slide
               href={card.href}
-              className="relative block h-[200px] w-[min(82vw,320px)] snap-start overflow-hidden rounded-xl no-underline text-inherit transition-opacity hover:opacity-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF6A00] sm:w-[320px]"
+              className="relative block h-[200px] w-[100cqw] max-w-[100cqw] shrink-0 snap-start snap-always overflow-hidden rounded-xl no-underline text-inherit transition-opacity hover:opacity-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF6A00] sm:w-[320px] sm:max-w-[320px]"
               style={{
                 borderRadius: 12,
                 background: card.gradient,
