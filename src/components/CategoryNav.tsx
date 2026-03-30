@@ -15,17 +15,17 @@ import {
   BookOpen,
 } from "lucide-react";
 
-/** Menu label -> URL slug (for /category/[slug]) + icon (mobile: stacked above label, Flipkart-style). */
-const MENU_ITEMS: { label: string; slug: string; icon: LucideIcon }[] = [
-  { label: "Deals", slug: "deals", icon: Tag },
-  { label: "New Arrivals", slug: "new-arrivals", icon: PackagePlus },
-  { label: "Best Sellers", slug: "best-sellers", icon: TrendingUp },
-  { label: "Electronics", slug: "electronics", icon: Monitor },
-  { label: "Fashion", slug: "fashion", icon: Shirt },
-  { label: "Home & Living", slug: "home", icon: Armchair },
-  { label: "Beauty", slug: "beauty", icon: Sparkles },
-  { label: "Sports", slug: "sports", icon: Dumbbell },
-  { label: "Books", slug: "books", icon: BookOpen },
+/** Menu label -> URL slug (mobile-only icon colors; icons are hidden from md and up). */
+const MENU_ITEMS: { label: string; slug: string; icon: LucideIcon; mobileIconColor: string }[] = [
+  { label: "Deals", slug: "deals", icon: Tag, mobileIconColor: "#DC2626" },
+  { label: "New Arrivals", slug: "new-arrivals", icon: PackagePlus, mobileIconColor: "#2563EB" },
+  { label: "Best Sellers", slug: "best-sellers", icon: TrendingUp, mobileIconColor: "#16A34A" },
+  { label: "Electronics", slug: "electronics", icon: Monitor, mobileIconColor: "#7C3AED" },
+  { label: "Fashion", slug: "fashion", icon: Shirt, mobileIconColor: "#DB2777" },
+  { label: "Home & Living", slug: "home", icon: Armchair, mobileIconColor: "#EA580C" },
+  { label: "Beauty", slug: "beauty", icon: Sparkles, mobileIconColor: "#C026D3" },
+  { label: "Sports", slug: "sports", icon: Dumbbell, mobileIconColor: "#059669" },
+  { label: "Books", slug: "books", icon: BookOpen, mobileIconColor: "#CA8A04" },
 ];
 
 interface CategoryNavProps {
@@ -48,10 +48,9 @@ export function CategoryNav({ onCategoryClick }: CategoryNavProps = {}) {
       }}
     >
       <div className="flex flex-row items-end gap-1.5 px-2 pb-1.5 pt-2 md:items-center md:gap-2.5 md:px-0 md:py-0 snap-x snap-mandatory md:snap-none">
-        {MENU_ITEMS.map(({ label, slug, icon: Icon }) => {
+        {MENU_ITEMS.map(({ label, slug, icon: Icon, mobileIconColor }) => {
           const isActive = currentSlug === slug;
           const activeColor = "#FF6A00";
-          const idleColor = "#6B7280";
 
           return (
             <Link
@@ -66,12 +65,16 @@ export function CategoryNav({ onCategoryClick }: CategoryNavProps = {}) {
               {/* Icon — mobile only, above label */}
               <span
                 className="flex h-9 w-9 items-center justify-center rounded-xl md:hidden"
-                style={{ background: "rgba(248,250,252,0.95)" }}
+                style={{
+                  background: isActive
+                    ? "rgba(255,106,0,0.12)"
+                    : `${mobileIconColor}14`,
+                }}
               >
                 <Icon
                   size={22}
                   strokeWidth={1.75}
-                  color={isActive ? activeColor : idleColor}
+                  color={isActive ? activeColor : mobileIconColor}
                   aria-hidden
                 />
               </span>
