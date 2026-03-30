@@ -6,7 +6,7 @@ import { CMS_FOOTER_SECTIONS, cmsFooterPublicPath } from "@/lib/cms-footer-pages
 export function Footer() {
   return (
     <footer
-      className="w-full"
+      className="hidden w-full md:block"
       style={{ background: "#1E5128" }}
     >
       <div

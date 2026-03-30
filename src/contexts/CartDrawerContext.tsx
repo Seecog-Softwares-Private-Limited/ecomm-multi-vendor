@@ -261,12 +261,12 @@ function CartDrawerPanel({ isOpen, onClose }: CartDrawerPanelProps) {
   return (
     <>
       <div
-        className="fixed inset-0 bg-black/40 z-40 transition-opacity"
+        className="fixed inset-0 bg-black/40 z-[120] transition-opacity"
         aria-hidden
         onClick={onClose}
       />
       <div
-        className="fixed top-0 right-0 bottom-0 w-full max-w-md bg-white shadow-2xl z-50 flex flex-col animate-in slide-in-from-right duration-300"
+        className="fixed top-0 right-0 bottom-0 w-full max-w-md bg-white shadow-2xl z-[130] flex flex-col animate-in slide-in-from-right duration-300"
         style={{ fontFamily: "'Manrope', sans-serif" }}
         role="dialog"
         aria-label="Your cart"
