@@ -22,7 +22,7 @@ const footerCols = [
 export function Footer() {
   return (
     <footer
-      className="w-full"
+      className="hidden w-full md:block"
       style={{ background: "#1E5128", minHeight: 447 }}
     >
       <div

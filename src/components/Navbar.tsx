@@ -133,8 +133,8 @@ export function Navbar() {
           "linear-gradient(180deg, rgba(255,255,255,0.86) 0%, rgba(255,255,255,0.74) 100%)",
       }}
     >
-      {/* Logo */}
-      <div className="flex items-center justify-between md:block">
+      {/* Logo — centered on mobile, left-aligned from md */}
+      <div className="flex w-full justify-center md:w-auto md:justify-start">
         <div className="flex-shrink-0 cursor-pointer" onClick={() => router.push("/")}>
           <h1 className="md:hidden" style={{ margin: 0 }}>
             <IndovyaparLogo fontSize={20} />
@@ -142,72 +142,6 @@ export function Navbar() {
           <h1 className="hidden md:block" style={{ margin: 0 }}>
             <IndovyaparLogo fontSize={26} />
           </h1>
-        </div>
-
-        {/* Right actions - mobile */}
-        <div className="flex flex-row items-center gap-3 shrink-0 md:hidden">
-          {isLoggedIn === null ? (
-            <span
-              className="opacity-70"
-              style={{
-                fontFamily: "'Manrope', sans-serif",
-                fontWeight: 500,
-                fontSize: 14,
-                color: "#0A0A0A",
-                whiteSpace: "nowrap",
-              }}
-            >
-              Account
-            </span>
-          ) : !isLoggedIn ? (
-            <Link
-              href="/login"
-              className="flex flex-row items-center gap-1 hover:opacity-90 transition-opacity"
-              style={{
-                fontFamily: "'Manrope', sans-serif",
-                fontWeight: 600,
-                fontSize: 14,
-                color: "#FF6A00",
-                whiteSpace: "nowrap",
-              }}
-            >
-              <LogIn size={16} />
-              <span>Login</span>
-            </Link>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setAccountDropdownOpen((o) => !o)}
-              className="flex flex-row items-center gap-1 hover:opacity-90 transition-opacity"
-              style={{
-                fontFamily: "'Manrope', sans-serif",
-                fontWeight: 500,
-                fontSize: 14,
-                color: "#0A0A0A",
-                whiteSpace: "nowrap",
-              }}
-            >
-              <User size={16} color="#0A0A0A" />
-              <span>Account</span>
-              <ChevronDown
-                size={14}
-                color="#0A0A0A"
-                className={`transition-transform ${accountDropdownOpen ? "rotate-180" : ""}`}
-              />
-            </button>
-          )}
-
-          <button type="button" className="relative" onClick={openCartDrawer}>
-            <ShoppingCart size={20} color="#0A0A0A" />
-            {cartCount > 0 && (
-              <span
-                className="absolute flex items-center justify-center bg-red-500 text-white font-bold text-[10px] rounded-full min-w-[18px] h-[18px] px-1"
-                style={{ top: -7, left: 10 }}
-              >
-                {cartCount > 99 ? "99+" : cartCount}
-              </span>
-            )}
-          </button>
         </div>
       </div>
 

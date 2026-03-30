@@ -13,12 +13,14 @@ import { prisma } from "@/lib/prisma";
 
 /**
  * GET /api/auth/me — return current user from HTTP-only cookie (token verification).
+ * Returns 200 with `{ user: null }` when there is no session (avoids 401 noise on public pages).
  * For CUSTOMER role also returns profile stats (orderCount, wishlistCount, addressCount).
  */
 export const GET = withApiHandler(async (request: NextRequest) => {
   const session = await getSession(request);
   if (!session) {
-    return apiUnauthorized("Not authenticated");
+    // 200 + null user avoids noisy 401 in DevTools for every guest page load / session probe.
+    return apiSuccess({ user: null });
   }
 
   const user = await prisma.user.findUnique({
@@ -34,7 +36,7 @@ export const GET = withApiHandler(async (request: NextRequest) => {
   });
 
   if (!user || user.deletedAt) {
-    return apiUnauthorized("User not found");
+    return apiSuccess({ user: null });
   }
 
   const { deletedAt: _, ...safeUser } = user;
