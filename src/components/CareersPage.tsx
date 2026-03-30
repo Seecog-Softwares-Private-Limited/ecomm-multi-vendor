@@ -18,8 +18,7 @@ const beige = "#FFF3E8";
 const forest = "#1E5128";
 const charcoal = "#2B2B2B";
 
-const HERO_IMAGE =
-  "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1920&q=80";
+const HERO_IMAGE = "/careers-hero.png";
 
 const WHY_MAIN =
   "https://images.unsplash.com/photo-1600880292203-757bb62b4baf?auto=format&fit=crop&w=960&q=80";
@@ -163,44 +162,26 @@ export function CareersPage({ openings }: { openings: CareerOpeningCard[] }) {
       <Navbar />
       <CategoryNav />
 
-      {/* Hero */}
-      <section className="relative flex min-h-[420px] items-center justify-center sm:min-h-[500px]">
-        <div
-          className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: `url(${HERO_IMAGE})` }}
-        />
-        <div className="absolute inset-0 bg-black/50" />
-        <div className="relative z-10 mx-auto flex max-w-[643px] flex-col items-center gap-6 px-4 py-16 text-center sm:gap-8">
-          <div className="flex flex-col gap-3">
-            <h1
-              className={`${display.className} text-[2.5rem] font-semibold leading-none tracking-tight text-white sm:text-5xl md:text-[4.5rem] md:leading-none`}
-            >
-              Build Your Career
-            </h1>
-            <p
-              className={`${display.className} text-[2.5rem] font-semibold leading-none tracking-tight sm:text-5xl md:text-[4.5rem] md:leading-none`}
-              style={{ color: orange }}
-            >
-              With Us
-            </p>
-          </div>
-          <p className="max-w-xl text-base leading-7 text-white sm:text-xl sm:leading-7">
-            Welcome to Indovyapar — where quality meets convenience. Help us build the marketplace millions trust
-            every day.
-          </p>
-          <a
-            href="#openings"
-            className="inline-flex items-center justify-center rounded-[10px] px-5 py-2.5 text-lg font-medium shadow transition hover:opacity-95"
-            style={{
-              background: "rgba(255,255,255,0.95)",
-              color: orange,
-              boxShadow:
-                "0px 9.39px 14.08px -2.82px rgba(0,0,0,0.1), 0px 3.75px 5.63px -3.75px rgba(0,0,0,0.1)",
-            }}
-          >
-            View Open Positions
-          </a>
-        </div>
+      {/* Hero — full-width supplied artwork (type + CTA in the image) */}
+      <section className="relative w-full bg-neutral-900">
+        <h1 className="sr-only">
+          Build Your Career With Us. Be part of a growing marketplace that&apos;s shaping the future of online
+          commerce.
+        </h1>
+        <a
+          href="#openings"
+          className="block w-full focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-900"
+          aria-label="View open positions"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={HERO_IMAGE}
+            alt="Build your career with us at Indovyapar"
+            className="block h-auto w-full"
+            loading="eager"
+            decoding="async"
+          />
+        </a>
       </section>
 
       {/* Why work with us */}
