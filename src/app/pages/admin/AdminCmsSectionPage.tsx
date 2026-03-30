@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { getCmsFooterSection } from "@/lib/cms-footer-pages";
+import { getCmsFooterSection, isStaticStorefrontFooterSlug } from "@/lib/cms-footer-pages";
 
 export function AdminCmsSectionPage() {
   const params = useParams();
@@ -37,13 +37,35 @@ export function AdminCmsSectionPage() {
       <ul className="flex flex-col gap-2">
         {section.pages.map((page) => (
           <li key={page.slug}>
-            <Link
-              href={`/admin/cms/edit/${page.slug}`}
-              className="group flex items-center justify-between rounded-xl border border-slate-200/80 bg-white px-4 py-3.5 shadow-sm transition hover:border-amber-300/60 hover:shadow"
-            >
-              <span className="font-medium text-slate-800">{page.label}</span>
-              <ChevronRight className="h-4 w-4 text-slate-400 group-hover:text-amber-600" />
-            </Link>
+            {page.slug === "careers" ? (
+              <Link
+                href="/admin/cms/career-openings"
+                className="group flex items-center justify-between rounded-xl border border-slate-200/80 bg-white px-4 py-3.5 shadow-sm transition hover:border-amber-300/60 hover:shadow"
+              >
+                <div>
+                  <span className="font-medium text-slate-800">Careers</span>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Job openings on the storefront Careers page
+                  </p>
+                </div>
+                <ChevronRight className="h-4 w-4 text-slate-400 group-hover:text-amber-600" />
+              </Link>
+            ) : isStaticStorefrontFooterSlug(page.slug) ? (
+              <div className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/80 px-4 py-3.5">
+                <div>
+                  <span className="font-medium text-slate-800">{page.label}</span>
+                  <p className="text-xs text-slate-500 mt-0.5">Built-in page — edit in code, not in CMS</p>
+                </div>
+              </div>
+            ) : (
+              <Link
+                href={`/admin/cms/edit/${page.slug}`}
+                className="group flex items-center justify-between rounded-xl border border-slate-200/80 bg-white px-4 py-3.5 shadow-sm transition hover:border-amber-300/60 hover:shadow"
+              >
+                <span className="font-medium text-slate-800">{page.label}</span>
+                <ChevronRight className="h-4 w-4 text-slate-400 group-hover:text-amber-600" />
+              </Link>
+            )}
           </li>
         ))}
       </ul>
