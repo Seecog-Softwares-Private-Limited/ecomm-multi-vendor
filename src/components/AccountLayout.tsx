@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import { User, Package, MapPin, Heart, Headphones } from "lucide-react";
 import { Navbar } from "./Navbar";
-import { IndovyaparLogo } from "./IndovyaparLogo";
 
 const SIDEBAR_LINKS = [
   { href: "/profile", label: "My Profile", icon: User },
@@ -20,6 +20,29 @@ export function AccountLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname() ?? "";
+  const [isCustomer, setIsCustomer] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    fetch("/api/auth/me", { credentials: "include" })
+      .then((res) => {
+        if (!res.ok) {
+          setIsCustomer(false);
+          return;
+        }
+        return res.json();
+      })
+      .then((data) => {
+        setIsCustomer(Boolean(data?.data?.user && data.data.user.role === "CUSTOMER"));
+      })
+      .catch(() => setIsCustomer(false));
+  }, []);
+
+  const visibleSidebarLinks = useMemo(() => {
+    if (isCustomer === false) {
+      return SIDEBAR_LINKS.filter((l) => l.href === "/support-tickets");
+    }
+    return [...SIDEBAR_LINKS];
+  }, [isCustomer]);
 
   return (
     <div className="min-h-screen bg-[#F9FAFB]">
@@ -29,7 +52,7 @@ export function AccountLayout({
         <div className="lg:hidden mb-4">
           <div className="rounded-2xl border border-slate-200/80 bg-white p-2 shadow-sm">
             <nav className="flex gap-2 overflow-x-auto whitespace-nowrap [&::-webkit-scrollbar]:hidden">
-              {SIDEBAR_LINKS.map(({ href, label, icon: Icon }) => {
+              {visibleSidebarLinks.map(({ href, label, icon: Icon }) => {
                 const isActive =
                   pathname === href ||
                   pathname.startsWith(href + "/") ||
@@ -57,7 +80,7 @@ export function AccountLayout({
           <aside className="hidden lg:block lg:col-span-1">
             <div className="bg-white rounded-2xl shadow-md border border-slate-200/80 p-5 sticky top-24">
               <nav className="space-y-1">
-                {SIDEBAR_LINKS.map(({ href, label, icon: Icon }) => {
+                {visibleSidebarLinks.map(({ href, label, icon: Icon }) => {
                   const isActive =
                     pathname === href ||
                     pathname.startsWith(href + "/") ||
