@@ -93,6 +93,22 @@ export function cmsFooterPublicPath(slug: string): string {
   return `/info/${slug}`;
 }
 
+/** Footer slugs that render a built-in storefront page (not editable in Admin → CMS). */
+export const STATIC_STOREFRONT_FOOTER_SLUGS = new Set(["about-indovyapar", "careers"]);
+
+const STATIC_STOREFRONT_COMPONENT: Record<string, string> = {
+  "about-indovyapar": "AboutIndovyaparPage",
+  careers: "CareersPage",
+};
+
+export function isStaticStorefrontFooterSlug(slug: string): boolean {
+  return STATIC_STOREFRONT_FOOTER_SLUGS.has(slug);
+}
+
+export function getStaticStorefrontFooterComponent(slug: string): string | null {
+  return STATIC_STOREFRONT_COMPONENT[slug] ?? null;
+}
+
 /** Flat rows for Prisma seed. */
 export function getAllCmsFooterSeeds(): {
   slug: string;

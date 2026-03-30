@@ -7,6 +7,8 @@ import { ChevronLeft, Save, Loader2 } from "lucide-react";
 import {
   cmsFooterPublicPath,
   getCmsFooterPageMeta,
+  getStaticStorefrontFooterComponent,
+  isStaticStorefrontFooterSlug,
   isValidCmsFooterSlug,
 } from "@/lib/cms-footer-pages";
 
@@ -25,7 +27,7 @@ export function AdminCmsEditorPage() {
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   useEffect(() => {
-    if (!meta || !slug) {
+    if (!meta || !slug || isStaticStorefrontFooterSlug(slug)) {
       setLoading(false);
       return;
     }
@@ -98,6 +100,49 @@ export function AdminCmsEditorPage() {
         <Link href="/admin/cms" className="mt-4 inline-block text-amber-700 font-medium text-sm hover:underline">
           Back to CMS
         </Link>
+      </div>
+    );
+  }
+
+  if (isStaticStorefrontFooterSlug(slug)) {
+    const publicUrl = cmsFooterPublicPath(slug);
+    return (
+      <div className="p-6 sm:p-8 max-w-2xl">
+        <Link
+          href={`/admin/cms/${meta.sectionId}`}
+          className="inline-flex items-center gap-1 text-sm font-medium text-slate-600 hover:text-amber-700 mb-6"
+        >
+          <ChevronLeft className="h-4 w-4" />
+          {meta.sectionId.replace(/-/g, " ")}
+        </Link>
+        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{meta.label}</h1>
+        <p className="mt-3 text-slate-600 leading-relaxed">
+          This page is built into the storefront and is not edited here. To change layout or copy, update the{" "}
+          <code className="rounded bg-slate-100 px-1.5 py-0.5 text-sm">
+            {getStaticStorefrontFooterComponent(slug) ?? "storefront page"}
+          </code>{" "}
+          component in the codebase.
+        </p>
+        {slug === "careers" && (
+          <p className="mt-3 text-slate-600 leading-relaxed">
+            <strong>Job openings</strong> on this page are managed separately:{" "}
+            <Link href="/admin/cms/career-openings" className="font-medium text-amber-700 hover:underline">
+              Careers
+            </Link>
+            .
+          </p>
+        )}
+        <p className="mt-4 text-sm text-slate-500">
+          Live page:{" "}
+          <a
+            href={publicUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-amber-700 hover:underline"
+          >
+            {publicUrl}
+          </a>
+        </p>
       </div>
     );
   }
