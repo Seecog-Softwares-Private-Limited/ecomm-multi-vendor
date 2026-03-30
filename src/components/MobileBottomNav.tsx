@@ -15,7 +15,7 @@ import {
   LifeBuoy,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useCartDrawer } from "@/contexts/CartDrawerContext";
 import { getGuestCartCount, subscribeToGuestCartChanges } from "@/lib/guest-cart";
@@ -174,12 +174,30 @@ export function MobileBottomNav() {
     }
   };
 
+  const guestOrLoading = isLoggedIn !== true;
+
+  const visibleTabs = useMemo(
+    () => (guestOrLoading ? tabItems.filter((t) => t.key !== "orders") : tabItems),
+    [guestOrLoading]
+  );
+
+  const visibleMenuLinks = useMemo(
+    () =>
+      guestOrLoading
+        ? menuLinks.filter(
+            (l) =>
+              l.href !== "/my-orders" && l.href !== "/wishlist" && l.href !== "/profile"
+          )
+        : menuLinks,
+    [guestOrLoading]
+  );
+
   const menuActive =
-    pathname.startsWith("/wishlist") ||
-    pathname.startsWith("/profile") ||
     pathname.startsWith("/support-tickets") ||
     pathname.startsWith("/login") ||
-    pathname.startsWith("/register");
+    pathname.startsWith("/register") ||
+    (!guestOrLoading && pathname.startsWith("/wishlist")) ||
+    (!guestOrLoading && pathname.startsWith("/profile"));
 
   const renderTab = (item: TabItem) => {
     const active = item.isActive(pathname);
@@ -240,7 +258,7 @@ export function MobileBottomNav() {
         aria-label="Mobile bottom navigation"
       >
         <div className="mx-auto flex h-[68px] max-w-[560px] items-center justify-around px-2">
-          {tabItems.map(renderTab)}
+          {visibleTabs.map(renderTab)}
           <button
             type="button"
             onClick={() => setMenuOpen(true)}
@@ -282,7 +300,7 @@ export function MobileBottomNav() {
                 Quick links
               </p>
               <div className="grid grid-cols-2 gap-2">
-                {menuLinks.map(({ href, label, icon: Icon }) => (
+                {visibleMenuLinks.map(({ href, label, icon: Icon }) => (
                   <Link
                     key={`${href}-${label}`}
                     href={href}
