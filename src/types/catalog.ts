@@ -10,6 +10,18 @@ export interface CategoryItem {
   color?: string;
 }
 
+/** Category with subcategories for browse / department UI. */
+export interface CategorySubItem {
+  id: string;
+  slug: string;
+  name: string;
+  icon: string;
+}
+
+export interface CategoryTreeItem extends CategoryItem {
+  subcategories: CategorySubItem[];
+}
+
 export interface ProductListItem {
   id: string;
   name: string;

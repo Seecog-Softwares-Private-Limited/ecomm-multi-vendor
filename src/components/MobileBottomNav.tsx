@@ -42,11 +42,12 @@ const tabItems: TabItem[] = [
   },
   {
     key: "categories",
-    href: "/category/electronics",
+    href: "/browse-categories",
     label: "Categories",
     icon: LayoutGrid,
     color: "#2563EB",
-    isActive: (pathname) => pathname.startsWith("/category"),
+    isActive: (pathname) =>
+      pathname.startsWith("/browse-categories") || pathname.startsWith("/category"),
   },
   {
     key: "orders",
