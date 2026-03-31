@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import type { CategoryItem } from "@/types/catalog";
+import type { CategoryItem, CategoryTreeItem } from "@/types/catalog";
 
 /** Default icon/color by slug for categories that don't have them in DB. */
 const CATEGORY_DISPLAY: Record<string, { icon: string; color: string }> = {
@@ -32,6 +32,64 @@ export async function getCategories(): Promise<CategoryItem[]> {
     select: { id: true, slug: true, name: true },
   });
   return list.map(toCategoryItem);
+}
+
+const SUBCATEGORY_ICONS: Record<string, string> = {
+  mobiles: "📱",
+  laptops: "💻",
+  accessories: "🎧",
+  mens: "👔",
+  womens: "👗",
+  kids: "🧒",
+  kitchen: "🍳",
+  furniture: "🛋️",
+  decor: "🖼️",
+  fiction: "📖",
+  nonfiction: "📚",
+  education: "🎓",
+  fitness: "💪",
+  outdoor: "🏕️",
+  "team-sports": "⚽",
+  footwear: "👟",
+  skincare: "✨",
+  makeup: "💄",
+  haircare: "💇",
+};
+
+function subcategoryIcon(slug: string): string {
+  return SUBCATEGORY_ICONS[slug] ?? "🛍️";
+}
+
+/**
+ * All categories with nested subcategories for mobile department / browse UI.
+ */
+export async function getCategoryTree(): Promise<CategoryTreeItem[]> {
+  const list = await prisma.category.findMany({
+    where: { deletedAt: null },
+    orderBy: { sortOrder: "asc" },
+    select: {
+      id: true,
+      slug: true,
+      name: true,
+      subCategories: {
+        where: { deletedAt: null },
+        orderBy: { sortOrder: "asc" },
+        select: { id: true, slug: true, name: true },
+      },
+    },
+  });
+  return list.map((c) => {
+    const base = toCategoryItem(c);
+    return {
+      ...base,
+      subcategories: c.subCategories.map((s) => ({
+        id: s.id,
+        slug: s.slug,
+        name: s.name,
+        icon: subcategoryIcon(s.slug),
+      })),
+    };
+  });
 }
 
 /**
