@@ -102,6 +102,8 @@ export function VendorProfile() {
   );
 
   const status = profile?.status ?? "draft";
+  /** After admin approves KYC, identity, documents, bank, and categories are server-enforced read-only. */
+  const kycLocked = status === "approved";
 
   // Only sync profile → formData on initial load, not after refetch (so upload/category change don't wipe unsaved fields)
   const hasSyncedProfileRef = React.useRef(false);
@@ -238,49 +240,63 @@ export function VendorProfile() {
     setSaving(true);
     setSuccessMessage(null);
     setSubmitError(null);
-    const btErr = validateBusinessType();
+    const btErr = kycLocked ? null : validateBusinessType();
     if (btErr) {
       setSubmitError(btErr);
       setSaving(false);
       return;
     }
     try {
-      await vendorService.updateProfile({
-        business: {
-          displayName: formData.displayName,
-          legalName: formData.legalName,
-          businessType: resolveVendorBusinessTypeForApi(
-            formData.businessType,
-            formData.businessTypeCustom
-          ),
-          pan: formData.pan,
-          gstin: formData.gstin,
-          gstNotApplicable: formData.gstNotApplicable,
-          websiteUrl: formData.websiteUrl,
-          addressLine1: formData.addressLine1,
-          addressLine2: formData.addressLine2,
-          city: formData.city,
-          state: formData.state,
-          pincode: formData.pincode,
-          pickupPincode: formData.pickupPincode,
-          storeLogo: formData.storeLogo,
-          storeDescription: formData.storeDescription,
-        },
-        owner: {
-          ownerName: formData.ownerName,
-          mobile: formData.mobile,
-          email: formData.email,
-        },
-        bank: {
-          accountHolderName: formData.accountHolderName,
-          accountNumber: formData.accountNumber,
-          ifsc: formData.ifsc,
-          bankName: formData.bankName,
-        },
-        primaryCategoryId: formData.allowedCategoryIds?.length ? formData.allowedCategoryIds[0] : formData.primaryCategoryId || null,
-        allowedCategoryIds: formData.allowedCategoryIds,
-        status: "draft",
-      });
+      await vendorService.updateProfile(
+        kycLocked
+          ? {
+              business: {
+                displayName: formData.displayName,
+                websiteUrl: formData.websiteUrl,
+                storeLogo: formData.storeLogo,
+                storeDescription: formData.storeDescription,
+                pickupPincode: formData.pickupPincode,
+              },
+            }
+          : {
+              business: {
+                displayName: formData.displayName,
+                legalName: formData.legalName,
+                businessType: resolveVendorBusinessTypeForApi(
+                  formData.businessType,
+                  formData.businessTypeCustom
+                ),
+                pan: formData.pan,
+                gstin: formData.gstin,
+                gstNotApplicable: formData.gstNotApplicable,
+                websiteUrl: formData.websiteUrl,
+                addressLine1: formData.addressLine1,
+                addressLine2: formData.addressLine2,
+                city: formData.city,
+                state: formData.state,
+                pincode: formData.pincode,
+                pickupPincode: formData.pickupPincode,
+                storeLogo: formData.storeLogo,
+                storeDescription: formData.storeDescription,
+              },
+              owner: {
+                ownerName: formData.ownerName,
+                mobile: formData.mobile,
+                email: formData.email,
+              },
+              bank: {
+                accountHolderName: formData.accountHolderName,
+                accountNumber: formData.accountNumber,
+                ifsc: formData.ifsc,
+                bankName: formData.bankName,
+              },
+              primaryCategoryId: formData.allowedCategoryIds?.length
+                ? formData.allowedCategoryIds[0]
+                : formData.primaryCategoryId || null,
+              allowedCategoryIds: formData.allowedCategoryIds,
+              status: "draft",
+            }
+      );
       await refetch();
       setSuccessMessage("Draft saved successfully.");
       setTimeout(() => setSuccessMessage(null), 5000);
@@ -294,6 +310,10 @@ export function VendorProfile() {
   };
 
   const handleSubmitForApproval = async () => {
+    if (kycLocked) {
+      setSubmitError("Your KYC is already approved; you cannot submit again.");
+      return;
+    }
     setSaving(true);
     setSuccessMessage(null);
     setSubmitError(null);
@@ -356,7 +376,7 @@ export function VendorProfile() {
 
   const handleKycUpload = React.useCallback(
     (documentType: "PAN" | "GST_CERTIFICATE" | "ADDRESS_PROOF") => async (file: File | null) => {
-      if (!file) return;
+      if (!file || kycLocked) return;
       setUploadingDoc(documentType);
       setUploadSuccess(null);
       setUploadErrorByType((prev) => ({ ...prev, [documentType]: null }));
@@ -380,7 +400,7 @@ export function VendorProfile() {
         setUploadingDoc(null);
       }
     },
-    [refetch]
+    [refetch, kycLocked]
   );
 
   const panUrl = profile?.documents?.find((d) => d.documentType === "PAN")?.fileUrl ?? null;
@@ -391,7 +411,7 @@ export function VendorProfile() {
 
   const handleVendorDocUpload = React.useCallback(
     (documentName: string) => async (file: File | null) => {
-      if (!file) return;
+      if (!file || kycLocked) return;
       setUploadingVendorDoc(documentName);
       setUploadErrorByType((prev) => ({ ...prev, [documentName]: null }));
       try {
@@ -406,11 +426,12 @@ export function VendorProfile() {
         setUploadingVendorDoc(null);
       }
     },
-    [refetch]
+    [refetch, kycLocked]
   );
 
   const handleAllowedCategoriesChange = React.useCallback(
     async (categoryId: string, checked: boolean) => {
+      if (kycLocked) return;
       const next = checked
         ? [...(formData.allowedCategoryIds || []), categoryId]
         : (formData.allowedCategoryIds || []).filter((id) => id !== categoryId);
@@ -429,7 +450,7 @@ export function VendorProfile() {
         setFormData((prev) => ({ ...prev, allowedCategoryIds: formData.allowedCategoryIds || [] }));
       }
     },
-    [formData.allowedCategoryIds, refetch]
+    [formData.allowedCategoryIds, refetch, kycLocked]
   );
 
   const statusLabel =
@@ -476,7 +497,9 @@ export function VendorProfile() {
               </span>
             </div>
             <p className="text-sm text-slate-500">
-              Complete all tabs below to enable Submit for Approval.
+              {kycLocked
+                ? "Verified KYC and bank details are locked. You can still update your public store name, website, and other storefront fields where shown below."
+                : "Complete all tabs below to enable Submit for Approval."}
             </p>
           </div>
 
@@ -499,7 +522,7 @@ export function VendorProfile() {
           <Alert
             type="info"
             title="Profile approved"
-            message="You can update your details below and click Update Profile to save changes."
+            message="Your KYC, documents, bank details, and categories are locked. Use Update Profile to save changes to your storefront display name, website, logo, description, and pickup pincode only."
           />
         )}
         {status === "rejected" && !showReason && (
@@ -584,6 +607,7 @@ export function VendorProfile() {
                   value={formData.legalName}
                   onChange={(e) => setFormData({ ...formData, legalName: e.target.value })}
                   helperText="As per official documents"
+                  disabled={kycLocked}
                 />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -593,6 +617,7 @@ export function VendorProfile() {
                   onChange={(e) => setFormData({ ...formData, pan: e.target.value })}
                   helperText="10-character PAN"
                   required
+                  disabled={kycLocked}
                 />
                 <div>
                   <Toggle
@@ -601,6 +626,7 @@ export function VendorProfile() {
                       setFormData({ ...formData, gstNotApplicable: checked })
                     }
                     label="GST not applicable"
+                    disabled={kycLocked}
                   />
                   {!formData.gstNotApplicable && (
                     <Input
@@ -609,6 +635,7 @@ export function VendorProfile() {
                       onChange={(e) => setFormData({ ...formData, gstin: e.target.value })}
                       helperText="15-character GSTIN"
                       required
+                      disabled={kycLocked}
                     />
                   )}
                 </div>
@@ -616,8 +643,11 @@ export function VendorProfile() {
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-slate-700">Business Type</label>
                 <select
-                  className="w-full cursor-pointer rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 shadow-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                  className={`w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 shadow-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 ${
+                    kycLocked ? "cursor-not-allowed bg-slate-50 text-slate-500" : "cursor-pointer"
+                  }`}
                   value={formData.businessType}
+                  disabled={kycLocked}
                   onChange={(e) => {
                     const v = e.target.value;
                     setFormData((fd) => ({
@@ -643,6 +673,7 @@ export function VendorProfile() {
                   }
                   helperText="Enter your business structure if it is not listed above"
                   required
+                  disabled={kycLocked}
                 />
               )}
               <div className="relative" ref={categoriesDropdownRef}>
@@ -654,8 +685,13 @@ export function VendorProfile() {
                 </p>
                 <button
                   type="button"
-                  onClick={() => setCategoriesDropdownOpen((open) => !open)}
-                  className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 text-left shadow-sm transition hover:border-slate-300 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                  onClick={() => !kycLocked && setCategoriesDropdownOpen((open) => !open)}
+                  disabled={kycLocked}
+                  className={`flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 text-left shadow-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 ${
+                    kycLocked
+                      ? "cursor-not-allowed opacity-60"
+                      : "hover:border-slate-300"
+                  }`}
                 >
                   <span className="text-sm text-slate-700 truncate mr-2">
                     {(formData.allowedCategoryIds || []).length === 0
@@ -683,6 +719,7 @@ export function VendorProfile() {
                           <input
                             type="checkbox"
                             checked={checked}
+                            disabled={kycLocked}
                             onChange={(e) => handleAllowedCategoriesChange(c.id, e.target.checked)}
                             className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500/30"
                           />
@@ -715,12 +752,14 @@ export function VendorProfile() {
                     onChange={(e) => setFormData({ ...formData, addressLine1: e.target.value })}
                     placeholder="Building, street, area"
                     helperText="Street address or location"
+                    disabled={kycLocked}
                   />
                   <Input
                     label="Address line 2"
                     value={formData.addressLine2}
                     onChange={(e) => setFormData({ ...formData, addressLine2: e.target.value })}
                     placeholder="Landmark, floor, etc. (optional)"
+                    disabled={kycLocked}
                   />
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <Input
@@ -728,12 +767,14 @@ export function VendorProfile() {
                       value={formData.city}
                       onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                       placeholder="City"
+                      disabled={kycLocked}
                     />
                     <Input
                       label="State"
                       value={formData.state}
                       onChange={(e) => setFormData({ ...formData, state: e.target.value })}
                       placeholder="State"
+                      disabled={kycLocked}
                     />
                     <Input
                       label="Pincode"
@@ -741,6 +782,7 @@ export function VendorProfile() {
                       onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
                       placeholder="e.g. 560001"
                       helperText="6-digit pincode"
+                      disabled={kycLocked}
                     />
                   </div>
                 </div>
@@ -752,18 +794,21 @@ export function VendorProfile() {
                     label="Owner Full Name"
                     value={formData.ownerName}
                     onChange={(e) => setFormData({ ...formData, ownerName: e.target.value })}
+                    disabled={kycLocked}
                   />
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <Input
                       label="Mobile"
                       value={formData.mobile}
                       onChange={(e) => setFormData({ ...formData, mobile: e.target.value })}
+                      disabled={kycLocked}
                     />
                     <Input
                       label="Email"
                       type="email"
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      disabled={kycLocked}
                     />
                   </div>
                 </div>
@@ -775,6 +820,13 @@ export function VendorProfile() {
         {activeTab === "kyc_details" && (
           <Card title="KYC Details">
             <div className="space-y-6">
+              {kycLocked && (
+                <Alert
+                  type="info"
+                  title="KYC locked"
+                  message="These documents were verified at approval and cannot be replaced here. Contact support if you need a correction."
+                />
+              )}
               <Alert
                 type="info"
                 message="Upload clear, legible documents. PDF, JPG, PNG (Max 5MB each)."
@@ -784,7 +836,7 @@ export function VendorProfile() {
                 accept=".pdf,.jpg,.jpeg,.png"
                 onChange={handleKycUpload("PAN")}
                 helperText="Upload PAN card image or PDF"
-                disabled={uploadingDoc === "PAN"}
+                disabled={kycLocked || uploadingDoc === "PAN"}
                 uploading={uploadingDoc === "PAN"}
                 uploadedUrl={panUrl}
                 error={uploadErrorByType.PAN ?? undefined}
@@ -794,7 +846,7 @@ export function VendorProfile() {
                 accept=".pdf,.jpg,.jpeg,.png"
                 onChange={handleKycUpload("GST_CERTIFICATE")}
                 helperText="Upload GST registration certificate"
-                disabled={uploadingDoc === "GST_CERTIFICATE"}
+                disabled={kycLocked || uploadingDoc === "GST_CERTIFICATE"}
                 uploading={uploadingDoc === "GST_CERTIFICATE"}
                 uploadedUrl={gstUrl}
                 error={uploadErrorByType.GST_CERTIFICATE ?? undefined}
@@ -821,7 +873,7 @@ export function VendorProfile() {
                         accept=".pdf,.jpg,.jpeg,.png"
                         onChange={handleVendorDocUpload(doc.documentName)}
                         helperText={doc.isRequired ? "Required to complete your profile and submit for approval." : "Upload if you have this document – you may skip."}
-                        disabled={uploadingVendorDoc === doc.documentName}
+                        disabled={kycLocked || uploadingVendorDoc === doc.documentName}
                         uploading={uploadingVendorDoc === doc.documentName}
                         uploadedUrl={profile?.vendorDocuments?.find((d) => d.documentName === doc.documentName)?.documentUrl}
                         error={uploadErrorByType[doc.documentName] ?? undefined}
@@ -839,7 +891,11 @@ export function VendorProfile() {
             <div className="space-y-6">
               <Alert
                 type="info"
-                message="Payouts will be transferred to this account. Ensure details are accurate."
+                message={
+                  kycLocked
+                    ? "Bank details were verified at approval and cannot be changed here."
+                    : "Payouts will be transferred to this account. Ensure details are accurate."
+                }
               />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Input
@@ -849,6 +905,7 @@ export function VendorProfile() {
                     setFormData({ ...formData, accountHolderName: e.target.value })
                   }
                   required
+                  disabled={kycLocked}
                 />
                 <Input
                   label="Account Number"
@@ -857,6 +914,7 @@ export function VendorProfile() {
                     setFormData({ ...formData, accountNumber: e.target.value })
                   }
                   required
+                  disabled={kycLocked}
                 />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -866,11 +924,13 @@ export function VendorProfile() {
                   onChange={(e) => setFormData({ ...formData, ifsc: e.target.value })}
                   helperText="11-character IFSC"
                   required
+                  disabled={kycLocked}
                 />
                 <Input
                   label="Bank Name"
                   value={formData.bankName}
                   onChange={(e) => setFormData({ ...formData, bankName: e.target.value })}
+                  disabled={kycLocked}
                 />
               </div>
               <FileUpload
@@ -878,7 +938,7 @@ export function VendorProfile() {
                 accept=".pdf,.jpg,.jpeg,.png"
                 onChange={handleKycUpload("ADDRESS_PROOF")}
                 helperText="Optional proof (PDF, JPG, PNG - Max 5MB)"
-                disabled={uploadingDoc === "ADDRESS_PROOF"}
+                disabled={kycLocked || uploadingDoc === "ADDRESS_PROOF"}
                 uploading={uploadingDoc === "ADDRESS_PROOF"}
                 uploadedUrl={addressProofUrl}
                 error={uploadErrorByType.ADDRESS_PROOF ?? undefined}
@@ -899,7 +959,7 @@ export function VendorProfile() {
           )}
           {status === "approved" && (
             <p className="order-first text-sm text-slate-500 sm:order-none sm:mr-auto">
-              Profile is approved. Use Save changes to update details.
+              Storefront fields can be updated; verified KYC and bank details stay locked.
             </p>
           )}
           {status !== "submitted" && status !== "approved" && !profileComplete && missingForSubmit.length > 0 && (

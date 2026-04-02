@@ -2,9 +2,13 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { TopBar } from "./TopBar";
 import { Navbar } from "./Navbar";
 import type { CategoryTreeItem } from "@/types/catalog";
+
+/** Mobile viewport only (max-width 767px). Wider screens redirect to home. */
+const MOBILE_MQ = "(max-width: 767px)";
 
 type MenuRow = { kind: "menu"; slug: string; name: string; emoji: string };
 type CatRow = { kind: "category"; tree: CategoryTreeItem };
@@ -21,11 +25,28 @@ function rowKey(row: BrowseRow): string {
 }
 
 export function MobileCategoryBrowsePage() {
+  const router = useRouter();
   const [tree, setTree] = useState<CategoryTreeItem[]>([]);
   const [loadError, setLoadError] = useState(false);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [isMobileViewport, setIsMobileViewport] = useState<boolean | null>(null);
   const leftScrollRef = useRef<HTMLDivElement | null>(null);
   const activeLeftRef = useRef<HTMLButtonElement | null>(null);
+
+  useLayoutEffect(() => {
+    const mq = window.matchMedia(MOBILE_MQ);
+    const apply = () => {
+      if (mq.matches) {
+        setIsMobileViewport(true);
+      } else {
+        setIsMobileViewport(false);
+        router.replace("/");
+      }
+    };
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, [router]);
 
   const rows = useMemo<BrowseRow[]>(() => {
     const cats: CatRow[] = tree.map((t) => ({ kind: "category", tree: t }));
@@ -70,8 +91,13 @@ export function MobileCategoryBrowsePage() {
   }, []);
 
   useEffect(() => {
+    if (isMobileViewport !== true) return;
     load();
-  }, [load]);
+  }, [load, isMobileViewport]);
+
+  if (isMobileViewport !== true) {
+    return null;
+  }
 
   return (
     <div
@@ -83,16 +109,16 @@ export function MobileCategoryBrowsePage() {
       <TopBar />
       <Navbar />
 
-      {/* Master–detail: always row on mobile so subcategories sit to the right, not below */}
       <div
-        className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-row overflow-hidden md:my-4 md:rounded-2xl md:border md:border-slate-200 md:shadow-sm"
+        className="flex min-h-0 flex-1 flex-col"
         style={{ minHeight: "min(60dvh, calc(100dvh - 170px))" }}
       >
-        <div
-          ref={leftScrollRef}
-          className="flex w-[34%] max-w-[148px] shrink-0 flex-col self-stretch overflow-y-auto border-r border-slate-200 bg-slate-50 sm:max-w-[170px] md:max-w-[200px] md:rounded-l-2xl"
-          style={{ WebkitOverflowScrolling: "touch" }}
-        >
+        <div className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-row overflow-hidden">
+          <div
+            ref={leftScrollRef}
+            className="flex w-[34%] max-w-[148px] shrink-0 flex-col self-stretch overflow-y-auto border-r border-slate-200 bg-slate-50 sm:max-w-[170px]"
+            style={{ WebkitOverflowScrolling: "touch" }}
+          >
           {rows.map((row) => {
             const key = rowKey(row);
             const active = selectedRow && rowKey(selectedRow) === key;
@@ -119,10 +145,10 @@ export function MobileCategoryBrowsePage() {
           })}
         </div>
 
-        <div
-          className="min-h-0 min-w-0 flex-1 self-stretch overflow-y-auto bg-white px-3 py-4 md:rounded-r-2xl"
-          style={{ WebkitOverflowScrolling: "touch" }}
-        >
+          <div
+            className="min-h-0 min-w-0 flex-1 self-stretch overflow-y-auto bg-white px-3 py-4"
+            style={{ WebkitOverflowScrolling: "touch" }}
+          >
           {!tree.length && !loadError ? (
             <p className="px-1 text-sm text-slate-500">Loading categories…</p>
           ) : loadError ? (
@@ -169,9 +195,9 @@ export function MobileCategoryBrowsePage() {
               </div>
             </div>
           )}
+          </div>
         </div>
       </div>
-
     </div>
   );
 }

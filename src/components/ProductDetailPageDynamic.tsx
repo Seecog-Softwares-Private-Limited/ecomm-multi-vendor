@@ -153,8 +153,8 @@ export function ProductDetailPageDynamic({
       <TopBar />
       <Navbar />
 
-      {/* Breadcrumb */}
-      <div className="bg-[#F9FAFB] border-b border-[#E5E7EB]">
+      {/* Breadcrumb — desktop only */}
+      <div className="hidden lg:block bg-[#F9FAFB] border-b border-[#E5E7EB]">
         <div className="mx-auto flex items-center gap-1 px-4 sm:px-6 py-2 max-w-[1360px]">
           {breadcrumbs.map((crumb, i, arr) => (
             <div key={i} className="flex items-center gap-1">
