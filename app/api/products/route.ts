@@ -32,7 +32,12 @@ export const GET = withApiHandler(async (request: NextRequest) => {
   const menuType = parsed.data.menuType;
 
   if (menuType) {
-    const products = await getProductsByMenuType(menuType, { limit, offset, pincode });
+    const products = await getProductsByMenuType(menuType, {
+      limit,
+      offset,
+      pincode,
+      q: parsed.data.q,
+    });
     return apiSuccess(products);
   }
 

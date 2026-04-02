@@ -166,10 +166,13 @@ export function getMenuTypeDisplayName(slug: MenuTypeSlug): string {
  */
 export async function getProductsByMenuType(
   type: MenuTypeSlug,
-  options: { limit?: number; offset?: number; pincode?: string } = {}
+  options: { limit?: number; offset?: number; pincode?: string; q?: string } = {}
 ): Promise<ProductListItem[]> {
-  const { limit = 48, offset = 0, pincode } = options;
+  const { limit = 48, offset = 0, pincode, q } = options;
   const svc = await productPinServiceableWhereAsync(pincode);
+  const searchTerm = q?.trim();
+  const nameWhere =
+    searchTerm && searchTerm.length > 0 ? { name: { contains: searchTerm } } : {};
 
   const select = {
     id: true,
@@ -183,7 +186,7 @@ export async function getProductsByMenuType(
 
   if (type === "deals") {
     const list = await prisma.product.findMany({
-      where: { deletedAt: null, status: "ACTIVE", ...svc },
+      where: { deletedAt: null, status: "ACTIVE", ...svc, ...nameWhere },
       orderBy: { createdAt: "desc" },
       take: 500,
       select,
@@ -228,7 +231,7 @@ export async function getProductsByMenuType(
 
   if (type === "best-sellers") {
     const list = await prisma.product.findMany({
-      where: { deletedAt: null, status: "ACTIVE", ...svc },
+      where: { deletedAt: null, status: "ACTIVE", ...svc, ...nameWhere },
       orderBy: [{ reviewCount: "desc" }, { createdAt: "desc" }],
       take: limit,
       skip: offset,

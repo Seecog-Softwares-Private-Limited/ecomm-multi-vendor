@@ -30,12 +30,23 @@ export const emailConfig = {
   get from(): string {
     return getEnv("SMTP_FROM") || getEnv("SMTP_USER") || "noreply@localhost";
   },
-  /** Base URL for links in emails. Set APP_URL or PORT in .env / properties.env. */
+  /**
+   * Public site base URL for links in emails (no trailing slash).
+   * Order matters: many hosts set APP_URL to an internal IP:port (unreachable in the browser).
+   * NEXT_PUBLIC_APP_URL is usually the customer-facing HTTPS URL — we prefer it over APP_URL for links.
+   * 1) EMAIL_APP_URL  2) NEXT_PUBLIC_APP_URL  3) APP_URL  4) VERCEL_URL  5) localhost:PORT
+   */
   get appUrl(): string {
-    const url = getEnv("APP_URL");
-    if (url) return url;
+    const emailOnly = getEnv("EMAIL_APP_URL");
+    if (emailOnly) return emailOnly.replace(/\/+$/, "");
+    const publicUrl = getEnv("NEXT_PUBLIC_APP_URL");
+    if (publicUrl) return publicUrl.replace(/\/+$/, "");
+    const appUrlFallback = getEnv("APP_URL");
+    if (appUrlFallback) return appUrlFallback.replace(/\/+$/, "");
+    const vercel = getEnv("VERCEL_URL");
+    if (vercel) return `https://${vercel.replace(/\/+$/, "")}`;
     const port = getEnv("PORT");
-    return port ? `http://localhost:${port}` : "";
+    return port ? `http://localhost:${port.replace(/\/+$/, "")}` : "";
   },
   /** If true, email sending is enabled. Requires host and (pass or no user). */
   get enabled(): boolean {

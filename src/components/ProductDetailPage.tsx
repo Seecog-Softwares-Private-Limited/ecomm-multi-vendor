@@ -222,6 +222,9 @@ export function ProductDetailPage({
   const { deliverToLabel, openDeliveryModal, location } = useDeliveryLocation();
 
   const [deliveryEligible, setDeliveryEligible] = useState<boolean | null>(null);
+  const desktopPurchaseRef = useRef<HTMLDivElement | null>(null);
+  /** Desktop: show fixed bottom bar when sidebar buy box is off-screen. */
+  const [floatingPurchaseVisible, setFloatingPurchaseVisible] = useState(false);
 
   useEffect(() => {
     addRecentlyViewedId(product.id);
@@ -257,6 +260,7 @@ export function ProductDetailPage({
       cancelled = true;
     };
   }, [product.id, location.pincode]);
+
   const [activeImage, setActiveImage] = useState(0);
   const variations = product.variations ?? [];
   const specifications = product.specifications ?? [];
@@ -271,6 +275,19 @@ export function ProductDetailPage({
   const [addingToCart, setAddingToCart] = useState(false);
   const [buyNowLoading, setBuyNowLoading] = useState(false);
   const [cartError, setCartError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const el = desktopPurchaseRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        setFloatingPurchaseVisible(!entry.isIntersecting);
+      },
+      { threshold: 0, rootMargin: "-72px 0px 0px 0px" }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [product.id]);
 
   const price = Number(product.price) ?? 0;
   const mrp = Number(product.mrp) ?? 0;
@@ -705,14 +722,15 @@ export function ProductDetailPage({
 
   return (
     <div
-      className="w-full min-h-screen pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] lg:pb-0"
+      className="w-full min-h-screen pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))]"
       style={{ background: "#FFFFFF", fontFamily: "'Manrope', sans-serif" }}
     >
       <TopBar />
       <Navbar />
 
-      {/* Breadcrumb */}
+      {/* Breadcrumb — desktop only; hidden on mobile to save vertical space */}
       <div
+        className="hidden lg:block"
         style={{
           background: "#F9FAFB",
           borderBottom: "1px solid #E5E7EB",
@@ -1283,8 +1301,11 @@ export function ProductDetailPage({
           )}
         </div>
 
-        {/* ── RIGHT: Buy Box (desktop) ──────────────────────────────────────── */}
-        <div className="hidden w-full shrink-0 self-start lg:sticky lg:top-4 lg:block lg:w-[280px]">
+        {/* ── RIGHT: Buy Box (desktop) — ref used to toggle fixed purchase bar when this scrolls away ── */}
+        <div
+          ref={desktopPurchaseRef}
+          className="hidden w-full shrink-0 self-start lg:sticky lg:top-4 lg:block lg:w-[280px]"
+        >
           {buyBoxCard}
         </div>
       </div>
@@ -1371,9 +1392,16 @@ export function ProductDetailPage({
         items={relatedToItem}
       />
 
-      {/* Mobile: fixed Add to Cart / Buy Now (desktop uses right column) */}
+      {/* Sticky purchase bar: always on small screens; on lg+ appears when sidebar buy box scrolls out of view */}
       <div
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-[#E5E7EB] bg-white/95 backdrop-blur-sm lg:hidden"
+        className={[
+          "fixed inset-x-0 bottom-0 z-40 border-t border-[#E5E7EB] bg-white/95 backdrop-blur-sm",
+          "transition-[transform,opacity] duration-200 ease-out will-change-transform",
+          "max-lg:translate-y-0 max-lg:opacity-100",
+          floatingPurchaseVisible
+            ? "lg:translate-y-0 lg:opacity-100"
+            : "lg:pointer-events-none lg:translate-y-full lg:opacity-0",
+        ].join(" ")}
         style={{
           paddingBottom: "max(12px, env(safe-area-inset-bottom, 0px))",
           paddingTop: 12,

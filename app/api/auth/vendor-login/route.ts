@@ -53,7 +53,17 @@ export const POST = withApiHandler(async (request: NextRequest) => {
     return apiUnauthorized("Invalid email or password");
   }
 
-  const valid = await verifyPassword(password, seller.passwordHash);
+  const hash = seller.passwordHash?.trim() ?? "";
+  if (!hash || hash.length < 20) {
+    return apiUnauthorized("Invalid email or password");
+  }
+
+  let valid = false;
+  try {
+    valid = await verifyPassword(password, hash);
+  } catch {
+    valid = false;
+  }
   if (!valid) {
     return apiUnauthorized("Invalid email or password");
   }

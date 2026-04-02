@@ -33,6 +33,12 @@ export const POST = withApiHandler(async (request: NextRequest) => {
   const profile = await getVendorProfile(sellerId);
   if (!profile) return apiNotFound("Profile not found");
 
+  if (profile.status === "approved") {
+    return apiForbidden(
+      "Your KYC is already approved. Resubmitting is not allowed, and verified details cannot be changed from this screen."
+    );
+  }
+
   const validationShape = profileToValidationShape({
     business: profile.business,
     documents: profile.documents,
