@@ -7,6 +7,7 @@ import {
   Eye,
   EyeOff,
   ArrowRight,
+  ArrowLeft,
   ShieldCheck,
   Truck,
   ShoppingBag,
@@ -549,17 +550,22 @@ export function LoginPage() {
             </p>
           </div>
 
-          <p className="mt-8 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center text-sm text-slate-500">
-            <Link href="/vendor/login" className="hover:text-slate-700 transition">
-              Vendor sign in
-            </Link>
-            <span className="text-slate-300" aria-hidden>
-              ·
-            </span>
-            <Link href="/admin/login" className="hover:text-slate-700 transition">
-              Admin sign in
-            </Link>
-          </p>
+          <div className="mt-8 flex justify-center">
+            <button
+              type="button"
+              onClick={() => {
+                if (typeof window !== "undefined" && window.history.length > 1) {
+                  router.back();
+                } else {
+                  router.push(returnUrl);
+                }
+              }}
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold tracking-wide text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#FF6A00]/25"
+            >
+              <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden />
+              BACK
+            </button>
+          </div>
         </div>
       </div>
     </div>

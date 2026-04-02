@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
+import { VENDOR_KYC_LOCKED_ERROR } from "@/lib/data/vendor-profile";
 import { apiError, apiInternalError } from "./response";
 import { Status, type StatusCode } from "./status";
 
@@ -93,6 +94,14 @@ function handleRouteError(err: unknown): NextResponse {
       "Database is missing columns required by this app. On the server run: npx prisma migrate deploy (using the same DATABASE_URL as the app), then restart.",
       Status.INTERNAL_SERVER_ERROR,
       "DATABASE_SCHEMA"
+    );
+  }
+
+  if (err instanceof Error && err.message === VENDOR_KYC_LOCKED_ERROR) {
+    return apiError(
+      "Your KYC has been approved. Business identity, documents, bank details, and categories can no longer be changed. You can still update your store display name, logo, description, website, and pickup pincode.",
+      Status.FORBIDDEN,
+      "KYC_LOCKED"
     );
   }
 

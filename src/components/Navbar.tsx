@@ -7,6 +7,24 @@ import { useRouter } from "next/navigation";
 import { IndovyaparLogo } from "./IndovyaparLogo";
 import { getGuestCartCount, subscribeToGuestCartChanges } from "@/lib/guest-cart";
 import { useCartDrawer } from "@/contexts/CartDrawerContext";
+import type { MenuTypeSlug } from "@/lib/catalog-constants";
+
+type SearchScope =
+  | { kind: "all" }
+  | { kind: "menu"; slug: MenuTypeSlug; label: string }
+  | { kind: "category"; slug: string; label: string };
+
+const MENU_DEPARTMENTS: { slug: MenuTypeSlug; label: string }[] = [
+  { slug: "deals", label: "Deals" },
+  { slug: "new-arrivals", label: "New Arrivals" },
+  { slug: "best-sellers", label: "Best Sellers" },
+];
+
+function deptButtonLabel(scope: SearchScope): string {
+  if (scope.kind === "all") return "All";
+  const t = scope.label;
+  return t.length > 12 ? `${t.slice(0, 11)}…` : t;
+}
 
 const ACCOUNT_DROPDOWN_LINKS = [
   { href: "/profile", label: "My Profile" },
@@ -20,10 +38,14 @@ const CART_UPDATED_EVENT = "indovyapar-cart-updated";
 
 export function Navbar() {
   const [query, setQuery] = useState("");
+  const [searchScope, setSearchScope] = useState<SearchScope>({ kind: "all" });
+  const [deptDropdownOpen, setDeptDropdownOpen] = useState(false);
+  const [navCategories, setNavCategories] = useState<{ slug: string; name: string }[]>([]);
   const [cartCount, setCartCount] = useState(0);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
   const [accountDropdownOpen, setAccountDropdownOpen] = useState(false);
   const accountDropdownRef = useRef<HTMLDivElement>(null);
+  const deptDropdownRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const { openCartDrawer } = useCartDrawer();
 
@@ -97,21 +119,43 @@ export function Navbar() {
   }, []);
 
   useEffect(() => {
+    fetch("/api/categories")
+      .then((r) => r.json())
+      .then((j) => {
+        const d = j?.data;
+        if (Array.isArray(d)) {
+          setNavCategories(
+            d.map((c: { slug: string; name: string }) => ({ slug: c.slug, name: c.name }))
+          );
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (accountDropdownRef.current && !accountDropdownRef.current.contains(e.target as Node)) {
+      const t = e.target as Node;
+      if (accountDropdownRef.current && !accountDropdownRef.current.contains(t)) {
         setAccountDropdownOpen(false);
       }
+      if (deptDropdownRef.current && !deptDropdownRef.current.contains(t)) {
+        setDeptDropdownOpen(false);
+      }
     };
-    if (accountDropdownOpen) {
+    if (accountDropdownOpen || deptDropdownOpen) {
       document.addEventListener("click", handleClickOutside);
     }
     return () => document.removeEventListener("click", handleClickOutside);
-  }, [accountDropdownOpen]);
+  }, [accountDropdownOpen, deptDropdownOpen]);
 
   const handleSearch = () => {
-    if (query.trim()) {
-      router.push(`/search?q=${encodeURIComponent(query.trim())}`);
-    }
+    const q = query.trim();
+    if (!q) return;
+    const params = new URLSearchParams({ q });
+    if (searchScope.kind === "category") params.set("categorySlug", searchScope.slug);
+    if (searchScope.kind === "menu") params.set("menuType", searchScope.slug);
+    router.push(`/search?${params.toString()}`);
+    setDeptDropdownOpen(false);
   };
 
   const handleLogout = async () => {
@@ -157,27 +201,108 @@ export function Navbar() {
           backdropFilter: "blur(10px)",
         }}
       >
-        {/* All dropdown */}
-        <button
-          className="hidden md:flex flex-row items-center gap-2 px-3 shrink-0"
-          style={{
-            height: 44,
-            borderRight: "1px solid #D1D5DC",
-            borderRadius: "10px 0 0 10px",
-          }}
-        >
-          <span
+        {/* Department scope (desktop): All + categories + curated lists */}
+        <div ref={deptDropdownRef} className="relative hidden shrink-0 md:block">
+          <button
+            type="button"
+            onClick={() => setDeptDropdownOpen((o) => !o)}
+            className="flex flex-row items-center gap-1.5 px-3"
             style={{
-              fontFamily: "'Manrope', sans-serif",
-              fontWeight: 500,
-              fontSize: 18,
-              color: "#4A5565",
+              height: 44,
+              borderRight: "1px solid #D1D5DC",
+              borderRadius: "10px 0 0 10px",
             }}
+            aria-haspopup="listbox"
+            aria-expanded={deptDropdownOpen}
+            aria-label="Search in department"
           >
-            All
-          </span>
-          <ChevronDown size={15} color="#6A7282" />
-        </button>
+            <span
+              className="max-w-[92px] truncate text-left"
+              style={{
+                fontFamily: "'Manrope', sans-serif",
+                fontWeight: 500,
+                fontSize: 16,
+                color: "#4A5565",
+              }}
+              title={searchScope.kind === "all" ? "All departments" : searchScope.label}
+            >
+              {deptButtonLabel(searchScope)}
+            </span>
+            <ChevronDown
+              size={15}
+              color="#6A7282"
+              className={`shrink-0 transition-transform ${deptDropdownOpen ? "rotate-180" : ""}`}
+            />
+          </button>
+          {deptDropdownOpen ? (
+            <div
+              className="absolute left-0 top-[calc(100%+6px)] z-[130] max-h-72 w-[min(100vw-24px,280px)] overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-xl"
+              role="listbox"
+            >
+              <button
+                type="button"
+                role="option"
+                aria-selected={searchScope.kind === "all"}
+                onClick={() => {
+                  setSearchScope({ kind: "all" });
+                  setDeptDropdownOpen(false);
+                }}
+                className={`flex w-full px-4 py-2.5 text-left text-[15px] font-medium transition-colors hover:bg-[#FFF5EF] ${
+                  searchScope.kind === "all" ? "bg-[#FFF5EF] text-[#FF6A00]" : "text-slate-800"
+                }`}
+                style={{ fontFamily: "'Manrope', sans-serif" }}
+              >
+                All departments
+              </button>
+              <div className="my-1 border-t border-slate-100" />
+              {MENU_DEPARTMENTS.map((m) => (
+                <button
+                  key={m.slug}
+                  type="button"
+                  role="option"
+                  aria-selected={searchScope.kind === "menu" && searchScope.slug === m.slug}
+                  onClick={() => {
+                    setSearchScope({ kind: "menu", slug: m.slug, label: m.label });
+                    setDeptDropdownOpen(false);
+                  }}
+                  className={`flex w-full px-4 py-2.5 text-left text-[15px] font-medium transition-colors hover:bg-[#FFF5EF] ${
+                    searchScope.kind === "menu" && searchScope.slug === m.slug
+                      ? "bg-[#FFF5EF] text-[#FF6A00]"
+                      : "text-slate-800"
+                  }`}
+                  style={{ fontFamily: "'Manrope', sans-serif" }}
+                >
+                  {m.label}
+                </button>
+              ))}
+              {navCategories.length > 0 ? (
+                <>
+                  <div className="my-1 border-t border-slate-100" />
+                  {navCategories.map((c) => (
+                    <button
+                      key={c.slug}
+                      type="button"
+                      role="option"
+                      aria-selected={searchScope.kind === "category" && searchScope.slug === c.slug}
+                      onClick={() => {
+                        setSearchScope({ kind: "category", slug: c.slug, label: c.name });
+                        setDeptDropdownOpen(false);
+                      }}
+                      className={`flex w-full px-4 py-2.5 text-left text-[15px] font-medium transition-colors hover:bg-[#FFF5EF] ${
+                        searchScope.kind === "category" && searchScope.slug === c.slug
+                          ? "bg-[#FFF5EF] text-[#FF6A00]"
+                          : "text-slate-800"
+                      }`}
+                      style={{ fontFamily: "'Manrope', sans-serif" }}
+                    >
+                      {c.name}
+                    </button>
+                  ))}
+                </>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
 
         {/* Input */}
         <input

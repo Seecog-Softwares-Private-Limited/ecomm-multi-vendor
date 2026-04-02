@@ -162,6 +162,8 @@ model User {
   emailVerified            Boolean    @default(true) @map("email_verified")
   verificationToken        String?    @map("verification_token") @db.VarChar(64)
   verificationTokenExpires DateTime?  @map("verification_token_expires") @db.DateTime(3)
+  passwordResetToken       String?    @map("password_reset_token") @db.VarChar(255)
+  passwordResetExpires     DateTime?  @map("password_reset_expires") @db.DateTime(3)
   createdAt    DateTime  @default(now()) @map("created_at") @db.DateTime(3)
   updatedAt    DateTime  @updatedAt @map("updated_at") @db.DateTime(3)
   deletedAt    DateTime? @map("deleted_at") @db.DateTime(3)

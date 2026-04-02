@@ -1,10 +1,11 @@
 "use client";
 
-import { Save, User, Store, MapPin, CreditCard, Bell, Lock } from "lucide-react";
+import { Save, User, Store, MapPin, CreditCard, Bell, Lock, Eye, EyeOff } from "lucide-react";
 import * as React from "react";
 
 export function SellerSettingsPage() {
   const [activeTab, setActiveTab] = React.useState("profile");
+  const [showConfirmPassword, setShowConfirmPassword] = React.useState(false);
 
   const tabs = [
     { id: "profile", name: "Profile", icon: User },
@@ -322,10 +323,21 @@ export function SellerSettingsPage() {
                     </div>
                     <div>
                       <label className="block text-sm font-bold text-gray-900 mb-2">Confirm New Password</label>
-                      <input
-                        type="password"
-                        className="w-full px-4 py-3 border-2 border-gray-400 bg-gray-100 focus:outline-none focus:border-gray-600"
-                      />
+                      <div className="relative">
+                        <input
+                          type={showConfirmPassword ? "text" : "password"}
+                          autoComplete="new-password"
+                          className="w-full px-4 py-3 pr-12 border-2 border-gray-400 bg-gray-100 focus:outline-none focus:border-gray-600"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPassword((v) => !v)}
+                          className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-600 hover:text-gray-900"
+                          aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                        >
+                          {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                        </button>
+                      </div>
                     </div>
                     <button className="px-6 py-2 bg-gray-700 text-white border-2 border-gray-800 hover:bg-gray-800 font-bold">
                       Update Password

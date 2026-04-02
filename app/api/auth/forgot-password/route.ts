@@ -7,7 +7,7 @@ import {
   apiValidationError,
 } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
-import { emailConfig, sendVendorPasswordResetEmail } from "@/lib/email";
+import { emailConfig, sendCustomerPasswordResetEmail } from "@/lib/email";
 
 const RESET_TOKEN_BYTES = 32;
 const RESET_EXPIRY_HOURS = 1;
@@ -29,9 +29,9 @@ function validateBody(body: unknown): { success: true; email: string } | { succe
 }
 
 /**
- * POST /api/auth/vendor-forgot-password — request password reset for a vendor.
- * If the email is registered, generates a reset token, saves it, and sends the reset link by email.
- * Always returns success to avoid email enumeration.
+ * POST /api/auth/forgot-password — request password reset for a customer (User).
+ * If the email is registered, generates a reset token, saves it, and sends email.
+ * Always returns the same success message when no validation error (no email enumeration).
  */
 export const POST = withApiHandler(async (request: NextRequest) => {
   let body: unknown;
@@ -48,36 +48,36 @@ export const POST = withApiHandler(async (request: NextRequest) => {
 
   const { email } = validation;
 
-  const seller = await prisma.seller.findFirst({
+  const user = await prisma.user.findFirst({
     where: { email, deletedAt: null },
     select: { id: true, email: true },
   });
 
   let resetLink: string | undefined;
-  if (seller) {
+  if (user) {
     const resetToken = randomBytes(RESET_TOKEN_BYTES).toString("hex");
     const resetExpires = new Date(Date.now() + RESET_EXPIRY_HOURS * 60 * 60 * 1000);
 
-    await prisma.seller.update({
-      where: { id: seller.id },
+    await prisma.user.update({
+      where: { id: user.id },
       data: {
         passwordResetToken: resetToken,
         passwordResetExpires: resetExpires,
       },
     });
 
-    const { sent, error } = await sendVendorPasswordResetEmail(seller.email, resetToken);
+    const { sent, error } = await sendCustomerPasswordResetEmail(user.email, resetToken);
 
     if (!sent) {
-      console.error("[vendor-forgot-password] Failed to send email:", error);
-      // In production with SMTP enabled, fail the request so the user knows email did not go out
+      console.error("[forgot-password] Failed to send email:", error);
       if (emailConfig.enabled && process.env.NODE_ENV === "production") {
-        return apiBadRequest("Failed to send reset email. Please try again later.");
+        return apiBadRequest(
+          "We could not send the email. Check SMTP settings or try again later."
+        );
       }
-      // In development, always return the reset link so you can test without SMTP
       if (process.env.NODE_ENV !== "production") {
         const base = emailConfig.appUrl.replace(/\/+$/, "");
-        resetLink = `${base}/vendor/reset-password?token=${encodeURIComponent(resetToken)}`;
+        resetLink = `${base}/reset-password?token=${encodeURIComponent(resetToken)}`;
       }
     }
   }
