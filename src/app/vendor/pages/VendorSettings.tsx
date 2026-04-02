@@ -1,6 +1,6 @@
 "use client";
 
-import { Lock, User, CreditCard, Bell, Save } from "lucide-react";
+import { Lock, User, CreditCard, Bell, Save, Eye, EyeOff } from "lucide-react";
 import { Button, Input, Card, Alert, Toggle } from "../components/UIComponents";
 import * as React from "react";
 
@@ -11,6 +11,7 @@ export function VendorSettings() {
   const [currentPassword, setCurrentPassword] = React.useState("");
   const [newPassword, setNewPassword] = React.useState("");
   const [confirmPassword, setConfirmPassword] = React.useState("");
+  const [showConfirmPassword, setShowConfirmPassword] = React.useState(false);
 
   // Profile settings
   const [displayName, setDisplayName] = React.useState("Tech Store India");
@@ -114,14 +115,28 @@ export function VendorSettings() {
               required
             />
 
-            <Input
-              label="Confirm New Password"
-              type="password"
-              placeholder="Re-enter new password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-            />
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-slate-700">Confirm New Password</label>
+              <div className="relative">
+                <input
+                  type={showConfirmPassword ? "text" : "password"}
+                  placeholder="Re-enter new password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  autoComplete="new-password"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 pr-12 text-slate-900 shadow-sm transition placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword((v) => !v)}
+                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 transition hover:text-slate-600"
+                  aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                >
+                  {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
+              </div>
+            </div>
 
             <div className="flex justify-end">
               <Button variant="primary" onClick={handleChangePassword}>

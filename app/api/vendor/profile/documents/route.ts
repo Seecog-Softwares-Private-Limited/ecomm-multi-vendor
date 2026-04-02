@@ -9,7 +9,7 @@ import {
   apiBadRequest,
 } from "@/lib/api";
 import { requireSession } from "@/lib/auth";
-import { upsertKycDocument } from "@/lib/data/vendor-profile";
+import { assertVendorCanEditKyc, upsertKycDocument } from "@/lib/data/vendor-profile";
 
 const ALLOWED_TYPES = [
   "image/jpeg",
@@ -38,6 +38,8 @@ export const POST = withApiHandler(async (request: NextRequest) => {
   }
   const sellerId = session.role === "SELLER" ? session.sub : undefined;
   if (!sellerId) return apiBadRequest("Vendor not found");
+
+  await assertVendorCanEditKyc(sellerId);
 
   let formData: FormData;
   try {

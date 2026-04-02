@@ -3,7 +3,8 @@
 import { useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Link } from "../../components/Link";
-import { Lock, Store, ArrowRight, ArrowLeft, CheckCircle2 } from "lucide-react";
+import { Lock, Store, ArrowRight, ArrowLeft, CheckCircle2, Eye, EyeOff } from "lucide-react";
+import { vendorRegisterSchema } from "@/lib/auth/validation";
 
 function VendorResetPasswordForm() {
   const searchParams = useSearchParams();
@@ -11,6 +12,8 @@ function VendorResetPasswordForm() {
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -22,8 +25,9 @@ function VendorResetPasswordForm() {
       setError("Passwords do not match");
       return;
     }
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters");
+    const pwdCheck = vendorRegisterSchema.pick({ password: true }).safeParse({ password });
+    if (!pwdCheck.success) {
+      setError(pwdCheck.error.issues[0]?.message ?? "Password does not meet requirements");
       return;
     }
     if (!token) {
@@ -172,7 +176,9 @@ function VendorResetPasswordForm() {
           <div className="rounded-2xl border border-slate-200/80 bg-white p-8 shadow-xl shadow-slate-200/50">
             <div className="mb-8">
               <h2 className="text-2xl font-semibold tracking-tight text-slate-900">Set new password</h2>
-              <p className="mt-1.5 text-sm text-slate-500">Enter your new password below. Use at least 8 characters.</p>
+              <p className="mt-1.5 text-sm text-slate-500">
+                At least 8 characters, with uppercase, lowercase, and a number (same rules as registration).
+              </p>
             </div>
 
             <form className="space-y-5" onSubmit={handleSubmit}>
@@ -195,15 +201,23 @@ function VendorResetPasswordForm() {
                   </div>
                   <input
                     id="vendor-reset-password"
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     autoComplete="new-password"
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
                     minLength={8}
-                    className="block w-full rounded-xl border border-slate-200 bg-slate-50/50 py-3 pl-12 pr-4 text-slate-900 placeholder:text-slate-400 transition focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                    className="block w-full rounded-xl border border-slate-200 bg-slate-50/50 py-3 pl-12 pr-12 text-slate-900 placeholder:text-slate-400 transition focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 transition hover:text-slate-600"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  </button>
                 </div>
               </div>
 
@@ -217,15 +231,23 @@ function VendorResetPasswordForm() {
                   </div>
                   <input
                     id="vendor-reset-confirm"
-                    type="password"
+                    type={showConfirmPassword ? "text" : "password"}
                     autoComplete="new-password"
                     placeholder="••••••••"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     required
                     minLength={8}
-                    className="block w-full rounded-xl border border-slate-200 bg-slate-50/50 py-3 pl-12 pr-4 text-slate-900 placeholder:text-slate-400 transition focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                    className="block w-full rounded-xl border border-slate-200 bg-slate-50/50 py-3 pl-12 pr-12 text-slate-900 placeholder:text-slate-400 transition focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword((v) => !v)}
+                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 transition hover:text-slate-600"
+                    aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                  >
+                    {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  </button>
                 </div>
               </div>
 

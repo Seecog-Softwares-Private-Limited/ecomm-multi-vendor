@@ -9,6 +9,7 @@ import { Navbar } from "@/components/Navbar";
 import { addToGuestCart } from "@/lib/guest-cart";
 import { useCartDrawer } from "@/contexts/CartDrawerContext";
 import { useDeliveryLocation } from "@/contexts/DeliveryLocationContext";
+import { MENU_TYPE_SLUGS, type MenuTypeSlug } from "@/lib/catalog-constants";
 
 type ProductItem = {
   id: string;
@@ -28,9 +29,16 @@ function formatRupee(n: number) {
   }).format(n);
 }
 
+function parseMenuType(raw: string | null): MenuTypeSlug | null {
+  if (!raw) return null;
+  return (MENU_TYPE_SLUGS as readonly string[]).includes(raw) ? (raw as MenuTypeSlug) : null;
+}
+
 export function SearchResultsPage() {
   const searchParams = useSearchParams();
   const qFromUrl = searchParams.get("q") ?? "";
+  const categorySlugFromUrl = searchParams.get("categorySlug")?.trim() || null;
+  const menuTypeFromUrl = parseMenuType(searchParams.get("menuType"));
   const [query, setQuery] = useState(qFromUrl);
   const [products, setProducts] = useState<ProductItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,6 +59,8 @@ export function SearchResultsPage() {
     setLoading(true);
     setError(false);
     const params = new URLSearchParams({ q: searchTerm, limit: "48" });
+    if (categorySlugFromUrl) params.set("categorySlug", categorySlugFromUrl);
+    if (menuTypeFromUrl) params.set("menuType", menuTypeFromUrl);
     const pin = (location.pincode ?? "").replace(/\D/g, "").slice(0, 6);
     if (/^\d{6}$/.test(pin)) params.set("pincode", pin);
     fetch(`/api/products?${params.toString()}`, { credentials: "include" })
@@ -71,7 +81,7 @@ export function SearchResultsPage() {
       })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
-  }, [searchTerm, location.pincode]);
+  }, [searchTerm, location.pincode, categorySlugFromUrl, menuTypeFromUrl]);
 
   useEffect(() => {
     setQuery(qFromUrl);
@@ -84,10 +94,26 @@ export function SearchResultsPage() {
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const term = query.trim();
-    if (term) {
-      window.location.href = `/search?q=${encodeURIComponent(term)}`;
-    }
+    if (!term) return;
+    const params = new URLSearchParams({ q: term });
+    if (categorySlugFromUrl) params.set("categorySlug", categorySlugFromUrl);
+    if (menuTypeFromUrl) params.set("menuType", menuTypeFromUrl);
+    window.location.href = `/search?${params.toString()}`;
   };
+
+  const scopeHint =
+    menuTypeFromUrl === "deals"
+      ? "Deals"
+      : menuTypeFromUrl === "new-arrivals"
+        ? "New arrivals"
+        : menuTypeFromUrl === "best-sellers"
+          ? "Best sellers"
+          : categorySlugFromUrl
+            ? categorySlugFromUrl
+                .split("-")
+                .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+                .join(" ")
+            : null;
 
   return (
     <div className="min-h-screen bg-[#F9FAFB]">
@@ -120,6 +146,11 @@ export function SearchResultsPage() {
           {searchTerm && (
             <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-1">
               Results for <span className="text-[#FF6A00]">&quot;{searchTerm}&quot;</span>
+              {scopeHint ? (
+                <span className="block mt-1 text-base font-semibold capitalize text-slate-600 sm:text-lg">
+                  in {scopeHint}
+                </span>
+              ) : null}
             </h1>
           )}
         </div>

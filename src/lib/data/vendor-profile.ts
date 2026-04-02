@@ -1,4 +1,18 @@
 import { prisma } from "@/lib/prisma";
+import { SellerStatus } from "@prisma/client";
+
+/** Throw from KYC document mutations when seller is already approved. */
+export const VENDOR_KYC_LOCKED_ERROR = "VENDOR_KYC_LOCKED";
+
+export async function assertVendorCanEditKyc(sellerId: string): Promise<void> {
+  const row = await prisma.seller.findFirst({
+    where: { id: sellerId, deletedAt: null },
+    select: { status: true },
+  });
+  if (row?.status === SellerStatus.APPROVED) {
+    throw new Error(VENDOR_KYC_LOCKED_ERROR);
+  }
+}
 
 export interface VendorProfileBusiness {
   displayName: string;
@@ -235,6 +249,7 @@ export async function upsertVendorDocument(
   documentName: string,
   documentUrl: string
 ): Promise<void> {
+  await assertVendorCanEditKyc(sellerId);
   const existing = await prisma.vendorDocument.findFirst({
     where: { sellerId, documentName, deletedAt: null },
   });
@@ -260,15 +275,41 @@ export interface UpdateVendorProfilePayload {
   allowedCategoryIds?: string[];
 }
 
+/** Business fields vendors may change after admin KYC approval (storefront / pickup only). */
+const APPROVED_VENDOR_EDITABLE_BUSINESS: (keyof VendorProfileBusiness)[] = [
+  "displayName",
+  "websiteUrl",
+  "storeLogo",
+  "storeDescription",
+  "pickupPincode",
+];
+
 export async function updateVendorProfile(
   sellerId: string,
   payload: UpdateVendorProfilePayload
 ): Promise<void> {
   const seller = await prisma.seller.findFirst({
     where: { id: sellerId, deletedAt: null },
-    select: { id: true, profileExtras: true },
+    select: { id: true, profileExtras: true, status: true },
   });
   if (!seller) return;
+
+  const kycApproved = seller.status === SellerStatus.APPROVED;
+
+  let effectivePayload: UpdateVendorProfilePayload = payload;
+  if (kycApproved) {
+    const businessPart: Partial<VendorProfileBusiness> = {};
+    if (payload.business) {
+      for (const key of APPROVED_VENDOR_EDITABLE_BUSINESS) {
+        const v = payload.business[key];
+        if (v !== undefined) {
+          (businessPart as Record<string, unknown>)[key as string] = v;
+        }
+      }
+    }
+    effectivePayload =
+      Object.keys(businessPart).length > 0 ? { business: businessPart } : {};
+  }
 
   const extras = parseProfileExtras(seller.profileExtras);
 
@@ -283,8 +324,8 @@ export async function updateVendorProfile(
     primaryCategoryId?: string | null;
   } = {};
 
-    if (payload.business) {
-    const b = payload.business;
+  if (effectivePayload.business) {
+    const b = effectivePayload.business;
     if (b.displayName !== undefined) sellerUpdate.businessName = b.displayName;
     const newExtras: ProfileExtras = {
       ...extras,
@@ -308,19 +349,20 @@ export async function updateVendorProfile(
     sellerUpdate.businessAddress = addrLine ? addrLine.slice(0, 500) : null;
   }
 
-  if (payload.owner) {
-    const o = payload.owner;
+  if (effectivePayload.owner) {
+    const o = effectivePayload.owner;
     if (o.ownerName !== undefined) sellerUpdate.ownerName = o.ownerName;
     if (o.mobile !== undefined) sellerUpdate.phone = o.mobile;
     if (o.email !== undefined) sellerUpdate.email = o.email;
   }
 
-  if (payload.status === "submitted") sellerUpdate.status = "SUBMITTED";
-  if (payload.primaryCategoryId !== undefined) sellerUpdate.primaryCategoryId = payload.primaryCategoryId;
+  if (effectivePayload.status === "submitted") sellerUpdate.status = "SUBMITTED";
+  if (effectivePayload.primaryCategoryId !== undefined)
+    sellerUpdate.primaryCategoryId = effectivePayload.primaryCategoryId;
 
-  if (payload.allowedCategoryIds !== undefined) {
-    const ids = Array.isArray(payload.allowedCategoryIds)
-      ? payload.allowedCategoryIds.filter((id): id is string => typeof id === "string" && id.length > 0)
+  if (effectivePayload.allowedCategoryIds !== undefined) {
+    const ids = Array.isArray(effectivePayload.allowedCategoryIds)
+      ? effectivePayload.allowedCategoryIds.filter((id): id is string => typeof id === "string" && id.length > 0)
       : [];
     const base = sellerUpdate.profileExtras ? parseProfileExtras(sellerUpdate.profileExtras) : extras;
     const newExtras: ProfileExtras = { ...base, allowedCategoryIds: ids };
@@ -337,8 +379,8 @@ export async function updateVendorProfile(
     });
   }
 
-  if (payload.bank) {
-    const b = payload.bank;
+  if (effectivePayload.bank) {
+    const b = effectivePayload.bank;
     const existing = await prisma.bankAccount.findFirst({
       where: { sellerId, deletedAt: null, isPrimary: true },
     });
@@ -375,6 +417,7 @@ export async function upsertKycDocument(
   documentType: "PAN" | "GST_CERTIFICATE" | "ADDRESS_PROOF",
   fileUrl: string
 ): Promise<void> {
+  await assertVendorCanEditKyc(sellerId);
   const existing = await prisma.kYCDocument.findFirst({
     where: { sellerId, documentType, deletedAt: null },
   });

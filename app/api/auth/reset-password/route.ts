@@ -6,7 +6,7 @@ import {
   apiValidationError,
 } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
-import { hashPassword, vendorRegisterSchema, formatValidationDetails } from "@/lib/auth";
+import { hashPassword, registerSchema, formatValidationDetails } from "@/lib/auth";
 
 function validateBody(
   body: unknown
@@ -19,13 +19,11 @@ function validateBody(
   const newPassword = typeof o.newPassword === "string" ? o.newPassword : "";
   const errors: Record<string, string> = {};
   if (!token) errors.token = "Reset token is required";
-  if (!newPassword) {
-    errors.newPassword = "New password is required";
-  }
+  if (!newPassword) errors.newPassword = "New password is required";
   if (Object.keys(errors).length) {
     return { success: false, errors };
   }
-  const pwd = vendorRegisterSchema.pick({ password: true }).safeParse({ password: newPassword });
+  const pwd = registerSchema.pick({ password: true }).safeParse({ password: newPassword });
   if (!pwd.success) {
     return { success: false, errors: formatValidationDetails(pwd.error.issues) };
   }
@@ -33,8 +31,7 @@ function validateBody(
 }
 
 /**
- * POST /api/auth/vendor-reset-password — set new password using reset token.
- * Token must match and not be expired. Clears reset token after success.
+ * POST /api/auth/reset-password — set a new password for a customer using a valid reset token.
  */
 export const POST = withApiHandler(async (request: NextRequest) => {
   let body: unknown;
@@ -51,7 +48,7 @@ export const POST = withApiHandler(async (request: NextRequest) => {
 
   const { token, newPassword } = validation;
 
-  const seller = await prisma.seller.findFirst({
+  const user = await prisma.user.findFirst({
     where: {
       passwordResetToken: token,
       deletedAt: null,
@@ -62,18 +59,22 @@ export const POST = withApiHandler(async (request: NextRequest) => {
     },
   });
 
-  if (!seller) {
-    return apiValidationError("Invalid or expired reset link", { token: "Please request a new password reset." });
+  if (!user) {
+    return apiValidationError("Invalid or expired reset link", {
+      token: "Please request a new password reset.",
+    });
   }
 
-  if (!seller.passwordResetExpires || seller.passwordResetExpires < new Date()) {
-    return apiValidationError("Reset link has expired", { token: "Please request a new password reset." });
+  if (!user.passwordResetExpires || user.passwordResetExpires < new Date()) {
+    return apiValidationError("Reset link has expired", {
+      token: "Please request a new password reset.",
+    });
   }
 
   const passwordHash = await hashPassword(newPassword);
 
-  await prisma.seller.update({
-    where: { id: seller.id },
+  await prisma.user.update({
+    where: { id: user.id },
     data: {
       passwordHash,
       passwordResetToken: null,
@@ -81,5 +82,5 @@ export const POST = withApiHandler(async (request: NextRequest) => {
     },
   });
 
-  return apiSuccess({ message: "Password has been reset. You can now sign in with your new password." });
+  return apiSuccess({ message: "Password has been reset. You can now sign in." });
 });
