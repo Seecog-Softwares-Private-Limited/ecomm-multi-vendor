@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { coalesceVariantImagesFromDb, resolveSkuRowForCart } from "@/lib/product-sku-variant";
 
 export type CartItemWithProduct = {
   id: string;
@@ -32,6 +33,10 @@ export async function getCartItems(userId: string): Promise<CartItemWithProduct[
           stock: true,
           status: true,
           deletedAt: true,
+          productVariants: {
+            where: { deletedAt: null },
+            select: { color: true, size: true, price: true, stock: true, image: true, images: true },
+          },
           images: {
             where: { deletedAt: null },
             orderBy: { sortOrder: "asc" },
@@ -48,6 +53,16 @@ export async function getCartItems(userId: string): Promise<CartItemWithProduct[
     .filter((i) => i.product != null && i.product.deletedAt == null)
     .map((i) => {
       const p = i.product!;
+      const pv = p.productVariants ?? [];
+      const line = pv.length > 0 ? resolveSkuRowForCart(pv, i.variantKey) : null;
+      const sellingPrice = line ? Number(line.price) : Number(p.sellingPrice);
+      const stockDisplay = line ? line.stock : p.stock;
+      const variantThumb = line
+        ? coalesceVariantImagesFromDb(
+            (line as { images?: unknown }).images,
+            (line as { image?: string | null }).image
+          )[0] ?? null
+        : null;
       return {
         id: i.id,
         productId: i.productId,
@@ -56,11 +71,11 @@ export async function getCartItems(userId: string): Promise<CartItemWithProduct[
         product: {
           id: p.id,
           name: p.name,
-          sellingPrice: Number(p.sellingPrice),
+          sellingPrice,
           mrp: Number(p.mrp),
-          stock: p.stock,
+          stock: stockDisplay,
           status: p.status,
-          imageUrl: p.images[0]?.url ?? null,
+          imageUrl: variantThumb ?? p.images[0]?.url ?? null,
         },
       };
     });
