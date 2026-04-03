@@ -2,6 +2,7 @@ import type { Prisma } from "@prisma/client";
 import type { MenuTypeSlug } from "@/lib/catalog-constants";
 import { prisma } from "@/lib/prisma";
 import { productPinServiceableWhereAsync } from "@/lib/data/product-pin-filter";
+import { coalesceVariantImagesFromDb } from "@/lib/product-sku-variant";
 import type { ProductDetail, ProductListItem, ReviewItem, ProductQuestionItem } from "@/types/catalog";
 
 export type { MenuTypeSlug } from "@/lib/catalog-constants";
@@ -410,6 +411,11 @@ export async function getProductById(id: string): Promise<ProductDetail | null> 
       images: { where: { deletedAt: null }, orderBy: { sortOrder: "asc" }, select: { url: true } },
       specifications: { where: { deletedAt: null }, select: { key: true, value: true } },
       variations: { where: { deletedAt: null }, select: { name: true, values: true } },
+      productVariants: {
+        where: { deletedAt: null },
+        orderBy: { sortOrder: "asc" },
+        select: { id: true, color: true, size: true, price: true, stock: true, sku: true, image: true },
+      },
     },
   });
 
@@ -434,6 +440,19 @@ export async function getProductById(id: string): Promise<ProductDetail | null> 
       name: v.name,
       values: valuesFromJson(v.values),
     })),
+    skuVariants: (product.productVariants ?? []).map((v) => {
+      const imgs = coalesceVariantImagesFromDb(v.images, v.image);
+      return {
+        id: v.id,
+        color: v.color ?? null,
+        size: v.size ?? null,
+        price: toNumber(v.price),
+        stock: v.stock,
+        sku: v.sku ?? null,
+        image: imgs[0] ?? null,
+        images: imgs,
+      };
+    }),
   };
 }
 

@@ -9,6 +9,7 @@ import {
 import { getSession } from "@/lib/auth";
 import { addToCart, getCartItems } from "@/lib/data/cart";
 import { prisma } from "@/lib/prisma";
+import { resolveSkuRowForCart, skuVariantsRequireExplicitKey } from "@/lib/product-sku-variant";
 
 /**
  * GET /api/cart/items — list current user's cart items with product details.
@@ -76,10 +77,33 @@ export const POST = withApiHandler(async (request: NextRequest) => {
 
   const product = await prisma.product.findFirst({
     where: { id: productId, deletedAt: null, status: "ACTIVE" },
-    select: { id: true },
+    select: {
+      id: true,
+      stock: true,
+      productVariants: {
+        where: { deletedAt: null },
+        select: { color: true, size: true, stock: true, price: true },
+      },
+    },
   });
   if (!product) {
     return apiBadRequest("Product not found or not available");
+  }
+
+  const pvRows = product.productVariants ?? [];
+  if (pvRows.length > 0) {
+    if (skuVariantsRequireExplicitKey(pvRows) && !vk) {
+      return apiBadRequest("Select a color or size before adding this product to your cart.");
+    }
+    const line = resolveSkuRowForCart(pvRows, vk);
+    if (!line) {
+      return apiBadRequest("Invalid product option selected.");
+    }
+    if (line.stock < qty) {
+      return apiBadRequest("Not enough stock for this option.");
+    }
+  } else if (product.stock < qty) {
+    return apiBadRequest("Not enough stock for this product.");
   }
 
   const user = await prisma.user.findUnique({

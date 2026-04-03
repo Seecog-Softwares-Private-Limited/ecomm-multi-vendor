@@ -11,6 +11,7 @@ import { getVendorProfile } from "@/lib/data/vendor-profile";
 import { getVendorProductsBySellerId } from "@/lib/data/vendor-products";
 import { resolveCategoryAndSubCategoryIds } from "@/lib/data/categories";
 import { prisma } from "@/lib/prisma";
+import { normalizeVendorSkuVariants } from "@/lib/product-sku-variant";
 import {
   createVendorProductSchema,
   parseWithDetails,
@@ -88,7 +89,12 @@ export const POST = withApiHandler(async (request: NextRequest) => {
     (url) => url.startsWith("http://") || url.startsWith("https://")
   );
 
-  const stock = typeof parsed.data.stock === "number" ? parsed.data.stock : Number(parsed.data.stock) || 0;
+  const stockBase = typeof parsed.data.stock === "number" ? parsed.data.stock : Number(parsed.data.stock) || 0;
+  const skuRows = normalizeVendorSkuVariants(parsed.data.variants);
+  const hasSkuVariants = skuRows.length > 0;
+  const stock = hasSkuVariants ? skuRows.reduce((s, r) => s + r.stock, 0) : stockBase;
+  const sellingPrice = hasSkuVariants ? Math.min(...skuRows.map((r) => r.price)) : parsed.data.sellingPrice;
+
   const product = await prisma.product.create({
     data: {
       sellerId,
@@ -98,7 +104,7 @@ export const POST = withApiHandler(async (request: NextRequest) => {
       description: parsed.data.description ?? null,
       sku: parsed.data.sku,
       mrp: parsed.data.mrp,
-      sellingPrice: parsed.data.sellingPrice,
+      sellingPrice,
       gstPercent: parsed.data.gstPercent ?? null,
       stock,
       returnPolicy,
@@ -120,6 +126,22 @@ export const POST = withApiHandler(async (request: NextRequest) => {
           values: v.values,
         })),
       },
+      ...(hasSkuVariants
+        ? {
+            productVariants: {
+              create: skuRows.map((v, i) => ({
+                color: v.color,
+                size: v.size,
+                price: v.price,
+                stock: v.stock,
+                sku: v.sku,
+                image: v.image,
+                ...(v.images.length > 0 ? { images: v.images } : {}),
+                sortOrder: i,
+              })),
+            },
+          }
+        : {}),
     },
     select: {
       id: true,

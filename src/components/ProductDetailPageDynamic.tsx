@@ -151,7 +151,7 @@ export function ProductDetailPageDynamic({
   return (
     <div className="w-full min-h-screen bg-white" style={{ fontFamily: "'Manrope', sans-serif" }}>
       <TopBar />
-      <Navbar />
+      <Navbar showBackButton backFallbackHref={`/category/${subCategorySlug}`} />
 
       {/* Breadcrumb — desktop only */}
       <div className="hidden lg:block bg-[#F9FAFB] border-b border-[#E5E7EB]">

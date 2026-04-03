@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Search, User, ShoppingCart, ChevronDown, LogIn, LogOut } from "lucide-react";
+import { Search, User, ShoppingCart, ChevronDown, LogIn, LogOut, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { IndovyaparLogo } from "./IndovyaparLogo";
@@ -36,7 +36,14 @@ const ACCOUNT_DROPDOWN_LINKS = [
 
 const CART_UPDATED_EVENT = "indovyapar-cart-updated";
 
-export function Navbar() {
+export type NavbarProps = {
+  /** Show a back control (history back, or fallback href) — e.g. product detail */
+  showBackButton?: boolean;
+  /** When history has no usable back entry, navigate here */
+  backFallbackHref?: string;
+};
+
+export function Navbar({ showBackButton = false, backFallbackHref = "/" }: NavbarProps = {}) {
   const [query, setQuery] = useState("");
   const [searchScope, setSearchScope] = useState<SearchScope>({ kind: "all" });
   const [deptDropdownOpen, setDeptDropdownOpen] = useState(false);
@@ -168,6 +175,14 @@ export function Navbar() {
     }
   };
 
+  const handleNavBack = () => {
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      router.back();
+    } else {
+      router.push(backFallbackHref || "/");
+    }
+  };
+
   return (
     <div
       ref={accountDropdownRef}
@@ -177,8 +192,22 @@ export function Navbar() {
           "linear-gradient(180deg, rgba(255,255,255,0.86) 0%, rgba(255,255,255,0.74) 100%)",
       }}
     >
-      {/* Logo — centered on mobile, left-aligned from md */}
-      <div className="flex w-full justify-center md:w-auto md:justify-start">
+      {/* Logo — centered on mobile, left-aligned from md; optional back for PDP */}
+      <div
+        className={`relative flex w-full items-center justify-center md:w-auto md:justify-start md:gap-2 ${
+          showBackButton ? "min-h-[40px] md:min-h-0" : ""
+        }`}
+      >
+        {showBackButton ? (
+          <button
+            type="button"
+            onClick={handleNavBack}
+            className="absolute left-0 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full text-[#111827] transition-colors hover:bg-black/[0.06] active:bg-black/[0.08] md:static md:top-auto md:translate-y-0 md:hover:bg-black/[0.04]"
+            aria-label="Go back"
+          >
+            <ArrowLeft className="h-6 w-6" strokeWidth={2.25} />
+          </button>
+        ) : null}
         <div className="flex-shrink-0 cursor-pointer" onClick={() => router.push("/")}>
           <h1 className="md:hidden" style={{ margin: 0 }}>
             <IndovyaparLogo fontSize={20} />

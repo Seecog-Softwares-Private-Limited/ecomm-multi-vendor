@@ -66,11 +66,16 @@ const tabItems: TabItem[] = [
   },
 ];
 
-const menuLinks: Array<{ href: string; label: string; icon: LucideIcon }> = [
+/** Shown only when the customer is logged in (same session as /api/auth/me CUSTOMER). */
+const accountQuickLinks: Array<{ href: string; label: string; icon: LucideIcon }> = [
   { href: "/my-orders", label: "Orders", icon: ClipboardList },
   { href: "/wishlist", label: "Wishlist", icon: Heart },
   { href: "/profile", label: "My Profile", icon: User },
   { href: "/my-orders", label: "Returns", icon: ClipboardList },
+];
+
+/** Always shown in Quick links — guests can open Support and sign flow from there if needed. */
+const publicQuickLinks: Array<{ href: string; label: string; icon: LucideIcon }> = [
   { href: "/support-tickets", label: "Support", icon: LifeBuoy },
 ];
 
@@ -183,13 +188,7 @@ export function MobileBottomNav() {
   );
 
   const visibleMenuLinks = useMemo(
-    () =>
-      guestOrLoading
-        ? menuLinks.filter(
-            (l) =>
-              l.href !== "/my-orders" && l.href !== "/wishlist" && l.href !== "/profile"
-          )
-        : menuLinks,
+    () => (guestOrLoading ? publicQuickLinks : [...accountQuickLinks, ...publicQuickLinks]),
     [guestOrLoading]
   );
 
@@ -322,17 +321,7 @@ export function MobileBottomNav() {
               </div>
 
               <div className="mt-4 space-y-2 border-t border-slate-200 pt-4">
-                {isLoggedIn === false ? (
-                  <Link
-                    href="/login"
-                    onClick={() => setMenuOpen(false)}
-                    className="flex items-center gap-3 rounded-2xl bg-[#FF6A00] px-4 py-3.5 text-white shadow-md transition active:scale-[0.99]"
-                    style={{ fontFamily: "'Manrope', sans-serif", fontWeight: 700 }}
-                  >
-                    <LogIn size={22} />
-                    <span>Login</span>
-                  </Link>
-                ) : isLoggedIn === true ? (
+                {isLoggedIn === true ? (
                   <button
                     type="button"
                     onClick={handleLogout}
@@ -342,7 +331,17 @@ export function MobileBottomNav() {
                     <LogOut size={22} />
                     <span>Logout</span>
                   </button>
-                ) : null}
+                ) : (
+                  <Link
+                    href="/login"
+                    onClick={() => setMenuOpen(false)}
+                    className="flex items-center gap-3 rounded-2xl bg-[#FF6A00] px-4 py-3.5 text-white shadow-md transition active:scale-[0.99]"
+                    style={{ fontFamily: "'Manrope', sans-serif", fontWeight: 700 }}
+                  >
+                    <LogIn size={22} />
+                    <span>Login</span>
+                  </Link>
+                )}
               </div>
             </div>
           </div>
