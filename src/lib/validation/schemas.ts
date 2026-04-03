@@ -106,24 +106,72 @@ const stockSchema = z.union([z.string().regex(/^\d+$/).transform(Number), z.numb
 const returnPolicyForm = z.enum(["no-return", "7days", "10days", "15days"]);
 const productStatusSubmit = z.enum(["DRAFT", "PENDING_APPROVAL"]);
 
-export const createVendorProductSchema = z.object({
-  name: z.string().min(1, "Product name is required").max(500).trim(),
-  description: z.string().max(10000).trim().optional(),
-  categorySlug: createProductSlug,
-  subCategorySlug: createProductSlug,
-  sku: z.string().min(1, "SKU is required").max(100).trim(),
-  mrp: priceSchema,
-  sellingPrice: priceSchema,
-  gstPercent: z.union([z.string().regex(/^\d*(\.\d+)?$/).transform(Number), z.number()]).pipe(z.number().min(0).max(100)).optional(),
+const vendorSkuVariantSchema = z.object({
+  color: z.string().max(100).trim().optional(),
+  size: z.string().max(100).trim().optional(),
+  price: priceSchema,
   stock: stockSchema,
-  returnPolicy: returnPolicyForm.optional(),
-  status: productStatusSubmit.optional(),
-  imageUrls: z.array(z.string().max(500)).max(10).optional(),
-  specifications: z.array(z.object({ key: z.string().max(100).trim(), value: z.string().max(500).trim() })).optional(),
-  variations: z.array(z.object({ name: z.string().max(100).trim(), values: z.array(z.string().max(100)) })).optional(),
+  sku: z.string().max(100).trim().optional(),
+  image: z.string().max(500).trim().optional(),
+  images: z.array(z.string().max(500).trim()).max(10).optional(),
 });
 
+export const createVendorProductSchema = z
+  .object({
+    name: z.string().min(1, "Product name is required").max(500).trim(),
+    description: z.string().max(10000).trim().optional(),
+    categorySlug: createProductSlug,
+    subCategorySlug: createProductSlug,
+    sku: z.string().min(1, "SKU is required").max(100).trim(),
+    mrp: priceSchema,
+    sellingPrice: priceSchema,
+    gstPercent: z
+      .union([z.string().regex(/^\d*(\.\d+)?$/).transform(Number), z.number()])
+      .pipe(z.number().min(0).max(100))
+      .optional(),
+    stock: stockSchema,
+    returnPolicy: returnPolicyForm.optional(),
+    status: productStatusSubmit.optional(),
+    imageUrls: z.array(z.string().max(500)).max(10).optional(),
+    specifications: z
+      .array(z.object({ key: z.string().max(100).trim(), value: z.string().max(500).trim() }))
+      .optional(),
+    variations: z
+      .array(z.object({ name: z.string().max(100).trim(), values: z.array(z.string().max(100)) }))
+      .optional(),
+    /** SKU-level rows (color/size + price/stock). Empty/omitted = simple product. */
+    variants: z.array(vendorSkuVariantSchema).max(100).optional(),
+  })
+  .superRefine((data, ctx) => {
+    const rows = data.variants ?? [];
+    if (rows.length === 0) return;
+
+    const keys: string[] = [];
+    rows.forEach((row, i) => {
+      const hasDim = Boolean(row.color?.trim() || row.size?.trim() || row.sku?.trim());
+      if (rows.length > 1 && !hasDim) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Each variant needs at least color, size, or SKU when you add multiple rows.",
+          path: ["variants", i],
+        });
+      }
+      const k = `${(row.color ?? "").trim().toLowerCase()}\u0000${(row.size ?? "").trim().toLowerCase()}`;
+      keys.push(k);
+    });
+
+    const dup = keys.find((k, i) => keys.indexOf(k) !== i);
+    if (dup !== undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Duplicate color + size combination.",
+        path: ["variants"],
+      });
+    }
+  });
+
 export type CreateVendorProductInput = z.infer<typeof createVendorProductSchema>;
+export type VendorSkuVariantInput = z.infer<typeof vendorSkuVariantSchema>;
 
 /** 6-digit Indian PIN (digits only after transform). */
 export const indianPincodeField = z

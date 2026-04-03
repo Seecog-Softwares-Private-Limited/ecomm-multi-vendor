@@ -2,6 +2,13 @@
 
 import { Save, Send, ArrowLeft, X, Plus } from "lucide-react";
 import { Button, Input, Textarea, Select, FileUpload, Card, Alert } from "../components/UIComponents";
+import { ProductSkuVariantRow } from "../components/ProductSkuVariantRow";
+import {
+  skuVariantsToFormGroups,
+  emptySkuVariantGroup,
+  type SkuVariantGroupFormRow,
+} from "@/lib/product-sku-variant";
+import type { CreateVendorProductPayload } from "@/services/types/vendor.types";
 import { vendorService } from "@/services/vendor.service";
 import * as React from "react";
 
@@ -57,6 +64,7 @@ export function VendorProductForm({ productId = "", onBack, onSave }: VendorProd
             values: Array.isArray(v.values) ? v.values.join(", ") : "",
           }))
         );
+        setSkuVariantGroups(skuVariantsToFormGroups(product.skuVariants ?? []));
       })
       .catch((err) => {
         if (!cancelled) {
@@ -91,6 +99,8 @@ export function VendorProductForm({ productId = "", onBack, onSave }: VendorProd
   ]);
 
   const [variations, setVariations] = React.useState<{ name: string; values: string }[]>([]);
+
+  const [skuVariantGroups, setSkuVariantGroups] = React.useState<SkuVariantGroupFormRow[]>([]);
 
   const [allCategories, setAllCategories] = React.useState<{ id: string; name: string; slug: string }[]>([]);
   const [allowedCategoryIds, setAllowedCategoryIds] = React.useState<string[]>([]);
@@ -166,11 +176,57 @@ export function VendorProductForm({ productId = "", onBack, onSave }: VendorProd
     }
     const mrp = Number(formData.mrp);
     const sellingPrice = Number(formData.sellingPrice);
-    const stock = Number(formData.stock);
-    if (isNaN(mrp) || mrp < 0 || isNaN(sellingPrice) || sellingPrice < 0 || isNaN(stock) || stock < 0) {
-      setSubmitError("Please enter valid numbers for MRP, Selling Price, and Stock.");
+    let stock = Number(formData.stock);
+    if (isNaN(mrp) || mrp < 0 || isNaN(sellingPrice) || sellingPrice < 0) {
+      setSubmitError("Please enter valid numbers for MRP and Selling Price.");
       return;
     }
+
+    const variantsPayload: NonNullable<CreateVendorProductPayload["variants"]> = [];
+    for (let g = 0; g < skuVariantGroups.length; g++) {
+      const group = skuVariantGroups[g]!;
+      const imageUrls = group.images.map((u) => u.trim()).filter(Boolean);
+      for (let s = 0; s < group.sizes.length; s++) {
+        const line = group.sizes[s]!;
+        const hasAny = !!(
+          group.color.trim() ||
+          line.size.trim() ||
+          line.sku.trim() ||
+          imageUrls.length > 0 ||
+          line.price.trim() ||
+          line.stock.trim()
+        );
+        if (!hasAny) continue;
+        const vp = Number(line.price);
+        const vs = Number(line.stock);
+        if (Number.isNaN(vp) || vp < 0 || Number.isNaN(vs) || !Number.isFinite(vs) || vs < 0 || !Number.isInteger(vs)) {
+          setSubmitError(`Variant ${g + 1} (size row ${s + 1}): enter a valid price and a whole-number stock quantity.`);
+          return;
+        }
+        const row: NonNullable<CreateVendorProductPayload["variants"]>[number] = {
+          color: group.color.trim() || undefined,
+          size: line.size.trim() || undefined,
+          price: vp,
+          stock: Math.floor(vs),
+          sku: line.sku.trim() || undefined,
+        };
+        if (imageUrls.length === 1) {
+          row.image = imageUrls[0];
+        } else if (imageUrls.length > 1) {
+          row.images = imageUrls;
+          row.image = imageUrls[0];
+        }
+        variantsPayload.push(row);
+      }
+    }
+
+    if (variantsPayload.length === 0) {
+      if (isNaN(stock) || stock < 0 || !Number.isInteger(stock)) {
+        setSubmitError("Please enter a valid whole-number stock, or add at least one variant with price and stock.");
+        return;
+      }
+    }
+
     setSubmitError(null);
     setSubmitting(true);
     const payload = {
@@ -204,6 +260,7 @@ export function VendorProductForm({ productId = "", onBack, onSave }: VendorProd
                     : [],
               }))
           : undefined,
+      variants: variantsPayload.length > 0 ? variantsPayload : undefined,
     };
     try {
       if (isEdit) {
@@ -393,6 +450,49 @@ export function VendorProductForm({ productId = "", onBack, onSave }: VendorProd
         </div>
       </Card>
 
+      {/* SKU variants (optional) */}
+      <Card
+        title="Variants (optional)"
+        actions={
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => setSkuVariantGroups((rows) => [...rows, emptySkuVariantGroup()])}
+          >
+            <Plus className="w-4 h-4" />
+            Add variant
+          </Button>
+        }
+      >
+        <p className="text-sm text-[#64748B] mb-4">
+          Add a variant for each color or style. Under each variant, use <span className="font-semibold text-[#475569]">Add size</span>{" "}
+          for as many sizes as you need (each with its own price and stock). Upload multiple images per variant if you
+          like — they appear on the product page when that option is selected. Leave this empty for a simple listing using{" "}
+          <span className="font-semibold text-[#475569]">Pricing &amp; Inventory</span> only.
+        </p>
+        {skuVariantGroups.length === 0 ? (
+          <p className="text-sm text-[#94A3B8] italic">No variants — simple listing uses base price and stock below.</p>
+        ) : (
+          <div className="space-y-4">
+            {skuVariantGroups.map((row, index) => (
+              <ProductSkuVariantRow
+                key={index}
+                index={index}
+                value={row}
+                canRemove={skuVariantGroups.length > 0}
+                onChange={(next) => {
+                  const copy = [...skuVariantGroups];
+                  copy[index] = next;
+                  setSkuVariantGroups(copy);
+                }}
+                onRemove={() => setSkuVariantGroups((rows) => rows.filter((_, i) => i !== index))}
+              />
+            ))}
+          </div>
+        )}
+      </Card>
+
       {/* Pricing & Inventory */}
       <Card title="Pricing & Inventory">
         <div className="space-y-6">
@@ -403,7 +503,7 @@ export function VendorProductForm({ productId = "", onBack, onSave }: VendorProd
               placeholder="0"
               value={formData.mrp}
               onChange={(e) => setFormData({ ...formData, mrp: e.target.value })}
-              helperText="Original price"
+              helperText="Original / list price (also used on PDP strikethrough)"
               required
             />
             <Input
@@ -412,7 +512,7 @@ export function VendorProductForm({ productId = "", onBack, onSave }: VendorProd
               placeholder="0"
               value={formData.sellingPrice}
               onChange={(e) => setFormData({ ...formData, sellingPrice: e.target.value })}
-              helperText="Customer pays this"
+              helperText={skuVariantGroups.length > 0 ? "Used when no variants; with variants, listing uses the lowest variant price." : "Customer pays this"}
               required
             />
             <Select
@@ -436,7 +536,11 @@ export function VendorProductForm({ productId = "", onBack, onSave }: VendorProd
             placeholder="0"
             value={formData.stock}
             onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
-            helperText="Available units"
+            helperText={
+              skuVariantGroups.length > 0
+                ? "With variants, totals are summed from variant rows on save; you can still set a fallback here for simple mode."
+                : "Available units"
+            }
             required
           />
 
