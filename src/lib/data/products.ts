@@ -414,7 +414,7 @@ export async function getProductById(id: string): Promise<ProductDetail | null> 
       productVariants: {
         where: { deletedAt: null },
         orderBy: { sortOrder: "asc" },
-        select: { id: true, color: true, size: true, price: true, stock: true, sku: true, image: true },
+        select: { id: true, color: true, size: true, price: true, stock: true, sku: true, image: true, images: true },
       },
     },
   });
