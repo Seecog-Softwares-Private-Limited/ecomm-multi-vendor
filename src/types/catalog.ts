@@ -33,6 +33,20 @@ export interface ProductListItem {
   imageUrl?: string;
 }
 
+/** Sellable SKU row (vendor-defined); when non-empty, PDP uses these for price/stock/options. */
+export interface ProductSkuVariant {
+  id: string;
+  color: string | null;
+  size: string | null;
+  price: number;
+  stock: number;
+  sku: string | null;
+  /** First gallery URL; use `images` for the full set. */
+  image: string | null;
+  /** Ordered URLs for this variant (PDP gallery). */
+  images: string[];
+}
+
 export interface ProductDetail {
   id: string;
   /** Seller owning the product; used for PIN / service-area checks on PDP. */
@@ -47,6 +61,8 @@ export interface ProductDetail {
   images: string[];
   specifications: { label: string; value: string }[];
   variations: { name: string; values: string[] }[];
+  /** SKU combinations with own price/stock (optional). */
+  skuVariants: ProductSkuVariant[];
 }
 
 export interface ReviewItem {

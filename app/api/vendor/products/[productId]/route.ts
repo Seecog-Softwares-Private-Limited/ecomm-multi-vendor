@@ -11,6 +11,7 @@ import { getVendorProfile } from "@/lib/data/vendor-profile";
 import { getVendorProductForEdit } from "@/lib/data/vendor-products";
 import { resolveCategoryAndSubCategoryIds } from "@/lib/data/categories";
 import { prisma } from "@/lib/prisma";
+import { normalizeVendorSkuVariants } from "@/lib/product-sku-variant";
 import {
   createVendorProductSchema,
   parseWithDetails,
@@ -116,7 +117,12 @@ export const PUT = withApiHandler(async (request: NextRequest, context?: RouteCo
     (url) => url.startsWith("http://") || url.startsWith("https://")
   );
 
-  const stock = typeof parsed.data.stock === "number" ? parsed.data.stock : Number(parsed.data.stock) || 0;
+  const stockBase = typeof parsed.data.stock === "number" ? parsed.data.stock : Number(parsed.data.stock) || 0;
+  const skuRows = normalizeVendorSkuVariants(parsed.data.variants);
+  const hasSkuVariants = skuRows.length > 0;
+  const stock = hasSkuVariants ? skuRows.reduce((s, r) => s + r.stock, 0) : stockBase;
+  const sellingPrice = hasSkuVariants ? Math.min(...skuRows.map((r) => r.price)) : parsed.data.sellingPrice;
+
   await prisma.product.update({
     where: { id },
     data: {
@@ -126,7 +132,7 @@ export const PUT = withApiHandler(async (request: NextRequest, context?: RouteCo
       description: parsed.data.description ?? null,
       sku: parsed.data.sku,
       mrp: parsed.data.mrp,
-      sellingPrice: parsed.data.sellingPrice,
+      sellingPrice,
       gstPercent: parsed.data.gstPercent ?? null,
       stock,
       returnPolicy,
@@ -150,6 +156,23 @@ export const PUT = withApiHandler(async (request: NextRequest, context?: RouteCo
         create: (parsed.data.variations ?? [])
           .filter((v) => v.name.trim() !== "")
           .map((v) => ({ name: v.name, values: v.values })),
+      },
+      productVariants: {
+        deleteMany: {},
+        ...(hasSkuVariants
+          ? {
+              create: skuRows.map((v, i) => ({
+                color: v.color,
+                size: v.size,
+                price: v.price,
+                stock: v.stock,
+                sku: v.sku,
+                image: v.image,
+                ...(v.images.length > 0 ? { images: v.images } : {}),
+                sortOrder: i,
+              })),
+            }
+          : {}),
       },
     },
   });

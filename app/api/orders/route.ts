@@ -9,6 +9,7 @@ import {
 } from "@/lib/api";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { resolveSkuRowForCart } from "@/lib/product-sku-variant";
 
 /**
  * GET /api/orders — list orders for the logged-in customer.
@@ -100,6 +101,10 @@ export const POST = withApiHandler(async (request: NextRequest) => {
           status: true,
           deletedAt: true,
           stock: true,
+          productVariants: {
+            where: { deletedAt: null },
+            select: { color: true, size: true, price: true, stock: true },
+          },
         },
       },
     },
@@ -123,10 +128,18 @@ export const POST = withApiHandler(async (request: NextRequest) => {
 
   let couponId: string | null = null;
   let discountAmount = 0;
-  const subtotal = validItems.reduce(
-    (sum, i) => sum + Number(i.product!.sellingPrice) * i.quantity,
-    0
-  );
+
+  function unitPriceForCartLine(lineItem: (typeof validItems)[number]): number {
+    const p = lineItem.product!;
+    const pv = p.productVariants ?? [];
+    if (pv.length > 0) {
+      const row = resolveSkuRowForCart(pv, lineItem.variantKey);
+      return row ? Number(row.price) : Number(p.sellingPrice);
+    }
+    return Number(p.sellingPrice);
+  }
+
+  const subtotal = validItems.reduce((sum, i) => sum + unitPriceForCartLine(i) * i.quantity, 0);
 
   if (typeof couponCode === "string" && couponCode.trim()) {
     const coupon = await prisma.coupon.findFirst({
@@ -170,7 +183,7 @@ export const POST = withApiHandler(async (request: NextRequest) => {
 
     for (const it of validItems) {
       const p = it.product!;
-      const unitPrice = Number(p.sellingPrice);
+      const unitPrice = unitPriceForCartLine(it);
       const totalPrice = unitPrice * it.quantity;
       await tx.orderItem.create({
         data: {

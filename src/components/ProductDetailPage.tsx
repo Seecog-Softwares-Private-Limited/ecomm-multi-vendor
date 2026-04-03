@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -22,13 +22,21 @@ import {
   Minus,
   Plus,
 } from "lucide-react";
-import type { ProductDetail, ProductListItem } from "@/types/catalog";
+import type { ProductDetail, ProductListItem, ProductSkuVariant } from "@/types/catalog";
+import {
+  buildSkuVariantKey,
+  findSkuVariantByKey,
+  distinctVariantColors,
+  distinctVariantSizes,
+} from "@/lib/product-sku-variant";
 import { addToGuestCart } from "@/lib/guest-cart";
 import { useCartDrawer } from "@/contexts/CartDrawerContext";
 import { useDeliveryLocation } from "@/contexts/DeliveryLocationContext";
 import { addRecentlyViewedId } from "@/lib/recently-viewed";
 
 const PLACEHOLDER_IMAGE = "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=600";
+
+const EMPTY_SKU_VARIANTS: ProductSkuVariant[] = [] as ProductSkuVariant[];
 
 export type ProductDetailPageProps = {
   product: ProductDetail;
@@ -262,6 +270,9 @@ export function ProductDetailPage({
   }, [product.id, location.pincode]);
 
   const [activeImage, setActiveImage] = useState(0);
+  const skuVariants =
+    product.skuVariants && product.skuVariants.length > 0 ? product.skuVariants : EMPTY_SKU_VARIANTS;
+  const hasSkuVariants = skuVariants.length > 0;
   const variations = product.variations ?? [];
   const specifications = product.specifications ?? [];
   const colorVariation = variations.find((v) => v?.name?.toLowerCase() === "color");
@@ -270,6 +281,8 @@ export function ProductDetailPage({
   );
   const [selectedColor, setSelectedColor] = useState(colorVariation?.values?.[0] ?? "");
   const [selectedStorage, setSelectedStorage] = useState(storageVariation?.values?.[0] ?? "");
+  const [skuColor, setSkuColor] = useState<string | null>(null);
+  const [skuSize, setSkuSize] = useState<string | null>(null);
   const [wishlisted, setWishlisted] = useState(false);
   const [qty, setQty] = useState(1);
   const [addingToCart, setAddingToCart] = useState(false);
@@ -289,11 +302,63 @@ export function ProductDetailPage({
     return () => obs.disconnect();
   }, [product.id]);
 
-  const price = Number(product.price) ?? 0;
+  useEffect(() => {
+    if (!hasSkuVariants) return;
+    const colors = distinctVariantColors(skuVariants);
+    const sizesAll = distinctVariantSizes(skuVariants, null);
+    if (colors.length > 0) {
+      const c0 = colors[0]!;
+      setSkuColor(c0);
+      setSkuSize(distinctVariantSizes(skuVariants, c0)[0] ?? null);
+    } else {
+      setSkuColor(null);
+      setSkuSize(sizesAll[0] ?? null);
+    }
+  }, [product.id, hasSkuVariants, product.skuVariants]);
+
+  useEffect(() => {
+    if (!hasSkuVariants || distinctVariantColors(skuVariants).length === 0) return;
+    const sizes = distinctVariantSizes(skuVariants, skuColor);
+    setSkuSize((prev) => (prev != null && sizes.includes(prev) ? prev : sizes[0] ?? null));
+  }, [hasSkuVariants, skuColor, product.id, product.skuVariants]);
+
+  const activeSkuVariant = hasSkuVariants
+    ? findSkuVariantByKey(skuVariants, buildSkuVariantKey(skuColor, skuSize))
+    : null;
+
+  const price = hasSkuVariants
+    ? activeSkuVariant?.price ?? Math.min(...skuVariants.map((s) => s.price))
+    : Number(product.price) ?? 0;
+  const displayStock = hasSkuVariants ? activeSkuVariant?.stock ?? 0 : product.stock;
   const mrp = Number(product.mrp) ?? 0;
   const discount = mrp > price ? Math.round(((mrp - price) / mrp) * 100) : 0;
+  const skuColorOptions = hasSkuVariants ? distinctVariantColors(skuVariants) : [];
+  const skuSizeOptions = hasSkuVariants ? distinctVariantSizes(skuVariants, skuColor) : [];
+  const stockBlocked = displayStock <= 0;
+  const maxOrderQty = Math.max(1, Math.min(99, displayStock > 0 ? displayStock : 99));
+  useEffect(() => {
+    setQty((q) => Math.max(1, Math.min(maxOrderQty, q)));
+  }, [maxOrderQty]);
   const productImages = product.images ?? [];
-  const images = productImages.length > 0 ? productImages : [PLACEHOLDER_IMAGE];
+  const displayGalleryImages = useMemo(() => {
+    const base = productImages.length > 0 ? productImages : [];
+    if (!hasSkuVariants) {
+      return base.length > 0 ? base : [PLACEHOLDER_IMAGE];
+    }
+    const vUrls = (activeSkuVariant?.images ?? []).filter(Boolean);
+    if (vUrls.length === 0) {
+      return base.length > 0 ? base : [PLACEHOLDER_IMAGE];
+    }
+    const merged = [...vUrls, ...base.filter((u) => !vUrls.includes(u))];
+    return merged.length > 0 ? merged : [PLACEHOLDER_IMAGE];
+  }, [hasSkuVariants, activeSkuVariant, productImages]);
+
+  useEffect(() => {
+    if (!hasSkuVariants) return;
+    setActiveImage(0);
+  }, [hasSkuVariants, skuColor, skuSize, product.id]);
+
+  const images = displayGalleryImages;
   const displayBrand = specifications.find((s) => s?.label?.toLowerCase() === "brand")?.value ?? brand;
   const keyFeatures = specifications.filter((s) => s?.label?.toLowerCase() !== "brand").slice(0, 6);
   const rating = product.avgRating ?? 0;
@@ -317,13 +382,27 @@ export function ProductDetailPage({
       openDeliveryModal();
       return;
     }
+    if (displayStock <= 0) {
+      toast.error("This option is out of stock.");
+      return;
+    }
     setCartError(null);
     setAddingToCart(true);
     try {
-      const parts: string[] = [];
-      if (colorVariation && selectedColor) parts.push(`Color:${selectedColor}`);
-      if (storageVariation && selectedStorage) parts.push(`Storage:${selectedStorage}`);
-      const variantKey = parts.length > 0 ? parts.join("|") : null;
+      let variantKey: string | null = null;
+      if (hasSkuVariants) {
+        variantKey = buildSkuVariantKey(skuColor, skuSize);
+        if (!findSkuVariantByKey(skuVariants, variantKey)) {
+          toast.error("Choose a valid color and size.");
+          setAddingToCart(false);
+          return;
+        }
+      } else {
+        const parts: string[] = [];
+        if (colorVariation && selectedColor) parts.push(`Color:${selectedColor}`);
+        if (storageVariation && selectedStorage) parts.push(`Storage:${selectedStorage}`);
+        variantKey = parts.length > 0 ? parts.join("|") : null;
+      }
       const res = await fetch("/api/cart/items", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -343,8 +422,8 @@ export function ProductDetailPage({
             quantity: qty,
             variantKey,
             name: product.name,
-            price: product.price,
-            imageUrl: product.images?.[0] ?? null,
+            price,
+            imageUrl: activeSkuVariant?.images?.[0] ?? activeSkuVariant?.image ?? product.images?.[0] ?? null,
             mrp: product.mrp,
           });
           toast.success("Added to cart");
@@ -371,13 +450,27 @@ export function ProductDetailPage({
       openDeliveryModal();
       return;
     }
+    if (displayStock <= 0) {
+      toast.error("This option is out of stock.");
+      return;
+    }
     setCartError(null);
     setBuyNowLoading(true);
     try {
-      const parts: string[] = [];
-      if (colorVariation && selectedColor) parts.push(`Color:${selectedColor}`);
-      if (storageVariation && selectedStorage) parts.push(`Storage:${selectedStorage}`);
-      const variantKey = parts.length > 0 ? parts.join("|") : null;
+      let variantKey: string | null = null;
+      if (hasSkuVariants) {
+        variantKey = buildSkuVariantKey(skuColor, skuSize);
+        if (!findSkuVariantByKey(skuVariants, variantKey)) {
+          toast.error("Choose a valid color and size.");
+          setBuyNowLoading(false);
+          return;
+        }
+      } else {
+        const parts: string[] = [];
+        if (colorVariation && selectedColor) parts.push(`Color:${selectedColor}`);
+        if (storageVariation && selectedStorage) parts.push(`Storage:${selectedStorage}`);
+        variantKey = parts.length > 0 ? parts.join("|") : null;
+      }
       const res = await fetch("/api/cart/items", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -397,8 +490,8 @@ export function ProductDetailPage({
             quantity: qty,
             variantKey,
             name: product.name,
-            price: product.price,
-            imageUrl: product.images?.[0] ?? null,
+            price,
+            imageUrl: activeSkuVariant?.images?.[0] ?? activeSkuVariant?.image ?? product.images?.[0] ?? null,
             mrp: product.mrp,
           });
           toast.success("Added to cart. Sign in to checkout.");
@@ -580,7 +673,7 @@ export function ProductDetailPage({
                       {qty}
                     </span>
                     <button
-                      onClick={() => setQty((q) => q + 1)}
+                      onClick={() => setQty((q) => Math.min(maxOrderQty, q + 1))}
                       style={{
                         width: 32,
                         height: 32,
@@ -606,15 +699,15 @@ export function ProductDetailPage({
                 <button
                   type="button"
                   onClick={handleAddToCart}
-                  disabled={addingToCart || deliveryEligible === false}
+                  disabled={addingToCart || deliveryEligible === false || stockBlocked}
                   style={{
                     width: "100%",
                     height: 44,
                     background:
-                      addingToCart || deliveryEligible === false ? "#CC5500" : "#FF6A00",
+                      addingToCart || deliveryEligible === false || stockBlocked ? "#CC5500" : "#FF6A00",
                     border: "none",
                     borderRadius: 10,
-                    cursor: addingToCart || deliveryEligible === false ? "not-allowed" : "pointer",
+                    cursor: addingToCart || deliveryEligible === false || stockBlocked ? "not-allowed" : "pointer",
                     fontFamily: "'Manrope', sans-serif",
                     fontWeight: 700,
                     fontSize: 15,
@@ -630,26 +723,32 @@ export function ProductDetailPage({
                       (e.currentTarget as HTMLButtonElement).style.background = "#FF6A00";
                   }}
                 >
-                  {addingToCart ? "Adding…" : deliveryEligible === false ? "Not deliverable here" : "Add to Cart"}
+                  {addingToCart
+                    ? "Adding…"
+                    : deliveryEligible === false
+                      ? "Not deliverable here"
+                      : stockBlocked
+                        ? "Out of stock"
+                        : "Add to Cart"}
                 </button>
     
                 {/* Buy Now */}
                 <button
                   onClick={handleBuyNow}
-                  disabled={buyNowLoading || deliveryEligible === false}
+                  disabled={buyNowLoading || deliveryEligible === false || stockBlocked}
                   style={{
                     width: "100%",
                     height: 44,
                     background: "#FFF0E0",
                     border: "2px solid #FF6A00",
                     borderRadius: 10,
-                    cursor: buyNowLoading || deliveryEligible === false ? "not-allowed" : "pointer",
+                    cursor: buyNowLoading || deliveryEligible === false || stockBlocked ? "not-allowed" : "pointer",
                     fontFamily: "'Manrope', sans-serif",
                     fontWeight: 700,
                     fontSize: 15,
                     color: "#FF6A00",
                     transition: "background 0.15s",
-                    opacity: buyNowLoading || deliveryEligible === false ? 0.65 : 1,
+                    opacity: buyNowLoading || deliveryEligible === false || stockBlocked ? 0.65 : 1,
                   }}
                   onMouseEnter={(e) => {
                     if (!buyNowLoading && deliveryEligible !== false)
@@ -660,7 +759,13 @@ export function ProductDetailPage({
                       (e.currentTarget as HTMLButtonElement).style.background = "#FFF0E0";
                   }}
                 >
-                  {buyNowLoading ? "Adding…" : deliveryEligible === false ? "Not deliverable here" : "Buy Now"}
+                  {buyNowLoading
+                    ? "Adding…"
+                    : deliveryEligible === false
+                      ? "Not deliverable here"
+                      : stockBlocked
+                        ? "Out of stock"
+                        : "Buy Now"}
                 </button>
     
                 {/* Wishlist */}
@@ -726,7 +831,7 @@ export function ProductDetailPage({
       style={{ background: "#FFFFFF", fontFamily: "'Manrope', sans-serif" }}
     >
       <TopBar />
-      <Navbar />
+      <Navbar showBackButton backFallbackHref={`/category/${subCategorySlug}`} />
 
       {/* Breadcrumb — desktop only; hidden on mobile to save vertical space */}
       <div
@@ -1142,17 +1247,17 @@ export function ProductDetailPage({
               </div>
             )}
 
-            {/* In Stock */}
+            {/* Stock */}
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <span
                 style={{
                   fontFamily: "'Manrope', sans-serif",
                   fontWeight: 700,
                   fontSize: 13,
-                  color: "#16A34A",
+                  color: displayStock > 0 ? "#16A34A" : "#DC2626",
                 }}
               >
-                ● In Stock
+                {displayStock > 0 ? `● In stock (${displayStock} left)` : "● Out of stock"}
               </span>
             </div>
           </div>
@@ -1212,8 +1317,50 @@ export function ProductDetailPage({
           {/* Divider */}
           <div style={{ borderTop: "1px solid #E5E7EB" }} />
 
-          {/* Color */}
-          {colorVariation && colorVariation.values.length > 0 && (
+          {/* SKU variants: Color */}
+          {hasSkuVariants && skuColorOptions.length > 0 && (
+          <div>
+            <p
+              style={{
+                fontFamily: "'Manrope', sans-serif",
+                fontWeight: 600,
+                fontSize: 14,
+                color: "#111827",
+                marginBottom: 10,
+              }}
+            >
+              Color:{" "}
+              <span style={{ color: "#FF6A00", fontWeight: 700 }}>{skuColor ?? skuColorOptions[0]}</span>
+            </p>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              {skuColorOptions.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setSkuColor(c)}
+                  style={{
+                    padding: "7px 16px",
+                    borderRadius: 8,
+                    border:
+                      skuColor === c ? "2px solid #FF6A00" : "1.5px solid #D1D5DC",
+                    background: skuColor === c ? "#FFF4EC" : "#FFFFFF",
+                    cursor: "pointer",
+                    fontFamily: "'Manrope', sans-serif",
+                    fontWeight: skuColor === c ? 700 : 400,
+                    fontSize: 13,
+                    color: skuColor === c ? "#FF6A00" : "#374151",
+                    transition: "all 0.15s",
+                  }}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+          </div>
+          )}
+
+          {/* Color (legacy attribute variations) */}
+          {!hasSkuVariants && colorVariation && colorVariation.values.length > 0 && (
           <div>
             <p
               style={{
@@ -1256,8 +1403,50 @@ export function ProductDetailPage({
           </div>
           )}
 
-          {/* Storage */}
-          {storageVariation && storageVariation.values.length > 0 && (
+          {/* SKU variants: Size */}
+          {hasSkuVariants && skuSizeOptions.length > 0 && (
+          <div>
+            <p
+              style={{
+                fontFamily: "'Manrope', sans-serif",
+                fontWeight: 600,
+                fontSize: 14,
+                color: "#111827",
+                marginBottom: 10,
+              }}
+            >
+              Size:{" "}
+              <span style={{ color: "#6B7280", fontWeight: 400 }}>{skuSize ?? skuSizeOptions[0]}</span>
+            </p>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              {skuSizeOptions.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setSkuSize(s)}
+                  style={{
+                    padding: "7px 20px",
+                    borderRadius: 8,
+                    border:
+                      skuSize === s ? "2px solid #FF6A00" : "1.5px solid #D1D5DC",
+                    background: skuSize === s ? "#FFF4EC" : "#FFFFFF",
+                    cursor: "pointer",
+                    fontFamily: "'Manrope', sans-serif",
+                    fontWeight: skuSize === s ? 700 : 400,
+                    fontSize: 13,
+                    color: skuSize === s ? "#FF6A00" : "#374151",
+                    transition: "all 0.15s",
+                  }}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+          )}
+
+          {/* Storage (legacy) */}
+          {!hasSkuVariants && storageVariation && storageVariation.values.length > 0 && (
           <div>
             <p
               style={{
@@ -1436,7 +1625,7 @@ export function ProductDetailPage({
             </span>
             <button
               type="button"
-              onClick={() => setQty((q) => q + 1)}
+              onClick={() => setQty((q) => Math.min(maxOrderQty, q + 1))}
               className="flex h-9 w-9 items-center justify-center bg-[#F9FAFB]"
               aria-label="Increase quantity"
             >
@@ -1447,20 +1636,32 @@ export function ProductDetailPage({
             <button
               type="button"
               onClick={handleAddToCart}
-              disabled={addingToCart || deliveryEligible === false}
+              disabled={addingToCart || deliveryEligible === false || stockBlocked}
               className="h-10 rounded-lg bg-[#FF6A00] text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-70 sm:text-sm"
               style={{ fontFamily: "'Manrope', sans-serif" }}
             >
-              {addingToCart ? "…" : deliveryEligible === false ? "N/A" : "Add to Cart"}
+              {addingToCart
+                ? "…"
+                : deliveryEligible === false
+                  ? "N/A"
+                  : stockBlocked
+                    ? "Out"
+                    : "Add to Cart"}
             </button>
             <button
               type="button"
               onClick={handleBuyNow}
-              disabled={buyNowLoading || deliveryEligible === false}
+              disabled={buyNowLoading || deliveryEligible === false || stockBlocked}
               className="h-10 rounded-lg border-2 border-[#FF6A00] bg-[#FFF0E0] text-xs font-bold text-[#FF6A00] disabled:cursor-not-allowed disabled:opacity-65 sm:text-sm"
               style={{ fontFamily: "'Manrope', sans-serif" }}
             >
-              {buyNowLoading ? "…" : deliveryEligible === false ? "N/A" : "Buy Now"}
+              {buyNowLoading
+                ? "…"
+                : deliveryEligible === false
+                  ? "N/A"
+                  : stockBlocked
+                    ? "Out"
+                    : "Buy Now"}
             </button>
           </div>
         </div>

@@ -50,6 +50,16 @@ export interface CreateVendorProductPayload {
   imageUrls?: string[];
   specifications?: { key: string; value: string }[];
   variations?: { name: string; values: string[] }[];
+  /** SKU rows (color/size + price/stock). Omit or [] = simple product pricing. */
+  variants?: {
+    color?: string;
+    size?: string;
+    price: number;
+    stock: number;
+    sku?: string;
+    image?: string;
+    images?: string[];
+  }[];
 }
 
 export interface CreateVendorProductResponse {
@@ -78,6 +88,16 @@ export interface VendorProductForEdit {
   imageUrls: string[];
   specifications: { key: string; value: string }[];
   variations: { name: string; values: string[] }[];
+  skuVariants: {
+    id: string;
+    color: string | null;
+    size: string | null;
+    price: number;
+    stock: number;
+    sku: string | null;
+    image: string | null;
+    images: string[];
+  }[];
 }
 
 /** Payload for update (PUT) — same shape as create. */

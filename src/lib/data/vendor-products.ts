@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { coalesceVariantImagesFromDb } from "@/lib/product-sku-variant";
 
 const toNumber = (v: unknown): number => (typeof v === "number" ? v : Number(v) ?? 0);
 
@@ -122,6 +123,16 @@ export interface VendorProductForEdit {
   imageUrls: string[];
   specifications: { key: string; value: string }[];
   variations: { name: string; values: string[] }[];
+  /** SKU-level variants (color/size + price/stock); empty if simple product. */
+  skuVariants: {
+    id: string;
+    color: string | null;
+    size: string | null;
+    price: number;
+    stock: number;
+    sku: string | null;
+    image: string | null;
+  }[];
 }
 
 const RETURN_POLICY_TO_FORM: Record<string, "no-return" | "7days" | "10days" | "15days"> = {
@@ -147,6 +158,20 @@ export async function getVendorProductForEdit(
       images: { where: { deletedAt: null }, orderBy: { sortOrder: "asc" }, select: { url: true } },
       specifications: { where: { deletedAt: null }, select: { key: true, value: true } },
       variations: { where: { deletedAt: null }, select: { name: true, values: true } },
+      productVariants: {
+        where: { deletedAt: null },
+        orderBy: { sortOrder: "asc" },
+        select: {
+          id: true,
+          color: true,
+          size: true,
+          price: true,
+          stock: true,
+          sku: true,
+          image: true,
+          images: true,
+        },
+      },
     },
   });
   if (!product) return null;
@@ -174,6 +199,19 @@ export async function getVendorProductForEdit(
       name: v.name,
       values: valuesFromJson(v.values),
     })),
+    skuVariants: (product.productVariants ?? []).map((v) => {
+      const imgs = coalesceVariantImagesFromDb(v.images, v.image);
+      return {
+        id: v.id,
+        color: v.color ?? null,
+        size: v.size ?? null,
+        price: toNumber(v.price),
+        stock: v.stock,
+        sku: v.sku ?? null,
+        image: imgs[0] ?? null,
+        images: imgs,
+      };
+    }),
   };
 }
 
