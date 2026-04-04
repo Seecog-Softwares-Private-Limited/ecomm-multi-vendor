@@ -56,6 +56,7 @@ export interface VendorProfileDocument {
 }
 
 export interface VendorProfileDocumentDynamic {
+  id: string;
   documentName: string;
   documentUrl: string;
 }
@@ -175,9 +176,11 @@ export async function getVendorProfile(sellerId: string): Promise<VendorProfileD
       status: true,
       statusReason: true,
       primaryCategoryId: true,
+      emailVerified: true,
+      phoneVerified: true,
       bankAccounts: { where: { deletedAt: null, isPrimary: true }, take: 1 },
       kycDocuments: { where: { deletedAt: null } },
-      vendorDocuments: { where: { deletedAt: null }, select: { documentName: true, documentUrl: true } },
+      vendorDocuments: { where: { deletedAt: null }, select: { id: true, documentName: true, documentUrl: true } },
     },
   });
   if (!seller) return null;
@@ -222,9 +225,9 @@ export async function getVendorProfile(sellerId: string): Promise<VendorProfileD
     owner: {
       ownerName: seller.ownerName ?? "",
       mobile: seller.phone ?? "",
-      mobileVerified: true,
+      mobileVerified: seller.phoneVerified ?? false,
       email: seller.email ?? "",
-      emailVerified: true,
+      emailVerified: seller.emailVerified ?? false,
     },
     bank: bank
       ? {
@@ -263,6 +266,17 @@ export async function upsertVendorDocument(
       data: { sellerId, documentName, documentUrl },
     });
   }
+}
+
+export async function deleteVendorDocument(sellerId: string, documentId: string): Promise<void> {
+  const doc = await prisma.vendorDocument.findFirst({
+    where: { id: documentId, sellerId, deletedAt: null },
+  });
+  if (!doc) throw new Error("Document not found");
+  await prisma.vendorDocument.update({
+    where: { id: documentId },
+    data: { deletedAt: new Date() },
+  });
 }
 
 export interface UpdateVendorProfilePayload {

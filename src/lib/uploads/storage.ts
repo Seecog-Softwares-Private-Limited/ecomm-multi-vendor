@@ -26,3 +26,7 @@ export function getKycUploadDir(): string {
 export function getVendorDocsUploadDir(): string {
   return path.join(getPublicUploadsRoot(), "vendor-docs");
 }
+
+export function getAvatarsUploadDir(): string {
+  return path.join(getPublicUploadsRoot(), "avatars");
+}

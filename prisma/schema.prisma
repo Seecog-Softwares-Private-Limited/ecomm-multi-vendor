@@ -154,16 +154,21 @@ enum AdminApprovalStatus {
 model User {
   id           String    @id @default(uuid()) @db.Char(36)
   email        String    @unique @db.VarChar(255)
-  passwordHash String    @map("password_hash") @db.VarChar(255)
+  // null for social-only accounts (OAuth users who never set a password)
+  passwordHash String?   @map("password_hash") @db.VarChar(255)
   firstName    String?   @map("first_name") @db.VarChar(100)
   lastName     String?   @map("last_name") @db.VarChar(100)
   phone        String?   @db.VarChar(20)
+  avatarUrl    String?   @map("avatar_url") @db.VarChar(500)
   /// Existing accounts default true; new signups set false until email link is clicked.
   emailVerified            Boolean    @default(true) @map("email_verified")
   verificationToken        String?    @map("verification_token") @db.VarChar(64)
   verificationTokenExpires DateTime?  @map("verification_token_expires") @db.DateTime(3)
   passwordResetToken       String?    @map("password_reset_token") @db.VarChar(255)
   passwordResetExpires     DateTime?  @map("password_reset_expires") @db.DateTime(3)
+  // Social OAuth fields (null for email/password accounts)
+  oauthProvider   String?  @map("oauth_provider") @db.VarChar(50)
+  oauthProviderId String?  @map("oauth_provider_id") @db.VarChar(255)
   createdAt    DateTime  @default(now()) @map("created_at") @db.DateTime(3)
   updatedAt    DateTime  @updatedAt @map("updated_at") @db.DateTime(3)
   deletedAt    DateTime? @map("deleted_at") @db.DateTime(3)
@@ -179,6 +184,7 @@ model User {
 
   @@index([email])
   @@index([phone])
+  @@index([oauthProvider, oauthProviderId])
   @@index([deletedAt])
   @@map("users")
 }
@@ -270,6 +276,11 @@ model Seller {
   verificationTokenExpires  DateTime?    @map("verification_token_expires") @db.DateTime(3)
   passwordResetToken        String?      @map("password_reset_token") @db.VarChar(255)
   passwordResetExpires      DateTime?    @map("password_reset_expires") @db.DateTime(3)
+  phoneVerified             Boolean      @default(false) @map("phone_verified")
+  phoneOtpCode              String?      @map("phone_otp_code") @db.VarChar(100)
+  phoneOtpExpires           DateTime?    @map("phone_otp_expires") @db.DateTime(3)
+  emailOtpCode              String?      @map("email_otp_code") @db.VarChar(100)
+  emailOtpExpires           DateTime?    @map("email_otp_expires") @db.DateTime(3)
   status                    SellerStatus @default(PENDING_VERIFICATION)
   statusReason              String?      @map("status_reason") @db.Text
   primaryCategoryId         String?      @map("primary_category_id") @db.Char(36)
