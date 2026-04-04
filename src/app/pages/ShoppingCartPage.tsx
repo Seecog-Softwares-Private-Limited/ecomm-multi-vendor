@@ -17,7 +17,6 @@ import {
 } from "lucide-react";
 import { TopBar } from "@/components/TopBar";
 import { Navbar } from "@/components/Navbar";
-import { Footer } from "@/components/Footer";
 import {
   getGuestCart,
   removeFromGuestCart,
@@ -204,7 +203,6 @@ export function ShoppingCartPage() {
         <div className="mx-auto max-w-[1360px] px-4 sm:px-6 py-12 flex items-center justify-center min-h-[400px]">
           <p className="text-[#6B7280] font-medium">Loading cart…</p>
         </div>
-        <Footer />
       </div>
     );
   }
@@ -474,8 +472,6 @@ export function ShoppingCartPage() {
           </div>
         )}
       </div>
-
-      <Footer />
     </div>
   );
 }

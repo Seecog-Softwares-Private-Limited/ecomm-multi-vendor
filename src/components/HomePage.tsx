@@ -10,7 +10,6 @@ import { RecentlyViewed } from "./RecentlyViewed";
 import { HeroBanner } from "./HeroBanner";
 import { ProductRowSection } from "./ProductRowSection";
 import { InspiredSection } from "./InspiredSection";
-import { Footer } from "./Footer";
 import type { ProductListItem } from "@/types/catalog";
 import { useDeliveryLocation } from "@/contexts/DeliveryLocationContext";
 
@@ -173,7 +172,6 @@ export function HomePage() {
       <ProductRowSection {...sportsRow} products={(sportsRow.products.length ? sportsRow.products : Array.from({ length: 5 }).map((_, i) => ({ src: PLACEHOLDER, alt: `Loading ${i + 1}` })))} />
 
       <InspiredSection />
-      <Footer />
     </div>
   );
 }

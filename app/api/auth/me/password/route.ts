@@ -67,6 +67,12 @@ export const PATCH = withApiHandler(async (request: NextRequest) => {
     return apiForbidden("User not found");
   }
 
+  if (!user.passwordHash) {
+    return apiBadRequest(
+      "This account uses Google or Facebook sign-in and has no password. Use social login to access your account."
+    );
+  }
+
   const valid = await verifyPassword(currentPassword, user.passwordHash);
   if (!valid) {
     return apiBadRequest("Current password is incorrect");

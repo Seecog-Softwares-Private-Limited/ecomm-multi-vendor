@@ -9,6 +9,12 @@ import {
   CheckCircle,
   AlertTriangle,
   ChevronDown,
+  ShieldCheck,
+  ShieldAlert,
+  Plus,
+  Trash2,
+  X,
+  ExternalLink,
 } from "lucide-react";
 import { Button, Input, Select, Toggle, FileUpload, Card, Alert } from "../components/UIComponents";
 import { DataState } from "../../components/DataState";
@@ -30,6 +36,172 @@ import {
   parseStoredVendorBusinessType,
   resolveVendorBusinessTypeForApi,
 } from "@/lib/constants/vendor-business-type";
+
+// ─── Inline OTP verification widget ─────────────────────────────────────────
+type OtpVerifyFieldProps = {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  isVerified: boolean;
+  disabled?: boolean;
+  type?: "text" | "email" | "tel";
+  placeholder?: string;
+  helperText?: string;
+  onSendOtp: () => Promise<{ devOtp?: string }>;
+  onConfirmOtp: (code: string) => Promise<void>;
+  onVerified: () => void;
+};
+
+function OtpVerifyField({
+  label,
+  value,
+  onChange,
+  isVerified,
+  disabled,
+  type = "text",
+  placeholder,
+  helperText,
+  onSendOtp,
+  onConfirmOtp,
+  onVerified,
+}: OtpVerifyFieldProps) {
+  const [stage, setStage] = React.useState<"idle" | "sending" | "awaiting" | "confirming" | "done">("idle");
+  const [otp, setOtp] = React.useState("");
+  const [countdown, setCountdown] = React.useState(0);
+  const [error, setError] = React.useState<string | null>(null);
+  const [devHint, setDevHint] = React.useState<string | null>(null);
+  const timerRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
+
+  React.useEffect(() => {
+    if (isVerified) setStage("done");
+  }, [isVerified]);
+
+  const startCountdown = (secs: number) => {
+    setCountdown(secs);
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      setCountdown((c) => {
+        if (c <= 1) { clearInterval(timerRef.current!); return 0; }
+        return c - 1;
+      });
+    }, 1000);
+  };
+
+  React.useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current); }, []);
+
+  const handleSend = async () => {
+    setError(null);
+    setStage("sending");
+    try {
+      const res = await onSendOtp();
+      setDevHint(res.devOtp ? `Dev code: ${res.devOtp}` : null);
+      startCountdown(60);
+      setOtp("");
+      setStage("awaiting");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to send code.");
+      setStage("idle");
+    }
+  };
+
+  const handleConfirm = async () => {
+    if (!otp.trim()) { setError("Enter the 6-digit code."); return; }
+    setError(null);
+    setStage("confirming");
+    try {
+      await onConfirmOtp(otp.trim());
+      setStage("done");
+      setDevHint(null);
+      onVerified();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Incorrect code.");
+      setStage("awaiting");
+    }
+  };
+
+  const verified = stage === "done" || isVerified;
+
+  return (
+    <div className="space-y-2">
+      <label className="block text-sm font-semibold text-[#1E293B]">{label}</label>
+      <div className="flex items-center gap-2">
+        <input
+          type={type}
+          value={value}
+          placeholder={placeholder}
+          disabled={disabled || verified}
+          onChange={(e) => onChange(e.target.value)}
+          className={`flex-1 rounded-xl border px-4 py-3 text-sm shadow-sm transition focus:outline-none focus:ring-2 focus:ring-indigo-500/20 ${
+            disabled || verified
+              ? "cursor-not-allowed border-slate-200 bg-slate-50 text-slate-500"
+              : "border-slate-200 bg-white text-slate-900 focus:border-indigo-500"
+          }`}
+        />
+        {verified ? (
+          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-emerald-50 px-3 py-2.5 text-xs font-bold text-emerald-700 ring-1 ring-emerald-200">
+            <ShieldCheck size={14} /> Verified
+          </span>
+        ) : stage === "idle" || stage === "sending" ? (
+          <button
+            type="button"
+            onClick={handleSend}
+            disabled={disabled || stage === "sending" || !value.trim()}
+            className="shrink-0 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {stage === "sending" ? "Sending…" : "Send OTP"}
+          </button>
+        ) : (
+          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-amber-50 px-3 py-2.5 text-xs font-bold text-amber-700 ring-1 ring-amber-200">
+            <ShieldAlert size={14} /> Unverified
+          </span>
+        )}
+      </div>
+
+      {(stage === "awaiting" || stage === "confirming") && (
+        <div className="flex items-center gap-2 pt-1">
+          <input
+            type="text"
+            inputMode="numeric"
+            maxLength={6}
+            placeholder="6-digit code"
+            value={otp}
+            onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+            className="w-36 rounded-xl border border-slate-200 px-3 py-2.5 text-center text-lg font-bold tracking-[0.3em] text-slate-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+          />
+          <button
+            type="button"
+            onClick={handleConfirm}
+            disabled={stage === "confirming" || otp.length < 6}
+            className="rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {stage === "confirming" ? "Verifying…" : "Verify"}
+          </button>
+          {countdown > 0 ? (
+            <span className="text-xs text-slate-500">Resend in {countdown}s</span>
+          ) : (
+            <button
+              type="button"
+              onClick={handleSend}
+              className="text-xs font-medium text-indigo-600 hover:underline"
+            >
+              Resend code
+            </button>
+          )}
+        </div>
+      )}
+
+      {devHint && (
+        <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs font-mono text-amber-800">{devHint}</p>
+      )}
+      {error && <p className="text-xs font-medium text-red-600">{error}</p>}
+      {helperText && !error && (
+        <p className="text-xs text-slate-500">{helperText}</p>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 const defaultFormData = {
   displayName: "",
@@ -84,6 +256,14 @@ export function VendorProfile() {
   const [uploadErrorByType, setUploadErrorByType] = React.useState<Record<string, string | null>>({});
   const [categoriesDropdownOpen, setCategoriesDropdownOpen] = React.useState(false);
   const categoriesDropdownRef = React.useRef<HTMLDivElement>(null);
+
+  // ── Extra (custom) documents ─────────────────────────────────────────────
+  const [addDocOpen, setAddDocOpen] = React.useState(false);
+  const [newDocName, setNewDocName] = React.useState("");
+  const [newDocFile, setNewDocFile] = React.useState<File | null>(null);
+  const [newDocError, setNewDocError] = React.useState<string | null>(null);
+  const [uploadingExtraDoc, setUploadingExtraDoc] = React.useState(false);
+  const [deletingDocId, setDeletingDocId] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -428,6 +608,45 @@ export function VendorProfile() {
     },
     [refetch, kycLocked]
   );
+
+  const handleAddExtraDoc = React.useCallback(async () => {
+    if (!newDocName.trim()) { setNewDocError("Enter a document name."); return; }
+    if (!newDocFile) { setNewDocError("Select a file to upload."); return; }
+    // Disallow names that clash with fixed KYC docs
+    const reserved = ["PAN", "GST_CERTIFICATE", "ADDRESS_PROOF"];
+    if (reserved.includes(newDocName.trim().toUpperCase().replace(/\s+/g, "_"))) {
+      setNewDocError("That name is reserved. Choose a different name.");
+      return;
+    }
+    setNewDocError(null);
+    setUploadingExtraDoc(true);
+    try {
+      await vendorService.uploadVendorDocument(newDocName.trim(), newDocFile);
+      await refetch();
+      setNewDocName("");
+      setNewDocFile(null);
+      setAddDocOpen(false);
+      setUploadSuccess("Document uploaded successfully.");
+      setTimeout(() => setUploadSuccess(null), 5000);
+    } catch (e) {
+      setNewDocError(e instanceof Error ? e.message : "Upload failed.");
+    } finally {
+      setUploadingExtraDoc(false);
+    }
+  }, [newDocName, newDocFile, refetch]);
+
+  const handleDeleteExtraDoc = React.useCallback(async (id: string, name: string) => {
+    if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
+    setDeletingDocId(id);
+    try {
+      await vendorService.deleteVendorDocument(id);
+      await refetch();
+    } catch (e) {
+      setSubmitError(e instanceof Error ? e.message : "Failed to delete document.");
+    } finally {
+      setDeletingDocId(null);
+    }
+  }, [refetch]);
 
   const handleAllowedCategoriesChange = React.useCallback(
     async (categoryId: string, checked: boolean) => {
@@ -797,18 +1016,47 @@ export function VendorProfile() {
                     disabled={kycLocked}
                   />
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Input
+                    <OtpVerifyField
                       label="Mobile"
+                      type="tel"
                       value={formData.mobile}
-                      onChange={(e) => setFormData({ ...formData, mobile: e.target.value })}
+                      onChange={(v) => setFormData({ ...formData, mobile: v, mobileVerified: false })}
+                      isVerified={formData.mobileVerified}
                       disabled={kycLocked}
+                      placeholder="10-digit mobile number"
+                      helperText="We'll send a 6-digit OTP to this number."
+                      onSendOtp={async () => {
+                        await handleSaveDraft();
+                        return vendorService.sendPhoneOtp();
+                      }}
+                      onConfirmOtp={async (code) => {
+                        await vendorService.confirmPhoneOtp(code);
+                      }}
+                      onVerified={() => {
+                        setFormData((prev) => ({ ...prev, mobileVerified: true }));
+                        refetch();
+                      }}
                     />
-                    <Input
+                    <OtpVerifyField
                       label="Email"
                       type="email"
                       value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      onChange={(v) => setFormData({ ...formData, email: v, emailVerified: false })}
+                      isVerified={formData.emailVerified}
                       disabled={kycLocked}
+                      placeholder="your@email.com"
+                      helperText="A 6-digit code will be sent to this address."
+                      onSendOtp={async () => {
+                        await handleSaveDraft();
+                        return vendorService.sendEmailOtp();
+                      }}
+                      onConfirmOtp={async (code) => {
+                        await vendorService.confirmEmailOtp(code);
+                      }}
+                      onVerified={() => {
+                        setFormData((prev) => ({ ...prev, emailVerified: true }));
+                        refetch();
+                      }}
                     />
                   </div>
                 </div>
@@ -881,6 +1129,146 @@ export function VendorProfile() {
                     ))}
                   </div>
                 )}
+              </div>
+
+              {/* ── Extra (custom) documents ─────────────────────────────── */}
+              <div className="border-t border-slate-200 pt-8">
+                <div className="flex items-start justify-between gap-4 mb-4">
+                  <div>
+                    <h3 className="text-lg font-semibold text-slate-900">Other Documents</h3>
+                    <p className="mt-0.5 text-sm text-slate-500">
+                      Upload any additional supporting documents you wish to attach to your profile (e.g. trade licence, certificate, partnership deed, etc.).
+                    </p>
+                  </div>
+                  {!kycLocked && !addDocOpen && (
+                    <button
+                      type="button"
+                      onClick={() => { setAddDocOpen(true); setNewDocError(null); }}
+                      className="shrink-0 flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Add Document
+                    </button>
+                  )}
+                </div>
+
+                {/* Add document form */}
+                {addDocOpen && !kycLocked && (
+                  <div className="mb-5 rounded-2xl border border-indigo-200 bg-indigo-50/40 p-5 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-semibold text-slate-800">New Document</p>
+                      <button
+                        type="button"
+                        onClick={() => { setAddDocOpen(false); setNewDocName(""); setNewDocFile(null); setNewDocError(null); }}
+                        className="text-slate-400 hover:text-slate-700 transition"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="block text-sm font-medium text-slate-700">Document Name / Label <span className="text-red-500">*</span></label>
+                      <input
+                        type="text"
+                        value={newDocName}
+                        maxLength={120}
+                        placeholder="e.g. Trade Licence, Partnership Deed, ISO Certificate…"
+                        onChange={(e) => { setNewDocName(e.target.value); setNewDocError(null); }}
+                        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="block text-sm font-medium text-slate-700">File <span className="text-red-500">*</span></label>
+                      <input
+                        type="file"
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        onChange={(e) => { setNewDocFile(e.target.files?.[0] ?? null); setNewDocError(null); }}
+                        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-700 shadow-sm file:mr-3 file:rounded-lg file:border-0 file:bg-indigo-600 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-white hover:file:bg-indigo-700"
+                      />
+                      <p className="text-xs text-slate-400">PDF, JPG, PNG — max 5 MB</p>
+                    </div>
+                    {newDocError && (
+                      <p className="text-sm font-medium text-red-600">{newDocError}</p>
+                    )}
+                    {newDocFile && (
+                      <p className="text-xs text-slate-500">Selected: <span className="font-medium">{newDocFile.name}</span> ({(newDocFile.size / 1024).toFixed(0)} KB)</p>
+                    )}
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={handleAddExtraDoc}
+                        disabled={uploadingExtraDoc}
+                        className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {uploadingExtraDoc ? "Uploading…" : "Upload"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setAddDocOpen(false); setNewDocName(""); setNewDocFile(null); setNewDocError(null); }}
+                        className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Existing extra documents list */}
+                {(() => {
+                  const categoryDocNames = new Set(
+                    categoryDocRequirements.map((d) => d.documentName.trim().toLowerCase())
+                  );
+                  const extraDocs = (profile?.vendorDocuments ?? []).filter(
+                    (d) => !categoryDocNames.has(d.documentName.trim().toLowerCase())
+                  );
+                  if (extraDocs.length === 0) {
+                    return (
+                      <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-4 py-8 text-center">
+                        <FileText className="mx-auto mb-2 w-8 h-8 text-slate-300" />
+                        <p className="text-sm text-slate-500">No additional documents uploaded yet.</p>
+                        {kycLocked && (
+                          <p className="text-xs text-slate-400 mt-1">Documents are locked after KYC approval.</p>
+                        )}
+                      </div>
+                    );
+                  }
+                  return (
+                    <div className="space-y-3">
+                      {extraDocs.map((doc) => (
+                        <div
+                          key={doc.id}
+                          className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm"
+                        >
+                          <FileText className="w-5 h-5 shrink-0 text-indigo-400" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-slate-800 truncate">{doc.documentName}</p>
+                            <a
+                              href={doc.documentUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700 hover:underline mt-0.5"
+                            >
+                              View file <ExternalLink className="w-3 h-3" />
+                            </a>
+                          </div>
+                          {!kycLocked && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteExtraDoc(doc.id, doc.documentName)}
+                              disabled={deletingDocId === doc.id}
+                              className="shrink-0 flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              {deletingDocId === doc.id ? (
+                                "Deleting…"
+                              ) : (
+                                <><Trash2 className="w-3.5 h-3.5" /> Remove</>
+                              )}
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           </Card>

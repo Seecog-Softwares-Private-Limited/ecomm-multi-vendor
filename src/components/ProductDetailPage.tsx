@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { TopBar } from "./TopBar";
 import { Navbar } from "./Navbar";
-import { Footer } from "./Footer";
 import {
   Star,
   Truck,
@@ -827,7 +826,7 @@ export function ProductDetailPage({
 
   return (
     <div
-      className="w-full min-h-screen pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))]"
+      className="w-full min-h-screen pb-[calc(9rem+env(safe-area-inset-bottom,0px))] lg:pb-0"
       style={{ background: "#FFFFFF", fontFamily: "'Manrope', sans-serif" }}
     >
       <TopBar />
@@ -1584,15 +1583,18 @@ export function ProductDetailPage({
       {/* Sticky purchase bar: always on small screens; on lg+ appears when sidebar buy box scrolls out of view */}
       <div
         className={[
-          "fixed inset-x-0 bottom-0 z-40 border-t border-[#E5E7EB] bg-white/95 backdrop-blur-sm",
+          "fixed inset-x-0 z-[110] border-t border-[#E5E7EB] bg-white/95 backdrop-blur-sm",
           "transition-[transform,opacity] duration-200 ease-out will-change-transform",
-          "max-lg:translate-y-0 max-lg:opacity-100",
+          /* on mobile: sit just above the 68px bottom nav */
+          "max-lg:bottom-[calc(68px+env(safe-area-inset-bottom,0px))] max-lg:translate-y-0 max-lg:opacity-100",
+          /* on desktop: sit at the very bottom edge */
+          "lg:bottom-0",
           floatingPurchaseVisible
             ? "lg:translate-y-0 lg:opacity-100"
             : "lg:pointer-events-none lg:translate-y-full lg:opacity-0",
         ].join(" ")}
         style={{
-          paddingBottom: "max(12px, env(safe-area-inset-bottom, 0px))",
+          paddingBottom: 12,
           paddingTop: 12,
           paddingLeft: 12,
           paddingRight: 12,
@@ -1666,8 +1668,6 @@ export function ProductDetailPage({
           </div>
         </div>
       </div>
-
-      <Footer />
     </div>
   );
 }

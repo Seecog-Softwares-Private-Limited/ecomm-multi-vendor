@@ -18,7 +18,6 @@ import {
 import { TopBar } from "./TopBar";
 import { Navbar } from "./Navbar";
 import { CategoryNav } from "./CategoryNav";
-import { Footer } from "./Footer";
 
 const display = Space_Grotesk({
   subsets: ["latin"],
@@ -371,8 +370,6 @@ export function AboutIndovyaparPage() {
         </div>
         <div className="h-3 w-full shrink-0" style={{ background: forest }} aria-hidden />
       </section>
-
-      <Footer />
     </div>
   );
 }
