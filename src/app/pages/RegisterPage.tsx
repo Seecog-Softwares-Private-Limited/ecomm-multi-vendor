@@ -36,7 +36,9 @@ function RegisterBrandPanel() {
       <div className="absolute top-1/2 left-[-80px] w-[220px] h-[220px] rounded-full bg-white/5 -translate-y-1/2" />
 
       <div className="relative z-10">
-        <IndovyaparLogo variant="light" style={{ fontSize: 28, lineHeight: "32px" }} />
+        <Link href="/">
+          <IndovyaparLogo variant="light" style={{ fontSize: 28, lineHeight: "32px" }} />
+        </Link>
         <p className="mt-3 text-xs font-semibold uppercase tracking-widest text-white/80">
           India&apos;s Marketplace
         </p>
@@ -257,7 +259,9 @@ export function RegisterPage() {
         <div className="flex flex-1 flex-col items-center justify-center px-4 py-12 sm:px-6 lg:px-10 bg-[#F9FAFB]">
           <div className="w-full max-w-[400px]">
             <div className="lg:hidden flex flex-col items-center text-center mb-10">
-              <IndovyaparLogo fontSize={26} style={{ lineHeight: "32px" }} />
+              <Link href="/">
+                <IndovyaparLogo fontSize={26} style={{ lineHeight: "32px" }} />
+              </Link>
               <p className="mt-2 text-xs font-semibold uppercase tracking-widest text-slate-500">
                 Check your email
               </p>
@@ -320,7 +324,9 @@ export function RegisterPage() {
       <div className="flex flex-1 flex-col items-center justify-center px-4 py-12 sm:px-6 lg:px-10 bg-[#F9FAFB]">
         <div className="w-full max-w-[440px]">
           <div className="lg:hidden flex flex-col items-center text-center mb-10">
-            <IndovyaparLogo fontSize={26} style={{ lineHeight: "32px" }} />
+            <Link href="/">
+              <IndovyaparLogo fontSize={26} style={{ lineHeight: "32px" }} />
+            </Link>
             <p className="mt-2 text-xs font-semibold uppercase tracking-widest text-slate-500">
               Create your account
             </p>

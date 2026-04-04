@@ -6,7 +6,6 @@ import { Send, Users, Award, PartyPopper, ChevronRight, X } from "lucide-react";
 import { TopBar } from "./TopBar";
 import { Navbar } from "./Navbar";
 import { CategoryNav } from "./CategoryNav";
-import { Footer } from "./Footer";
 
 const display = Space_Grotesk({
   subsets: ["latin"],
@@ -410,8 +409,6 @@ export function CareersPage({ openings }: { openings: CareerOpeningCard[] }) {
           </div>
         </div>
       </section>
-
-      <Footer />
     </div>
   );
 }

@@ -31,6 +31,7 @@ export const GET = withApiHandler(async (request: NextRequest) => {
       firstName: true,
       lastName: true,
       phone: true,
+      avatarUrl: true,
       deletedAt: true,
     },
   });

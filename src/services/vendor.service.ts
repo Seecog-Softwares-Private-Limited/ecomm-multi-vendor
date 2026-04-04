@@ -25,6 +25,7 @@ import type {
   SubmitSupportTicketPayload,
   VendorDashboardSummary,
   VendorMeResponse,
+  VendorNotificationsResult,
 } from "./types/vendor.types";
 
 const VENDOR_BASE = "/api/vendor";
@@ -141,6 +142,11 @@ export const vendorService = {
     return Array.isArray(res) ? res : [];
   },
 
+  /** Delete a vendor document by its ID. */
+  async deleteVendorDocument(id: string): Promise<void> {
+    await request(`${VENDOR_BASE}/profile/vendor-documents/${encodeURIComponent(id)}`, { method: "DELETE" });
+  },
+
   /** Upload a category-specific vendor document. */
   async uploadVendorDocument(documentName: string, file: File): Promise<{ url: string; documentName: string }> {
     const formData = new FormData();
@@ -242,6 +248,48 @@ export const vendorService = {
       method: "POST",
       body: payload,
     });
+  },
+
+  /** List notifications for the logged-in vendor. */
+  async getNotifications(opts?: { limit?: number; unreadOnly?: boolean }): Promise<VendorNotificationsResult> {
+    const params = new URLSearchParams();
+    if (opts?.limit) params.set("limit", String(opts.limit));
+    if (opts?.unreadOnly) params.set("unread", "true");
+    const qs = params.toString();
+    return request<VendorNotificationsResult>(
+      qs ? `${VENDOR_BASE}/notifications?${qs}` : `${VENDOR_BASE}/notifications`,
+      { method: "GET" }
+    );
+  },
+
+  /** Mark a single notification as read. */
+  async markNotificationRead(id: string): Promise<{ id: string; read: boolean }> {
+    return request(`${VENDOR_BASE}/notifications/${encodeURIComponent(id)}`, { method: "PATCH" });
+  },
+
+  /** Mark all notifications as read. Returns count of updated rows. */
+  async markAllNotificationsRead(): Promise<{ updated: number }> {
+    return request(`${VENDOR_BASE}/notifications`, { method: "PATCH" });
+  },
+
+  /** Send OTP to the vendor's saved phone number for verification. */
+  async sendPhoneOtp(): Promise<{ message: string; expiresInSeconds: number; smsSent: boolean; devOtp?: string }> {
+    return request(`${VENDOR_BASE}/verify/phone/send`, { method: "POST" });
+  },
+
+  /** Confirm phone OTP. Returns { verified: true } on success. */
+  async confirmPhoneOtp(code: string): Promise<{ verified: boolean; message: string }> {
+    return request(`${VENDOR_BASE}/verify/phone/confirm`, { method: "POST", body: { code } });
+  },
+
+  /** Send OTP to the vendor's saved email address for verification. */
+  async sendEmailOtp(): Promise<{ message: string; expiresInSeconds: number; emailSent: boolean; devOtp?: string }> {
+    return request(`${VENDOR_BASE}/verify/email/send`, { method: "POST" });
+  },
+
+  /** Confirm email OTP. Returns { verified: true } on success. */
+  async confirmEmailOtp(code: string): Promise<{ verified: boolean; message: string }> {
+    return request(`${VENDOR_BASE}/verify/email/confirm`, { method: "POST", body: { code } });
   },
 
   /** Upload a product image. Returns the public URL to use in imageUrls. */

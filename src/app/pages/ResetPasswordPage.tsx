@@ -80,7 +80,7 @@ function ResetPasswordForm() {
     return (
       <div className="min-h-screen min-h-[100dvh] flex flex-col items-center justify-center px-4 py-10 bg-[#F9FAFB]">
         <div className="w-full max-w-md rounded-2xl border border-slate-200/80 bg-white p-6 sm:p-8 shadow-xl text-center">
-          <IndovyaparLogo fontSize={24} className="justify-center mb-4" />
+          <Link href="/"><IndovyaparLogo fontSize={24} className="justify-center mb-4" /></Link>
           <h1 className="text-xl font-bold text-slate-900">Link invalid or expired</h1>
           <p className="mt-2 text-sm text-slate-600">
             Use the link from your email, or request a new password reset.
@@ -125,7 +125,9 @@ function ResetPasswordForm() {
     <div className="min-h-screen min-h-[100dvh] flex flex-col items-center justify-center px-4 py-8 sm:py-12 bg-[#F9FAFB]">
       <div className="w-full max-w-md">
         <div className="mb-6 flex flex-col items-center text-center sm:mb-8">
-          <IndovyaparLogo fontSize={26} style={{ lineHeight: "32px" }} />
+          <Link href="/">
+            <IndovyaparLogo fontSize={26} style={{ lineHeight: "32px" }} />
+          </Link>
           <p className="mt-2 text-xs font-semibold uppercase tracking-widest text-slate-500">
             Set new password
           </p>

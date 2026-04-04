@@ -66,18 +66,17 @@ const tabItems: TabItem[] = [
   },
 ];
 
-/** Shown only when the customer is logged in (same session as /api/auth/me CUSTOMER). */
+/** Shown only when the customer is logged in. */
 const accountQuickLinks: Array<{ href: string; label: string; icon: LucideIcon }> = [
   { href: "/my-orders", label: "Orders", icon: ClipboardList },
   { href: "/wishlist", label: "Wishlist", icon: Heart },
   { href: "/profile", label: "My Profile", icon: User },
   { href: "/my-orders", label: "Returns", icon: ClipboardList },
-];
-
-/** Always shown in Quick links — guests can open Support and sign flow from there if needed. */
-const publicQuickLinks: Array<{ href: string; label: string; icon: LucideIcon }> = [
   { href: "/support-tickets", label: "Support", icon: LifeBuoy },
 ];
+
+/** Links always visible to guests. */
+const publicQuickLinks: Array<{ href: string; label: string; icon: LucideIcon }> = [];
 
 export function MobileBottomNav() {
   const pathname = usePathname();
@@ -193,9 +192,9 @@ export function MobileBottomNav() {
   );
 
   const menuActive =
-    pathname.startsWith("/support-tickets") ||
     pathname.startsWith("/login") ||
     pathname.startsWith("/register") ||
+    (!guestOrLoading && pathname.startsWith("/support-tickets")) ||
     (!guestOrLoading && pathname.startsWith("/wishlist")) ||
     (!guestOrLoading && pathname.startsWith("/profile"));
 
@@ -293,32 +292,36 @@ export function MobileBottomNav() {
           >
             <div className="mx-auto flex w-full max-w-[560px] flex-col px-4 pb-2">
               <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-slate-300" aria-hidden />
-              <p
-                className="mb-3 text-center text-xs font-bold uppercase tracking-wide text-slate-500"
-                style={{ fontFamily: "'Manrope', sans-serif" }}
-              >
-                Quick links
-              </p>
-              <div className="grid grid-cols-2 gap-2">
-                {visibleMenuLinks.map(({ href, label, icon: Icon }) => (
-                  <Link
-                    key={`${href}-${label}`}
-                    href={href}
-                    onClick={() => setMenuOpen(false)}
-                    className="flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-white px-3 py-3 shadow-sm transition active:scale-[0.99] hover:border-[#FF6A00]/40 hover:bg-[#FFF5EF]"
+              {visibleMenuLinks.length > 0 && (
+                <>
+                  <p
+                    className="mb-3 text-center text-xs font-bold uppercase tracking-wide text-slate-500"
+                    style={{ fontFamily: "'Manrope', sans-serif" }}
                   >
-                    <span
-                      className="flex h-10 w-10 items-center justify-center rounded-xl"
-                      style={{ background: "linear-gradient(135deg, #FFF5EF 0%, #FFE4CC 100%)" }}
-                    >
-                      <Icon size={20} color="#FF6A00" />
-                    </span>
-                    <span className="text-sm font-semibold text-slate-800" style={{ fontFamily: "'Manrope', sans-serif" }}>
-                      {label}
-                    </span>
-                  </Link>
-                ))}
-              </div>
+                    Quick links
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {visibleMenuLinks.map(({ href, label, icon: Icon }) => (
+                      <Link
+                        key={`${href}-${label}`}
+                        href={href}
+                        onClick={() => setMenuOpen(false)}
+                        className="flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-white px-3 py-3 shadow-sm transition active:scale-[0.99] hover:border-[#FF6A00]/40 hover:bg-[#FFF5EF]"
+                      >
+                        <span
+                          className="flex h-10 w-10 items-center justify-center rounded-xl"
+                          style={{ background: "linear-gradient(135deg, #FFF5EF 0%, #FFE4CC 100%)" }}
+                        >
+                          <Icon size={20} color="#FF6A00" />
+                        </span>
+                        <span className="text-sm font-semibold text-slate-800" style={{ fontFamily: "'Manrope', sans-serif" }}>
+                          {label}
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                </>
+              )}
 
               <div className="mt-4 space-y-2 border-t border-slate-200 pt-4">
                 {isLoggedIn === true ? (

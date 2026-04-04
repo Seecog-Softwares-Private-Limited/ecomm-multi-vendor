@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { TopBar } from "./TopBar";
 import { Navbar } from "./Navbar";
-import { Footer } from "./Footer";
 import {
   Star,
   Truck,
@@ -477,8 +476,6 @@ export function ProductDetailPageDynamic({
           </div>
         </div>
       </div>
-
-      <Footer />
     </div>
   );
 }
