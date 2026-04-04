@@ -6,7 +6,6 @@ import { useSearchParams } from "next/navigation";
 import { Check, Package, Truck, Home } from "lucide-react";
 import { TopBar } from "@/components/TopBar";
 import { Navbar } from "@/components/Navbar";
-import { Footer } from "@/components/Footer";
 
 type OrderDetail = {
   id: string;
@@ -268,8 +267,6 @@ function OrderConfirmationContent() {
           </div>
         </div>
       </div>
-
-      <Footer />
     </div>
   );
 }

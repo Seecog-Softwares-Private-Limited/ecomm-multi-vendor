@@ -1,5 +1,6 @@
 import * as React from "react";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
+import { Footer } from "@/components/Footer";
 
 export type RootLayoutProps = {
   children: React.ReactNode;
@@ -16,6 +17,7 @@ export function RootLayout({ children, showHeaderFooter = true }: RootLayoutProp
       <main className={showHeaderFooter ? "flex-1" : "flex-1 flex items-center justify-center"}>
         {children}
       </main>
+      {showHeaderFooter ? <Footer /> : null}
       {showHeaderFooter ? <MobileBottomNav /> : null}
     </div>
   );

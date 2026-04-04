@@ -47,6 +47,12 @@ export const POST = withApiHandler(async (request: NextRequest) => {
     return apiUnauthorized("Invalid email or password");
   }
 
+  if (!user.passwordHash) {
+    return apiUnauthorized(
+      "This account was created with Google or Facebook. Please sign in using the social login button."
+    );
+  }
+
   const valid = await verifyPassword(password, user.passwordHash);
   if (!valid) {
     return apiUnauthorized("Invalid email or password");

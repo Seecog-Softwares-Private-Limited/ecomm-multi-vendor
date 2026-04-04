@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { User, Camera, Edit2, LogOut, Eye, EyeOff } from "lucide-react";
+import { Camera, Edit2, LogOut, Eye, EyeOff, Loader2 } from "lucide-react";
 import { AccountLayout } from "@/components/AccountLayout";
 import { toast } from "sonner";
+import Image from "next/image";
 
 type UserProfile = {
   id: string;
@@ -12,6 +13,7 @@ type UserProfile = {
   firstName: string | null;
   lastName: string | null;
   phone: string | null;
+  avatarUrl: string | null;
   role: string;
 };
 
@@ -41,6 +43,11 @@ export function MyProfilePage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+  // Avatar upload
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+
   const fetchProfile = useCallback(() => {
     fetch("/api/auth/me", { credentials: "include" })
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error("Failed"))))
@@ -50,6 +57,7 @@ export function MyProfilePage() {
           setFormFirstName(data.data.user.firstName ?? "");
           setFormLastName(data.data.user.lastName ?? "");
           setFormPhone(data.data.user.phone ?? "");
+          setAvatarPreview(data.data.user.avatarUrl ?? null);
         }
         if (data?.data?.stats) setStats(data.data.stats);
       })
@@ -139,6 +147,44 @@ export function MyProfilePage() {
     }
   };
 
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Instant local preview
+    const objectUrl = URL.createObjectURL(file);
+    setAvatarPreview(objectUrl);
+
+    // Upload to server
+    setUploadingAvatar(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/auth/me/avatar", {
+        method: "POST",
+        credentials: "include",
+        body: fd,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data?.error?.message ?? "Failed to upload photo");
+        setAvatarPreview(user?.avatarUrl ?? null);
+        return;
+      }
+      const url: string = data?.data?.avatarUrl ?? objectUrl;
+      setAvatarPreview(url);
+      setUser((prev) => prev ? { ...prev, avatarUrl: url } : null);
+      toast.success("Profile photo updated");
+    } catch {
+      toast.error("Failed to upload photo. Please try again.");
+      setAvatarPreview(user?.avatarUrl ?? null);
+    } finally {
+      setUploadingAvatar(false);
+      // Reset the input so the same file can be re-selected
+      if (avatarInputRef.current) avatarInputRef.current.value = "";
+    }
+  };
+
   const handleLogout = async () => {
     setLoggingOut(true);
     try {
@@ -184,16 +230,50 @@ export function MyProfilePage() {
           <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex min-w-0 items-center gap-3 sm:gap-6">
               <div className="relative">
-                <div className="h-20 w-20 rounded-full bg-gradient-to-br from-[#FF6A00] to-[#166534] flex items-center justify-center text-white text-2xl sm:text-3xl font-bold sm:h-24 sm:w-24">
-                  {initials}
+                {/* Avatar circle — shows photo if available, otherwise gradient initials */}
+                <div className="relative h-20 w-20 sm:h-24 sm:w-24 rounded-full overflow-hidden ring-4 ring-white shadow-lg">
+                  {avatarPreview ? (
+                    <Image
+                      src={avatarPreview}
+                      alt={displayName}
+                      fill
+                      className="object-cover"
+                      sizes="96px"
+                      unoptimized
+                    />
+                  ) : (
+                    <div className="h-full w-full bg-gradient-to-br from-[#FF6A00] to-[#166534] flex items-center justify-center text-white text-2xl sm:text-3xl font-bold">
+                      {initials}
+                    </div>
+                  )}
+                  {/* Upload overlay while uploading */}
+                  {uploadingAvatar && (
+                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                      <Loader2 className="h-6 w-6 text-white animate-spin" />
+                    </div>
+                  )}
                 </div>
+
+                {/* Camera trigger button */}
                 <button
                   type="button"
-                  className="absolute bottom-0 right-0 h-7 w-7 bg-[#FF6A00] rounded-full flex items-center justify-center text-white hover:bg-[#E55F00] transition-colors shadow-lg sm:h-8 sm:w-8"
-                  aria-label="Change photo"
+                  onClick={() => !uploadingAvatar && avatarInputRef.current?.click()}
+                  disabled={uploadingAvatar}
+                  className="absolute bottom-0 right-0 h-7 w-7 bg-[#FF6A00] rounded-full flex items-center justify-center text-white hover:bg-[#E55F00] transition-colors shadow-lg sm:h-8 sm:w-8 disabled:cursor-not-allowed disabled:opacity-70"
+                  aria-label="Change profile photo"
                 >
                   <Camera className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 </button>
+
+                {/* Hidden file input */}
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  className="sr-only"
+                  onChange={handleAvatarChange}
+                  aria-label="Upload profile photo"
+                />
               </div>
               <div className="min-w-0">
                 <h2 className="mb-1 text-2xl font-bold text-[#111827] leading-tight break-words">{displayName}</h2>

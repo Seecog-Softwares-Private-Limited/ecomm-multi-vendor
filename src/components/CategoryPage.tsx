@@ -7,7 +7,6 @@ import { toast } from "sonner";
 import { TopBar } from "./TopBar";
 import { Navbar } from "./Navbar";
 import { CategoryNav } from "./CategoryNav";
-import { Footer } from "./Footer";
 import {
   ChevronRight,
   Star,
@@ -748,8 +747,6 @@ export function CategoryPage({
           </div>
         </div>
       </div>
-
-      <Footer />
     </div>
   );
 }

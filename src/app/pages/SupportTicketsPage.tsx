@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { useRouter, usePathname } from "next/navigation";
 import { Plus, Clock } from "lucide-react";
 import { AccountLayout } from "@/components/AccountLayout";
 import { toast } from "sonner";
@@ -63,6 +64,8 @@ function formatRelative(iso: string) {
 }
 
 export function SupportTicketsPage() {
+  const router = useRouter();
+  const pathname = usePathname();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -71,6 +74,29 @@ export function SupportTicketsPage() {
   const [detailTicket, setDetailTicket] = useState<Ticket | null>(null);
   const [newSubject, setNewSubject] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/auth/me", { credentials: "include" })
+      .then((res) => {
+        if (!res.ok) {
+          router.replace(`/login?returnUrl=${encodeURIComponent(pathname)}`);
+          return;
+        }
+        return res.json();
+      })
+      .then((data) => {
+        if (!data) return;
+        if (!data?.data?.user || data.data.user.role !== "CUSTOMER") {
+          router.replace(`/login?returnUrl=${encodeURIComponent(pathname)}`);
+        } else {
+          setAuthChecked(true);
+        }
+      })
+      .catch(() => {
+        router.replace(`/login?returnUrl=${encodeURIComponent(pathname)}`);
+      });
+  }, [router, pathname]);
 
   const fetchTickets = useCallback(async (status?: string) => {
     const url =
@@ -110,10 +136,11 @@ export function SupportTicketsPage() {
   }, []);
 
   useEffect(() => {
+    if (!authChecked) return;
     setLoading(true);
     setError(null);
     void fetchTickets(statusFilter === "ALL" ? undefined : statusFilter);
-  }, [statusFilter, fetchTickets]);
+  }, [authChecked, statusFilter, fetchTickets]);
 
   const handleCreateTicket = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -152,6 +179,14 @@ export function SupportTicketsPage() {
     statusFilter === "ALL"
       ? tickets
       : tickets.filter((t) => t.status === statusFilter);
+
+  if (!authChecked) {
+    return (
+      <AccountLayout>
+        <div className="py-24 text-center text-slate-500 font-medium">Checking session…</div>
+      </AccountLayout>
+    );
+  }
 
   return (
     <AccountLayout>

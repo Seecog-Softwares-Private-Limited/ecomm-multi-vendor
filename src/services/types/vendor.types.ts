@@ -274,7 +274,7 @@ export interface VendorProfileData {
   owner: VendorProfileOwner;
   bank: VendorProfileBank | null;
   documents: VendorProfileDocument[];
-  vendorDocuments?: { documentName: string; documentUrl: string }[];
+  vendorDocuments?: { id: string; documentName: string; documentUrl: string }[];
 }
 
 export interface UpdateVendorProfilePayload {
@@ -302,6 +302,27 @@ export interface SubmitSupportTicketPayload {
   subject: string;
   category: string;
   message: string;
+}
+
+// ---------------------------------------------------------------------------
+// Vendor notifications
+// ---------------------------------------------------------------------------
+
+export type VendorNotificationType = "SYSTEM" | "ORDER" | "SELLER" | "PAYMENT" | "RETURN";
+
+export interface VendorNotificationItem {
+  id: string;
+  type: VendorNotificationType;
+  title: string;
+  message: string;
+  read: boolean;
+  readAt: string | null;
+  createdAt: string;
+}
+
+export interface VendorNotificationsResult {
+  notifications: VendorNotificationItem[];
+  unreadCount: number;
 }
 
 // ---------------------------------------------------------------------------
