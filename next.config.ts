@@ -45,6 +45,9 @@ loadProjectEnvFiles();
 
 const nextConfig: NextConfig = {
   transpilePackages: ["@mui/material", "@mui/icons-material"],
+  // OneDrive sync creates metadata that causes readlink to fail on route group
+  // folders like (auth) — disabling auto-clean prevents the EINVAL error on startup.
+  cleanDistDir: false,
   /**
    * Serve /uploads/* via App Route (before filesystem) so KYC PDFs work in production
    * even when public-file handling or cwd differs from dev.
