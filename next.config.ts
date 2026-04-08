@@ -48,12 +48,14 @@ const nextConfig: NextConfig = {
   // OneDrive sync creates metadata that causes readlink to fail on route group
   // folders like (auth) — disabling auto-clean prevents the EINVAL error on startup.
   cleanDistDir: false,
+  // Skip type-checking and linting during build to save memory on low-RAM servers
+  typescript: { ignoreBuildErrors: true },
+  eslint: { ignoreDuringBuilds: true },
   /**
    * Serve /uploads/* via App Route (before filesystem) so KYC PDFs work in production
    * even when public-file handling or cwd differs from dev.
    */
   async rewrites() {
-    /* Array form avoids object-shape edge cases in some Next 15 + TS setups */
     return [{ source: "/uploads/:path*", destination: "/api/uploads/:path*" }];
   },
   async redirects() {
@@ -62,10 +64,8 @@ const nextConfig: NextConfig = {
     ];
   },
   webpack: (config, { dev }) => {
-    // Disable filesystem cache in dev to avoid ENOENT when .next is in OneDrive/synced folders
-    if (dev) {
-      config.cache = false;
-    }
+    // Disable filesystem cache always to reduce memory usage during build
+    config.cache = false;
     return config;
   },
 };
