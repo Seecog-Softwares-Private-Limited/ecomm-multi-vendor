@@ -46,7 +46,7 @@ type SearchProduct = {
   imageUrl?: string | null;
 };
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:3005";
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? "https://stellapetservices.com";
 const categories = ["Fashion", "Electronics", "Beauty", "Home", "Sports", "Groceries"];
 const topOffers = [
   { title: "Mega Deal Day", subtitle: "Min 50% off on top brands", colors: ["#F97316", "#FB7185"] as const },

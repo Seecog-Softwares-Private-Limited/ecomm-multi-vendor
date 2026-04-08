@@ -210,7 +210,7 @@ export function LoginPage() {
 
         <div className="relative z-10">
           <Link href="/">
-            <IndovyaparLogo variant="light" style={{ fontSize: 28, lineHeight: "32px" }} />
+          <IndovyaparLogo variant="light" style={{ fontSize: 28, lineHeight: "32px" }} />
           </Link>
           <p className="mt-3 text-xs font-semibold uppercase tracking-widest text-white/80">
             India&apos;s Marketplace
@@ -252,7 +252,7 @@ export function LoginPage() {
           {/* Mobile logo */}
           <div className="lg:hidden flex flex-col items-center text-center mb-10">
             <Link href="/">
-              <IndovyaparLogo fontSize={26} style={{ lineHeight: "32px" }} />
+            <IndovyaparLogo fontSize={26} style={{ lineHeight: "32px" }} />
             </Link>
             <p className="mt-2 text-xs font-semibold uppercase tracking-widest text-slate-500">
               Customer sign in
@@ -315,90 +315,90 @@ export function LoginPage() {
             </div>
 
             {loginMode === "email" ? (
-              <form className="space-y-5" onSubmit={handleSubmit}>
-                <div>
-                  <label
-                    htmlFor="user-email"
-                    className="block text-sm font-semibold text-slate-700 mb-1.5"
-                  >
-                    Email address
-                  </label>
-                  <div className="relative">
-                    <Mail className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
-                    <input
-                      id="user-email"
-                      type="email"
-                      placeholder="you@example.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      autoComplete="email"
-                      required
-                      className="block w-full rounded-xl border border-slate-200 bg-slate-50/50 py-3 pl-12 pr-4 text-slate-900 placeholder:text-slate-400 transition focus:border-[#FF6A00] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6A00]/20"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="user-password"
-                    className="block text-sm font-semibold text-slate-700 mb-1.5"
-                  >
-                    Password
-                  </label>
-                  <div className="relative">
-                    <Lock className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
-                    <input
-                      id="user-password"
-                      type={showPassword ? "text" : "password"}
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      autoComplete="current-password"
-                      required
-                      className="block w-full rounded-xl border border-slate-200 bg-slate-50/50 py-3 pl-12 pr-12 text-slate-900 placeholder:text-slate-400 transition focus:border-[#FF6A00] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6A00]/20"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword((v) => !v)}
-                      className="absolute inset-y-0 right-0 flex items-center pr-4 text-slate-400 hover:text-slate-600 transition"
-                      aria-label={showPassword ? "Hide password" : "Show password"}
-                    >
-                      {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <label className="flex cursor-pointer items-center gap-2.5">
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 rounded border-slate-300 text-[#FF6A00] focus:ring-[#FF6A00]/30"
-                    />
-                    <span className="text-sm text-slate-600">Remember me</span>
-                  </label>
-                  <Link
-                    href="/forgot-password"
-                    className="text-sm font-semibold text-[#FF6A00] hover:text-[#E55F00] transition"
-                  >
-                    Forgot password?
-                  </Link>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#FF6A00] py-3.5 text-sm font-semibold text-white shadow-lg shadow-orange-500/25 transition hover:bg-[#E55F00] focus:outline-none focus:ring-2 focus:ring-[#FF6A00] focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-60"
+            <form className="space-y-5" onSubmit={handleSubmit}>
+              <div>
+                <label
+                  htmlFor="user-email"
+                  className="block text-sm font-semibold text-slate-700 mb-1.5"
                 >
-                  {loading ? (
-                    <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                  ) : (
-                    <>
-                      Sign in
-                      <ArrowRight className="h-4 w-4" />
-                    </>
-                  )}
-                </button>
-              </form>
+                  Email address
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                  <input
+                    id="user-email"
+                    type="email"
+                    placeholder="you@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    autoComplete="email"
+                    required
+                    className="block w-full rounded-xl border border-slate-200 bg-slate-50/50 py-3 pl-12 pr-4 text-slate-900 placeholder:text-slate-400 transition focus:border-[#FF6A00] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6A00]/20"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="user-password"
+                  className="block text-sm font-semibold text-slate-700 mb-1.5"
+                >
+                  Password
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                  <input
+                    id="user-password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    autoComplete="current-password"
+                    required
+                    className="block w-full rounded-xl border border-slate-200 bg-slate-50/50 py-3 pl-12 pr-12 text-slate-900 placeholder:text-slate-400 transition focus:border-[#FF6A00] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6A00]/20"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="absolute inset-y-0 right-0 flex items-center pr-4 text-slate-400 hover:text-slate-600 transition"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <label className="flex cursor-pointer items-center gap-2.5">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-slate-300 text-[#FF6A00] focus:ring-[#FF6A00]/30"
+                  />
+                  <span className="text-sm text-slate-600">Remember me</span>
+                </label>
+                <Link
+                  href="/forgot-password"
+                  className="text-sm font-semibold text-[#FF6A00] hover:text-[#E55F00] transition"
+                >
+                  Forgot password?
+                </Link>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#FF6A00] py-3.5 text-sm font-semibold text-white shadow-lg shadow-orange-500/25 transition hover:bg-[#E55F00] focus:outline-none focus:ring-2 focus:ring-[#FF6A00] focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-60"
+              >
+                {loading ? (
+                  <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                ) : (
+                  <>
+                    Sign in
+                    <ArrowRight className="h-4 w-4" />
+                  </>
+                )}
+              </button>
+            </form>
             ) : phoneStep === "number" ? (
               <form className="space-y-5" onSubmit={handleSendOtp}>
                 <div>
