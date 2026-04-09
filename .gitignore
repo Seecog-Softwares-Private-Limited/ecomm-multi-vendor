@@ -1,8 +1,9 @@
 # Dependencies
 node_modules/
 
-# Next.js
-.next/
+# Next.js — track the build output so server only needs git pull + pm2 restart
+# .next/ is committed; only the large webpack cache is excluded
+.next/cache/
 out/
 
 # Production
