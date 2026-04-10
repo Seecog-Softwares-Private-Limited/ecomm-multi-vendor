@@ -44,7 +44,6 @@ export const GET = withApiHandler(async (request: NextRequest) => {
 
 const SHIPPING_FREE_THRESHOLD = 500;
 const SHIPPING_COST = 50;
-const TAX_RATE = 0.1;
 
 /**
  * POST /api/orders — place order from cart (checkout).
@@ -98,6 +97,7 @@ export const POST = withApiHandler(async (request: NextRequest) => {
           sellerId: true,
           sku: true,
           sellingPrice: true,
+          gstPercent: true,
           status: true,
           deletedAt: true,
           stock: true,
@@ -160,7 +160,13 @@ export const POST = withApiHandler(async (request: NextRequest) => {
 
   const amountAfterDiscount = Math.max(0, subtotal - discountAmount);
   const shippingAmount = amountAfterDiscount >= SHIPPING_FREE_THRESHOLD ? 0 : SHIPPING_COST;
-  const taxAmount = (amountAfterDiscount + shippingAmount) * TAX_RATE;
+  const taxAmount = validItems.reduce((sum, i) => {
+    const unitPrice = unitPriceForCartLine(i);
+    const gst = i.product?.gstPercent !== null && i.product?.gstPercent !== undefined
+      ? Number(i.product.gstPercent)
+      : 0;
+    return sum + unitPrice * i.quantity * (gst / 100);
+  }, 0);
   const totalAmount = amountAfterDiscount + shippingAmount + taxAmount;
 
   const order = await prisma.$transaction(async (tx) => {

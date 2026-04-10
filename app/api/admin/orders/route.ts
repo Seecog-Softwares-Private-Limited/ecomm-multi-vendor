@@ -41,7 +41,7 @@ function orderStatusToDisplay(s: OrderStatus): string {
 
 /**
  * GET /api/admin/orders — list orders with summary stats (admin only).
- * Query: status, dateFrom, dateTo, page, pageSize.
+ * Query: status, dateFrom, dateTo, search, page, pageSize.
  */
 export const GET = withApiHandler(async (request: NextRequest) => {
   const ctx = await requireAdminPermission(request, "orders");
@@ -51,6 +51,7 @@ export const GET = withApiHandler(async (request: NextRequest) => {
   const statusParam = searchParams.get("status")?.toLowerCase().replace(/-/g, "_") ?? "";
   const dateFrom = searchParams.get("dateFrom")?.trim();
   const dateTo = searchParams.get("dateTo")?.trim();
+  const search = searchParams.get("search")?.trim() ?? "";
   const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10) || 1);
   const pageSize = Math.min(50, Math.max(1, parseInt(searchParams.get("pageSize") ?? String(PAGE_SIZE), 10) || PAGE_SIZE));
 
@@ -58,6 +59,15 @@ export const GET = withApiHandler(async (request: NextRequest) => {
 
   if (statusParam && STATUS_MAP[statusParam]) {
     where.status = STATUS_MAP[statusParam];
+  }
+
+  if (search) {
+    where.OR = [
+      { id: { contains: search } },
+      { user: { firstName: { contains: search } } },
+      { user: { lastName: { contains: search } } },
+      { user: { email: { contains: search } } },
+    ];
   }
 
   const dateFilter: { gte?: Date; lte?: Date } = {};

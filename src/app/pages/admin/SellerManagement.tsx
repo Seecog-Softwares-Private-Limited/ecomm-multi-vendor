@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { Link } from "../../components/Link";
-import { Search, Filter, Eye, Ban } from "lucide-react";
+import { Search, Filter, Eye, Ban, X, AlertTriangle, Unlock } from "lucide-react";
 
 export type SellerRow = {
   id: string;
@@ -56,18 +57,24 @@ function statusBadgeClass(status: string): string {
 }
 
 export function SellerManagement() {
+  const searchParamsHook = useSearchParams();
   const [sellers, setSellers] = useState<SellerRow[]>([]);
   const [meta, setMeta] = useState<SellersResponse["meta"] | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [search, setSearch] = useState("");
-  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState(() => searchParamsHook?.get("search") ?? "");
+  const [searchInput, setSearchInput] = useState(() => searchParamsHook?.get("search") ?? "");
   const [kycStatus, setKycStatus] = useState("");
   const [status, setStatus] = useState("");
   const [page, setPage] = useState(1);
   const [blockingSellerId, setBlockingSellerId] = useState<string | null>(null);
   const [blockError, setBlockError] = useState<string | null>(null);
+  // Block-reason modal
+  const [blockTarget, setBlockTarget] = useState<SellerRow | null>(null);
+  const [blockReason, setBlockReason] = useState("");
+  const [blockReasonError, setBlockReasonError] = useState("");
+  const reasonRef = useRef<HTMLTextAreaElement>(null);
 
   const fetchSellers = useCallback(async () => {
     setLoading(true);
@@ -111,15 +118,27 @@ export function SellerManagement() {
     setPage(1);
   };
 
-  const handleBlock = async (seller: SellerRow) => {
+  const openBlockModal = (seller: SellerRow) => {
+    if (seller.status.toLowerCase() === "blocked" || seller.status.toLowerCase() === "suspended") {
+      // Unblock needs no reason — execute immediately
+      confirmBlock(seller, "unblock", "");
+      return;
+    }
+    setBlockTarget(seller);
+    setBlockReason("");
+    setBlockReasonError("");
+    setTimeout(() => reasonRef.current?.focus(), 50);
+  };
+
+  const confirmBlock = async (seller: SellerRow, action: string, reason: string) => {
     setBlockError(null);
+    setBlockTarget(null);
     setBlockingSellerId(seller.id);
     try {
-      const action = seller.status.toLowerCase() === "blocked" ? "unblock" : "block";
       const res = await fetch(`/api/admin/sellers/${seller.id}/block`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({ action, reason: reason || undefined }),
         credentials: "include",
       });
       const json = await res.json();
@@ -133,6 +152,18 @@ export function SellerManagement() {
     } finally {
       setBlockingSellerId(null);
     }
+  };
+
+  const handleModalConfirm = () => {
+    if (!blockTarget) return;
+    if (!blockReason.trim()) {
+      setBlockReasonError("Please enter a reason for blocking this vendor.");
+      reasonRef.current?.focus();
+      return;
+    }
+    confirmBlock(blockTarget, "block", blockReason.trim());
+    setBlockReason("");
+    setBlockReasonError("");
   };
 
   const total = meta?.total ?? 0;
@@ -308,13 +339,23 @@ export function SellerManagement() {
                             </Link>
                             <button
                               type="button"
-                              onClick={() => handleBlock(seller)}
+                              onClick={() => openBlockModal(seller)}
                               disabled={blockingSellerId === seller.id}
-                              title={seller.status.toLowerCase() === "blocked" ? "Unblock" : "Block"}
-                              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition-colors hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50"
+                              title={
+                                seller.status.toLowerCase() === "blocked" || seller.status.toLowerCase() === "suspended"
+                                  ? "Unblock Vendor"
+                                  : "Block Vendor"
+                              }
+                              className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition-colors disabled:opacity-50 ${
+                                seller.status.toLowerCase() === "blocked" || seller.status.toLowerCase() === "suspended"
+                                  ? "hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-600"
+                                  : "hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600"
+                              }`}
                             >
                               {blockingSellerId === seller.id ? (
                                 <span className="h-4 w-4 animate-spin rounded-full border-2 border-rose-500 border-t-transparent" />
+                              ) : seller.status.toLowerCase() === "blocked" || seller.status.toLowerCase() === "suspended" ? (
+                                <Unlock className="h-4 w-4" />
                               ) : (
                                 <Ban className="h-4 w-4" />
                               )}
@@ -376,6 +417,86 @@ export function SellerManagement() {
           </>
         )}
       </div>
+
+      {/* Block-reason modal */}
+      {blockTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          onClick={(e) => { if (e.target === e.currentTarget) { setBlockTarget(null); } }}
+        >
+          <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-100">
+                  <AlertTriangle className="h-5 w-5 text-rose-600" />
+                </div>
+                <div>
+                  <h3 className="text-base font-semibold text-slate-900">Block Vendor</h3>
+                  <p className="text-xs text-slate-500">{blockTarget.name} · {blockTarget.business}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setBlockTarget(null)}
+                className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="px-6 py-5 space-y-4">
+              <p className="text-sm text-slate-600">
+                This vendor will be <span className="font-semibold text-rose-600">suspended</span> and
+                will no longer be able to list products or receive orders. A reason is required.
+              </p>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Reason for blocking <span className="text-rose-500">*</span>
+                </label>
+                <textarea
+                  ref={reasonRef}
+                  rows={3}
+                  value={blockReason}
+                  onChange={(e) => { setBlockReason(e.target.value); if (blockReasonError) setBlockReasonError(""); }}
+                  placeholder="e.g. Violated marketplace policies, fraudulent listings…"
+                  className={`w-full resize-none rounded-xl border px-4 py-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 transition ${
+                    blockReasonError
+                      ? "border-rose-400 focus:border-rose-400 focus:ring-rose-500/20"
+                      : "border-slate-200 focus:border-indigo-400 focus:ring-indigo-500/20"
+                  }`}
+                />
+                {blockReasonError && (
+                  <p className="mt-1.5 flex items-center gap-1 text-xs text-rose-600">
+                    <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                    {blockReasonError}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-3 border-t border-slate-100 px-6 py-4">
+              <button
+                type="button"
+                onClick={() => setBlockTarget(null)}
+                className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleModalConfirm}
+                className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2"
+              >
+                <Ban className="h-4 w-4" />
+                Block Vendor
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
