@@ -14,6 +14,7 @@ export type CartItemWithProduct = {
     stock: number;
     status: string;
     imageUrl: string | null;
+    gstPercent: number | null;
   };
 };
 
@@ -30,6 +31,7 @@ export async function getCartItems(userId: string): Promise<CartItemWithProduct[
           name: true,
           sellingPrice: true,
           mrp: true,
+          gstPercent: true,
           stock: true,
           status: true,
           deletedAt: true,
@@ -73,6 +75,7 @@ export async function getCartItems(userId: string): Promise<CartItemWithProduct[
           name: p.name,
           sellingPrice,
           mrp: Number(p.mrp),
+          gstPercent: p.gstPercent !== null && p.gstPercent !== undefined ? Number(p.gstPercent) : null,
           stock: stockDisplay,
           status: p.status,
           imageUrl: variantThumb ?? p.images[0]?.url ?? null,

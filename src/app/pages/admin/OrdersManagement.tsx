@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Filter, Eye, ShoppingBag, Package, ChevronLeft, ChevronRight, Banknote, Clock, IndianRupee } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { Filter, Search, Eye, ShoppingBag, Package, ChevronLeft, ChevronRight, Banknote, Clock, IndianRupee } from "lucide-react";
 
 const PAGE_SIZE = 10;
 const statsConfig = [
@@ -57,6 +58,7 @@ const paymentStatusStyles: Record<string, string> = {
 };
 
 export function OrdersManagement() {
+  const searchParamsHook = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -67,6 +69,8 @@ export function OrdersManagement() {
   const [statusFilter, setStatusFilter] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [searchInput, setSearchInput] = useState(() => searchParamsHook?.get("search") ?? "");
+  const [search, setSearch] = useState(() => searchParamsHook?.get("search") ?? "");
 
   const fetchOrders = useCallback(
     async (overridePage?: number) => {
@@ -79,6 +83,7 @@ export function OrdersManagement() {
       if (statusFilter) params.set("status", statusFilter);
       if (dateFrom) params.set("dateFrom", dateFrom);
       if (dateTo) params.set("dateTo", dateTo);
+      if (search) params.set("search", search);
       try {
         const res = await fetch(`/api/admin/orders?${params.toString()}`, { credentials: "include" });
         const json = await res.json();
@@ -100,7 +105,7 @@ export function OrdersManagement() {
         setLoading(false);
       }
     },
-    [page, statusFilter, dateFrom, dateTo]
+    [page, statusFilter, dateFrom, dateTo, search]
   );
 
   useEffect(() => {
@@ -114,8 +119,8 @@ export function OrdersManagement() {
   }, [totalPages, page]);
 
   const handleApplyFilters = () => {
+    setSearch(searchInput.trim());
     setPage(1);
-    fetchOrders(1);
   };
 
   const startItem = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
@@ -179,6 +184,17 @@ export function OrdersManagement() {
         {/* Filters */}
         <div className="mb-6 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm sm:p-5">
           <div className="flex flex-wrap items-center gap-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Search order ID or customer..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleApplyFilters()}
+                className="w-64 rounded-xl border border-slate-200 bg-slate-50/50 py-2.5 pl-9 pr-4 text-sm text-slate-700 transition focus:border-amber-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+              />
+            </div>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
