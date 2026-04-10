@@ -1,5 +1,10 @@
+import { Suspense } from "react";
 import { SellerManagement } from "@/app/pages/admin/SellerManagement";
 
 export default function Page() {
-  return <SellerManagement />;
+  return (
+    <Suspense>
+      <SellerManagement />
+    </Suspense>
+  );
 }

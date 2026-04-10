@@ -19,7 +19,7 @@ const STATUS_MAP: Record<string, "DRAFT" | "PENDING_APPROVAL" | "ACTIVE" | "REJE
 
 /**
  * GET /api/admin/products — list products for moderation (admin only).
- * Query: status (pending|approved|rejected|draft|inactive), category (category slug), page, pageSize.
+ * Query: status (pending|approved|rejected|draft|inactive), category (category slug), search, page, pageSize.
  */
 export const GET = withApiHandler(async (request: NextRequest) => {
   const ctx = await requireAdminPermission(request, "products");
@@ -28,6 +28,7 @@ export const GET = withApiHandler(async (request: NextRequest) => {
   const { searchParams } = new URL(request.url);
   const statusParam = searchParams.get("status")?.toLowerCase() ?? "";
   const categorySlug = searchParams.get("category")?.trim() ?? "";
+  const search = searchParams.get("search")?.trim() ?? "";
   const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10) || 1);
   const pageSize = Math.min(50, Math.max(1, parseInt(searchParams.get("pageSize") ?? String(PAGE_SIZE), 10) || PAGE_SIZE));
 
@@ -42,6 +43,13 @@ export const GET = withApiHandler(async (request: NextRequest) => {
 
   if (categorySlug) {
     where.category = { slug: categorySlug, deletedAt: null };
+  }
+
+  if (search) {
+    where.OR = [
+      { name: { contains: search } },
+      { seller: { businessName: { contains: search } } },
+    ];
   }
 
   const [products, total] = await Promise.all([

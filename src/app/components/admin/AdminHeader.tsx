@@ -1,13 +1,30 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { Bell, Search, User } from "lucide-react";
 import { Link } from "../Link";
 import { IndovyaparLogo } from "@/components/IndovyaparLogo";
 
 export function AdminHeader() {
+  const router = useRouter();
   const [displayName, setDisplayName] = useState("Admin");
   const [roleHint, setRoleHint] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleSearch = () => {
+    const q = searchQuery.trim();
+    if (!q) return;
+    // UUIDs / hex strings that look like order IDs go to orders; everything else to sellers
+    const isOrderLike = /^[0-9a-f-]{8,}$/i.test(q);
+    const dest = isOrderLike
+      ? `/admin/orders?search=${encodeURIComponent(q)}`
+      : `/admin/sellers?search=${encodeURIComponent(q)}`;
+    router.push(dest);
+    setSearchQuery("");
+    inputRef.current?.blur();
+  };
 
   useEffect(() => {
     fetch("/api/admin/me", { credentials: "include", cache: "no-store" })
@@ -39,9 +56,13 @@ export function AdminHeader() {
       {/* Search */}
       <div className="flex-1 max-w-md min-w-0">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 pointer-events-none" />
           <input
+            ref={inputRef}
             type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
             placeholder="Search orders, sellers, products..."
             className="w-full rounded-xl border border-slate-200 bg-slate-50/80 py-2.5 pl-10 pr-4 text-sm text-slate-800 placeholder-slate-400 transition-colors focus:border-amber-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/20"
           />

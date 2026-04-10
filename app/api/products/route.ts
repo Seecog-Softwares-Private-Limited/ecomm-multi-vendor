@@ -38,7 +38,9 @@ export const GET = withApiHandler(async (request: NextRequest) => {
       pincode,
       q: parsed.data.q,
     });
-    return apiSuccess(products);
+    const res = apiSuccess(products);
+    res.headers.set("Cache-Control", "public, s-maxage=60, stale-while-revalidate=300");
+    return res;
   }
 
   const products = await getProducts({
@@ -50,5 +52,8 @@ export const GET = withApiHandler(async (request: NextRequest) => {
     pincode,
   });
 
-  return apiSuccess(products);
+  const res = apiSuccess(products);
+  // Cache product listings for 60s, serve stale for up to 5min while revalidating
+  res.headers.set("Cache-Control", "public, s-maxage=60, stale-while-revalidate=300");
+  return res;
 });
