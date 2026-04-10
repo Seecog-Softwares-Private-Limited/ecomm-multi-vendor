@@ -3,7 +3,30 @@ import type { MenuTypeSlug } from "@/lib/catalog-constants";
 import { prisma } from "@/lib/prisma";
 import { productPinServiceableWhereAsync } from "@/lib/data/product-pin-filter";
 import { coalesceVariantImagesFromDb } from "@/lib/product-sku-variant";
+import { memCacheGetOrSet } from "@/lib/utils/mem-cache";
 import type { ProductDetail, ProductListItem, ReviewItem, ProductQuestionItem } from "@/types/catalog";
+
+const CAT_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+async function getCategoryId(slug: string): Promise<string | null> {
+  return memCacheGetOrSet(`cat:slug:${slug}`, CAT_CACHE_TTL, async () => {
+    const cat = await prisma.category.findFirst({
+      where: { slug: slug.trim().toLowerCase(), deletedAt: null },
+      select: { id: true },
+    });
+    return cat?.id ?? null;
+  });
+}
+
+async function getSubCategoryId(slug: string): Promise<string | null> {
+  return memCacheGetOrSet(`subcat:slug:${slug}`, CAT_CACHE_TTL, async () => {
+    const sub = await prisma.subCategory.findFirst({
+      where: { slug: slug.trim().toLowerCase(), deletedAt: null },
+      select: { id: true },
+    });
+    return sub?.id ?? null;
+  });
+}
 
 export type { MenuTypeSlug } from "@/lib/catalog-constants";
 export { MENU_TYPE_SLUGS, isMenuTypeSlug } from "@/lib/catalog-constants";
@@ -28,22 +51,14 @@ export async function getProducts(options: {
   let subCategoryId: string | undefined;
 
   if (categorySlug) {
-    const normalized = categorySlug.trim().toLowerCase();
-    const cat = await prisma.category.findFirst({
-      where: { slug: normalized, deletedAt: null },
-      select: { id: true },
-    });
-    categoryId = cat?.id;
-    if (!categoryId) return [];
+    const id = await getCategoryId(categorySlug);
+    if (!id) return [];
+    categoryId = id;
   }
   if (subCategorySlug) {
-    const normalized = subCategorySlug.trim().toLowerCase();
-    const sub = await prisma.subCategory.findFirst({
-      where: { slug: normalized, deletedAt: null },
-      select: { id: true },
-    });
-    subCategoryId = sub?.id;
-    if (!subCategoryId) return [];
+    const id = await getSubCategoryId(subCategorySlug);
+    if (!id) return [];
+    subCategoryId = id;
   }
 
   const searchTerm = searchQuery?.trim();

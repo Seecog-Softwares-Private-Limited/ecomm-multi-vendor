@@ -46,6 +46,7 @@ type CartItemApi = {
     stock: number;
     status: string;
     imageUrl: string | null;
+    gstPercent: number | null;
   };
 };
 
@@ -53,7 +54,6 @@ const PLACEHOLDER_IMAGE =
   "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400";
 const SHIPPING_FREE_THRESHOLD = 500;
 const SHIPPING_COST = 50;
-const TAX_RATE = 0.1;
 
 export function CheckoutPage() {
   const router = useRouter();
@@ -127,7 +127,10 @@ export function CheckoutPage() {
   const amountAfterDiscount = Math.max(0, subtotal - discount);
   const shipping =
     amountAfterDiscount >= SHIPPING_FREE_THRESHOLD ? 0 : SHIPPING_COST;
-  const tax = (amountAfterDiscount + shipping) * TAX_RATE;
+  const tax = cartItems.reduce(
+    (sum, it) => sum + it.product.sellingPrice * it.quantity * ((it.product.gstPercent ?? 0) / 100),
+    0
+  );
   const total = amountAfterDiscount + shipping + tax;
 
   const openRazorpayCheckout = async (

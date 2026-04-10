@@ -37,6 +37,7 @@ type CartItemApi = {
     stock: number;
     status: string;
     imageUrl: string | null;
+    gstPercent: number | null;
   };
 };
 
@@ -52,6 +53,7 @@ function guestToDisplayItem(g: GuestCartItem): CartItemApi {
       name: g.name,
       sellingPrice: g.price,
       mrp: g.mrp ?? g.price,
+      gstPercent: null,
       stock: 99,
       status: "ACTIVE",
       imageUrl: g.imageUrl,
@@ -108,7 +110,10 @@ export function ShoppingCartPage() {
   );
   const discount = couponApplied ? subtotal * 0.1 : 0;
   const shipping = subtotal >= 500 ? 0 : 50;
-  const tax = (subtotal - discount) * 0.1;
+  const tax = items.reduce(
+    (sum, it) => sum + it.product.sellingPrice * it.quantity * ((it.product.gstPercent ?? 0) / 100),
+    0
+  );
   const total = Math.max(0, subtotal - discount + shipping + tax);
 
   const handleQuantityChange = async (cartItemId: string, newQty: number) => {
