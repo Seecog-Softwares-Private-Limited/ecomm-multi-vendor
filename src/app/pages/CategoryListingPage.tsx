@@ -195,7 +195,7 @@ export function CategoryListingPage({ categoryName, categorySlug, products }: Ca
               ) : products.map((product, idx) => (
                 <Link
                   key={product.id}
-                  href={`/product/${product.id}`}
+                  href={`/product/${product.slug ?? product.id}`}
                   className="group bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all"
                 >
                   <div className="relative aspect-[4/5] overflow-hidden">

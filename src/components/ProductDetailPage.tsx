@@ -55,7 +55,7 @@ function RelatedProductCard({ item }: { item: ProductListItem }) {
       : 0;
   return (
     <Link
-      href={`/product/${item.id}`}
+      href={`/product/${item.slug ?? item.id}`}
       className="flex w-[200px] shrink-0 flex-col overflow-hidden rounded-xl border border-gray-100 bg-white transition-all hover:shadow-lg group sm:w-[220px] md:w-[240px]"
     >
       <div className="relative aspect-square overflow-hidden bg-gray-50">

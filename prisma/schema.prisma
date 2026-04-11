@@ -449,6 +449,7 @@ model Product {
   categoryId    String        @map("category_id") @db.Char(36)
   subCategoryId String        @map("sub_category_id") @db.Char(36)
   name          String        @db.VarChar(500)
+  slug          String?       @unique @db.VarChar(600)
   description   String?       @db.Text
   sku           String        @db.VarChar(100)
   mrp           Decimal       @db.Decimal(12, 2)
@@ -485,6 +486,7 @@ model Product {
   @@index([status])
   @@index([createdAt])
   @@index([deletedAt])
+  @@index([slug])
   @@map("products")
 }
 
