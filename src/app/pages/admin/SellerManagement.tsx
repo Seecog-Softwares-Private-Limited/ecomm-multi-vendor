@@ -75,6 +75,8 @@ export function SellerManagement() {
   const [blockReason, setBlockReason] = useState("");
   const [blockReasonError, setBlockReasonError] = useState("");
   const reasonRef = useRef<HTMLTextAreaElement>(null);
+  // Unblock confirmation modal
+  const [unblockTarget, setUnblockTarget] = useState<SellerRow | null>(null);
 
   const fetchSellers = useCallback(async () => {
     setLoading(true);
@@ -120,8 +122,8 @@ export function SellerManagement() {
 
   const openBlockModal = (seller: SellerRow) => {
     if (seller.status.toLowerCase() === "blocked" || seller.status.toLowerCase() === "suspended") {
-      // Unblock needs no reason — execute immediately
-      confirmBlock(seller, "unblock", "");
+      // Show confirmation dialog before unblocking
+      setUnblockTarget(seller);
       return;
     }
     setBlockTarget(seller);
@@ -417,6 +419,69 @@ export function SellerManagement() {
           </>
         )}
       </div>
+
+      {/* Unblock confirmation modal */}
+      {unblockTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          onClick={(e) => { if (e.target === e.currentTarget) setUnblockTarget(null); }}
+        >
+          <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100">
+                  <Unlock className="h-5 w-5 text-emerald-600" />
+                </div>
+                <div>
+                  <h3 className="text-base font-semibold text-slate-900">Unblock Vendor</h3>
+                  <p className="text-xs text-slate-500">{unblockTarget.name} · {unblockTarget.business}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setUnblockTarget(null)}
+                className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="px-6 py-5">
+              <p className="text-sm text-slate-600">
+                Are you sure you want to <span className="font-semibold text-emerald-600">unblock</span> this vendor?
+              </p>
+              <p className="mt-2 text-sm text-slate-500">
+                They will regain access to their dashboard and will be able to list products and receive orders again.
+              </p>
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-3 border-t border-slate-100 px-6 py-4">
+              <button
+                type="button"
+                onClick={() => setUnblockTarget(null)}
+                className="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const target = unblockTarget;
+                  setUnblockTarget(null);
+                  confirmBlock(target, "unblock", "");
+                }}
+                className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+              >
+                <Unlock className="h-4 w-4" />
+                Yes, Unblock Vendor
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Block-reason modal */}
       {blockTarget && (

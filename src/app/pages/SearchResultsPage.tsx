@@ -224,7 +224,7 @@ export function SearchResultsPage() {
                   key={product.id}
                   className="bg-white border border-slate-200 rounded-2xl overflow-hidden hover:shadow-lg transition-shadow group"
                 >
-                  <Link href={`/product/${product.id}`} className="block">
+                  <Link href={`/product/${product.slug ?? product.id}`} className="block">
                     <div className="aspect-square bg-slate-100 relative overflow-hidden">
                       {product.imageUrl ? (
                         <img
@@ -245,7 +245,7 @@ export function SearchResultsPage() {
                     </div>
                   </Link>
                   <div className="p-4">
-                    <Link href={`/product/${product.id}`}>
+                    <Link href={`/product/${product.slug ?? product.id}`}>
                       <h3 className="font-semibold text-slate-900 mb-2 line-clamp-2 hover:text-[#FF6A00] transition-colors">
                         {product.name}
                       </h3>

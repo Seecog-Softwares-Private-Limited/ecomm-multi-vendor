@@ -29,7 +29,8 @@ export interface ProductListItem {
   oldPrice?: number;
   rating: number;
   reviews: number;
-  slug?: string;
+  /** SEO-friendly URL slug. Falls back to id for backward compatibility. */
+  slug: string;
   imageUrl?: string;
 }
 
@@ -52,6 +53,8 @@ export interface ProductDetail {
   /** Seller owning the product; used for PIN / service-area checks on PDP. */
   sellerId: string;
   name: string;
+  /** SEO-friendly URL slug. Falls back to id for backward compatibility. */
+  slug: string;
   description: string | null;
   price: number;
   mrp: number;

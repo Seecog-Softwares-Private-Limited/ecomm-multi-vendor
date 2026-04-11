@@ -197,5 +197,7 @@
   "/verify-email/page": "app/verify-email/page.js",
   "/verify_email/page": "app/verify_email/page.js",
   "/(main)/info/[slug]/page": "app/(main)/info/[slug]/page.js",
-  "/api-docs/page": "app/api-docs/page.js"
+  "/api-docs/page": "app/api-docs/page.js",
+  "/api/products/slug/[slug]/route": "app/api/products/slug/[slug]/route.js",
+  "/(main)/product/[slug]/page": "app/(main)/product/[slug]/page.js"
 }

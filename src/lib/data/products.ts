@@ -78,6 +78,7 @@ export async function getProducts(options: {
     select: {
       id: true,
       name: true,
+      slug: true,
       sellingPrice: true,
       mrp: true,
       avgRating: true,
@@ -89,6 +90,7 @@ export async function getProducts(options: {
   return list.map((p) => ({
     id: p.id,
     name: p.name,
+    slug: p.slug ?? p.id,
     price: toNumber(p.sellingPrice),
     oldPrice: toNumber(p.mrp) > toNumber(p.sellingPrice) ? toNumber(p.mrp) : undefined,
     rating: toNumber(p.avgRating) || 0,
@@ -148,6 +150,7 @@ export async function getRelatedProducts(
     select: {
       id: true,
       name: true,
+      slug: true,
       sellingPrice: true,
       mrp: true,
       avgRating: true,
@@ -159,6 +162,7 @@ export async function getRelatedProducts(
   return list.map((p) => ({
     id: p.id,
     name: p.name,
+    slug: p.slug ?? p.id,
     price: toNumber(p.sellingPrice),
     oldPrice: toNumber(p.mrp) > toNumber(p.sellingPrice) ? toNumber(p.mrp) : undefined,
     rating: toNumber(p.avgRating) || 0,
@@ -193,6 +197,7 @@ export async function getProductsByMenuType(
   const select = {
     id: true,
     name: true,
+    slug: true,
     sellingPrice: true,
     mrp: true,
     avgRating: true,
@@ -212,6 +217,7 @@ export async function getProductsByMenuType(
       .map((p) => ({
         id: p.id,
         name: p.name,
+        slug: p.slug ?? p.id,
         price: toNumber(p.sellingPrice),
         oldPrice: toNumber(p.mrp),
         rating: toNumber(p.avgRating) || 0,
@@ -237,6 +243,7 @@ export async function getProductsByMenuType(
     return list.map((p) => ({
       id: p.id,
       name: p.name,
+      slug: p.slug ?? p.id,
       price: toNumber(p.sellingPrice),
       oldPrice: toNumber(p.mrp) > toNumber(p.sellingPrice) ? toNumber(p.mrp) : undefined,
       rating: toNumber(p.avgRating) || 0,
@@ -256,6 +263,7 @@ export async function getProductsByMenuType(
     return list.map((p) => ({
       id: p.id,
       name: p.name,
+      slug: p.slug ?? p.id,
       price: toNumber(p.sellingPrice),
       oldPrice: toNumber(p.mrp) > toNumber(p.sellingPrice) ? toNumber(p.mrp) : undefined,
       rating: toNumber(p.avgRating) || 0,
@@ -417,6 +425,63 @@ export async function getProductCategoryInfo(productId: string): Promise<{
 }
 
 /**
+ * Get a single product by its URL slug with full detail.
+ * Falls back to null if slug is not found or product is inactive.
+ */
+export async function getProductBySlug(slug: string): Promise<ProductDetail | null> {
+  const product = await prisma.product.findFirst({
+    where: { slug, deletedAt: null },
+    include: {
+      images: { where: { deletedAt: null }, orderBy: { sortOrder: "asc" }, select: { url: true } },
+      specifications: { where: { deletedAt: null }, select: { key: true, value: true } },
+      variations: { where: { deletedAt: null }, select: { name: true, values: true } },
+      productVariants: {
+        where: { deletedAt: null },
+        orderBy: { sortOrder: "asc" },
+        select: { id: true, color: true, size: true, price: true, stock: true, sku: true, image: true, images: true },
+      },
+    },
+  });
+
+  if (!product || product.status !== "ACTIVE") return null;
+
+  const valuesFromJson = (v: unknown): string[] =>
+    Array.isArray(v) ? v.map((x) => String(x)) : [];
+
+  return {
+    id: product.id,
+    sellerId: product.sellerId,
+    name: product.name,
+    slug: product.slug ?? product.id,
+    description: product.description,
+    price: toNumber(product.sellingPrice),
+    mrp: toNumber(product.mrp),
+    stock: product.stock,
+    avgRating: product.avgRating != null ? toNumber(product.avgRating) : null,
+    reviewCount: product.reviewCount ?? 0,
+    images: product.images.map((i) => i.url),
+    specifications: product.specifications.map((s) => ({ label: s.key, value: s.value })),
+    variations: product.variations.map((v) => ({
+      name: v.name,
+      values: valuesFromJson(v.values),
+    })),
+    skuVariants: (product.productVariants ?? []).map((v) => {
+      const imgs = coalesceVariantImagesFromDb(v.images, v.image);
+      return {
+        id: v.id,
+        color: v.color ?? null,
+        size: v.size ?? null,
+        price: toNumber(v.price),
+        stock: v.stock,
+        sku: v.sku ?? null,
+        image: imgs[0] ?? null,
+        images: imgs,
+      };
+    }),
+  };
+}
+
+/**
  * Get a single product by id with full detail (images, specs, variations, reviews, questions).
  */
 export async function getProductById(id: string): Promise<ProductDetail | null> {
@@ -443,6 +508,7 @@ export async function getProductById(id: string): Promise<ProductDetail | null> 
     id: product.id,
     sellerId: product.sellerId,
     name: product.name,
+    slug: product.slug ?? product.id,
     description: product.description,
     price: toNumber(product.sellingPrice),
     mrp: toNumber(product.mrp),
