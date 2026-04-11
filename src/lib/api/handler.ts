@@ -64,11 +64,29 @@ function handleRouteError(err: unknown): NextResponse {
 
   if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
     console.error("[api] Unique constraint:", err.meta);
-    return apiError(
-      "This email or phone is already in use. Sign in instead, or use a different email or phone.",
-      Status.CONFLICT,
-      "UNIQUE_CONSTRAINT"
-    );
+    const fields: string[] = Array.isArray(err.meta?.target)
+      ? (err.meta.target as string[])
+      : typeof err.meta?.target === "string"
+        ? [err.meta.target as string]
+        : [];
+    const f = fields.join(", ").toLowerCase();
+
+    let message: string;
+    if (f.includes("sku")) {
+      message = "A product with this SKU already exists. Please use a different SKU.";
+    } else if (f.includes("email") || f.includes("phone")) {
+      message = "This email or phone is already in use. Sign in instead, or use a different email or phone.";
+    } else if (f.includes("slug")) {
+      message = "This URL slug is already taken. Please choose a different one.";
+    } else if (f.includes("code")) {
+      message = "This code is already in use. Please use a different one.";
+    } else if (fields.length > 0) {
+      message = `A record with this ${fields.join(" / ")} already exists.`;
+    } else {
+      message = "A record with these details already exists.";
+    }
+
+    return apiError(message, Status.CONFLICT, "UNIQUE_CONSTRAINT");
   }
 
   /** Wrong generated client vs schema, or query uses fields the client does not know */
