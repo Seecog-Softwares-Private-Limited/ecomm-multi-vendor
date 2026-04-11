@@ -70,7 +70,7 @@ export function HomePage() {
       products: (electronics.length ? electronics : []).map((p) => ({
         src: p.imageUrl || PLACEHOLDER,
         alt: p.name,
-        href: `/product/${p.id}`,
+        href: `/product/${p.slug ?? p.id}`,
       })),
     }),
     [electronics]
@@ -85,7 +85,7 @@ export function HomePage() {
       products: (home.length ? home : []).map((p) => ({
         src: p.imageUrl || PLACEHOLDER,
         alt: p.name,
-        href: `/product/${p.id}`,
+        href: `/product/${p.slug ?? p.id}`,
       })),
     }),
     [home]
@@ -100,7 +100,7 @@ export function HomePage() {
       products: (beauty.length ? beauty : []).map((p) => ({
         src: p.imageUrl || PLACEHOLDER,
         alt: p.name,
-        href: `/product/${p.id}`,
+        href: `/product/${p.slug ?? p.id}`,
       })),
     }),
     [beauty]
@@ -115,7 +115,7 @@ export function HomePage() {
       products: (fashion.length ? fashion : []).map((p) => ({
         src: p.imageUrl || PLACEHOLDER,
         alt: p.name,
-        href: `/product/${p.id}`,
+        href: `/product/${p.slug ?? p.id}`,
       })),
     }),
     [fashion]
@@ -130,7 +130,7 @@ export function HomePage() {
       products: (sports.length ? sports : []).map((p) => ({
         src: p.imageUrl || PLACEHOLDER,
         alt: p.name,
-        href: `/product/${p.id}`,
+        href: `/product/${p.slug ?? p.id}`,
       })),
     }),
     [sports]

@@ -16,6 +16,7 @@ import {
   createVendorProductSchema,
   parseWithDetails,
 } from "@/lib/validation";
+import { generateUniqueSlug } from "@/lib/utils/slug";
 
 /** Map form returnPolicy to Prisma enum */
 const RETURN_POLICY_MAP: Record<string, "DAYS_7" | "DAYS_15" | "DAYS_30" | "NO_RETURN"> = {
@@ -95,12 +96,15 @@ export const POST = withApiHandler(async (request: NextRequest) => {
   const stock = hasSkuVariants ? skuRows.reduce((s, r) => s + r.stock, 0) : stockBase;
   const sellingPrice = hasSkuVariants ? Math.min(...skuRows.map((r) => r.price)) : parsed.data.sellingPrice;
 
+  const slug = await generateUniqueSlug(parsed.data.name);
+
   const product = await prisma.product.create({
     data: {
       sellerId,
       categoryId: ids.categoryId,
       subCategoryId: ids.subCategoryId,
       name: parsed.data.name,
+      slug,
       description: parsed.data.description ?? null,
       sku: parsed.data.sku,
       mrp: parsed.data.mrp,
@@ -146,6 +150,7 @@ export const POST = withApiHandler(async (request: NextRequest) => {
     select: {
       id: true,
       name: true,
+      slug: true,
       sku: true,
       status: true,
       createdAt: true,

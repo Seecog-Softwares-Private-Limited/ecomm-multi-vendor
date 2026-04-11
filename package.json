@@ -13,6 +13,7 @@
     "lint": "next lint",
     "seed": "prisma db seed",
     "ensure-superadmin": "tsx scripts/ensure-superadmin.ts",
+    "backfill:slugs": "tsx scripts/backfill-product-slugs.ts",
     "delete-customers-by-email": "tsx scripts/delete-customers-by-email.ts"
   },
   "dependencies": {
@@ -74,6 +75,7 @@
     "react-responsive-masonry": "2.7.1",
     "react-slick": "0.31.0",
     "recharts": "2.15.2",
+    "slugify": "^1.6.9",
     "sonner": "2.0.3",
     "swagger-ui-react": "^5.31.2",
     "tailwind-merge": "3.2.0",

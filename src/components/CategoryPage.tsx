@@ -520,7 +520,7 @@ export function CategoryPage({
                   >
                     <div className="relative aspect-square overflow-hidden bg-gray-50">
                       <Link
-                        href={`/product/${product.id}`}
+                        href={`/product/${product.slug ?? product.id}`}
                         className="absolute inset-0 z-0 block outline-none"
                         aria-label={product.name}
                       >
@@ -614,7 +614,7 @@ export function CategoryPage({
                       ) : null}
                     </div>
                     <Link
-                      href={`/product/${product.id}`}
+                      href={`/product/${product.slug ?? product.id}`}
                       className="block flex-1 p-2.5 sm:p-4 flex flex-col min-h-0"
                     >
                       <h3 className="font-medium text-[#111827] line-clamp-2 text-[13px] sm:text-sm leading-snug mb-1.5 sm:mb-2 group-hover:text-[#FF6A00] transition-colors">
@@ -693,7 +693,7 @@ export function CategoryPage({
                         className="hidden sm:block flex-1 py-2.5 rounded-lg bg-[#FF6A00] text-white font-semibold text-sm hover:bg-[#E55F00] transition"
                         onClick={(e) => {
                           e.preventDefault();
-                          router.push(`/product/${product.id}`);
+                          router.push(`/product/${product.slug ?? product.id}`);
                         }}
                       >
                         Buy Now

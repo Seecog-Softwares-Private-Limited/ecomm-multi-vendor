@@ -9,7 +9,7 @@ import { getRecentlyViewedIds } from "@/lib/recently-viewed";
 const PLACEHOLDER =
   "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400";
 
-type RecentItem = { id: string; name: string; imageUrl: string };
+type RecentItem = { id: string; name: string; imageUrl: string; slug?: string };
 
 async function fetchProduct(id: string): Promise<ProductDetail | null> {
   const res = await fetch(`/api/products/${encodeURIComponent(id)}`, { credentials: "include" });
@@ -44,6 +44,7 @@ export function RecentlyViewed() {
         .map((p) => ({
           id: p.id,
           name: p.name,
+          slug: p.slug,
           imageUrl: (Array.isArray(p.images) && p.images.length > 0 ? p.images[0] : PLACEHOLDER) as string,
         }));
       setItems(next);
@@ -104,7 +105,7 @@ export function RecentlyViewed() {
           {items.map((p) => (
             <Link
               key={p.id}
-              href={`/product/${p.id}`}
+              href={`/product/${p.slug ?? p.id}`}
               className="block h-[140px] w-[140px] shrink-0 sm:h-[230px] sm:w-[230px]"
               title={p.name}
               aria-label={p.name}

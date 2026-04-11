@@ -153,7 +153,7 @@ export function HeroBanner() {
           className="absolute right-4 top-1/2 z-10 hidden w-[220px] -translate-y-1/2 grid grid-cols-2 gap-2 sm:grid md:w-[280px] lg:right-20 lg:w-[340px] lg:gap-3"
         >
           {trendingThumbs.map((p) => (
-            <Link key={p.id} href={`/product/${p.id}`} className="block" title={p.name} aria-label={p.name}>
+            <Link key={p.id} href={`/product/${p.slug ?? p.id}`} className="block" title={p.name} aria-label={p.name}>
               <img
                 src={p.imageUrl}
                 alt={p.name}

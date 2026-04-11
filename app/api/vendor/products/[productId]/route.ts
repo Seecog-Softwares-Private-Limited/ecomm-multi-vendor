@@ -17,6 +17,7 @@ import {
   parseWithDetails,
   uuid,
 } from "@/lib/validation";
+import { generateUniqueSlug } from "@/lib/utils/slug";
 
 /** Map form returnPolicy to Prisma enum */
 const RETURN_POLICY_MAP: Record<string, "DAYS_7" | "DAYS_15" | "DAYS_30" | "NO_RETURN"> = {
@@ -65,7 +66,7 @@ export const PUT = withApiHandler(async (request: NextRequest, context?: RouteCo
 
   const existing = await prisma.product.findFirst({
     where: { id, sellerId, deletedAt: null },
-    select: { id: true, status: true },
+    select: { id: true, name: true, status: true },
   });
   if (!existing) return apiNotFound("Product not found");
 
@@ -123,12 +124,17 @@ export const PUT = withApiHandler(async (request: NextRequest, context?: RouteCo
   const stock = hasSkuVariants ? skuRows.reduce((s, r) => s + r.stock, 0) : stockBase;
   const sellingPrice = hasSkuVariants ? Math.min(...skuRows.map((r) => r.price)) : parsed.data.sellingPrice;
 
+  // Regenerate slug only when the product name has actually changed.
+  const nameChanged = parsed.data.name.trim() !== existing.name.trim();
+  const slug = nameChanged ? await generateUniqueSlug(parsed.data.name, id) : undefined;
+
   await prisma.product.update({
     where: { id },
     data: {
       categoryId: ids.categoryId,
       subCategoryId: ids.subCategoryId,
       name: parsed.data.name,
+      ...(slug !== undefined && { slug }),
       description: parsed.data.description ?? null,
       sku: parsed.data.sku,
       mrp: parsed.data.mrp,
