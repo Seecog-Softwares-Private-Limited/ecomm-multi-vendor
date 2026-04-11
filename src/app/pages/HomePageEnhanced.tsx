@@ -143,7 +143,7 @@ export function HomePageEnhanced() {
                   <div className="text-xs font-bold text-gray-700 uppercase mb-3">Product Suggestions</div>
                   <div className="space-y-2">
                     {recommendedProducts.slice(0, 3).map((product) => (
-                      <Link key={product.id} href={`/product/${product.id}`} className="flex items-center gap-3 p-2 hover:bg-gray-100">
+                      <Link key={product.id} href={`/product/${product.slug ?? product.id}`} className="flex items-center gap-3 p-2 hover:bg-gray-100">
                         <div className="w-12 h-12 bg-gray-300 border-2 border-gray-400 flex items-center justify-center flex-shrink-0">
                           <span className="text-xs text-gray-600">IMG</span>
                         </div>
@@ -290,7 +290,7 @@ export function HomePageEnhanced() {
                   <Heart className={`w-4 h-4 ${wishlist.includes(product.id) ? 'fill-gray-700' : ''} text-gray-700`} />
                 </button>
 
-                <Link href={`/product/${product.id}`} className="block">
+                <Link href={`/product/${product.slug ?? product.id}`} className="block">
                   <div className="aspect-square bg-gray-300 flex items-center justify-center border-b-2 border-gray-400">
                     <span className="text-xs text-gray-600">{product.image}</span>
                   </div>
@@ -353,7 +353,7 @@ export function HomePageEnhanced() {
                 <Heart className={`w-4 h-4 ${wishlist.includes(product.id) ? 'fill-gray-700' : ''} text-gray-700`} />
               </button>
 
-              <Link href={`/product/${product.id}`} className="block">
+              <Link href={`/product/${product.slug ?? product.id}`} className="block">
                 <div className="aspect-square bg-gray-300 flex items-center justify-center border-b-2 border-gray-400">
                   <span className="text-xs text-gray-600">{product.image}</span>
                 </div>

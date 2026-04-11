@@ -195,7 +195,7 @@ export function HomePage({ categories, products }: HomePageProps) {
               </button>
 
               {/* Product Image */}
-              <Link href={`/product/${product.id}`}>
+              <Link href={`/product/${product.slug ?? product.id}`}>
                 <div
                   className={`aspect-square ${
                     index % 4 === 1
@@ -225,7 +225,7 @@ export function HomePage({ categories, products }: HomePageProps) {
                 </div>
 
                 {/* Product Name */}
-                <Link href={`/product/${product.id}`}>
+                <Link href={`/product/${product.slug ?? product.id}`}>
                   <h3 className="font-bold text-[#0F172A] mb-3 hover:text-[#2563EB] transition-colors line-clamp-2">
                     {product.name}
                   </h3>

@@ -1,22 +1,25 @@
-import { withApiHandler, apiSuccess, apiNotFound, apiValidationError } from "@/lib/api";
-import { getProductById } from "@/lib/data/products";
-import { productIdParamSchema, parseWithDetails } from "@/lib/validation";
+import { withApiHandler, apiSuccess, apiNotFound, apiBadRequest } from "@/lib/api";
+import { getProductById, getProductBySlug } from "@/lib/data/products";
 
 type RouteContext = { params?: Promise<Record<string, string | string[]>> };
 
+/** UUID pattern — 8-4-4-4-12 hex groups */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /**
- * GET /api/products/:id — single product detail.
+ * GET /api/products/:idOrSlug — single product detail.
+ * Accepts either a UUID (legacy) or a SEO-friendly slug.
  */
 export const GET = withApiHandler(async (_request, context?: RouteContext) => {
   const params = context?.params ? await context.params : {};
-  const raw = { id: typeof params.id === "string" ? params.id : params.id?.[0] };
+  const idOrSlug = typeof params.id === "string" ? params.id : params.id?.[0];
 
-  const parsed = parseWithDetails(productIdParamSchema, raw);
-  if (!parsed.success) {
-    return apiValidationError("Validation failed", parsed.details);
-  }
+  if (!idOrSlug) return apiBadRequest("Product ID or slug is required");
 
-  const product = await getProductById(parsed.data.id);
+  const product = UUID_RE.test(idOrSlug)
+    ? await getProductById(idOrSlug)
+    : await getProductBySlug(idOrSlug);
+
   if (!product) return apiNotFound("Product not found");
 
   return apiSuccess(product);
