@@ -177,11 +177,19 @@ export function VendorLayout({
   };
 
   return (
-    <div className="flex h-screen bg-[#F8FAFC] overflow-hidden">
+    <div className="relative flex h-screen overflow-hidden bg-[#F8FAFC]">
+      {sidebarOpen ? (
+        <button
+          type="button"
+          aria-label="Close navigation menu"
+          className="fixed inset-0 z-30 bg-black/50 backdrop-blur-[1px] lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      ) : null}
       {/* Sidebar */}
       <aside
-        className={`fixed lg:static inset-y-0 left-0 z-50 w-64 bg-white border-r border-[#E2E8F0] transform transition-transform duration-300 lg:translate-x-0 ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        className={`fixed inset-y-0 left-0 z-40 w-[min(16rem,100vw-2rem)] max-w-[16rem] border-r border-[#E2E8F0] bg-white shadow-xl transition-transform duration-200 ease-out lg:static lg:z-auto lg:w-64 lg:max-w-none lg:translate-x-0 lg:shadow-none ${
+          sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         }`}
       >
         {/* Logo */}
@@ -214,23 +222,25 @@ export function VendorLayout({
       </aside>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         {/* Top Bar */}
-        <header className="h-16 bg-white border-b border-[#E2E8F0] flex items-center justify-between px-6">
-          <div className="flex items-center gap-4">
+        <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-[#E2E8F0] bg-white px-3 sm:h-16 sm:gap-4 sm:px-6">
+          <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-4">
             <button
+              type="button"
               onClick={() => setSidebarOpen(true)}
-              className="lg:hidden text-[#64748B] hover:text-[#1E293B]"
+              className="shrink-0 rounded-lg p-2 text-[#64748B] transition hover:bg-slate-50 hover:text-[#1E293B] lg:hidden"
+              aria-label="Open navigation menu"
             >
-              <Menu className="w-6 h-6" />
+              <Menu className="h-6 w-6" />
             </button>
-            <div className="flex items-center gap-3">
-              <h2 className="text-lg font-bold text-[#1E293B]">{businessName ?? "Vendor"}</h2>
-              {getStatusBadge()}
+            <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+              <h2 className="truncate text-base font-bold text-[#1E293B] sm:text-lg">{businessName ?? "Vendor"}</h2>
+              <span className="shrink-0">{getStatusBadge()}</span>
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex shrink-0 items-center gap-2 sm:gap-4">
             {/* ── Notification bell ── */}
             <div className="relative" ref={notifRef}>
               <button
@@ -248,7 +258,7 @@ export function VendorLayout({
 
               {/* Dropdown */}
               {notifOpen && (
-                <div className="absolute right-0 mt-2 w-[360px] max-h-[480px] flex flex-col bg-white border border-[#E2E8F0] rounded-2xl shadow-2xl z-[200] overflow-hidden">
+                <div className="absolute right-0 z-[200] mt-2 flex max-h-[min(480px,80vh)] w-[min(360px,calc(100vw-1.5rem))] max-w-[360px] flex-col overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white shadow-2xl">
                   {/* Header */}
                   <div className="flex items-center justify-between px-4 py-3 border-b border-[#E2E8F0] shrink-0">
                     <div className="flex items-center gap-2">
@@ -389,18 +399,10 @@ export function VendorLayout({
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto p-8">
+        <main className="flex-1 overflow-x-hidden overflow-y-auto px-3 py-4 sm:px-6 sm:py-6 lg:p-8">
           {children}
         </main>
       </div>
-
-      {/* Mobile Overlay */}
-      {sidebarOpen && (
-        <div
-          onClick={() => setSidebarOpen(false)}
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
-        />
-      )}
     </div>
   );
 }

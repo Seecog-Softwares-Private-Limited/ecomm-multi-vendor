@@ -2,11 +2,16 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Bell, Search, User } from "lucide-react";
+import { Bell, Menu, Search, User } from "lucide-react";
 import { Link } from "../Link";
 import { IndovyaparLogo } from "@/components/IndovyaparLogo";
 
-export function AdminHeader() {
+export type AdminHeaderProps = {
+  /** Opens the mobile sidebar (admin layout only). */
+  onMenuClick?: () => void;
+};
+
+export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
   const router = useRouter();
   const [displayName, setDisplayName] = useState("Admin");
   const [roleHint, setRoleHint] = useState("");
@@ -47,14 +52,25 @@ export function AdminHeader() {
     "flex items-center gap-3 rounded-xl border border-slate-200/80 bg-slate-50/50 px-3 py-2 transition-colors hover:border-slate-200 hover:bg-slate-100/80";
 
   return (
-    <header className="sticky top-0 z-10 flex h-16 flex-shrink-0 items-center justify-between gap-4 border-b border-slate-200/80 bg-white/95 px-6 backdrop-blur-md shadow-sm">
-      {/* Brand (desktop) */}
-      <div className="hidden md:block shrink-0 pr-4 border-r border-slate-200/80">
-        <IndovyaparLogo fontSize={20} style={{ lineHeight: "24px" }} />
-      </div>
+    <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center justify-between gap-2 border-b border-slate-200/80 bg-white/95 px-3 backdrop-blur-md shadow-sm sm:h-16 sm:gap-4 sm:px-6">
+      <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+        {onMenuClick ? (
+          <button
+            type="button"
+            onClick={onMenuClick}
+            className="inline-flex shrink-0 rounded-xl border border-slate-200/80 p-2 text-slate-600 transition hover:bg-slate-50 lg:hidden"
+            aria-label="Open navigation menu"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+        ) : null}
+        {/* Brand (desktop) */}
+        <div className="hidden shrink-0 border-r border-slate-200/80 pr-4 md:block">
+          <IndovyaparLogo fontSize={20} style={{ lineHeight: "24px" }} />
+        </div>
 
-      {/* Search */}
-      <div className="flex-1 max-w-md min-w-0">
+        {/* Search */}
+        <div className="min-w-0 flex-1 sm:max-w-md">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 pointer-events-none" />
           <input
@@ -67,10 +83,11 @@ export function AdminHeader() {
             className="w-full rounded-xl border border-slate-200 bg-slate-50/80 py-2.5 pl-10 pr-4 text-sm text-slate-800 placeholder-slate-400 transition-colors focus:border-amber-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/20"
           />
         </div>
+        </div>
       </div>
 
       {/* Right */}
-      <div className="flex items-center gap-2 shrink-0">
+      <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
         <button
           type="button"
           className="relative rounded-xl p-2.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"

@@ -45,9 +45,17 @@ const menuItems: MenuItem[] = [
 
 export type AdminSidebarProps = {
   activePath?: string;
+  /** When false below lg breakpoint, sidebar is off-canvas; when true, it slides in. */
+  mobileOpen?: boolean;
+  /** Called after a nav link is chosen (closes mobile drawer). */
+  onNavigate?: () => void;
 };
 
-export function AdminSidebar({ activePath = "" }: AdminSidebarProps) {
+export function AdminSidebar({
+  activePath = "",
+  mobileOpen = false,
+  onNavigate,
+}: AdminSidebarProps) {
   const [permissions, setPermissions] = useState<Set<string> | null>(null);
 
   useEffect(() => {
@@ -61,7 +69,14 @@ export function AdminSidebar({ activePath = "" }: AdminSidebarProps) {
   }, []);
 
   return (
-    <aside className="w-64 flex-shrink-0 flex flex-col bg-slate-900 text-slate-200 shadow-xl border-r border-slate-800/50">
+    <aside
+      className={`
+        fixed inset-y-0 left-0 z-40 flex w-[min(18rem,100vw-2rem)] max-w-[18rem] flex-col border-r border-slate-800/50 bg-slate-900 text-slate-200 shadow-xl
+        transition-transform duration-200 ease-out
+        lg:static lg:z-auto lg:w-64 lg:max-w-none lg:translate-x-0 lg:shadow-xl
+        ${mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
+      `}
+    >
       {/* Logo / Brand */}
       <div className="flex flex-col gap-1 px-5 py-5 border-b border-slate-700/80">
         <Link href="/admin" className="flex items-center gap-2 min-w-0">
@@ -85,7 +100,10 @@ export function AdminSidebar({ activePath = "" }: AdminSidebarProps) {
               key={item.path}
               href={locked ? "#" : item.path}
               onClick={(e) => {
-                if (!locked) return;
+                if (!locked) {
+                  onNavigate?.();
+                  return;
+                }
                 e.preventDefault();
               }}
               className={`

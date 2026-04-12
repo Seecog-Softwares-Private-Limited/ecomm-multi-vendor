@@ -219,7 +219,7 @@ export function SellerDetailPage({ sellerId = "" }: SellerDetailPageProps) {
   const isBlocked = seller.status === "SUSPENDED";
 
   return (
-    <div className="min-h-full bg-slate-50/80 p-6 lg:p-8">
+    <div className="min-h-full bg-slate-50/80 px-3 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
       <Link
         href="/admin/sellers"
         className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-slate-700 hover:text-slate-900"

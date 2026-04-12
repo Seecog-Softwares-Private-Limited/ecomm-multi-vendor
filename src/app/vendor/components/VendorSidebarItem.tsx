@@ -13,6 +13,8 @@ export type VendorSidebarItemProps = {
   disabled?: boolean;
   tooltip?: string;
   active?: boolean;
+  /** Called when a link is activated (e.g. close mobile drawer). */
+  onSelect?: () => void;
 };
 
 export function VendorSidebarItem({
@@ -22,6 +24,7 @@ export function VendorSidebarItem({
   disabled = false,
   tooltip = LOCKED_TOOLTIP,
   active = false,
+  onSelect,
 }: VendorSidebarItemProps) {
   if (disabled) {
     return (
@@ -39,6 +42,7 @@ export function VendorSidebarItem({
   return (
     <Link
       href={route}
+      onClick={() => onSelect?.()}
       className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${
         active
           ? "bg-indigo-600 text-white shadow-md"
