@@ -175,7 +175,7 @@ export function SellerManagement() {
   const to = Math.min(page * pageSize, total);
 
   return (
-    <div className="min-h-full bg-slate-50/80 p-6 lg:p-8">
+    <div className="min-h-full bg-slate-50/80 px-3 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
       <div className="mb-8">
         <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
           Seller Management
@@ -252,7 +252,7 @@ export function SellerManagement() {
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto">
+            <div className="-mx-1 overflow-x-auto overscroll-x-contain px-1 touch-pan-x sm:mx-0 sm:px-0">
               <table className="w-full min-w-[900px]">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50/80">
