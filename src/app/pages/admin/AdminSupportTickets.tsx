@@ -323,7 +323,7 @@ export function AdminSupportTickets() {
   const emptyCustomer = !loading && customerTickets.length === 0;
 
   return (
-    <div className="min-h-full bg-slate-50/80 p-6 lg:p-8">
+    <div className="min-h-full bg-slate-50/80 px-3 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
       <div className="mb-8">
         <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Support Tickets</h1>
         <p className="mt-1 text-sm text-slate-500">

@@ -262,7 +262,7 @@ export function CategoriesManagement() {
   };
 
   return (
-    <div className="min-h-full bg-slate-50/80 p-6 lg:p-8">
+    <div className="min-h-full bg-slate-50/80 px-3 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
       {/* Page header */}
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -295,7 +295,7 @@ export function CategoriesManagement() {
             <div className="h-8 w-8 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
           </div>
         ) : (
-        <div className="overflow-x-auto">
+        <div className="-mx-1 overflow-x-auto overscroll-x-contain px-1 touch-pan-x sm:mx-0 sm:px-0">
           <table className="w-full min-w-[640px]">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50/80">
