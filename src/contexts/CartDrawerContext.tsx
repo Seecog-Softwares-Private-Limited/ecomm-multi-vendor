@@ -24,6 +24,7 @@ type CartDrawerItem = {
   product: {
     id: string;
     name: string;
+    slug?: string | null;
     sellingPrice: number;
     mrp: number;
     imageUrl: string | null;
@@ -39,6 +40,7 @@ function guestToDrawerItem(g: GuestCartItem): CartDrawerItem {
     product: {
       id: g.productId,
       name: g.name,
+      slug: null,
       sellingPrice: g.price,
       mrp: g.mrp ?? g.price,
       imageUrl: g.imageUrl,
@@ -333,7 +335,7 @@ function CartDrawerPanel({ isOpen, onClose }: CartDrawerPanelProps) {
                     className="flex gap-4 pb-4 border-b border-slate-100 last:border-0"
                   >
                     <Link
-                      href={`/product/${it.productId}`}
+                      href={`/product/${it.product.slug ?? it.productId}`}
                       onClick={onClose}
                       className="w-20 h-20 rounded-lg overflow-hidden bg-slate-100 shrink-0"
                     >
@@ -346,7 +348,7 @@ function CartDrawerPanel({ isOpen, onClose }: CartDrawerPanelProps) {
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between gap-2">
                         <Link
-                          href={`/product/${it.productId}`}
+                          href={`/product/${it.product.slug ?? it.productId}`}
                           onClick={onClose}
                           className="font-semibold text-[#111827] text-sm line-clamp-2 hover:text-[#FF6A00]"
                         >

@@ -10,6 +10,7 @@ import {
 import { getSession } from "@/lib/auth";
 import { normalizeIndianPhone, INDIAN_MOBILE_HINT } from "@/lib/auth/phone";
 import { prisma } from "@/lib/prisma";
+import { getUserAvatarUrlSafe } from "@/lib/data/user-avatar";
 
 /**
  * GET /api/auth/me — return current user from HTTP-only cookie (token verification).
@@ -31,7 +32,6 @@ export const GET = withApiHandler(async (request: NextRequest) => {
       firstName: true,
       lastName: true,
       phone: true,
-      avatarUrl: true,
       deletedAt: true,
     },
   });
@@ -40,7 +40,9 @@ export const GET = withApiHandler(async (request: NextRequest) => {
     return apiSuccess({ user: null });
   }
 
-  const { deletedAt: _, ...safeUser } = user;
+  const avatarUrl = await getUserAvatarUrlSafe(session.sub);
+  const { deletedAt: _, ...rest } = user;
+  const safeUser = { ...rest, avatarUrl };
   const payload: { user: typeof safeUser & { role: string }; stats?: { orderCount: number; wishlistCount: number; addressCount: number } } = {
     user: { ...safeUser, role: session.role },
   };

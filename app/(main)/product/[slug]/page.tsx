@@ -1,6 +1,13 @@
 import Link from "next/link";
+import { permanentRedirect } from "next/navigation";
 import { ProductDetailPage } from "@/components/ProductDetailPage";
-import { getProductById, getProductBySlug, getProductCategoryInfo, getRelatedProducts } from "@/lib/data/products";
+import {
+  getActiveProductDbSlug,
+  getProductById,
+  getProductBySlug,
+  getProductCategoryInfo,
+  getRelatedProducts,
+} from "@/lib/data/products";
 
 /** UUID pattern — 8-4-4-4-12 hex groups */
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -52,16 +59,23 @@ export default async function Page({
     return <ProductError />;
   }
 
+  const isUuid = UUID_RE.test(slugOrId);
+
+  // Old bookmarks: /product/<uuid> → canonical /product/<slug> when slug exists in DB.
+  // Must not sit inside try/catch — permanentRedirect throws to abort the render.
+  if (isUuid) {
+    const canonicalSlug = await getActiveProductDbSlug(slugOrId);
+    if (canonicalSlug) {
+      permanentRedirect(`/product/${encodeURIComponent(canonicalSlug)}`);
+    }
+  }
+
   let product: Awaited<ReturnType<typeof getProductById>> = null;
   let categoryInfo: Awaited<ReturnType<typeof getProductCategoryInfo>> = null;
 
   try {
-    // Accept both UUID (legacy links) and SEO slug (new links).
-    const productFetch = UUID_RE.test(slugOrId)
-      ? getProductById(slugOrId)
-      : getProductBySlug(slugOrId);
-
-    const productId = UUID_RE.test(slugOrId) ? slugOrId : null;
+    const productFetch = isUuid ? getProductById(slugOrId) : getProductBySlug(slugOrId);
+    const productId = isUuid ? slugOrId : null;
 
     product = await productFetch;
 
