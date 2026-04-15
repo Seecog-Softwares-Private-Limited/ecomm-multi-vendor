@@ -180,7 +180,16 @@ export function Toggle({ checked, onChange, label, disabled = false }: TogglePro
 
 // Status Badge Component
 interface StatusBadgeProps {
-  status: "draft" | "submitted" | "approved" | "rejected" | "suspended" | "active" | "inactive" | "pending";
+  status:
+    | "draft"
+    | "submitted"
+    | "approved"
+    | "rejected"
+    | "suspended"
+    | "active"
+    | "inactive"
+    | "pending"
+    | "deleted";
   size?: "sm" | "md" | "lg";
 }
 
@@ -194,6 +203,7 @@ export function StatusBadge({ status, size = "md" }: StatusBadgeProps) {
     active: { label: "Active", color: "bg-green-100 text-green-700 border-green-200" },
     inactive: { label: "Inactive", color: "bg-gray-100 text-gray-700 border-gray-200" },
     pending: { label: "Pending", color: "bg-yellow-100 text-yellow-700 border-yellow-200" },
+    deleted: { label: "In trash", color: "bg-rose-50 text-rose-800 border-rose-200" },
   };
 
   const sizes = {

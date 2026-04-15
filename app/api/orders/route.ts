@@ -10,6 +10,7 @@ import {
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { resolveSkuRowForCart } from "@/lib/product-sku-variant";
+import { DEFAULT_GST_PERCENT } from "@/lib/constants/gst";
 
 /**
  * GET /api/orders — list orders for the logged-in customer.
@@ -162,9 +163,10 @@ export const POST = withApiHandler(async (request: NextRequest) => {
   const shippingAmount = amountAfterDiscount >= SHIPPING_FREE_THRESHOLD ? 0 : SHIPPING_COST;
   const taxAmount = validItems.reduce((sum, i) => {
     const unitPrice = unitPriceForCartLine(i);
-    const gst = i.product?.gstPercent !== null && i.product?.gstPercent !== undefined
-      ? Number(i.product.gstPercent)
-      : 0;
+    const gst =
+      i.product?.gstPercent !== null && i.product?.gstPercent !== undefined
+        ? Number(i.product.gstPercent)
+        : DEFAULT_GST_PERCENT;
     return sum + unitPrice * i.quantity * (gst / 100);
   }, 0);
   const totalAmount = amountAfterDiscount + shippingAmount + taxAmount;

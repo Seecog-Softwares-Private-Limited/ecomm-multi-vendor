@@ -7,6 +7,7 @@ export type WishlistItemWithProduct = {
   product: {
     id: string;
     name: string;
+    slug: string | null;
     sellingPrice: number;
     mrp: number;
     stock: number;
@@ -24,6 +25,7 @@ export async function getWishlistItems(userId: string): Promise<WishlistItemWith
         select: {
           id: true,
           name: true,
+          slug: true,
           sellingPrice: true,
           mrp: true,
           stock: true,
@@ -53,6 +55,7 @@ export async function getWishlistItems(userId: string): Promise<WishlistItemWith
         product: {
           id: p.id,
           name: p.name,
+          slug: p.slug?.trim() ? p.slug : null,
           sellingPrice: Number(p.sellingPrice),
           mrp: Number(p.mrp),
           stock: p.stock,
