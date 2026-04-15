@@ -31,12 +31,12 @@ export const GET = withApiHandler(async (request: NextRequest) => {
   const search = searchParams.get("search")?.trim() ?? "";
   const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10) || 1);
   const pageSize = Math.min(50, Math.max(1, parseInt(searchParams.get("pageSize") ?? String(PAGE_SIZE), 10) || PAGE_SIZE));
+  const trashRaw = searchParams.get("trash")?.toLowerCase() ?? "";
+  const trash = trashRaw === "1" || trashRaw === "true" || trashRaw === "yes";
 
-  const where: Prisma.ProductWhereInput = {
-    deletedAt: null,
-  };
+  const where: Prisma.ProductWhereInput = trash ? { deletedAt: { not: null } } : { deletedAt: null };
 
-  const productStatus = statusParam ? STATUS_MAP[statusParam] : undefined;
+  const productStatus = !trash && statusParam ? STATUS_MAP[statusParam] : undefined;
   if (productStatus) {
     where.status = productStatus;
   }
@@ -57,7 +57,7 @@ export const GET = withApiHandler(async (request: NextRequest) => {
       where,
       skip: (page - 1) * pageSize,
       take: pageSize,
-      orderBy: { createdAt: "desc" },
+      orderBy: trash ? { deletedAt: "desc" } : { createdAt: "desc" },
       select: {
         id: true,
         name: true,
@@ -66,6 +66,7 @@ export const GET = withApiHandler(async (request: NextRequest) => {
         rejectionReason: true,
         createdAt: true,
         updatedAt: true,
+        deletedAt: true,
         seller: { select: { businessName: true } },
         category: { select: { name: true } },
       },
@@ -84,8 +85,9 @@ export const GET = withApiHandler(async (request: NextRequest) => {
     categoryName: p.category?.name ?? "—",
     price: Number(p.sellingPrice),
     status: p.status,
-    statusDisplay:
-      p.status === "PENDING_APPROVAL"
+    statusDisplay: trash
+      ? "In trash"
+      : p.status === "PENDING_APPROVAL"
         ? (p.updatedAt.getTime() - p.createdAt.getTime() > 1000
             ? "Edited - Pending Approval"
             : "Pending")
@@ -96,6 +98,7 @@ export const GET = withApiHandler(async (request: NextRequest) => {
             : p.status,
     rejectionReason: p.rejectionReason ?? null,
     submittedDate: p.createdAt.toISOString().slice(0, 10),
+    deletedAt: trash ? (p.deletedAt?.toISOString() ?? null) : null,
   }));
 
   return apiSuccess(rows, 200, {

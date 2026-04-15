@@ -64,10 +64,28 @@ export const vendorService = {
     });
   },
 
-  /** Soft-delete a product (vendor must own it). */
+  /** Soft-delete a product (vendor must own it). Moves to trash. */
   async deleteProduct(productId: string): Promise<{ id: string; deleted: boolean }> {
     return request<{ id: string; deleted: boolean }>(
       `${VENDOR_BASE}/products/${productId}`,
+      { method: "DELETE" }
+    );
+  },
+
+  /** Restore a soft-deleted product from trash. */
+  async restoreProduct(productId: string): Promise<{ id: string; restored: boolean }> {
+    return request<{ id: string; restored: boolean }>(
+      `${VENDOR_BASE}/products/${productId}/restore`,
+      { method: "POST" }
+    );
+  },
+
+  /** Permanently delete a product that is already in trash (blocked if ordered). */
+  async permanentlyDeleteProduct(
+    productId: string
+  ): Promise<{ id: string; permanentlyDeleted: boolean }> {
+    return request<{ id: string; permanentlyDeleted: boolean }>(
+      `${VENDOR_BASE}/products/${productId}/permanent`,
       { method: "DELETE" }
     );
   },
@@ -87,6 +105,7 @@ export const vendorService = {
     const searchParams = new URLSearchParams();
     if (params?.dateFrom) searchParams.set("dateFrom", params.dateFrom);
     if (params?.dateTo) searchParams.set("dateTo", params.dateTo);
+    if (params?.trash) searchParams.set("trash", "1");
     const qs = searchParams.toString();
     const url = qs ? `${VENDOR_BASE}/products?${qs}` : `${VENDOR_BASE}/products`;
     return request<VendorProductListItem[]>(url, { method: "GET" });

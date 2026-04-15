@@ -35,8 +35,14 @@ export const GET = withApiHandler(async (request: NextRequest) => {
   const { searchParams } = new URL(request.url);
   const dateFrom = searchParams.get("dateFrom") ?? undefined;
   const dateTo = searchParams.get("dateTo") ?? undefined;
+  const trashRaw = searchParams.get("trash")?.toLowerCase() ?? "";
+  const trash = trashRaw === "1" || trashRaw === "true" || trashRaw === "yes";
 
-  const products = await getVendorProductsBySellerId(sellerId, dateFrom, dateTo);
+  const products = await getVendorProductsBySellerId(sellerId, {
+    dateFrom,
+    dateTo,
+    trash,
+  });
   return apiSuccess(products);
 });
 

@@ -66,7 +66,7 @@ export const PUT = withApiHandler(async (request: NextRequest, context?: RouteCo
 
   const existing = await prisma.product.findFirst({
     where: { id, sellerId, deletedAt: null },
-    select: { id: true, name: true, status: true },
+    select: { id: true, name: true, status: true, slug: true },
   });
   if (!existing) return apiNotFound("Product not found");
 
@@ -124,9 +124,11 @@ export const PUT = withApiHandler(async (request: NextRequest, context?: RouteCo
   const stock = hasSkuVariants ? skuRows.reduce((s, r) => s + r.stock, 0) : stockBase;
   const sellingPrice = hasSkuVariants ? Math.min(...skuRows.map((r) => r.price)) : parsed.data.sellingPrice;
 
-  // Regenerate slug only when the product name has actually changed.
+  // Regenerate slug when name changes; also assign once if legacy row has no slug.
   const nameChanged = parsed.data.name.trim() !== existing.name.trim();
-  const slug = nameChanged ? await generateUniqueSlug(parsed.data.name, id) : undefined;
+  const needsInitialSlug = !existing.slug?.trim();
+  const slug =
+    nameChanged || needsInitialSlug ? await generateUniqueSlug(parsed.data.name, id) : undefined;
 
   await prisma.product.update({
     where: { id },
