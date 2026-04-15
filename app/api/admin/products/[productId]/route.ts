@@ -23,7 +23,7 @@ export const GET = withApiHandler(
     }
 
     const product = await prisma.product.findFirst({
-      where: { id: productId, deletedAt: null },
+      where: { id: productId },
       select: {
         id: true,
         name: true,
@@ -35,6 +35,7 @@ export const GET = withApiHandler(
         status: true,
         rejectionReason: true,
         createdAt: true,
+        deletedAt: true,
         seller: { select: { businessName: true } },
         category: { select: { name: true } },
         subCategory: { select: { name: true } },
@@ -54,8 +55,9 @@ export const GET = withApiHandler(
       return apiNotFound("Product not found");
     }
 
-    const statusDisplay =
-      product.status === "PENDING_APPROVAL"
+    const statusDisplay = product.deletedAt
+      ? "In trash"
+      : product.status === "PENDING_APPROVAL"
         ? "Pending"
         : product.status === "ACTIVE"
           ? "Approved"
@@ -80,6 +82,7 @@ export const GET = withApiHandler(
       subCategoryName: product.subCategory?.name ?? "—",
       images: product.images.map((img) => ({ id: img.id, url: img.url, sortOrder: img.sortOrder ?? 0 })),
       specifications: product.specifications.map((s) => ({ key: s.key, value: s.value })),
+      deletedAt: product.deletedAt?.toISOString() ?? null,
     });
   }
 );

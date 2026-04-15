@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Eye, CheckCircle, XCircle, Filter, Search, X, Trash2 } from "lucide-react";
+import { Eye, CheckCircle, XCircle, Filter, Search, X, Trash2, RotateCcw } from "lucide-react";
 import * as React from "react";
 
 type ProductRow = {
@@ -16,6 +16,8 @@ type ProductRow = {
   edited?: boolean;
   rejectionReason?: string | null;
   submittedDate: string;
+  /** When listing trash — ISO deleted time. */
+  deletedAt?: string | null;
 };
 
 type ProductsResponse = {
@@ -57,6 +59,7 @@ function formatCurrency(n: number): string {
 function statusBadgeClass(status: string): string {
   const base = "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium";
   const s = status.toLowerCase();
+  if (s.includes("trash")) return `${base} bg-rose-50 text-rose-800 ring-1 ring-rose-200`;
   if (s.includes("edited")) return `${base} bg-indigo-50 text-indigo-700 ring-1 ring-indigo-600/20`;
   if (s === "pending" || s === "pending_approval") return `${base} bg-amber-50 text-amber-700 ring-1 ring-amber-600/20`;
   if (s === "approved" || s === "active") return `${base} bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/20`;
@@ -95,13 +98,18 @@ export function ProductModeration() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [rejectProduct, setRejectProduct] = useState<ProductRow | null>(null);
   const [rejectReason, setRejectReason] = useState("");
+  const [listView, setListView] = useState<"all" | "trash">("all");
 
   const fetchProducts = useCallback(async (pageOverride?: number) => {
     setLoading(true);
     setError(null);
     const params = new URLSearchParams();
-    if (statusFilter) params.set("status", statusFilter);
-    if (categoryFilter) params.set("category", categoryFilter);
+    if (listView === "trash") {
+      params.set("trash", "1");
+    } else {
+      if (statusFilter) params.set("status", statusFilter);
+      if (categoryFilter) params.set("category", categoryFilter);
+    }
     if (search) params.set("search", search);
     params.set("page", String(pageOverride ?? page));
     params.set("pageSize", "10");
@@ -128,7 +136,7 @@ export function ProductModeration() {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, categoryFilter, search, page, router]);
+  }, [statusFilter, categoryFilter, search, page, router, listView]);
 
   const fetchCategories = useCallback(async () => {
     try {
@@ -244,8 +252,63 @@ export function ProductModeration() {
     }
   };
 
+  const handleRestore = async (product: ProductRow) => {
+    setActionError(null);
+    setActioningId(product.id);
+    try {
+      const res = await fetch(`/api/admin/products/${product.id}/restore`, {
+        method: "POST",
+        credentials: "include",
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        setActionError(json?.error?.message ?? "Restore failed");
+        return;
+      }
+      fetchProducts();
+      if (previewProduct?.id === product.id) setPreviewProduct(null);
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : "Restore failed");
+    } finally {
+      setActioningId(null);
+    }
+  };
+
+  const handlePermanentDelete = async (product: ProductRow) => {
+    if (
+      !confirm(
+        `Permanently delete "${product.name}"? This cannot be undone. (Blocked if the product was ever ordered.)`
+      )
+    )
+      return;
+    setActionError(null);
+    setActioningId(product.id);
+    try {
+      const res = await fetch(`/api/admin/products/${product.id}/permanent`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        setActionError(json?.error?.message ?? "Permanent delete failed");
+        return;
+      }
+      fetchProducts();
+      if (previewProduct?.id === product.id) setPreviewProduct(null);
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : "Permanent delete failed");
+    } finally {
+      setActioningId(null);
+    }
+  };
+
   const handleDelete = async (product: ProductRow) => {
-    if (!confirm(`Delete "${product.name}"? This will remove the product from the catalog.`)) return;
+    if (
+      !confirm(
+        `Move "${product.name}" to trash? It will be hidden from the catalog until restored or permanently deleted.`
+      )
+    )
+      return;
     setActionError(null);
     setActioningId(product.id);
     try {
@@ -278,13 +341,45 @@ export function ProductModeration() {
 
   return (
     <div className="min-h-full bg-slate-50/80 px-3 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-          Product Moderation
-        </h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Review and approve products submitted by sellers
-        </p>
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+            Product Moderation
+          </h1>
+          <p className="mt-1 text-sm text-slate-500">
+            Review and approve products submitted by sellers
+          </p>
+        </div>
+        <div className="inline-flex shrink-0 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+          <button
+            type="button"
+            onClick={() => {
+              setListView("all");
+              setPage(1);
+            }}
+            className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
+              listView === "all"
+                ? "bg-indigo-600 text-white shadow"
+                : "text-slate-600 hover:bg-slate-50"
+            }`}
+          >
+            All
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setListView("trash");
+              setPage(1);
+            }}
+            className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
+              listView === "trash"
+                ? "bg-indigo-600 text-white shadow"
+                : "text-slate-600 hover:bg-slate-50"
+            }`}
+          >
+            Trash
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -301,35 +396,39 @@ export function ProductModeration() {
               className="w-64 rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-4 text-sm text-slate-700 shadow-sm focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
             />
           </div>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-          >
-            <option value="">All Status</option>
-            <option value="pending">Pending</option>
-            <option value="approved">Approved</option>
-            <option value="rejected">Rejected</option>
-          </select>
-          <select
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
-            className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-          >
-            <option value="">All Categories</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.slug}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+          {listView === "all" && (
+            <>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              >
+                <option value="">All Status</option>
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+              </select>
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              >
+                <option value="">All Categories</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.slug}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
           <button
             type="button"
             onClick={handleApplyFilters}
             className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
           >
             <Filter className="h-4 w-4" />
-            Apply Filters
+            {listView === "trash" ? "Search" : "Apply Filters"}
           </button>
         </div>
       </div>
@@ -373,7 +472,7 @@ export function ProductModeration() {
                       Status
                     </th>
                     <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
-                      Submitted Date
+                      {listView === "trash" ? "Deleted" : "Submitted Date"}
                     </th>
                     <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
                       Actions
@@ -415,7 +514,9 @@ export function ProductModeration() {
                           </span>
                         </td>
                         <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-500">
-                          {product.submittedDate}
+                          {listView === "trash" && product.deletedAt
+                            ? product.deletedAt.slice(0, 10)
+                            : product.submittedDate}
                         </td>
                         <td className="whitespace-nowrap px-6 py-4">
                           <div className="flex items-center gap-2">
@@ -427,7 +528,7 @@ export function ProductModeration() {
                             >
                               <Eye className="h-4 w-4" />
                             </button>
-                            {isPending(product) && (
+                            {listView === "all" && isPending(product) && (
                               <>
                                 <button
                                   type="button"
@@ -453,19 +554,51 @@ export function ProductModeration() {
                                 </button>
                               </>
                             )}
-                            <button
-                              type="button"
-                              onClick={() => handleDelete(product)}
-                              disabled={actioningId === product.id}
-                              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
-                              title="Delete"
-                            >
-                              {actioningId === product.id ? (
-                                <span className="h-4 w-4 animate-spin rounded-full border-2 border-red-500 border-t-transparent" />
-                              ) : (
-                                <Trash2 className="h-4 w-4" />
-                              )}
-                            </button>
+                            {listView === "all" && (
+                              <button
+                                type="button"
+                                onClick={() => handleDelete(product)}
+                                disabled={actioningId === product.id}
+                                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                                title="Move to trash"
+                              >
+                                {actioningId === product.id ? (
+                                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-red-500 border-t-transparent" />
+                                ) : (
+                                  <Trash2 className="h-4 w-4" />
+                                )}
+                              </button>
+                            )}
+                            {listView === "trash" && (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRestore(product)}
+                                  disabled={actioningId === product.id}
+                                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition-colors hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50"
+                                  title="Restore"
+                                >
+                                  {actioningId === product.id ? (
+                                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-rose-500 border-t-transparent" />
+                                  ) : (
+                                    <RotateCcw className="h-4 w-4" />
+                                  )}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handlePermanentDelete(product)}
+                                  disabled={actioningId === product.id}
+                                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                                  title="Delete permanently"
+                                >
+                                  {actioningId === product.id ? (
+                                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-red-500 border-t-transparent" />
+                                  ) : (
+                                    <Trash2 className="h-4 w-4" />
+                                  )}
+                                </button>
+                              </>
+                            )}
                           </div>
                         </td>
                       </tr>

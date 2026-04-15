@@ -9,6 +9,7 @@ export type CartItemWithProduct = {
   product: {
     id: string;
     name: string;
+    slug: string | null;
     sellingPrice: number;
     mrp: number;
     stock: number;
@@ -29,6 +30,7 @@ export async function getCartItems(userId: string): Promise<CartItemWithProduct[
         select: {
           id: true,
           name: true,
+          slug: true,
           sellingPrice: true,
           mrp: true,
           gstPercent: true,
@@ -73,6 +75,7 @@ export async function getCartItems(userId: string): Promise<CartItemWithProduct[
         product: {
           id: p.id,
           name: p.name,
+          slug: p.slug?.trim() ? p.slug : null,
           sellingPrice,
           mrp: Number(p.mrp),
           gstPercent: p.gstPercent !== null && p.gstPercent !== undefined ? Number(p.gstPercent) : null,

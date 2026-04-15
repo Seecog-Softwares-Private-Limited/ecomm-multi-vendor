@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { TopBar } from "@/components/TopBar";
 import { Navbar } from "@/components/Navbar";
+import { DEFAULT_GST_PERCENT } from "@/lib/constants/gst";
 
 type AddressApi = {
   id: string;
@@ -128,7 +129,11 @@ export function CheckoutPage() {
   const shipping =
     amountAfterDiscount >= SHIPPING_FREE_THRESHOLD ? 0 : SHIPPING_COST;
   const tax = cartItems.reduce(
-    (sum, it) => sum + it.product.sellingPrice * it.quantity * ((it.product.gstPercent ?? 0) / 100),
+    (sum, it) =>
+      sum +
+      it.product.sellingPrice *
+        it.quantity *
+        ((it.product.gstPercent ?? DEFAULT_GST_PERCENT) / 100),
     0
   );
   const total = amountAfterDiscount + shipping + tax;
@@ -743,7 +748,7 @@ export function CheckoutPage() {
                     )}
                   </div>
                   <div className="flex justify-between text-[15px]">
-                    <span className="text-[#6B7280]">Tax</span>
+                    <span className="text-[#6B7280]">GST</span>
                     <span className="font-semibold text-[#111827]">
                       ₹{tax.toLocaleString("en-IN")}
                     </span>
@@ -788,7 +793,7 @@ export function CheckoutPage() {
       {/* Add Address Modal */}
       {showAddAddressModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+          className="fixed inset-0 z-[140] flex items-center justify-center p-4 bg-black/50"
           onClick={() => {
             if (!addAddressSubmitting) {
               setShowAddAddressModal(false);

@@ -9,7 +9,9 @@ export type VendorProductStatus =
   | "submitted"
   | "approved"
   | "rejected"
-  | "inactive";
+  | "inactive"
+  /** Shown for rows in trash (soft-deleted); not a Prisma enum. */
+  | "deleted";
 
 function mapProductStatus(
   status: string
@@ -43,17 +45,27 @@ export interface VendorProductListItem {
   lastUpdated: string;
   /** First product image URL for listing thumbnail; null if none. */
   imageUrl: string | null;
+  /** When listing trash, ISO time when the product was moved to trash. */
+  deletedAt?: string | null;
 }
+
+export type VendorProductListOptions = {
+  dateFrom?: string;
+  dateTo?: string;
+  /** When true, return only soft-deleted products (trash). */
+  trash?: boolean;
+};
 
 /**
  * List products for a seller by seller id (for vendor dashboard).
  * Optional dateFrom/dateTo filter by product.updatedAt (YYYY-MM-DD) for reports.
+ * Pass `trash: true` to list soft-deleted products only.
  */
 export async function getVendorProductsBySellerId(
   sellerId: string,
-  dateFrom?: string,
-  dateTo?: string
+  options?: VendorProductListOptions
 ): Promise<VendorProductListItem[]> {
+  const { dateFrom, dateTo, trash } = options ?? {};
   const updatedFilter: { gte?: Date; lte?: Date } = {};
   if (dateFrom) updatedFilter.gte = new Date(dateFrom + "T00:00:00.000Z");
   if (dateTo) updatedFilter.lte = new Date(dateTo + "T23:59:59.999Z");
@@ -62,10 +74,10 @@ export async function getVendorProductsBySellerId(
   const list = await prisma.product.findMany({
     where: {
       sellerId,
-      deletedAt: null,
+      ...(trash ? { deletedAt: { not: null } } : { deletedAt: null }),
       ...(hasUpdatedFilter && { updatedAt: updatedFilter }),
     },
-    orderBy: { updatedAt: "desc" },
+    orderBy: trash ? { deletedAt: "desc" } : { updatedAt: "desc" },
     include: {
       category: { select: { name: true } },
       subCategory: { select: { name: true } },
@@ -85,10 +97,11 @@ export async function getVendorProductsBySellerId(
     sku: p.sku,
     price: toNumber(p.sellingPrice),
     stock: p.stock,
-    status: mapProductStatus(p.status),
+    status: trash ? "deleted" : mapProductStatus(p.status),
     rejectionReason: p.rejectionReason ?? null,
     lastUpdated: formatRelativeTime(p.updatedAt),
     imageUrl: p.images[0]?.url ?? null,
+    deletedAt: trash ? (p.deletedAt?.toISOString() ?? null) : null,
   }));
 }
 

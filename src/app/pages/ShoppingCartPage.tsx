@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { TopBar } from "@/components/TopBar";
 import { Navbar } from "@/components/Navbar";
+import { DEFAULT_GST_PERCENT } from "@/lib/constants/gst";
 import {
   getGuestCart,
   removeFromGuestCart,
@@ -32,6 +33,7 @@ type CartItemApi = {
   product: {
     id: string;
     name: string;
+    slug: string | null;
     sellingPrice: number;
     mrp: number;
     stock: number;
@@ -54,6 +56,7 @@ function guestToDisplayItem(g: GuestCartItem): CartItemApi {
       sellingPrice: g.price,
       mrp: g.mrp ?? g.price,
       gstPercent: null,
+      slug: null,
       stock: 99,
       status: "ACTIVE",
       imageUrl: g.imageUrl,
@@ -111,7 +114,11 @@ export function ShoppingCartPage() {
   const discount = couponApplied ? subtotal * 0.1 : 0;
   const shipping = subtotal >= 500 ? 0 : 50;
   const tax = items.reduce(
-    (sum, it) => sum + it.product.sellingPrice * it.quantity * ((it.product.gstPercent ?? 0) / 100),
+    (sum, it) =>
+      sum +
+      it.product.sellingPrice *
+        it.quantity *
+        ((it.product.gstPercent ?? DEFAULT_GST_PERCENT) / 100),
     0
   );
   const total = Math.max(0, subtotal - discount + shipping + tax);
@@ -275,7 +282,7 @@ export function ShoppingCartPage() {
                   >
                     <div className="flex gap-4 sm:gap-6">
                       <Link
-                        href={`/product/${it.productId}`}
+                        href={`/product/${it.product.slug ?? it.productId}`}
                         className="w-28 h-28 sm:w-32 sm:h-32 rounded-lg overflow-hidden bg-[#F3F4F6] border border-[#E5E7EB] shrink-0"
                       >
                         <img
@@ -287,7 +294,7 @@ export function ShoppingCartPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex justify-between gap-2">
                           <Link
-                            href={`/product/${it.productId}`}
+                            href={`/product/${it.product.slug ?? it.productId}`}
                             className="font-bold text-[#111827] text-[17px] hover:text-[#FF6A00] transition line-clamp-2"
                           >
                             {it.product.name}

@@ -10,6 +10,7 @@ import { useCartDrawer } from "@/contexts/CartDrawerContext";
 type WishlistProduct = {
   id: string;
   name: string;
+  slug: string | null;
   sellingPrice: number;
   mrp: number;
   stock: number;
@@ -192,7 +193,7 @@ export function WishlistPage() {
                   </div>
                 )}
 
-                <Link href={`/product/${item.productId}`} className="block">
+                <Link href={`/product/${item.product.slug ?? item.productId}`} className="block">
                   <div
                     className={`aspect-[4/5] bg-slate-100 flex items-center justify-center ${
                       item.product.imageUrl ? "" : "bg-gradient-to-br from-slate-200 to-slate-300"
@@ -227,7 +228,7 @@ export function WishlistPage() {
                     </span>
                   </div>
 
-                  <Link href={`/product/${item.productId}`}>
+                  <Link href={`/product/${item.product.slug ?? item.productId}`}>
                     <h3 className="font-semibold text-[#111827] mb-2 hover:text-[#FF6A00] transition-colors line-clamp-2">
                       {item.product.name}
                     </h3>

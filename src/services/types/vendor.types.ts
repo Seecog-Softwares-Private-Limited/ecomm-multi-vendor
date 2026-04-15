@@ -7,7 +7,8 @@ export type VendorProductStatus =
   | "submitted"
   | "approved"
   | "rejected"
-  | "inactive";
+  | "inactive"
+  | "deleted";
 
 export interface VendorProductListItem {
   id: string;
@@ -20,6 +21,8 @@ export interface VendorProductListItem {
   rejectionReason?: string | null;
   lastUpdated: string;
   imageUrl?: string | null;
+  /** Present when listing trash (ISO datetime). */
+  deletedAt?: string | null;
 }
 
 /** Current vendor session (GET /api/vendor/me). */
@@ -218,6 +221,8 @@ export interface VendorOrdersParams {
 export interface VendorProductsParams {
   dateFrom?: string;
   dateTo?: string;
+  /** List soft-deleted products (trash) when true. */
+  trash?: boolean;
 }
 
 // ---------------------------------------------------------------------------

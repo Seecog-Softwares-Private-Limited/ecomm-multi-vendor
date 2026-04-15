@@ -33,6 +33,26 @@ export { MENU_TYPE_SLUGS, isMenuTypeSlug } from "@/lib/catalog-constants";
 
 const toNumber = (v: unknown): number => (typeof v === "number" ? v : Number(v) ?? 0);
 
+/** Decode and normalize URL segment; product slugs are stored lowercase (slugify). */
+function normalizeProductSlugParam(raw: string): string {
+  try {
+    return decodeURIComponent(raw).trim().toLowerCase();
+  } catch {
+    return raw.trim().toLowerCase();
+  }
+}
+
+/**
+ * If this active product has a real SEO slug, return it (for UUID → slug redirect).
+ */
+export async function getActiveProductDbSlug(productId: string): Promise<string | null> {
+  const p = await prisma.product.findFirst({
+    where: { id: productId, deletedAt: null, status: "ACTIVE" },
+    select: { slug: true },
+  });
+  return p?.slug?.trim() ? p.slug : null;
+}
+
 /**
  * List products (active, not deleted). Optional category, subcategory, or text search (q).
  */
@@ -429,8 +449,11 @@ export async function getProductCategoryInfo(productId: string): Promise<{
  * Falls back to null if slug is not found or product is inactive.
  */
 export async function getProductBySlug(slug: string): Promise<ProductDetail | null> {
+  const normalized = normalizeProductSlugParam(slug);
+  if (!normalized) return null;
+
   const product = await prisma.product.findFirst({
-    where: { slug, deletedAt: null },
+    where: { slug: normalized, deletedAt: null },
     include: {
       images: { where: { deletedAt: null }, orderBy: { sortOrder: "asc" }, select: { url: true } },
       specifications: { where: { deletedAt: null }, select: { key: true, value: true } },
