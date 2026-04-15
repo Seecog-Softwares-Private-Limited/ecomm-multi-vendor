@@ -4,22 +4,29 @@
  * One-time migration: generates SEO-friendly slugs for all products that don't
  * yet have one. Ensures uniqueness by appending -1, -2, ... on conflicts.
  *
- * Run with:
- *   npx ts-node --project tsconfig.json -e "require('./scripts/backfill-product-slugs')"
+ * Run on the server (no `slugify` npm package required):
+ *   npm run backfill:slugs
  *
- * Or (if tsx is available):
- *   npx tsx scripts/backfill-product-slugs.ts
- *
- * Or as an npm script (add to package.json):
- *   "backfill:slugs": "tsx scripts/backfill-product-slugs.ts"
+ * Requires: DATABASE_URL, `npx prisma generate` already run, `@prisma/client` in node_modules.
  */
 
-import slugify from "slugify";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
 const BATCH_SIZE = 100;
+
+/**
+ * Same intent as `slugify(name, { lower: true, strict: true, trim: true })`
+ * so this script runs on servers where `slugify` is not installed in node_modules.
+ */
+function slugFromName(name: string): string {
+  let s = name.trim().toLowerCase();
+  s = s.normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
+  s = s.replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  s = s.slice(0, 200);
+  return s || "product";
+}
 
 /**
  * Builds a unique slug for `name` without touching the DB for every check.
@@ -30,7 +37,7 @@ function makeSlugifier(existingDbSlugs: Set<string>) {
   const taken = new Set<string>(existingDbSlugs);
 
   return function uniqueSlug(name: string): string {
-    const base = slugify(name, { lower: true, strict: true, trim: true });
+    const base = slugFromName(name);
     if (!taken.has(base)) {
       taken.add(base);
       return base;
