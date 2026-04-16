@@ -28,6 +28,8 @@ Output file:
 
 **Do not** build this with plain Windows `npm ci` in `cmd.exe` — **`node_modules` must be Linux binaries** for AWS.
 
+If **`build-linux-server-bundle.ps1`** says the `.sh` file is missing under WSL, your repo is likely under **OneDrive “Files On-Demand”**: open the project folder in File Explorer once so files are **downloaded locally**, then run the script again.
+
 ## 2) Copy to the new server
 
 From the machine that has the archive (replace IP and user):
