@@ -13,6 +13,7 @@
     "lint": "next lint",
     "seed": "prisma db seed",
     "migrate:deploy": "prisma migrate deploy",
+    "ci:server": "npm ci --omit=optional --no-audit --no-fund",
     "ensure-superadmin": "tsx scripts/ensure-superadmin.ts",
     "backfill:slugs": "tsx scripts/backfill-product-slugs.ts",
     "delete-customers-by-email": "tsx scripts/delete-customers-by-email.ts"
