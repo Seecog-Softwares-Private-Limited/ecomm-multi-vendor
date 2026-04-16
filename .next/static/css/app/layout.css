@@ -87,6 +87,7 @@
     --color-indigo-600: oklch(51.1% 0.262 276.966);
     --color-indigo-700: oklch(45.7% 0.24 277.023);
     --color-indigo-800: oklch(39.8% 0.195 277.366);
+    --color-indigo-900: oklch(35.9% 0.144 278.697);
     --color-indigo-950: oklch(25.7% 0.09 281.288);
     --color-violet-50: oklch(96.9% 0.016 293.756);
     --color-violet-200: oklch(89.4% 0.057 293.283);
@@ -4064,6 +4065,15 @@
   .text-indigo-800 {
     color: var(--color-indigo-800);
   }
+  .text-indigo-800\/90 {
+    color: color-mix(in srgb, oklch(39.8% 0.195 277.366) 90%, transparent);
+    @supports (color: color-mix(in lab, red, red)) {
+      color: color-mix(in oklab, var(--color-indigo-800) 90%, transparent);
+    }
+  }
+  .text-indigo-900 {
+    color: var(--color-indigo-900);
+  }
   .text-inherit {
     color: inherit;
   }
@@ -6696,6 +6706,14 @@
       --tw-ring-color: var(--color-amber-400);
     }
   }
+  .focus-visible\:ring-amber-500\/40 {
+    &:focus-visible {
+      --tw-ring-color: color-mix(in srgb, oklch(76.9% 0.188 70.08) 40%, transparent);
+      @supports (color: color-mix(in lab, red, red)) {
+        --tw-ring-color: color-mix(in oklab, var(--color-amber-500) 40%, transparent);
+      }
+    }
+  }
   .focus-visible\:ring-destructive\/20 {
     &:focus-visible {
       --tw-ring-color: var(--destructive);
@@ -6785,6 +6803,12 @@
   .focus-visible\:outline-white {
     &:focus-visible {
       outline-color: var(--color-white);
+    }
+  }
+  .focus-visible\:outline-none {
+    &:focus-visible {
+      --tw-outline-style: none;
+      outline-style: none;
     }
   }
   .active\:scale-\[0\.98\] {

@@ -24,7 +24,9 @@ import {
   ArrowRight,
 } from "lucide-react";
 import * as React from "react";
+import { toast } from "sonner";
 import { authService } from "@/services/auth.service";
+import { SELLER_PRODUCT_APPROVED_NOTIFICATION_TITLE } from "@/lib/notifications/product-moderation";
 import { isVendorApproved } from "@/lib/vendor-onboarding";
 import { VendorSidebarItem } from "./VendorSidebarItem";
 import { vendorService } from "@/services/vendor.service";
@@ -102,6 +104,45 @@ export function VendorLayout({
       .catch(() => {});
   }, []);
 
+  /** Toast once per notification id when admin approves a product (session-scoped). */
+  React.useEffect(() => {
+    if (!approved || typeof window === "undefined") return;
+    const storageKey = "vendor_product_approved_toast_ids";
+    let cancelled = false;
+    vendorService
+      .getNotifications({ limit: 30, unreadOnly: true })
+      .then((r) => {
+        if (cancelled) return;
+        let seen: string[] = [];
+        try {
+          seen = JSON.parse(sessionStorage.getItem(storageKey) ?? "[]") as string[];
+          if (!Array.isArray(seen)) seen = [];
+        } catch {
+          seen = [];
+        }
+        const seenSet = new Set(seen);
+        let changed = false;
+        for (const n of r.notifications) {
+          if (n.title !== SELLER_PRODUCT_APPROVED_NOTIFICATION_TITLE || seenSet.has(n.id)) continue;
+          toast.success("Your product was approved", {
+            description: n.message,
+            duration: 10_000,
+            id: `vendor-product-approved-${n.id}`,
+          });
+          seenSet.add(n.id);
+          changed = true;
+        }
+        if (changed) {
+          const next = [...seenSet].slice(-100);
+          sessionStorage.setItem(storageKey, JSON.stringify(next));
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [approved]);
+
   const openNotifDropdown = async () => {
     setNotifOpen((prev) => !prev);
     if (notifOpen) return; // already open — just close
@@ -149,15 +190,15 @@ export function VendorLayout({
   };
 
   const navigation = [
-    { name: "Dashboard",  path: "/vendor",               icon: LayoutDashboard, locked: false },
-    { name: "Orders",     path: "/vendor/orders",         icon: ShoppingBag,     locked: !approved },
-    { name: "Products",   path: "/vendor/products",       icon: Package,         locked: !approved },
-    { name: "Earnings",   path: "/vendor/earnings",       icon: Wallet,          locked: !approved },
-    { name: "Payouts",    path: "/vendor/payouts",        icon: CreditCard,      locked: !approved },
-    { name: "Reports",    path: "/vendor/reports",        icon: FileText,        locked: !approved },
-    { name: "Profile & KYC", path: "/vendor/profile",    icon: User,            locked: false },
-    { name: "Support",    path: "/vendor/support",        icon: HelpCircle,      locked: false },
-  ];
+    { name: "Dashboard", path: "/vendor", icon: LayoutDashboard },
+    { name: "Orders", path: "/vendor/orders", icon: ShoppingBag },
+    { name: "Products", path: "/vendor/products", icon: Package },
+    { name: "Earnings", path: "/vendor/earnings", icon: Wallet },
+    { name: "Payouts", path: "/vendor/payouts", icon: CreditCard },
+    { name: "Reports", path: "/vendor/reports", icon: FileText },
+    { name: "Profile & KYC", path: "/vendor/profile", icon: User },
+    { name: "Support", path: "/vendor/support", icon: HelpCircle },
+  ] as const;
 
   const getStatusBadge = () => {
     const statusConfig: Record<string, { label: string; color: string }> = {
@@ -213,9 +254,8 @@ export function VendorLayout({
               icon={item.icon}
               label={item.name}
               route={item.path}
-              disabled={item.locked}
-              tooltip={item.locked ? "Complete Profile & KYC to unlock" : undefined}
               active={isActive(item.path)}
+              onSelect={() => setSidebarOpen(false)}
             />
           ))}
         </nav>

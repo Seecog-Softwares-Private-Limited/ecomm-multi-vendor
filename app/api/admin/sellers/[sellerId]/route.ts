@@ -210,6 +210,15 @@ export const GET = withApiHandler(
       ADDRESS_PROOF: "Address Proof",
     };
 
+    const pendingStorefront =
+      profileExtrasParsed &&
+      typeof profileExtrasParsed === "object" &&
+      "pendingStorefront" in profileExtrasParsed &&
+      profileExtrasParsed.pendingStorefront &&
+      typeof profileExtrasParsed.pendingStorefront === "object"
+        ? (profileExtrasParsed.pendingStorefront as Record<string, unknown>)
+        : null;
+
     return apiSuccess({
       seller: {
         id: seller.id,
@@ -223,6 +232,7 @@ export const GET = withApiHandler(
         statusReason: seller.statusReason ?? undefined,
         createdAt: seller.createdAt.toISOString(),
       },
+      pendingStorefront,
       stats: {
         totalProducts: seller._count.products,
         totalOrders: orderMap.size,
