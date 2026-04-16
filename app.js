@@ -7,6 +7,10 @@
  *
  * Opt-out of automatic build (e.g. low RAM): SKIP_AUTO_BUILD=1 — then missing build falls back to dev.
  * Heavy builds: NODE_OPTIONS="--max-old-space-size=2048" node app.js start
+ *
+ * Listen address: defaults to 0.0.0.0 (all interfaces). Optional: BIND_HOST or LISTEN_HOST.
+ * Do not use the OS variable HOSTNAME for binding — on Linux it is the machine name and nginx
+ * (proxy_pass http://127.0.0.1:PORT) will often get 502 because nothing is listening on loopback.
  */
 
 import { spawn, execSync, spawnSync } from "child_process";
@@ -65,7 +69,8 @@ async function main() {
     process.exit(1);
   }
 
-  const host = process.env.HOSTNAME || "0.0.0.0";
+  const bindRaw = process.env.BIND_HOST || process.env.LISTEN_HOST || "0.0.0.0";
+  const host = String(bindRaw).trim() || "0.0.0.0";
 
   // node app.js      -> start (build if needed, then next start); node app.js dev -> dev
   let mode = process.argv[2] === "dev" ? "dev" : "start";
@@ -104,7 +109,6 @@ async function main() {
     ...process.env,
     FORCE_COLOR: "1",
     PORT: String(port),
-    HOSTNAME: host,
   };
 
   const isWin = process.platform === "win32";
