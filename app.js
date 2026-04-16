@@ -6,9 +6,8 @@
  *   dev — development server (`next dev`).
  *
  * Deploy without npm/build ON the server:
- *   On Linux (CI or WSL): `npm ci` && `npm run build`, then copy the whole app including `.next/` and
- *   Linux `node_modules/`. Server only needs `node` — this file runs `node node_modules/next/dist/bin/next`
- *   (no `npx`).
+ *   Run scripts/build-linux-server-bundle.sh (WSL/Linux) → dist/ecomm-linux-server-bundle.tar.gz
+ *   Extract on the server, add .env, run `node app.js start` (server needs Node only, no npm ci).
  *
  * Listen address: defaults to 0.0.0.0. Optional: BIND_HOST or LISTEN_HOST.
  */
