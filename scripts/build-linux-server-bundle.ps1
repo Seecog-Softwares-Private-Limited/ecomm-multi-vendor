@@ -38,8 +38,18 @@ Write-Host "Repo (Windows): $repo"
 Write-Host "Repo (WSL):     $unixRepo"
 Write-Host ""
 
-# One bash -lc string: cd then run (must pass as ONE double-quoted arg to PowerShell — do not use wsl bash -lc $var without quotes).
-$bashLine = "cd '$unixRepo' && test -f scripts/build-linux-server-bundle.sh || { echo 'Missing scripts/build-linux-server-bundle.sh (OneDrive? Open this folder in Windows so files are local).'; ls -la scripts 2>/dev/null || true; exit 1; }; exec bash scripts/build-linux-server-bundle.sh"
+# CRLF in *.sh breaks bash under WSL ("set: pipefail" / invalid option). Normalize before run.
+$shWin = Join-Path $repo "scripts\build-linux-server-bundle.sh"
+if (Test-Path -LiteralPath $shWin) {
+    $raw = [System.IO.File]::ReadAllText($shWin)
+    if ($raw.Contains("`r`n")) {
+        Write-Host "Normalizing scripts/build-linux-server-bundle.sh: CRLF -> LF (required for WSL)."
+        [System.IO.File]::WriteAllText($shWin, ($raw -replace "`r`n", "`n"), [System.Text.UTF8Encoding]::new($false))
+    }
+}
+
+# Build bash -c in PowerShell SINGLE quotes so `2>/dev/null` is not corrupted (`$null` expansion).
+$bashLine = 'cd ''' + $unixRepo + ''' && test -f scripts/build-linux-server-bundle.sh || { echo MISSING_BUNDLE_SCRIPT_run_from_repo_root; ls -la scripts 2>/dev/null || true; exit 1; }; exec bash scripts/build-linux-server-bundle.sh'
 wsl bash -lc "$bashLine"
 
 Write-Host ""
