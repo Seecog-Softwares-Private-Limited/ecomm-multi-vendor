@@ -6,7 +6,6 @@ import {
   TrendingUp,
   Package,
   AlertCircle,
-  Plus,
   ChevronRight,
   ArrowUp,
   ArrowDown,
@@ -70,17 +69,9 @@ export function VendorDashboardContent({
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-[#1E293B] mb-2">Dashboard</h1>
-          <p className="text-[#64748B]">Welcome back! Here&apos;s your store overview</p>
-        </div>
-        <Link href="/vendor/products/create">
-          <Button variant="primary">
-            <Plus className="w-5 h-5" />
-            Add Product
-          </Button>
-        </Link>
+      <div>
+        <h1 className="text-3xl font-bold text-[#1E293B] mb-2">Dashboard</h1>
+        <p className="text-[#64748B]">Welcome back! Here&apos;s your store overview</p>
       </div>
 
       <DataState
@@ -232,13 +223,13 @@ export function VendorDashboardContent({
                   <p className="font-semibold text-[#1E293B]">Manage Orders</p>
                 </Link>
                 <Link
-                  href="/vendor/products/create"
+                  href="/vendor/products"
                   className="flex flex-col items-center gap-3 p-6 bg-[#F8FAFC] rounded-xl hover:bg-[#F1F5F9] hover:shadow-md transition-all"
                 >
                   <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                    <Plus className="w-6 h-6 text-green-600" />
+                    <Package className="w-6 h-6 text-green-600" />
                   </div>
-                  <p className="font-semibold text-[#1E293B]">Add Product</p>
+                  <p className="font-semibold text-[#1E293B]">My Products</p>
                 </Link>
                 <Link
                   href="/vendor/earnings"

@@ -3,6 +3,7 @@ import { ApiRouteError, Status } from "@/lib/api";
 import { requireSession } from "./session";
 import type { JwtPayload } from "./jwt";
 import { prisma } from "@/lib/prisma";
+import { resolveDashboardDisplayName } from "@/lib/data/vendor-profile";
 
 /** Vendor status as exposed to frontend (aligned with requirement labels). */
 export type VendorStatusDisplay =
@@ -73,14 +74,14 @@ export async function getVendorStatus(sellerId: string): Promise<{
 } | null> {
   const seller = await prisma.seller.findFirst({
     where: { id: sellerId, deletedAt: null },
-    select: { status: true, statusReason: true, businessName: true, emailVerified: true },
+    select: { status: true, statusReason: true, businessName: true, emailVerified: true, profileExtras: true },
   });
   if (!seller) return null;
   return {
     status: toVendorStatusDisplay(seller.status),
     rawStatus: seller.status,
     statusReason: seller.statusReason ?? null,
-    businessName: seller.businessName ?? null,
+    businessName: resolveDashboardDisplayName(seller.businessName, seller.profileExtras),
     emailVerified: seller.emailVerified ?? false,
   };
 }

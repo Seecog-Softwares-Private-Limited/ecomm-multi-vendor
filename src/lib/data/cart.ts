@@ -16,6 +16,8 @@ export type CartItemWithProduct = {
     status: string;
     imageUrl: string | null;
     gstPercent: number | null;
+    /** True when the listing is not ACTIVE (e.g. pending admin re-approval); prices come from snapshot when available. */
+    listingPaused?: boolean;
   };
 };
 
@@ -59,7 +61,24 @@ export async function getCartItems(userId: string): Promise<CartItemWithProduct[
       const p = i.product!;
       const pv = p.productVariants ?? [];
       const line = pv.length > 0 ? resolveSkuRowForCart(pv, i.variantKey) : null;
-      const sellingPrice = line ? Number(line.price) : Number(p.sellingPrice);
+      const liveSelling = line ? Number(line.price) : Number(p.sellingPrice);
+      const liveMrp = Number(p.mrp);
+      const snapshotSelling =
+        i.listedUnitSellingPrice != null ? Number(i.listedUnitSellingPrice) : null;
+      const snapshotMrp = i.listedUnitMrp != null ? Number(i.listedUnitMrp) : null;
+      const listingPaused = p.status !== "ACTIVE";
+      let sellingPrice: number;
+      let mrp: number;
+      if (snapshotSelling != null) {
+        sellingPrice = snapshotSelling;
+        mrp = snapshotMrp ?? snapshotSelling;
+      } else if (listingPaused) {
+        sellingPrice = 0;
+        mrp = 0;
+      } else {
+        sellingPrice = liveSelling;
+        mrp = liveMrp;
+      }
       const stockDisplay = line ? line.stock : p.stock;
       const variantThumb = line
         ? coalesceVariantImagesFromDb(
@@ -77,11 +96,12 @@ export async function getCartItems(userId: string): Promise<CartItemWithProduct[
           name: p.name,
           slug: p.slug?.trim() ? p.slug : null,
           sellingPrice,
-          mrp: Number(p.mrp),
+          mrp,
           gstPercent: p.gstPercent !== null && p.gstPercent !== undefined ? Number(p.gstPercent) : null,
           stock: stockDisplay,
           status: p.status,
           imageUrl: variantThumb ?? p.images[0]?.url ?? null,
+          ...(listingPaused ? { listingPaused: true } : {}),
         },
       };
     });
@@ -95,7 +115,8 @@ export async function addToCart(
   userId: string,
   productId: string,
   quantity: number,
-  variantKey: string | null = null
+  variantKey: string | null = null,
+  listed?: { unitSelling: number; unitMrp: number } | null
 ): Promise<{ id: string; quantity: number }> {
   const qty = Math.max(1, Math.min(quantity, 99));
 
@@ -110,9 +131,18 @@ export async function addToCart(
 
   if (existing) {
     const newQty = Math.min(99, existing.quantity + qty);
+    const snapshotPatch =
+      listed &&
+      existing.listedUnitSellingPrice == null &&
+      existing.listedUnitMrp == null
+        ? {
+            listedUnitSellingPrice: listed.unitSelling,
+            listedUnitMrp: listed.unitMrp,
+          }
+        : {};
     await prisma.cartItem.update({
       where: { id: existing.id },
-      data: { quantity: newQty, updatedAt: new Date() },
+      data: { quantity: newQty, updatedAt: new Date(), ...snapshotPatch },
     });
     return { id: existing.id, quantity: newQty };
   }
@@ -123,6 +153,12 @@ export async function addToCart(
       productId,
       quantity: qty,
       variantKey: variantKey ?? null,
+      ...(listed
+        ? {
+            listedUnitSellingPrice: listed.unitSelling,
+            listedUnitMrp: listed.unitMrp,
+          }
+        : {}),
     },
   });
   return { id: created.id, quantity: created.quantity };
