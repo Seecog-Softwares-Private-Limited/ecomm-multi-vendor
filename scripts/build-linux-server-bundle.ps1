@@ -38,6 +38,25 @@ Write-Host "Repo (Windows): $repo"
 Write-Host "Repo (WSL):     $unixRepo"
 Write-Host ""
 
+Write-Host "Checking Node.js + npm inside default WSL distro..."
+wsl bash -lc 'command -v node >/dev/null 2>&1 && command -v npm >/dev/null 2>&1 && exit 0; exit 1'
+if ($LASTEXITCODE -ne 0) {
+    Write-Host ""
+    Write-Host "ERROR: Node.js (and npm) are not installed inside WSL. The bundle build runs in Linux — install Node 22 there once."
+    Write-Host ""
+    Write-Host "1) Open Ubuntu in WSL:  wsl"
+    Write-Host "2) Run (copy/paste as one block):"
+    Write-Host ""
+    Write-Host "   sudo apt-get update && sudo apt-get install -y ca-certificates curl gnupg"
+    Write-Host "   curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -"
+    Write-Host "   sudo apt-get install -y nodejs"
+    Write-Host "   node -v && npm -v"
+    Write-Host ""
+    Write-Host "3) Exit WSL, then run again:  .\scripts\build-linux-server-bundle.ps1"
+    Write-Host ""
+    exit 1
+}
+
 # CRLF in *.sh breaks bash under WSL ("set: pipefail" / invalid option). Normalize before run.
 $shWin = Join-Path $repo "scripts\build-linux-server-bundle.sh"
 if (Test-Path -LiteralPath $shWin) {
