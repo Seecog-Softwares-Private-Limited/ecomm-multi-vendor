@@ -38,9 +38,9 @@ Write-Host "Repo (Windows): $repo"
 Write-Host "Repo (WSL):     $unixRepo"
 Write-Host ""
 
-# Run the shell script by absolute path (no chmod — avoids "No such file" when cwd / OneDrive + WSL disagree).
-$bundleSh = "$unixRepo/scripts/build-linux-server-bundle.sh".Replace('\', '/')
-wsl env "BUNDLE_SH=$bundleSh" bash -lc 'set -e; test -f "$BUNDLE_SH" || { echo "Missing: $BUNDLE_SH"; echo "If the repo is on OneDrive, open the folder in Windows so files are fully on disk."; ls -la "$(dirname "$BUNDLE_SH")" || true; exit 1; }; exec bash "$BUNDLE_SH"'
+# One bash -lc string: cd then run (must pass as ONE double-quoted arg to PowerShell — do not use wsl bash -lc $var without quotes).
+$bashLine = "cd '$unixRepo' && test -f scripts/build-linux-server-bundle.sh || { echo 'Missing scripts/build-linux-server-bundle.sh (OneDrive? Open this folder in Windows so files are local).'; ls -la scripts 2>/dev/null || true; exit 1; }; exec bash scripts/build-linux-server-bundle.sh"
+wsl bash -lc "$bashLine"
 
 Write-Host ""
 Write-Host "Archive (Windows path): $(Join-Path $repo 'dist\ecomm-linux-server-bundle.tar.gz')"
