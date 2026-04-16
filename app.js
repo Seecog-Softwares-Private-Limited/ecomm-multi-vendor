@@ -6,9 +6,8 @@
  *   dev — development server (`next dev`).
  *
  * Deploy without npm/build ON the server:
- *   On Linux (CI or WSL): `npm ci` && `npm run build`, then copy the whole app including `.next/` and
- *   Linux `node_modules/`. Server only needs `node` — this file runs `node node_modules/next/dist/bin/next`
- *   (no `npx`).
+ *   Run scripts/build-linux-server-bundle.sh (WSL/Linux) → dist/ecomm-linux-server-bundle.tar.gz
+ *   Extract on the server, add .env, run `node app.js start` (server needs Node only, no npm ci).
  *
  * Listen address: defaults to 0.0.0.0. Optional: BIND_HOST or LISTEN_HOST.
  */
@@ -122,8 +121,16 @@ For local development without a build: node app.js dev
   } else if (isWin) {
     const cmd = `npx next ${mode} -H ${hostArg} -p ${portArg}`;
     child = spawn(cmd, { ...spawnOpts, shell: true });
-  } else {
+  } else if (mode === "dev") {
     child = spawn("npx", ["next", mode, "-H", hostArg, "-p", portArg], { ...spawnOpts, shell: false });
+  } else {
+    console.error(`
+Missing: ${nextCli}
+
+Linux production does not use "npx next" (avoids npm registry timeouts on servers).
+Install dependencies on this host (npm ci) or deploy node_modules from GitHub Actions.
+`);
+    process.exit(1);
   }
 
   child.on("error", (err) => {

@@ -61,15 +61,28 @@ fi
 if [[ ! -f ".next/BUILD_ID" ]]; then
   echo ""
   echo "ERROR: .next/BUILD_ID is missing — there is no production build in this directory."
-  echo "Push your branch to GitHub so the \"Deploy to server\" workflow runs, or copy a Linux"
-  echo "build (including .next/ and node_modules/) from your CI machine."
+  echo ""
+  echo "Why:  git pull only updates source. Next.js needs a Linux .next/ + node_modules/ built elsewhere."
+  echo ""
+  echo "Fix A — GitHub Actions (automatic):  Repo → Settings → Secrets → Actions → set"
+  echo "  DEPLOY_HOST, DEPLOY_USER, DEPLOY_PATH (absolute path, not ~/...), DEPLOY_SSH_PRIVATE_KEY."
+  echo "  Then Actions → \"Deploy to server\" must finish green (rsync step)."
+  echo ""
+  echo "Fix B — Upload from your PC (not from this server):"
+  echo "  1) On github.com open Actions → latest \"Deploy to server\" → Summary → Artifacts"
+  echo "  2) Download ecomm-linux-bundle.zip, unzip on your Windows/Mac machine"
+  echo "  3) Use WinSCP / FileZilla / scp FROM that machine TO this server into:"
+  echo "     $APP_DIR"
+  echo "     (Uploading from THIS shell only works if .next already exists here — it does not.)"
+  echo ""
+  echo "First-time SSH:  type yes at fingerprint prompt, or use:  scp -o StrictHostKeyChecking=accept-new ..."
   exit 1
 fi
 
 if [[ ! -f "node_modules/next/dist/bin/next" ]]; then
   echo ""
   echo "ERROR: node_modules is incomplete (missing Next.js CLI)."
-  echo "Use the GitHub Actions deploy workflow so node_modules is synced from the Linux runner."
+  echo "Same as above: green CI deploy to this path, or upload the artifact bundle from your PC."
   exit 1
 fi
 
