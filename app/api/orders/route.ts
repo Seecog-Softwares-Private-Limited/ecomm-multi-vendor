@@ -98,6 +98,7 @@ export const POST = withApiHandler(async (request: NextRequest) => {
           sellerId: true,
           sku: true,
           sellingPrice: true,
+          mrp: true,
           gstPercent: true,
           status: true,
           deletedAt: true,
@@ -113,10 +114,7 @@ export const POST = withApiHandler(async (request: NextRequest) => {
   });
 
   const validItems = cartItems.filter(
-    (i) =>
-      i.product &&
-      i.product.deletedAt == null &&
-      (i.product.status === "ACTIVE" || i.product.status === "DRAFT")
+    (i) => i.product && i.product.deletedAt == null && i.product.status === "ACTIVE"
   );
   if (validItems.length === 0) {
     if (cartItems.length === 0) {
@@ -131,6 +129,9 @@ export const POST = withApiHandler(async (request: NextRequest) => {
   let discountAmount = 0;
 
   function unitPriceForCartLine(lineItem: (typeof validItems)[number]): number {
+    if (lineItem.listedUnitSellingPrice != null) {
+      return Number(lineItem.listedUnitSellingPrice);
+    }
     const p = lineItem.product!;
     const pv = p.productVariants ?? [];
     if (pv.length > 0) {

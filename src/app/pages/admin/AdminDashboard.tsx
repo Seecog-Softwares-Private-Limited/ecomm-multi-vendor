@@ -43,6 +43,7 @@ const statsConfig = [
     valueKey: "gmvFormatted" as const,
     changeKey: "gmvChange" as const,
     accent: "indigo",
+    href: "/admin/analytics",
   },
   {
     key: "orders" as const,
@@ -51,6 +52,7 @@ const statsConfig = [
     valueKey: "totalOrdersFormatted" as const,
     changeKey: "totalOrdersChange" as const,
     accent: "emerald",
+    href: "/admin/orders",
   },
   {
     key: "sellers" as const,
@@ -59,6 +61,7 @@ const statsConfig = [
     valueKey: "totalSellersFormatted" as const,
     changeKey: "totalSellersChange" as const,
     accent: "violet",
+    href: "/admin/sellers",
   },
   {
     key: "revenue" as const,
@@ -67,6 +70,7 @@ const statsConfig = [
     valueKey: "revenueFormatted" as const,
     changeKey: "revenueChange" as const,
     accent: "amber",
+    href: "/admin/analytics",
   },
   {
     key: "kyc" as const,
@@ -75,6 +79,7 @@ const statsConfig = [
     valueKey: "pendingKycFormatted" as const,
     changeKey: "pendingKycChange" as const,
     accent: "sky",
+    href: "/admin/sellers",
   },
   {
     key: "returns" as const,
@@ -83,6 +88,7 @@ const statsConfig = [
     valueKey: "pendingReturnsFormatted" as const,
     changeKey: "pendingReturnsChange" as const,
     accent: "rose",
+    href: "/admin/returns",
   },
 ];
 
@@ -163,11 +169,10 @@ export function AdminDashboard() {
           const value = stats ? stats[stat.valueKey] : "—";
           const change = stats ? stats[stat.changeKey] : null;
           const trend = change?.startsWith("+") ? "up" : "down";
+          const cardClass =
+            "group relative block overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm transition-all duration-200 hover:shadow-md hover:border-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/40 focus-visible:ring-offset-2";
           return (
-            <div
-              key={stat.key}
-              className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm transition-all duration-200 hover:shadow-md hover:border-slate-200"
-            >
+            <Link key={stat.key} href={stat.href} className={cardClass}>
               <div className="flex items-start justify-between">
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-slate-500">{stat.label}</p>
@@ -188,7 +193,7 @@ export function AdminDashboard() {
                   <Icon className="h-6 w-6" />
                 </div>
               </div>
-            </div>
+            </Link>
           );
         })}
       </div>

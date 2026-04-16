@@ -9,6 +9,7 @@ import {
 import { getSession } from "@/lib/auth";
 import { getWishlistItems, addWishlistItem, clearWishlist } from "@/lib/data/wishlist";
 import { prisma } from "@/lib/prisma";
+import { resolveSkuRowForCart } from "@/lib/product-sku-variant";
 
 /**
  * GET /api/wishlist — list current user's wishlist with product details.
@@ -38,6 +39,7 @@ export const GET = withApiHandler(async (request: NextRequest) => {
       status: i.product.status,
       avgRating: i.product.avgRating,
       imageUrl: i.product.imageUrl,
+      ...(i.product.listingPaused ? { listingPaused: true } : {}),
     },
   }));
 
@@ -66,18 +68,6 @@ export const POST = withApiHandler(async (request: NextRequest) => {
     return apiBadRequest("productId is required.");
   }
 
-  const product = await prisma.product.findFirst({
-    where: { id: productId.trim(), deletedAt: null },
-    select: { id: true },
-  });
-  if (!product) return apiBadRequest("Product not found.");
-
-  const user = await prisma.user.findUnique({
-    where: { id: session.sub, deletedAt: null },
-    select: { id: true },
-  });
-  if (!user) return apiUnauthorized("User not found.");
-
   const vk =
     variantKey === null || variantKey === undefined
       ? null
@@ -85,7 +75,35 @@ export const POST = withApiHandler(async (request: NextRequest) => {
         ? variantKey.trim() || null
         : null;
 
-  const result = await addWishlistItem(user.id, productId.trim(), vk);
+  const product = await prisma.product.findFirst({
+    where: { id: productId.trim(), deletedAt: null, status: "ACTIVE" },
+    select: {
+      id: true,
+      sellingPrice: true,
+      mrp: true,
+      productVariants: {
+        where: { deletedAt: null },
+        select: { color: true, size: true, price: true, stock: true },
+      },
+    },
+  });
+  if (!product) return apiBadRequest("Product not found or not available.");
+
+  const pvRows = product.productVariants ?? [];
+  let selling = Number(product.sellingPrice);
+  let mrp = Number(product.mrp);
+  if (pvRows.length > 0) {
+    const priceLine = resolveSkuRowForCart(pvRows, vk);
+    if (priceLine) selling = Number(priceLine.price);
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.sub, deletedAt: null },
+    select: { id: true },
+  });
+  if (!user) return apiUnauthorized("User not found.");
+
+  const result = await addWishlistItem(user.id, productId.trim(), vk, { selling, mrp });
   return apiSuccess({ id: result.id, message: "Added to wishlist" });
 });
 

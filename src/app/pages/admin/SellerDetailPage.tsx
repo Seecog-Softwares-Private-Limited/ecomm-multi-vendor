@@ -68,6 +68,7 @@ type SellerDetail = {
     status: string;
     date: string;
   }>;
+  pendingStorefront?: Record<string, unknown> | null;
 };
 
 export type SellerDetailPageProps = {
@@ -80,6 +81,11 @@ function formatCurrency(n: number): string {
     currency: "INR",
     maximumFractionDigits: 0,
   }).format(n);
+}
+
+function hasPendingStorefront(p: Record<string, unknown> | null | undefined): boolean {
+  if (!p || typeof p !== "object") return false;
+  return Object.values(p).some((v) => v !== undefined && v !== null && String(v).trim() !== "");
 }
 
 function formatDate(iso: string): string {
@@ -118,6 +124,8 @@ export function SellerDetailPage({ sellerId = "" }: SellerDetailPageProps) {
   const [showBlockModal, setShowBlockModal] = useState(false);
   const [blockReason, setBlockReason] = useState("");
   const [blockAction, setBlockAction] = useState<"block" | "unblock">("block");
+  const [approvingStorefront, setApprovingStorefront] = useState(false);
+  const [storefrontApproveError, setStorefrontApproveError] = useState<string | null>(null);
 
   const fetchDetail = useCallback(async () => {
     if (!sellerId) {
@@ -160,6 +168,32 @@ export function SellerDetailPage({ sellerId = "" }: SellerDetailPageProps) {
     setBlockReason("");
     setBlockError(null);
     setShowBlockModal(true);
+  };
+
+  const handleApproveStorefront = async () => {
+    if (!sellerId) return;
+    setApprovingStorefront(true);
+    setStorefrontApproveError(null);
+    try {
+      const res = await fetch(`/api/admin/sellers/${sellerId}/storefront/approve`, {
+        method: "POST",
+        credentials: "include",
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.success) {
+        setStorefrontApproveError(json?.error?.message ?? "Could not approve storefront changes.");
+        return;
+      }
+      if (!json.data?.applied) {
+        setStorefrontApproveError(json.data?.message ?? "Nothing to approve.");
+        return;
+      }
+      await fetchDetail();
+    } catch (e) {
+      setStorefrontApproveError(e instanceof Error ? e.message : "Request failed.");
+    } finally {
+      setApprovingStorefront(false);
+    }
   };
 
   const handleBlockSubmit = async () => {
@@ -215,7 +249,9 @@ export function SellerDetailPage({ sellerId = "" }: SellerDetailPageProps) {
     );
   }
 
-  const { seller, stats, bank, documents, products, orders } = data;
+  const { seller, stats, bank, documents, products, orders, pendingStorefront } = data;
+  const showPendingStorefront =
+    seller.status === "APPROVED" && hasPendingStorefront(pendingStorefront ?? undefined);
   const isBlocked = seller.status === "SUSPENDED";
 
   return (
@@ -261,6 +297,29 @@ export function SellerDetailPage({ sellerId = "" }: SellerDetailPageProps) {
         <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-3">
           <p className="text-sm font-medium text-amber-800">Status reason</p>
           <p className="mt-1 text-sm text-amber-900">{seller.statusReason}</p>
+        </div>
+      )}
+      {showPendingStorefront && (
+        <div className="mb-4 rounded-xl border border-indigo-200 bg-indigo-50/80 px-4 py-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-medium text-indigo-900">Storefront updates awaiting approval</p>
+              <p className="mt-1 text-xs text-indigo-800/90">
+                Shoppers still see the published store name and details until you approve.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleApproveStorefront}
+              disabled={approvingStorefront}
+              className="inline-flex shrink-0 items-center justify-center rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 disabled:opacity-60"
+            >
+              {approvingStorefront ? "…" : "Approve storefront changes"}
+            </button>
+          </div>
+          {storefrontApproveError && (
+            <p className="mt-2 text-sm text-rose-600">{storefrontApproveError}</p>
+          )}
         </div>
       )}
       {blockError && <p className="mb-4 text-sm text-rose-600">{blockError}</p>}
@@ -358,7 +417,10 @@ export function SellerDetailPage({ sellerId = "" }: SellerDetailPageProps) {
           {activeTab === 0 && (
             <div className="grid gap-6 sm:grid-cols-2">
               <div className="space-y-4">
-                <Field label="Business Name" value={seller.businessName} />
+                <Field label="Business Name (live on site)" value={seller.businessName} />
+                {showPendingStorefront && pendingStorefront?.displayName != null && String(pendingStorefront.displayName).trim() !== "" && (
+                  <Field label="Pending display name" value={String(pendingStorefront.displayName)} />
+                )}
                 <Field label="GST Number" value={seller.gstNumber?.trim() ? seller.gstNumber : "Not Provided"} />
                 <Field label="Email" value={seller.email} icon={Mail} />
                 <Field label="Business Address" value={seller.businessAddress ?? "—"} icon={MapPin} />

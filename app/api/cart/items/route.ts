@@ -80,6 +80,8 @@ export const POST = withApiHandler(async (request: NextRequest) => {
     select: {
       id: true,
       stock: true,
+      sellingPrice: true,
+      mrp: true,
       productVariants: {
         where: { deletedAt: null },
         select: { color: true, size: true, stock: true, price: true },
@@ -106,6 +108,16 @@ export const POST = withApiHandler(async (request: NextRequest) => {
     return apiBadRequest("Not enough stock for this product.");
   }
 
+  let unitSelling = Number(product.sellingPrice);
+  let unitMrp = Number(product.mrp);
+  if (pvRows.length > 0) {
+    const priceLine = resolveSkuRowForCart(pvRows, vk);
+    if (priceLine) {
+      unitSelling = Number(priceLine.price);
+    }
+  }
+  const listed = { unitSelling, unitMrp };
+
   const user = await prisma.user.findUnique({
     where: { id: session.sub, deletedAt: null },
     select: { id: true },
@@ -114,7 +126,7 @@ export const POST = withApiHandler(async (request: NextRequest) => {
     return apiUnauthorized("User not found.");
   }
 
-  const result = await addToCart(user.id, productId, qty, vk);
+  const result = await addToCart(user.id, productId, qty, vk, listed);
   return apiSuccess({
     cartItemId: result.id,
     quantity: result.quantity,

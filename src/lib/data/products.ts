@@ -453,7 +453,7 @@ export async function getProductBySlug(slug: string): Promise<ProductDetail | nu
   if (!normalized) return null;
 
   const product = await prisma.product.findFirst({
-    where: { slug: normalized, deletedAt: null },
+    where: { slug: normalized, deletedAt: null, status: "ACTIVE" },
     include: {
       images: { where: { deletedAt: null }, orderBy: { sortOrder: "asc" }, select: { url: true } },
       specifications: { where: { deletedAt: null }, select: { key: true, value: true } },
@@ -466,7 +466,7 @@ export async function getProductBySlug(slug: string): Promise<ProductDetail | nu
     },
   });
 
-  if (!product || product.status !== "ACTIVE") return null;
+  if (!product) return null;
 
   const valuesFromJson = (v: unknown): string[] =>
     Array.isArray(v) ? v.map((x) => String(x)) : [];
@@ -509,7 +509,7 @@ export async function getProductBySlug(slug: string): Promise<ProductDetail | nu
  */
 export async function getProductById(id: string): Promise<ProductDetail | null> {
   const product = await prisma.product.findFirst({
-    where: { id, deletedAt: null },
+    where: { id, deletedAt: null, status: "ACTIVE" },
     include: {
       images: { where: { deletedAt: null }, orderBy: { sortOrder: "asc" }, select: { url: true } },
       specifications: { where: { deletedAt: null }, select: { key: true, value: true } },
@@ -522,7 +522,7 @@ export async function getProductById(id: string): Promise<ProductDetail | null> 
     },
   });
 
-  if (!product || product.status !== "ACTIVE") return null;
+  if (!product) return null;
 
   const valuesFromJson = (v: unknown): string[] =>
     Array.isArray(v) ? v.map((x) => String(x)) : [];
