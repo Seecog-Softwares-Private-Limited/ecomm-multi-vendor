@@ -8,7 +8,7 @@
 #   DEPLOY_SSH_PRIVATE_KEY   full private key (PEM) for SSH (no passphrase recommended for CI)
 #
 # Optional:
-#   DATABASE_URL         if set, runs `npx prisma migrate deploy` on the runner before rsync
+#   DATABASE_URL         if set, runs local Prisma 5 CLI migrate deploy on the runner before rsync
 #
 name: Deploy to server
 
@@ -51,7 +51,7 @@ jobs:
             echo "DATABASE_URL secret not set — skipping prisma migrate deploy."
             exit 0
           fi
-          npx prisma migrate deploy
+          ./node_modules/.bin/prisma migrate deploy
 
       - name: Verify production build exists
         run: test -f .next/BUILD_ID && echo "BUILD_ID OK"
