@@ -5,9 +5,10 @@
  *   start (default) — production: `next start` only. Requires a pre-built `.next` (no build on server).
  *   dev — development server (`next dev`).
  *
- * Deploy without building on the server:
- *   On your PC or CI: `npm ci` then `npm run build` (and `npx prisma generate` if not already in postinstall).
- *   Upload/sync the app folder including `.next/`, `node_modules/` (production), `.env`, then `node app.js start`.
+ * Deploy without npm/build ON the server:
+ *   On Linux (CI or WSL): `npm ci` && `npm run build`, then copy the whole app including `.next/` and
+ *   Linux `node_modules/`. Server only needs `node` — this file runs `node node_modules/next/dist/bin/next`
+ *   (no `npx`).
  *
  * Listen address: defaults to 0.0.0.0. Optional: BIND_HOST or LISTEN_HOST.
  */
@@ -15,7 +16,7 @@
 import { spawn, execSync } from "child_process";
 import { createInterface } from "readline";
 import { createReadStream, existsSync } from "fs";
-import { resolve, dirname } from "path";
+import { resolve, dirname, join } from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -111,15 +112,18 @@ For local development without a build: node app.js dev
     }
   }
 
+  const nextCli = join(root, "node_modules", "next", "dist", "bin", "next");
+  const portArg = String(port).replace(/\D/g, "") || String(port);
+  const hostArg = /^[\w.\-:]+$/.test(host) ? host : "0.0.0.0";
+
   let child;
-  if (isWin) {
-    // On Windows use a single command string with shell to avoid EINVAL and DEP0190
-    const safePort = String(port).replace(/\D/g, "") || "3000";
-    const safeHost = /^[\w.\-:]+$/.test(host) ? host : "0.0.0.0";
-    const cmd = `npx next ${mode} -H ${safeHost} -p ${safePort}`;
+  if (existsSync(nextCli)) {
+    child = spawn(process.execPath, [nextCli, mode, "-H", hostArg, "-p", portArg], spawnOpts);
+  } else if (isWin) {
+    const cmd = `npx next ${mode} -H ${hostArg} -p ${portArg}`;
     child = spawn(cmd, { ...spawnOpts, shell: true });
   } else {
-    child = spawn("npx", ["next", mode, "-H", host, "-p", String(port)], spawnOpts);
+    child = spawn("npx", ["next", mode, "-H", hostArg, "-p", portArg], { ...spawnOpts, shell: false });
   }
 
   child.on("error", (err) => {
