@@ -48,5 +48,9 @@ prisma/migrations/**/migration_lock.toml
 coverage/
 .nyc_output/
 
+# Local Linux deploy bundle (large — scp to server; do not commit)
+dist/ecomm-server-bundle/
+dist/ecomm-linux-server-bundle.tar.gz
+
 # Misc
 *.pem
