@@ -7,6 +7,17 @@ You build **once** on **Linux or WSL Ubuntu**; the result is a **`.tar.gz`** con
 - **`node`** (Node.js **22** recommended), e.g. **AWS Lightsail “Node.js” / Bitnami** image.  
 - You do **not** need to run **`npm`**, **`npm ci`**, or **`npm install`** on the server if the bundle was built correctly on Linux.
 
+## 0) One-time: Node 22 inside WSL (Ubuntu)
+
+The bundle script runs **`npm ci`** inside **Linux**. Open WSL and install Node if `node -v` fails:
+
+```bash
+sudo apt-get update && sudo apt-get install -y ca-certificates curl gnupg
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+sudo apt-get install -y nodejs
+node -v && npm -v
+```
+
 ## 1) Build the bundle (on your PC via WSL)
 
 From **PowerShell** in the repo (Windows):
