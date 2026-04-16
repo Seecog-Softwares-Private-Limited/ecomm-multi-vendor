@@ -122,8 +122,16 @@ For local development without a build: node app.js dev
   } else if (isWin) {
     const cmd = `npx next ${mode} -H ${hostArg} -p ${portArg}`;
     child = spawn(cmd, { ...spawnOpts, shell: true });
-  } else {
+  } else if (mode === "dev") {
     child = spawn("npx", ["next", mode, "-H", hostArg, "-p", portArg], { ...spawnOpts, shell: false });
+  } else {
+    console.error(`
+Missing: ${nextCli}
+
+Linux production does not use "npx next" (avoids npm registry timeouts on servers).
+Install dependencies on this host (npm ci) or deploy node_modules from GitHub Actions.
+`);
+    process.exit(1);
   }
 
   child.on("error", (err) => {
