@@ -38,8 +38,9 @@ Write-Host "Repo (Windows): $repo"
 Write-Host "Repo (WSL):     $unixRepo"
 Write-Host ""
 
-# Pass path via env so spaces/special chars in OneDrive paths do not break bash -lc quoting.
-wsl env "ECCOMM_REPO_WSL=$unixRepo" bash -lc 'set -e; cd "$ECCOMM_REPO_WSL"; chmod +x scripts/build-linux-server-bundle.sh; ./scripts/build-linux-server-bundle.sh'
+# Run the shell script by absolute path (no chmod — avoids "No such file" when cwd / OneDrive + WSL disagree).
+$bundleSh = "$unixRepo/scripts/build-linux-server-bundle.sh".Replace('\', '/')
+wsl env "BUNDLE_SH=$bundleSh" bash -lc 'set -e; test -f "$BUNDLE_SH" || { echo "Missing: $BUNDLE_SH"; echo "If the repo is on OneDrive, open the folder in Windows so files are fully on disk."; ls -la "$(dirname "$BUNDLE_SH")" || true; exit 1; }; exec bash "$BUNDLE_SH"'
 
 Write-Host ""
 Write-Host "Archive (Windows path): $(Join-Path $repo 'dist\ecomm-linux-server-bundle.tar.gz')"
