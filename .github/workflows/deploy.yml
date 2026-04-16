@@ -83,6 +83,8 @@ jobs:
             swagger-ui-react.d.ts
 
       - name: Deploy via rsync + restart
+        id: deploy_rsync
+        continue-on-error: true
         env:
           SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
@@ -114,3 +116,8 @@ jobs:
             --exclude '.next/cache' \
             ./ "$DEST"
           $RSYNC_SSH "${DEPLOY_USER}@${DEPLOY_HOST}" "cd '${DEPLOY_PATH}' && bash ./server-restart.sh --restart-only"
+
+      - name: If rsync did not succeed
+        if: ${{ always() && steps.deploy_rsync.outcome == 'failure' }}
+        run: |
+          echo "::notice::Automatic rsync did not complete (missing/wrong secrets or SSH). Download artifact \"ecomm-linux-bundle\" from this run (Summary → Artifacts), unzip on your Windows PC, then run: deploy/upload-bundle-to-server.ps1"
