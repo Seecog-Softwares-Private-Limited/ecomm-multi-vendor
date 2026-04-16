@@ -4,7 +4,7 @@
 # Required repo secrets (Settings → Secrets and variables → Actions):
 #   DEPLOY_HOST          e.g. 13.234.232.60
 #   DEPLOY_USER          e.g. bitnami
-#   DEPLOY_PATH          absolute path, e.g. /home/bitnami/projects/ecomm-multi-vendor
+#   DEPLOY_PATH          MUST be absolute, e.g. /home/bitnami/projects/ecomm-multi-vendor (not ~/...)
 #   DEPLOY_SSH_PRIVATE_KEY   full private key (PEM) for SSH (no passphrase recommended for CI)
 #
 # Optional:
@@ -55,6 +55,32 @@ jobs:
 
       - name: Verify production build exists
         run: test -f .next/BUILD_ID && echo "BUILD_ID OK"
+
+      # Always upload so you can deploy without SSH secrets:
+      # Actions run → Summary → Artifacts → download "ecomm-linux-bundle" → unzip on server over the project dir.
+      - name: Upload Linux bundle (fallback if rsync secrets missing)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ecomm-linux-bundle
+          retention-days: 5
+          compression-level: 6
+          path: |
+            .next
+            node_modules
+            package.json
+            package-lock.json
+            prisma
+            app
+            src
+            public
+            app.js
+            server-restart.sh
+            ecosystem.config.cjs
+            next.config.ts
+            postcss.config.mjs
+            tsconfig.json
+            next-env.d.ts
+            swagger-ui-react.d.ts
 
       - name: Deploy via rsync + restart
         env:
