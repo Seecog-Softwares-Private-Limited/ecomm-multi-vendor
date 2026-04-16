@@ -100,5 +100,8 @@
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
+  },
+  "overrides": {
+    "tree-sitter": "0.22.4"
   }
 }
