@@ -1,0 +1,90 @@
+# Build on GitHub (Linux), rsync to your VPS, then restart the app.
+# The server never runs npm install / npm run build / npx.
+#
+# Required repo secrets (Settings → Secrets and variables → Actions):
+#   DEPLOY_HOST          e.g. 13.234.232.60
+#   DEPLOY_USER          e.g. bitnami
+#   DEPLOY_PATH          absolute path, e.g. /home/bitnami/projects/ecomm-multi-vendor
+#   DEPLOY_SSH_PRIVATE_KEY   full private key (PEM) for SSH (no passphrase recommended for CI)
+#
+# Optional:
+#   DATABASE_URL         if set, runs `npx prisma migrate deploy` on the runner before rsync
+#
+name: Deploy to server
+
+on:
+  push:
+    branches:
+      - main
+      - lakshya/cart-page
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies and build
+        run: npm ci && npm run build
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Apply Prisma migrations (optional)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          if [ -z "${DATABASE_URL}" ]; then
+            echo "DATABASE_URL secret not set — skipping prisma migrate deploy."
+            exit 0
+          fi
+          npx prisma migrate deploy
+
+      - name: Verify production build exists
+        run: test -f .next/BUILD_ID && echo "BUILD_ID OK"
+
+      - name: Deploy via rsync + restart
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          set -euo pipefail
+          for v in SSH_PRIVATE_KEY DEPLOY_HOST DEPLOY_USER DEPLOY_PATH; do
+            eval "x=\${$v:-}"
+            if [ -z "$x" ]; then
+              echo "Missing secret: $v — add it under repo Settings → Secrets → Actions."
+              exit 1
+            fi
+          done
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+          RSYNC_SSH="ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new"
+          DEST="${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/"
+          rsync -avz --delete \
+            -e "$RSYNC_SSH" \
+            --exclude '.git' \
+            --exclude '.github' \
+            --exclude '.cursor' \
+            --exclude 'hybrid-app-native' \
+            --exclude '.env' \
+            --exclude '.env.*' \
+            --exclude '.next/cache' \
+            ./ "$DEST"
+          $RSYNC_SSH "${DEPLOY_USER}@${DEPLOY_HOST}" "cd '${DEPLOY_PATH}' && bash ./server-restart.sh --restart-only"
