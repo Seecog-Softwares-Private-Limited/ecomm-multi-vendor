@@ -17,6 +17,9 @@ on:
     branches:
       - main
       - lakshya/cart-page
+    paths-ignore:
+      # .next-only commits from "Commit Next build to branch" — avoid duplicate CI builds
+      - ".next/**"
   workflow_dispatch:
 
 concurrency:

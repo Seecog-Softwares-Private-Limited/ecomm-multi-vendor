@@ -1,0 +1,64 @@
+# Builds Next.js on Linux (Ubuntu) and commits .next/ to a branch so AWS can "git pull" + migrate + restart.
+#
+# Run: Actions → "Commit Next build to branch" → Run workflow → branch lakshya/cart-page (default) → Run.
+#
+# Pushes use [skip deploy] in the message so "Deploy to server" does not re-run on .next-only commits.
+#
+name: Commit Next build to branch
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Git branch to commit the build into"
+        required: true
+        default: lakshya/cart-page
+
+concurrency:
+  group: commit-next-${{ github.event.inputs.branch }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-commit-next:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install and build
+        run: npm ci && npm run build
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Verify build
+        run: test -f .next/BUILD_ID && echo "BUILD_ID OK"
+
+      - name: Drop webpack cache (never commit)
+        run: rm -rf .next/cache
+
+      - name: Commit and push .next
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .next
+          if git diff --cached --quiet; then
+            echo "No .next changes to commit (already up to date)."
+            exit 0
+          fi
+          git commit -m "chore(ci): check in Linux Next.js .next build [skip deploy]"
+          git push origin "HEAD:${{ github.event.inputs.branch }}"
