@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, CheckCircle, XCircle, Filter, Search, X, Trash2, RotateCcw } from "lucide-react";
 import * as React from "react";
+import { toast } from "sonner";
 
 type ProductRow = {
   id: string;
@@ -209,6 +210,11 @@ export function ProductModeration() {
         setActionError(json?.error?.message ?? "Approve failed");
         return;
       }
+      toast.success("Product is approved successfully", {
+        description: json?.data?.productName
+          ? `"${json.data.productName}" is now live for shoppers.`
+          : "The listing is now active in the catalog.",
+      });
       // Optimistic update so price stays visible while refetch runs in background
       setProducts((prev) =>
         prev.map((p) =>

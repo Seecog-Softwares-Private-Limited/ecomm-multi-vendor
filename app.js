@@ -2,11 +2,14 @@
 /**
  * Entry point to run the Next.js application.
  * Usage: node app.js [dev|start]
- *   start (default) - start production server (next start; run "npm run build" first)
- *   dev             - start development server (next dev)
+ *   start (default) - production: runs `next build` if `.next/BUILD_ID` is missing, then `next start`
+ *   dev               - development server (`next dev`)
+ *
+ * Opt-out of automatic build (e.g. low RAM): SKIP_AUTO_BUILD=1 — then missing build falls back to dev.
+ * Heavy builds: NODE_OPTIONS="--max-old-space-size=2048" node app.js start
  */
 
-import { spawn, execSync } from "child_process";
+import { spawn, execSync, spawnSync } from "child_process";
 import { createInterface } from "readline";
 import { createReadStream, existsSync } from "fs";
 import { resolve, dirname } from "path";
@@ -64,12 +67,37 @@ async function main() {
 
   const host = process.env.HOSTNAME || "0.0.0.0";
 
-  // node app.js      -> start (or dev if no build); node app.js dev -> dev
+  // node app.js      -> start (build if needed, then next start); node app.js dev -> dev
   let mode = process.argv[2] === "dev" ? "dev" : "start";
   const buildIdPath = resolve(root, ".next", "BUILD_ID");
   if (mode === "start" && !existsSync(buildIdPath)) {
-    console.log("No production build found. Starting in development mode instead.");
-    mode = "dev";
+    if (process.env.SKIP_AUTO_BUILD === "1") {
+      console.log(
+        "No production build found and SKIP_AUTO_BUILD=1. Starting in development mode instead."
+      );
+      mode = "dev";
+    } else {
+      console.log("No production build found. Running `next build` once, then starting production server…");
+      const buildEnv = { ...process.env, FORCE_COLOR: "1" };
+      const buildResult = spawnSync("npx", ["next", "build"], {
+        stdio: "inherit",
+        cwd: root,
+        env: buildEnv,
+        shell: process.platform === "win32",
+      });
+      if (buildResult.error) {
+        console.error("next build failed to start:", buildResult.error);
+        process.exit(1);
+      }
+      if (buildResult.status !== 0) {
+        console.error("next build exited with code", buildResult.status);
+        process.exit(buildResult.status ?? 1);
+      }
+      if (!existsSync(buildIdPath)) {
+        console.error("Build finished but .next/BUILD_ID is still missing.");
+        process.exit(1);
+      }
+    }
   }
 
   const env = {

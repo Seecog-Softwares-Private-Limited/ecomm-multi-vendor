@@ -88,14 +88,14 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
 
       {/* Right */}
       <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-        <button
-          type="button"
-          className="relative rounded-xl p-2.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
+        <Link
+          href="/admin/notifications"
+          className="relative inline-flex rounded-xl p-2.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
           aria-label="Notifications"
         >
           <Bell className="h-5 w-5" />
           <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-amber-500 ring-2 ring-white" />
-        </button>
+        </Link>
 
         <Link href="/admin/settings" className={profileClassName}>
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-800 text-white shadow-sm">

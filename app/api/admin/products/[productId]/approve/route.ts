@@ -7,6 +7,7 @@ import {
 } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { requireAdminPermission } from "@/lib/admin-rbac";
+import { SELLER_PRODUCT_APPROVED_NOTIFICATION_TITLE } from "@/lib/notifications/product-moderation";
 
 /**
  * POST /api/admin/products/[productId]/approve — set product status to ACTIVE (admin only).
@@ -24,18 +25,30 @@ export const POST = withApiHandler(
 
     const product = await prisma.product.findFirst({
       where: { id: productId, deletedAt: null },
-      select: { id: true },
+      select: { id: true, name: true, sellerId: true },
     });
 
     if (!product) {
       return apiNotFound("Product not found");
     }
 
-    await prisma.product.update({
-      where: { id: productId },
-      data: { status: "ACTIVE" },
-    });
+    const nameTrim = product.name?.trim() || "Your product";
 
-    return apiSuccess({ productId, status: "ACTIVE" });
+    await prisma.$transaction([
+      prisma.product.update({
+        where: { id: productId },
+        data: { status: "ACTIVE" },
+      }),
+      prisma.notification.create({
+        data: {
+          type: "SELLER",
+          title: SELLER_PRODUCT_APPROVED_NOTIFICATION_TITLE,
+          message: `"${nameTrim}" has been approved and is now live in the storefront.`,
+          sellerId: product.sellerId,
+        },
+      }),
+    ]);
+
+    return apiSuccess({ productId, status: "ACTIVE", productName: nameTrim });
   }
 );

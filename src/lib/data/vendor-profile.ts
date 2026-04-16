@@ -74,6 +74,15 @@ export interface VendorProfileData {
   vendorDocuments: VendorProfileDocumentDynamic[];
 }
 
+/** Storefront-only edits for approved sellers; applied to live columns after admin approval. */
+export interface PendingStorefrontProfile {
+  displayName?: string;
+  websiteUrl?: string;
+  storeLogo?: string;
+  storeDescription?: string;
+  pickupPincode?: string;
+}
+
 interface ProfileExtras {
   legalName?: string;
   businessType?: string;
@@ -91,6 +100,7 @@ interface ProfileExtras {
   storeDescription?: string;
   /** Category IDs the vendor can add products to. */
   allowedCategoryIds?: string[];
+  pendingStorefront?: PendingStorefrontProfile;
 }
 
 /** Mask account number for vendor-facing responses; admin APIs return full number. */
@@ -140,6 +150,94 @@ export function formatBusinessAddressFromProfileExtras(extras: {
   const parts = [line1, line2, tailWithPin].filter((p) => p && p.length > 0);
   const s = parts.join(" · ").trim();
   return s.length > 0 ? s : undefined;
+}
+
+function mergeStorefrontForVendorView(
+  extras: ProfileExtras,
+  publishedBusinessName: string
+): Pick<
+  VendorProfileBusiness,
+  "displayName" | "websiteUrl" | "storeLogo" | "storeDescription" | "pickupPincode"
+> {
+  const p = extras.pendingStorefront;
+  const displayFromPending =
+    p &&
+    p.displayName !== undefined &&
+    p.displayName !== null &&
+    String(p.displayName).trim() !== "";
+  return {
+    displayName: displayFromPending ? String(p!.displayName).trim() : publishedBusinessName ?? "",
+    websiteUrl:
+      p && "websiteUrl" in p && p.websiteUrl !== undefined ? String(p.websiteUrl ?? "") : (extras.websiteUrl ?? ""),
+    storeLogo:
+      p && "storeLogo" in p && p.storeLogo !== undefined ? String(p.storeLogo ?? "") : (extras.storeLogo ?? ""),
+    storeDescription:
+      p && "storeDescription" in p && p.storeDescription !== undefined
+        ? String(p.storeDescription ?? "")
+        : (extras.storeDescription ?? ""),
+    pickupPincode:
+      p && "pickupPincode" in p && p.pickupPincode !== undefined
+        ? String(p.pickupPincode ?? "")
+        : (extras.pickupPincode ?? extras.pincode ?? ""),
+  };
+}
+
+/** Vendor nav / dashboard: show pending display name when present. */
+export function resolveDashboardDisplayName(
+  businessName: string | null | undefined,
+  profileExtrasJson: string | null | undefined
+): string | null {
+  const extras = parseProfileExtras(profileExtrasJson ?? null);
+  const d = extras.pendingStorefront?.displayName;
+  if (typeof d === "string" && d.trim()) return d.trim();
+  return businessName ?? null;
+}
+
+/**
+ * Apply pending storefront fields to published Seller columns and clear pending.
+ * Returns applied: false when there is nothing to merge.
+ */
+export async function approveVendorStorefrontProfile(sellerId: string): Promise<{ applied: boolean }> {
+  const seller = await prisma.seller.findFirst({
+    where: { id: sellerId, deletedAt: null },
+    select: { businessName: true, profileExtras: true },
+  });
+  if (!seller) throw new Error("Seller not found");
+  const extras = parseProfileExtras(seller.profileExtras);
+  const pending = extras.pendingStorefront;
+  if (!pending || typeof pending !== "object") {
+    return { applied: false };
+  }
+  const hasAny = Object.keys(pending).some((k) => {
+    const v = (pending as Record<string, unknown>)[k];
+    return v !== undefined && v !== null && String(v).trim() !== "";
+  });
+  if (!hasAny) {
+    return { applied: false };
+  }
+
+  const next: ProfileExtras = { ...extras };
+  delete next.pendingStorefront;
+
+  let businessName = seller.businessName ?? "";
+  if (typeof pending.displayName === "string" && pending.displayName.trim()) {
+    businessName = pending.displayName.trim();
+  }
+  if (pending.websiteUrl !== undefined) next.websiteUrl = String(pending.websiteUrl ?? "");
+  if (pending.storeLogo !== undefined) next.storeLogo = String(pending.storeLogo ?? "");
+  if (pending.storeDescription !== undefined) next.storeDescription = String(pending.storeDescription ?? "");
+  if (pending.pickupPincode !== undefined) next.pickupPincode = String(pending.pickupPincode ?? "");
+
+  const addrLine = formatBusinessAddressFromProfileExtras(next);
+  await prisma.seller.update({
+    where: { id: sellerId },
+    data: {
+      businessName,
+      profileExtras: JSON.stringify(next),
+      businessAddress: addrLine ? addrLine.slice(0, 500) : null,
+    },
+  });
+  return { applied: true };
 }
 
 function mapSellerStatus(s: string): VendorProfileData["status"] {
@@ -200,27 +298,29 @@ export async function getVendorProfile(sellerId: string): Promise<VendorProfileD
   const allowedCategoryIds =
     allowedIds.length > 0 ? allowedIds : seller.primaryCategoryId ? [seller.primaryCategoryId] : [];
 
+  const storefront = mergeStorefrontForVendorView(extras, seller.businessName ?? "");
+
   return {
     status: mapSellerStatus(seller.status),
     statusReason: seller.statusReason ?? null,
     primaryCategoryId: seller.primaryCategoryId ?? null,
     allowedCategoryIds,
     business: {
-      displayName: seller.businessName ?? "",
+      displayName: storefront.displayName,
       legalName: extras.legalName ?? "",
       businessType: extras.businessType ?? "Proprietorship",
       pan: extras.pan ?? "",
       gstin: extras.gstin ?? "",
       gstNotApplicable: !!extras.gstNotApplicable,
-      websiteUrl: extras.websiteUrl ?? "",
+      websiteUrl: storefront.websiteUrl,
       addressLine1: extras.addressLine1 ?? "",
       addressLine2: extras.addressLine2 ?? "",
       city: extras.city ?? "",
       state: extras.state ?? "",
       pincode: extras.pincode ?? "",
-      pickupPincode: extras.pickupPincode ?? extras.pincode ?? "",
-      storeLogo: extras.storeLogo ?? "",
-      storeDescription: extras.storeDescription ?? "",
+      pickupPincode: storefront.pickupPincode,
+      storeLogo: storefront.storeLogo,
+      storeDescription: storefront.storeDescription,
     },
     owner: {
       ownerName: seller.ownerName ?? "",
@@ -340,27 +440,39 @@ export async function updateVendorProfile(
 
   if (effectivePayload.business) {
     const b = effectivePayload.business;
-    if (b.displayName !== undefined) sellerUpdate.businessName = b.displayName;
-    const newExtras: ProfileExtras = {
-      ...extras,
-      ...(b.legalName !== undefined && { legalName: b.legalName }),
-      ...(b.businessType !== undefined && { businessType: b.businessType }),
-      ...(b.pan !== undefined && { pan: b.pan }),
-      ...(b.gstin !== undefined && { gstin: b.gstin }),
-      ...(b.gstNotApplicable !== undefined && { gstNotApplicable: b.gstNotApplicable }),
-      ...(b.websiteUrl !== undefined && { websiteUrl: b.websiteUrl }),
-      ...(b.addressLine1 !== undefined && { addressLine1: b.addressLine1 }),
-      ...(b.addressLine2 !== undefined && { addressLine2: b.addressLine2 }),
-      ...(b.city !== undefined && { city: b.city }),
-      ...(b.state !== undefined && { state: b.state }),
-      ...(b.pincode !== undefined && { pincode: b.pincode }),
-      ...(b.pickupPincode !== undefined && { pickupPincode: b.pickupPincode }),
-      ...(b.storeLogo !== undefined && { storeLogo: b.storeLogo }),
-      ...(b.storeDescription !== undefined && { storeDescription: b.storeDescription }),
-    };
-    sellerUpdate.profileExtras = JSON.stringify(newExtras);
-    const addrLine = formatBusinessAddressFromProfileExtras(newExtras);
-    sellerUpdate.businessAddress = addrLine ? addrLine.slice(0, 500) : null;
+    if (kycApproved) {
+      const prev = extras.pendingStorefront ?? {};
+      const pending: PendingStorefrontProfile = { ...prev };
+      if (b.displayName !== undefined) pending.displayName = b.displayName;
+      if (b.websiteUrl !== undefined) pending.websiteUrl = b.websiteUrl;
+      if (b.storeLogo !== undefined) pending.storeLogo = b.storeLogo;
+      if (b.storeDescription !== undefined) pending.storeDescription = b.storeDescription;
+      if (b.pickupPincode !== undefined) pending.pickupPincode = b.pickupPincode;
+      const newExtras: ProfileExtras = { ...extras, pendingStorefront: pending };
+      sellerUpdate.profileExtras = JSON.stringify(newExtras);
+    } else {
+      if (b.displayName !== undefined) sellerUpdate.businessName = b.displayName;
+      const newExtras: ProfileExtras = {
+        ...extras,
+        ...(b.legalName !== undefined && { legalName: b.legalName }),
+        ...(b.businessType !== undefined && { businessType: b.businessType }),
+        ...(b.pan !== undefined && { pan: b.pan }),
+        ...(b.gstin !== undefined && { gstin: b.gstin }),
+        ...(b.gstNotApplicable !== undefined && { gstNotApplicable: b.gstNotApplicable }),
+        ...(b.websiteUrl !== undefined && { websiteUrl: b.websiteUrl }),
+        ...(b.addressLine1 !== undefined && { addressLine1: b.addressLine1 }),
+        ...(b.addressLine2 !== undefined && { addressLine2: b.addressLine2 }),
+        ...(b.city !== undefined && { city: b.city }),
+        ...(b.state !== undefined && { state: b.state }),
+        ...(b.pincode !== undefined && { pincode: b.pincode }),
+        ...(b.pickupPincode !== undefined && { pickupPincode: b.pickupPincode }),
+        ...(b.storeLogo !== undefined && { storeLogo: b.storeLogo }),
+        ...(b.storeDescription !== undefined && { storeDescription: b.storeDescription }),
+      };
+      sellerUpdate.profileExtras = JSON.stringify(newExtras);
+      const addrLine = formatBusinessAddressFromProfileExtras(newExtras);
+      sellerUpdate.businessAddress = addrLine ? addrLine.slice(0, 500) : null;
+    }
   }
 
   if (effectivePayload.owner) {
