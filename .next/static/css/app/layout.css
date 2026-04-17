@@ -677,6 +677,9 @@
   .m-6 {
     margin: calc(var(--spacing) * 6);
   }
+  .m-9 {
+    margin: calc(var(--spacing) * 9);
+  }
   .-mx-1 {
     margin-inline: calc(var(--spacing) * -1);
   }
@@ -3469,6 +3472,9 @@
   }
   .p-8 {
     padding: calc(var(--spacing) * 8);
+  }
+  .p-9 {
+    padding: calc(var(--spacing) * 9);
   }
   .p-10 {
     padding: calc(var(--spacing) * 10);

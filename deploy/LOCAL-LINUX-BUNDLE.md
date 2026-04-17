@@ -7,6 +7,17 @@ You build **once** on **Linux or WSL Ubuntu**; the result is a **`.tar.gz`** con
 - **`node`** (Node.js **22** recommended), e.g. **AWS Lightsail “Node.js” / Bitnami** image.  
 - You do **not** need to run **`npm`**, **`npm ci`**, or **`npm install`** on the server if the bundle was built correctly on Linux.
 
+## 0) One-time: Node 22 inside WSL (Ubuntu)
+
+The bundle script runs **`npm ci`** inside **Linux**. Open WSL and install Node if `node -v` fails:
+
+```bash
+sudo apt-get update && sudo apt-get install -y ca-certificates curl gnupg
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+sudo apt-get install -y nodejs
+node -v && npm -v
+```
+
 ## 1) Build the bundle (on your PC via WSL)
 
 From **PowerShell** in the repo (Windows):
@@ -27,6 +38,8 @@ Output file:
 `dist/ecomm-linux-server-bundle.tar.gz`
 
 **Do not** build this with plain Windows `npm ci` in `cmd.exe` — **`node_modules` must be Linux binaries** for AWS.
+
+If **`build-linux-server-bundle.ps1`** says the `.sh` file is missing under WSL, your repo is likely under **OneDrive “Files On-Demand”**: open the project folder in File Explorer once so files are **downloaded locally**, then run the script again.
 
 ## 2) Copy to the new server
 
