@@ -12,7 +12,7 @@
  * Production: set SUPERADMIN_PASSWORD to a strong secret before running once.
  */
 import { PrismaClient } from "@prisma/client";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
@@ -48,7 +48,7 @@ async function main() {
     },
   });
 
-  const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+  const passwordHash = bcrypt.hashSync(password, BCRYPT_ROUNDS);
 
   await prisma.admin.upsert({
     where: { email },
