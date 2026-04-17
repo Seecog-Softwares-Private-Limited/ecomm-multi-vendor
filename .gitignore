@@ -1,8 +1,8 @@
-# Dependencies
+# Dependencies — do not commit (GitHub max blob 100 MB; Next @next/swc-*.node is larger).
+# Ship deps via Linux tarball (scripts/build-linux-server-bundle.sh) or npm ci on the server.
 node_modules/
 
-# Next.js — track the build output so server only needs git pull + pm2 restart
-# .next/ is committed; only the large webpack cache is excluded
+# Next.js — .next/ may be tracked for deploy; exclude only the webpack cache
 .next/cache/
 out/
 
