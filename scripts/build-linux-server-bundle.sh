@@ -27,8 +27,14 @@ if [[ "$(uname -s)" != "Linux" ]]; then
   exit 1
 fi
 
-if ! command -v node >/dev/null 2>&1; then
-  echo "ERROR: node not found. Install Node 22 (e.g. nvm or Bitnami stack on WSL)."
+if ! command -v node >/dev/null 2>&1 || ! command -v npm >/dev/null 2>&1; then
+  echo "ERROR: node or npm not found. Install Node 22 in this Linux/WSL environment, for example:"
+  echo ""
+  echo "  sudo apt-get update && sudo apt-get install -y ca-certificates curl gnupg"
+  echo "  curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -"
+  echo "  sudo apt-get install -y nodejs"
+  echo "  node -v && npm -v"
+  echo ""
   exit 1
 fi
 

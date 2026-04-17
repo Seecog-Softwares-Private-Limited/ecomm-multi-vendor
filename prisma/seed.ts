@@ -1,5 +1,5 @@
 import { PrismaClient } from "@prisma/client";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import { getAllCmsFooterSeeds } from "../src/lib/cms-footer-pages";
 
 const prisma = new PrismaClient();
@@ -468,9 +468,9 @@ function buildBeautyProducts(): BeautyProduct[] {
 const BEAUTY_PRODUCTS = buildBeautyProducts();
 
 async function main() {
-  const vendorPasswordHash = await bcrypt.hash(VENDOR_PASSWORD, BCRYPT_ROUNDS);
-  const adminPasswordHash = await bcrypt.hash(ADMIN_PASSWORD, BCRYPT_ROUNDS);
-  const customerPasswordHash = await bcrypt.hash(CUSTOMER_PASSWORD, BCRYPT_ROUNDS);
+  const vendorPasswordHash = bcrypt.hashSync(VENDOR_PASSWORD, BCRYPT_ROUNDS);
+  const adminPasswordHash = bcrypt.hashSync(ADMIN_PASSWORD, BCRYPT_ROUNDS);
+  const customerPasswordHash = bcrypt.hashSync(CUSTOMER_PASSWORD, BCRYPT_ROUNDS);
 
   await prisma.user.upsert({
     where: { email: CUSTOMER_EMAIL },
@@ -503,7 +503,7 @@ async function main() {
     },
   });
 
-  const superAdminPasswordHash = await bcrypt.hash(SUPER_ADMIN_PASSWORD, BCRYPT_ROUNDS);
+  const superAdminPasswordHash = bcrypt.hashSync(SUPER_ADMIN_PASSWORD, BCRYPT_ROUNDS);
   await prisma.admin.upsert({
     where: { email: SUPER_ADMIN_EMAIL },
     update: {
