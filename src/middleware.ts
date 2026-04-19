@@ -6,14 +6,18 @@ import {
   isAuthRequiredPath,
   isSellerRoute,
   isAdminRoute,
+  isSuperAdminRoute,
   isSellerLoginPage,
   isVendorLoginPage,
   isVendorPublicPage,
   isAdminLoginPage,
+  isSuperAdminLoginPage,
   SELLER_ROLES,
   ADMIN_ROLE,
+  SUPER_ADMIN_ROLE,
   VENDOR_LOGIN,
   ADMIN_LOGIN,
+  SUPER_ADMIN_LOGIN,
 } from "@/lib/auth/middleware-routes";
 
 const LOGIN_PATH = "/login";
@@ -41,7 +45,8 @@ export async function middleware(request: NextRequest) {
     isSellerLoginPage(pathname) ||
     isVendorLoginPage(pathname) ||
     isVendorPublicPage(pathname) ||
-    isAdminLoginPage(pathname)
+    isAdminLoginPage(pathname) ||
+    isSuperAdminLoginPage(pathname)
   ) {
     return NextResponse.next();
   }
@@ -71,6 +76,17 @@ export async function middleware(request: NextRequest) {
     }
     if (session.role !== ADMIN_ROLE) {
       return NextResponse.redirect(new URL("/vendor", request.url));
+    }
+    return NextResponse.next();
+  }
+
+  // --- Role-based: superadmin routes (/superadmin except login) ---
+  if (isSuperAdminRoute(pathname) && !isSuperAdminLoginPage(pathname)) {
+    if (!session) {
+      return redirectToLogin(request, pathname, SUPER_ADMIN_LOGIN);
+    }
+    if (session.role !== SUPER_ADMIN_ROLE) {
+      return NextResponse.redirect(new URL("/login", request.url));
     }
     return NextResponse.next();
   }

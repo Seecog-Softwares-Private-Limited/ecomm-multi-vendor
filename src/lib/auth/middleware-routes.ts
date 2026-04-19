@@ -43,6 +43,12 @@ export const SELLER_LOGIN = "/seller/login";
 /** Vendor dashboard login — use this for /vendor/* redirects. */
 export const VENDOR_LOGIN = "/vendor/login";
 
+/** Path prefix that requires SUPER_ADMIN. */
+export const SUPER_ADMIN_PREFIX = "/superadmin";
+
+/** Super Admin login page path. */
+export const SUPER_ADMIN_LOGIN = "/superadmin/login";
+
 /** Vendor auth pages that don't require session (login, register, forgot/reset password). */
 export function isVendorPublicPage(pathname: string): boolean {
   return (
@@ -63,6 +69,9 @@ export const SELLER_ROLES: AuthRole[] = ["SELLER", "ADMIN"];
 
 /** Role that can access admin routes. */
 export const ADMIN_ROLE: AuthRole = "ADMIN";
+
+/** Role that can access superadmin routes. */
+export const SUPER_ADMIN_ROLE: AuthRole = "SUPER_ADMIN";
 
 /** Normalize pathname for comparisons (trailing slash, except root). */
 function normalizePath(pathname: string): string {
@@ -98,6 +107,18 @@ export function isVendorLoginPage(pathname: string): boolean {
 
 export function isAdminLoginPage(pathname: string): boolean {
   return pathname === ADMIN_LOGIN;
+}
+
+export function isSuperAdminRoute(pathname: string): boolean {
+  return (
+    pathname === SUPER_ADMIN_PREFIX ||
+    pathname.startsWith(SUPER_ADMIN_PREFIX + "/")
+  );
+}
+
+export function isSuperAdminLoginPage(pathname: string): boolean {
+  const p = normalizePath(pathname);
+  return p === SUPER_ADMIN_LOGIN;
 }
 
 export function isAuthRequiredPath(pathname: string): boolean {
