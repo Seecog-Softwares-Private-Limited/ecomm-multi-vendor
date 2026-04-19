@@ -30,18 +30,17 @@ export function SuperAdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
+  const [authenticated, setAuthenticated] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (!mounted) return;
     if (!isAuthenticated()) {
       router.replace("/superadmin/login");
+    } else {
+      setAuthenticated(true);
     }
-  }, [mounted, router]);
+  }, [router]);
 
   useEffect(() => {
     setMobileNavOpen(false);
@@ -52,7 +51,7 @@ export function SuperAdminLayout({ children }: { children: React.ReactNode }) {
     router.replace("/superadmin/login");
   };
 
-  if (!mounted) {
+  if (!mounted || !authenticated) {
     return (
       <div
         className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 via-white to-slate-50/80"
