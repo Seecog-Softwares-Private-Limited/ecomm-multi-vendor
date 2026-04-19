@@ -34,7 +34,8 @@ export function AdminLayoutWrapper({
     fetch("/api/admin/me", { credentials: "include", signal: ac.signal })
       .then((res) => {
         if (cancelled) return;
-        if (res.status === 401 || res.status === 403) {
+        if (!res.ok) {
+          // Any non-2xx (401, 403, 500, …) — send to login
           const callbackUrl = encodeURIComponent(pathname ?? "/admin");
           routerRef.current.replace(
             `${ADMIN_LOGIN_PATH}?callbackUrl=${callbackUrl}`
