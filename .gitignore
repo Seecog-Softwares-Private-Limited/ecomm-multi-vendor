@@ -2,7 +2,8 @@
 # Ship deps via Linux tarball (scripts/build-linux-server-bundle.sh) or npm ci on the server.
 node_modules/
 
-# Next.js — .next/ may be tracked for deploy; exclude only the webpack cache
+# Next.js build output
+.next/
 .next/cache/
 out/
 
