@@ -67,23 +67,22 @@ export const POST = withApiHandler(async (request: NextRequest) => {
 
   if (!sms.sent && providerConfigured) {
     const generic =
-      "SMS could not be sent. Check AWS SNS: account SMS sandbox (verify destination numbers), IAM sns:Publish, spending limit, and .env (AWS_REGION, keys). See server logs.";
+      "SMS could not be sent. Check Brevo Transactional SMS settings, BREVO_API_KEY, sender registration, and server logs.";
     const message =
       process.env.NODE_ENV === "development" && sms.error
         ? `SMS failed: ${sms.error}`
         : sms.error
-          ? "SMS could not be delivered. Check AWS SNS configuration and CloudWatch for errors."
+          ? "SMS could not be delivered. Check Brevo API response and your account SMS credits."
           : generic;
     return apiError(message, Status.BAD_GATEWAY, "SMS_SEND_FAILED");
   }
 
   const expiresInSeconds = Math.floor(OTP_EXPIRY_MS / 1000);
 
-  // No AWS SNS keys in process env → treat as local dev only.
   if (!sms.sent && !providerConfigured) {
     if (process.env.NODE_ENV === "production") {
       return apiError(
-        "SMS is not configured on this server. Set AWS_REGION, AWS_ACCESS_KEY_ID, and AWS_SECRET_ACCESS_KEY for SNS in the same environment as the Node process, restart the app, then try again.",
+        "SMS is not configured on this server. Set BREVO_API_KEY in the same environment as the Node process, restart the app, then try again.",
         Status.SERVICE_UNAVAILABLE,
         "SMS_NOT_CONFIGURED"
       );
@@ -98,7 +97,7 @@ export const POST = withApiHandler(async (request: NextRequest) => {
     });
     return apiSuccess({
       message:
-        "No SMS provider configured — use the code below locally only. Add AWS SNS variables to .env for real SMS.",
+        "No SMS provider configured — use the code below locally only. Add BREVO_API_KEY to .env for real SMS.",
       expiresInSeconds,
       smsSent: false as const,
       devOtp: code,
@@ -117,7 +116,7 @@ export const POST = withApiHandler(async (request: NextRequest) => {
   if (process.env.NODE_ENV === "development") {
     const tail = phoneNorm.length >= 4 ? phoneNorm.slice(-4) : "****";
     console.info(
-      `[phone-otp] SNS accepted (messageId=${sms.providerRequestId ?? "?"}) to ***${tail} — dev OTP: ${code} (SMS may still not arrive: sandbox / carrier / India DLT)`
+      `[phone-otp] Brevo SMS sent (messageId=${sms.providerRequestId ?? "?"}) to ***${tail} — dev OTP: ${code}`
     );
   }
 
@@ -128,7 +127,6 @@ export const POST = withApiHandler(async (request: NextRequest) => {
     ...(process.env.NODE_ENV === "development" && sms.providerRequestId
       ? { smsTraceId: sms.providerRequestId }
       : {}),
-    // Same server as `npm run dev` only — lets you sign in when SNS accepts but SMS never arrives (sandbox / India / carrier).
     ...(process.env.NODE_ENV === "development" ? { devOtp: code } : {}),
   });
 });

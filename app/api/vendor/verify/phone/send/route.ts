@@ -57,7 +57,7 @@ export const POST = withApiHandler(async (request: NextRequest) => {
 
   if (!sms.sent && !providerConfigured && process.env.NODE_ENV === "production") {
     return apiError(
-      "SMS is not configured on this server. Set AWS_REGION, AWS_ACCESS_KEY_ID, and AWS_SECRET_ACCESS_KEY.",
+      "SMS is not configured on this server. Set BREVO_API_KEY in the environment used by the Node process.",
       Status.SERVICE_UNAVAILABLE,
       "SMS_NOT_CONFIGURED"
     );
