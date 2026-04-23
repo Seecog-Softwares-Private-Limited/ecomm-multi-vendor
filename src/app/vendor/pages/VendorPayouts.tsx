@@ -7,9 +7,34 @@ import { useApi } from "@/lib/hooks/useApi";
 import { vendorService } from "@/services/vendor.service";
 import * as React from "react";
 
+function formatInr(amount: number): string {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 2,
+    minimumFractionDigits: 0,
+  }).format(amount);
+}
+
+function escapeCsvCell(value: string | number): string {
+  const s = String(value);
+  if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+}
+
+function defaultPayoutDateFrom(): string {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() - 1);
+  return d.toISOString().slice(0, 10);
+}
+
+function defaultPayoutDateTo(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
 export function VendorPayouts() {
-  const [dateFrom, setDateFrom] = React.useState("2018-01-01");
-  const [dateTo, setDateTo] = React.useState("2026-02-25");
+  const [dateFrom, setDateFrom] = React.useState(defaultPayoutDateFrom);
+  const [dateTo, setDateTo] = React.useState(defaultPayoutDateTo);
 
   const paramsRef = React.useRef({ dateFrom, dateTo });
   paramsRef.current = { dateFrom, dateTo };
@@ -44,7 +69,7 @@ export function VendorPayouts() {
 
   const handleExport = () => {
     if (payouts.length === 0) {
-      alert("No payouts to export.");
+      alert("No payouts in the selected period.");
       return;
     }
     const headers = [
@@ -53,26 +78,31 @@ export function VendorPayouts() {
       "Orders",
       "Amount",
       "Status",
-      "Paid Date",
+      "Paid date",
       "Reference",
     ];
-    const rows = payouts.map((p) =>
-      [
-        p.id,
-        p.period,
-        p.ordersCount,
-        p.amount,
-        p.status,
-        p.paidDate ?? "",
-        p.reference ?? "",
-      ].join(",")
-    );
-    const csv = [headers.join(","), ...rows].join("\n");
+    const lines = [
+      headers.map(escapeCsvCell).join(","),
+      ...payouts.map((p) =>
+        [
+          p.id,
+          p.period,
+          p.ordersCount,
+          p.amount,
+          p.status,
+          p.paidDate ?? "",
+          p.reference ?? "",
+        ]
+          .map(escapeCsvCell)
+          .join(",")
+      ),
+    ];
+    const csv = "\uFEFF" + lines.join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `payouts-${dateFrom}-${dateTo}.csv`;
+    a.download = `vendor-payouts-${dateFrom}_to_${dateTo}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -114,9 +144,11 @@ export function VendorPayouts() {
               <CreditCard className="w-6 h-6 text-white" />
             </div>
           </div>
-          <p className="text-[#64748B] text-sm mb-2">Total Payouts</p>
-          <p className="text-3xl font-bold text-[#1E293B]">₹{summary.totalPayouts.toLocaleString()}</p>
-          <p className="text-sm text-[#64748B] mt-2">{summary.transactionCount} transactions</p>
+          <p className="text-[#64748B] text-sm mb-2">Total paid (selected range)</p>
+          <p className="text-3xl font-bold text-[#1E293B] tabular-nums">{formatInr(summary.totalPayouts)}</p>
+          <p className="text-sm text-[#64748B] mt-2">
+            {summary.transactionCount} payout run{summary.transactionCount === 1 ? "" : "s"} in range
+          </p>
         </Card>
 
         <Card>
@@ -125,11 +157,9 @@ export function VendorPayouts() {
               <Calendar className="w-6 h-6 text-white" />
             </div>
           </div>
-          <p className="text-[#64748B] text-sm mb-2">Last Payout</p>
-          <p className="text-3xl font-bold text-[#3B82F6]">
-            {summary.lastPayoutAmount != null
-              ? `₹${summary.lastPayoutAmount.toLocaleString()}`
-              : "—"}
+          <p className="text-[#64748B] text-sm mb-2">Most recent completed payout</p>
+          <p className="text-3xl font-bold text-[#3B82F6] tabular-nums">
+            {summary.lastPayoutAmount != null ? formatInr(summary.lastPayoutAmount) : "—"}
           </p>
           <p className="text-sm text-[#64748B] mt-2">{summary.lastPayoutDate ?? "—"}</p>
         </Card>
@@ -140,23 +170,27 @@ export function VendorPayouts() {
               <Info className="w-6 h-6 text-white" />
             </div>
           </div>
-          <p className="text-[#64748B] text-sm mb-2">Orders Paid</p>
-          <p className="text-3xl font-bold text-[#1E293B]">{summary.ordersPaid}</p>
-          <p className="text-sm text-[#64748B] mt-2">Across all payouts</p>
+          <p className="text-[#64748B] text-sm mb-2">Orders paid (in paid payouts)</p>
+          <p className="text-3xl font-bold text-[#1E293B] tabular-nums">{summary.ordersPaid}</p>
+          <p className="text-sm text-[#64748B] mt-2">From completed payouts in this filter</p>
         </Card>
       </div>
 
-      {/* Date Filter */}
+      {/* Date filter: payout *period* overlaps this window */}
       <Card>
+        <p className="text-sm text-[#64748B] mb-4">
+          Show payout batches whose <strong>statement period</strong> overlaps the dates below. Use{" "}
+          <strong>Export report</strong> to download the table as CSV.
+        </p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Input
-            label="From Date"
+            label="From date"
             type="date"
             value={dateFrom}
             onChange={(e) => setDateFrom(e.target.value)}
           />
           <Input
-            label="To Date"
+            label="To date"
             type="date"
             value={dateTo}
             onChange={(e) => setDateTo(e.target.value)}
@@ -194,6 +228,13 @@ export function VendorPayouts() {
               </tr>
             </thead>
             <tbody>
+              {payouts.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="py-12 text-center text-[#64748B] text-sm">
+                    No payout batches in this date range. Try a wider range.
+                  </td>
+                </tr>
+              )}
               {payouts.map((payout) => (
                 <tr
                   key={payout.id}
@@ -211,7 +252,7 @@ export function VendorPayouts() {
                     </span>
                   </td>
                   <td className="py-4 px-4 text-right">
-                    <p className="font-bold text-[#1E293B] text-lg">₹{payout.amount.toLocaleString()}</p>
+                    <p className="font-bold text-[#1E293B] text-lg tabular-nums">{formatInr(payout.amount)}</p>
                   </td>
                   <td className="py-4 px-4 text-center">
                     <span

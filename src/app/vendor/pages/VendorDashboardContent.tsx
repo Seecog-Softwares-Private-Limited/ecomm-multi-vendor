@@ -174,10 +174,12 @@ export function VendorDashboardContent({
               {/* Right Column */}
               <div className="space-y-6">
                 {/* Net Payable */}
-                <Card title="Net Payable">
+                <Card title="Net Earnings (Balance)">
                   <div className="text-center py-6">
-                    <p className="text-sm text-[#64748B] mb-2">Available Balance</p>
-                    <p className="text-4xl font-bold text-[#3B82F6] mb-4">₹40,707</p>
+                    <p className="text-sm text-[#64748B] mb-2">After paid payouts</p>
+                    <p className="text-4xl font-bold text-[#3B82F6] mb-4">
+                      {formatCurrency(data.netPayable ?? 0)}
+                    </p>
                     <Link href="/vendor/earnings">
                       <Button variant="secondary" size="sm" className="w-full">
                         View Earnings
@@ -187,23 +189,34 @@ export function VendorDashboardContent({
                 </Card>
 
                 {/* Low Stock Alert */}
-                <Card title="Low Stock Products">
+                <Card title="Low stock (manage inventory)">
                   <div className="space-y-3">
-                    {lowStockProducts.map((product, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 bg-[#F8FAFC] rounded-lg">
-                        <div>
-                          <p className="font-semibold text-[#1E293B] text-sm">{product.name}</p>
-                          <p className="text-xs text-[#64748B]">{product.sku}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm font-bold text-red-600">{product.stock} left</p>
-                        </div>
-                      </div>
-                    ))}
+                    {lowStockProducts.length === 0 ? (
+                      <p className="text-sm text-[#64748B] text-center py-4">
+                        No products at or below the low-stock threshold. You&apos;re fully stocked.
+                      </p>
+                    ) : (
+                      lowStockProducts.map((product) => (
+                        <Link
+                          key={product.id}
+                          href={`/vendor/products/edit/${encodeURIComponent(product.id)}`}
+                          className="flex items-center justify-between p-3 bg-[#F8FAFC] rounded-lg hover:bg-[#F1F5F9] transition-colors"
+                        >
+                          <div className="min-w-0 flex-1 pr-2">
+                            <p className="font-semibold text-[#1E293B] text-sm truncate">{product.name}</p>
+                            <p className="text-xs text-[#64748B] truncate">SKU: {product.sku}</p>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <p className="text-sm font-bold text-red-600">{product.stock} in stock</p>
+                            <p className="text-[11px] text-[#3B82F6] font-medium">Edit →</p>
+                          </div>
+                        </Link>
+                      ))
+                    )}
                   </div>
                   <Link href="/vendor/products" className="block mt-4">
                     <Button variant="ghost" size="sm" className="w-full">
-                      Manage Inventory
+                      Manage inventory
                     </Button>
                   </Link>
                 </Card>
