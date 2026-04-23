@@ -450,8 +450,8 @@ export function LoginPage() {
                 </p>
                 {devOtpHint && (
                   <div className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-200/80">
-                    <strong>Development only:</strong> use this code if SMS did not arrive (SNS sandbox, India DLT,
-                    or no provider). Your OTP:{" "}
+                    <strong>Development only:</strong> use this code if SMS did not arrive (carrier delay, DLT, or
+                    no provider). Your OTP:{" "}
                     <span className="font-mono font-bold tracking-wider">{devOtpHint}</span>
                   </div>
                 )}
@@ -461,13 +461,10 @@ export function LoginPage() {
                     <strong>Transactions</strong> and search for the OTP digits.
                   </p>
                   <p>
-                    <strong>AWS SNS</strong> can return a MessageId even when the phone never gets the text.
-                    Fix in AWS: <strong>SNS → Text messaging (SMS)</strong> — verify <strong>+91…</strong> in{" "}
-                    <strong>sandbox</strong>, raise <strong>spend limit</strong>, or exit sandbox. For{" "}
-                    <strong>India</strong>, transactional SMS often needs <strong>DLT</strong>-registered
-                    templates and a compliant route; many teams use an India SMS aggregator (e.g. MSG91,
-                    Gupshup) or <strong>Amazon Pinpoint</strong> with proper origination — plain SNS to +91 is
-                    unreliable until AWS/carrier requirements are met.
+                    SMS is sent via <strong>Brevo</strong>. If the code does not arrive, check your phone signal and
+                    SMS filters, confirm the number is <strong>91…</strong> format in Brevo, and review{" "}
+                    <strong>Brevo → Transactional SMS</strong> for delivery status, credits, and India DLT /
+                    template requirements for your sender.
                   </p>
                   {process.env.NODE_ENV === "development" && (
                     <p className="text-amber-900 bg-amber-50/80 rounded-md px-2 py-1.5 ring-1 ring-amber-200/60">
@@ -477,8 +474,7 @@ export function LoginPage() {
                   )}
                   {smsTraceId && (
                     <p className="font-mono text-[11px] text-slate-700 break-all">
-                      SNS MessageId: {smsTraceId} — use CloudWatch / SNS delivery logs if delivery fails after
-                      leaving sandbox.
+                      Brevo message id: {smsTraceId} — use the Brevo dashboard for delivery details if needed.
                     </p>
                   )}
                 </div>
