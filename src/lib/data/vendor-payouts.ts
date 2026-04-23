@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 const toNumber = (v: unknown): number =>
@@ -63,16 +64,17 @@ export async function getVendorPayouts(
   dateFrom?: string,
   dateTo?: string
 ): Promise<VendorPayoutsResult> {
-  const where: {
-    sellerId: string;
-    periodEnd?: { gte?: Date; lte?: Date };
-  } = { sellerId };
+  const where: Prisma.PayoutWhereInput = { sellerId };
 
+  // Payouts whose statement period overlaps the selected [dateFrom, dateTo] window
   if (dateFrom || dateTo) {
-    const filterDate: { gte?: Date; lte?: Date } = {};
-    if (dateFrom) filterDate.gte = new Date(dateFrom + "T00:00:00.000Z");
-    if (dateTo) filterDate.lte = new Date(dateTo + "T23:59:59.999Z");
-    where.periodEnd = filterDate;
+    const from = dateFrom
+      ? new Date(dateFrom + "T00:00:00.000Z")
+      : new Date(0);
+    const to = dateTo
+      ? new Date(dateTo + "T23:59:59.999Z")
+      : new Date(8640000000000000);
+    where.AND = [{ periodStart: { lte: to } }, { periodEnd: { gte: from } }];
   }
 
   const payoutsDb = await prisma.payout.findMany({
@@ -96,9 +98,17 @@ export async function getVendorPayouts(
     };
   });
 
-  const totalPayouts = payouts.reduce((sum, p) => sum + p.amount, 0);
-  const ordersPaid = payouts.reduce((sum, p) => sum + p.ordersCount, 0);
-  const last = payouts[0] ?? null;
+  const paidOnly = payouts.filter((p) => p.status === "paid");
+  const totalPayouts = paidOnly.reduce((sum, p) => sum + p.amount, 0);
+  const ordersPaid = paidOnly.reduce((sum, p) => sum + p.ordersCount, 0);
+  const last =
+    paidOnly
+      .slice()
+      .sort((a, b) => {
+        const ta = a.paidDate ? new Date(a.paidDate + "T12:00:00").getTime() : 0;
+        const tb = b.paidDate ? new Date(b.paidDate + "T12:00:00").getTime() : 0;
+        return tb - ta;
+      })[0] ?? null;
 
   const summary: VendorPayoutsSummary = {
     totalPayouts,

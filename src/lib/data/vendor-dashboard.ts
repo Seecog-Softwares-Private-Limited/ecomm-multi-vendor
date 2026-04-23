@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/prisma";
 import { getVendorOrdersBySellerId } from "./vendor-orders";
-import { getVendorProductsBySellerId } from "./vendor-products";
 
 const toNumber = (v: unknown): number =>
   typeof v === "number" ? v : Number(v) ?? 0;
@@ -56,6 +55,61 @@ function orderDisplayId(id: string): string {
 }
 
 /**
+ * Low-stock rows for dashboard: per product, effective stock = min across variants
+ * or product.stock when there are no variants. Only ACTIVE, non-deleted products.
+ */
+async function getLowStockProductsForDashboard(
+  sellerId: string
+): Promise<VendorDashboardLowStockProduct[]> {
+  const products = await prisma.product.findMany({
+    where: {
+      sellerId,
+      deletedAt: null,
+      status: "ACTIVE",
+    },
+    select: {
+      id: true,
+      name: true,
+      sku: true,
+      stock: true,
+      productVariants: {
+        where: { deletedAt: null },
+        select: { stock: true, sku: true },
+      },
+    },
+  });
+
+  const rows: VendorDashboardLowStockProduct[] = [];
+  for (const p of products) {
+    if (p.productVariants.length > 0) {
+      const minV = p.productVariants.reduce(
+        (m, v) => Math.min(m, v.stock),
+        Number.POSITIVE_INFINITY
+      );
+      if (minV <= LOW_STOCK_THRESHOLD) {
+        const worst = p.productVariants.reduce((a, b) => (a.stock <= b.stock ? a : b));
+        rows.push({
+          id: p.id,
+          name: p.name,
+          sku: worst.sku?.trim() || p.sku,
+          stock: minV,
+        });
+      }
+    } else if (p.stock <= LOW_STOCK_THRESHOLD) {
+      rows.push({
+        id: p.id,
+        name: p.name,
+        sku: p.sku,
+        stock: p.stock,
+      });
+    }
+  }
+
+  rows.sort((a, b) => a.stock - b.stock);
+  return rows.slice(0, 10);
+}
+
+/**
  * Get dashboard summary for vendor: KPIs, recent orders, low stock.
  * Net payable = total net earnings (all time) minus sum of paid payouts.
  */
@@ -78,7 +132,7 @@ export async function getVendorDashboardSummary(
     allTimeNetRows,
     paidPayoutsSum,
     ordersList,
-    productsList,
+    lowStockProducts,
     yesterdayOrderIds,
   ] = await Promise.all([
     prisma.orderItem.findMany({
@@ -125,7 +179,7 @@ export async function getVendorDashboardSummary(
       })
       .then((rows) => rows.reduce((sum, r) => sum + toNumber(r.amount), 0)),
     getVendorOrdersBySellerId(sellerId),
-    getVendorProductsBySellerId(sellerId),
+    getLowStockProductsForDashboard(sellerId),
     prisma.orderItem.findMany({
       where: {
         sellerId,
@@ -176,16 +230,6 @@ export async function getVendorDashboardSummary(
       timeAgo: formatTimeAgo(o.createdAt ?? new Date().toISOString()),
     })
   );
-
-  const lowStockProducts: VendorDashboardLowStockProduct[] = productsList
-    .filter((p) => p.stock <= LOW_STOCK_THRESHOLD)
-    .slice(0, 10)
-    .map((p) => ({
-      id: p.id,
-      name: p.name,
-      sku: p.sku,
-      stock: p.stock,
-    }));
 
   return {
     todayOrdersCount,
