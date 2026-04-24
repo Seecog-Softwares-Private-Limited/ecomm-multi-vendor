@@ -1,4 +1,4 @@
-import { randomInt, randomUUID } from "crypto";
+import { randomUUID } from "crypto";
 import { NextRequest } from "next/server";
 import {
   withApiHandler,
@@ -9,16 +9,16 @@ import {
   Status,
 } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
+import { validatePhoneOtpSend, formatValidationDetails } from "@/lib/auth";
+import { normalizeIndianPhone, INDIAN_MOBILE_HINT } from "@/lib/auth/phone";
 import {
-  validatePhoneOtpSend,
-  formatValidationDetails,
-} from "@/lib/auth";
-import { normalizeIndianPhone, phoneNormToE164, INDIAN_MOBILE_HINT } from "@/lib/auth/phone";
-import { hashPhoneOtp } from "@/lib/auth/phone-otp-hash";
-import { sendLoginOtpSms, isSmsProviderConfigured } from "@/lib/sms/send-login-otp";
+  sendOtp,
+  isMsg91OtpConfigured,
+  PHONE_OTP_MSG91_MARKER,
+} from "@/lib/sms/msg91-otp";
 
 const RESEND_COOLDOWN_MS = 60_000;
-const OTP_EXPIRY_MS = 10 * 60_000;
+const OTP_WINDOW_MS = 10 * 60_000;
 
 export const POST = withApiHandler(async (request: NextRequest) => {
   let body: unknown;
@@ -58,75 +58,44 @@ export const POST = withApiHandler(async (request: NextRequest) => {
     data: { consumedAt: new Date() },
   });
 
-  const code = randomInt(0, 1_000_000).toString().padStart(6, "0");
-  const codeHash = hashPhoneOtp(phoneNorm, code);
-  const expiresAt = new Date(Date.now() + OTP_EXPIRY_MS);
-  const e164 = phoneNormToE164(phoneNorm);
-  const sms = await sendLoginOtpSms(e164, code);
-  const providerConfigured = isSmsProviderConfigured();
+  if (!isMsg91OtpConfigured()) {
+    return apiError(
+      process.env.NODE_ENV === "production"
+        ? "SMS OTP is not configured on this server. Set MSG91_AUTH_KEY in the process environment and restart the app."
+        : "MSG91_AUTH_KEY is not set. Add it to your .env file to send OTP.",
+      Status.SERVICE_UNAVAILABLE,
+      "SMS_NOT_CONFIGURED"
+    );
+  }
 
-  if (!sms.sent && providerConfigured) {
-    const generic =
-      "SMS could not be sent. Check Brevo Transactional SMS settings, BREVO_API_KEY, sender registration, and server logs.";
+  const out = await sendOtp(phoneNorm);
+  if (!out.success) {
     const message =
-      process.env.NODE_ENV === "development" && sms.error
-        ? `SMS failed: ${sms.error}`
-        : sms.error
-          ? "SMS could not be delivered. Check Brevo API response and your account SMS credits."
-          : generic;
+      process.env.NODE_ENV === "development" && out.error
+        ? `SMS failed: ${out.error}`
+        : "We could not send the verification code. Try again in a few minutes.";
     return apiError(message, Status.BAD_GATEWAY, "SMS_SEND_FAILED");
   }
 
-  const expiresInSeconds = Math.floor(OTP_EXPIRY_MS / 1000);
-
-  if (!sms.sent && !providerConfigured) {
-    if (process.env.NODE_ENV === "production") {
-      return apiError(
-        "SMS is not configured on this server. Set BREVO_API_KEY in the same environment as the Node process, restart the app, then try again.",
-        Status.SERVICE_UNAVAILABLE,
-        "SMS_NOT_CONFIGURED"
-      );
-    }
-    await prisma.customerPhoneOtp.create({
-      data: {
-        id: randomUUID(),
-        phoneNorm,
-        codeHash,
-        expiresAt,
-      },
-    });
-    return apiSuccess({
-      message:
-        "No SMS provider configured — use the code below locally only. Add BREVO_API_KEY to .env for real SMS.",
-      expiresInSeconds,
-      smsSent: false as const,
-      devOtp: code,
-    });
-  }
-
+  const expiresAt = new Date(Date.now() + OTP_WINDOW_MS);
   await prisma.customerPhoneOtp.create({
     data: {
       id: randomUUID(),
       phoneNorm,
-      codeHash,
+      codeHash: PHONE_OTP_MSG91_MARKER,
       expiresAt,
+      attemptCount: 0,
     },
   });
 
   if (process.env.NODE_ENV === "development") {
     const tail = phoneNorm.length >= 4 ? phoneNorm.slice(-4) : "****";
-    console.info(
-      `[phone-otp] Brevo SMS sent (messageId=${sms.providerRequestId ?? "?"}) to ***${tail} — dev OTP: ${code}`
-    );
+    console.info(`[phone-otp] MSG91 send OTP sent for ***${tail} (verify via MSG91)`);
   }
 
   return apiSuccess({
     message: "We sent a verification code to your mobile number.",
-    expiresInSeconds,
+    expiresInSeconds: Math.floor(OTP_WINDOW_MS / 1000),
     smsSent: true as const,
-    ...(process.env.NODE_ENV === "development" && sms.providerRequestId
-      ? { smsTraceId: sms.providerRequestId }
-      : {}),
-    ...(process.env.NODE_ENV === "development" ? { devOtp: code } : {}),
   });
 });

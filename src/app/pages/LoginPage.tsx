@@ -42,8 +42,6 @@ export function LoginPage() {
   const [sendOtpLoading, setSendOtpLoading] = React.useState(false);
   const [verifyOtpLoading, setVerifyOtpLoading] = React.useState(false);
   const [resendSeconds, setResendSeconds] = React.useState(0);
-  const [devOtpHint, setDevOtpHint] = React.useState<string | null>(null);
-  const [smsTraceId, setSmsTraceId] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
 
   const returnUrl =
@@ -87,8 +85,6 @@ export function LoginPage() {
 
   const requestOtp = async () => {
     setError(null);
-    setDevOtpHint(null);
-    setSmsTraceId(null);
     const trimmed = phone.trim();
     if (!trimmed) {
       setError("Please enter your mobile number.");
@@ -100,7 +96,7 @@ export function LoginPage() {
     }
     setSendOtpLoading(true);
     try {
-      const res = await fetch("/api/auth/phone-otp/send", {
+      const res = await fetch("/api/auth/send-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone: trimmed }),
@@ -116,9 +112,6 @@ export function LoginPage() {
         );
         return;
       }
-      const d = data?.data;
-      setDevOtpHint(typeof d?.devOtp === "string" ? d.devOtp : null);
-      setSmsTraceId(typeof d?.smsTraceId === "string" ? d.smsTraceId : null);
       setPhoneStep("otp");
       setOtpCode("");
       setResendSeconds(60);
@@ -137,13 +130,13 @@ export function LoginPage() {
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (!/^\d{6}$/.test(otpCode.trim())) {
-      setError("Enter the 6-digit code from your SMS.");
+    if (!/^\d{4,9}$/.test(otpCode.trim())) {
+      setError("Enter the code from your SMS (4–9 digits).");
       return;
     }
     setVerifyOtpLoading(true);
     try {
-      const res = await fetch("/api/auth/phone-otp/verify", {
+      const res = await fetch("/api/auth/verify-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -445,38 +438,18 @@ export function LoginPage() {
             ) : (
               <form className="space-y-5" onSubmit={handleVerifyOtp}>
                 <p className="text-sm text-slate-600">
-                  Enter the 6-digit code sent to{" "}
+                  Enter the code sent to{" "}
                   <span className="font-semibold text-slate-900">{phone.trim()}</span>
                 </p>
-                {devOtpHint && (
-                  <div className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-200/80">
-                    <strong>Development only:</strong> use this code if SMS did not arrive (carrier delay, DLT, or
-                    no provider). Your OTP:{" "}
-                    <span className="font-mono font-bold tracking-wider">{devOtpHint}</span>
-                  </div>
-                )}
                 <div className="rounded-lg bg-slate-50 px-3 py-2.5 text-xs text-slate-600 leading-relaxed ring-1 ring-slate-100 space-y-2">
                   <p>
                     On <strong>iPhone</strong>, check <strong>Primary</strong> and{" "}
-                    <strong>Transactions</strong> and search for the OTP digits.
+                    <strong>Transactions</strong> and search for the OTP.
                   </p>
                   <p>
-                    SMS is sent via <strong>Brevo</strong>. If the code does not arrive, check your phone signal and
-                    SMS filters, confirm the number is <strong>91…</strong> format in Brevo, and review{" "}
-                    <strong>Brevo → Transactional SMS</strong> for delivery status, credits, and India DLT /
-                    template requirements for your sender.
+                    One-time codes are sent by <strong>MSG91</strong> (template-based). If you don&apos;t receive
+                    the SMS, check DLT and template status in the MSG91 dashboard and your account balance.
                   </p>
-                  {process.env.NODE_ENV === "development" && (
-                    <p className="text-amber-900 bg-amber-50/80 rounded-md px-2 py-1.5 ring-1 ring-amber-200/60">
-                      <strong>Local dev:</strong> the OTP appears in the <strong>yellow box above</strong> and in
-                      the <strong>terminal</strong> running <code className="text-[11px]">npm run dev</code>.
-                    </p>
-                  )}
-                  {smsTraceId && (
-                    <p className="font-mono text-[11px] text-slate-700 break-all">
-                      Brevo message id: {smsTraceId} — use the Brevo dashboard for delivery details if needed.
-                    </p>
-                  )}
                 </div>
                 <div>
                   <label
@@ -490,10 +463,10 @@ export function LoginPage() {
                     type="text"
                     inputMode="numeric"
                     autoComplete="one-time-code"
-                    maxLength={6}
-                    placeholder="000000"
+                    maxLength={9}
+                    placeholder="Enter OTP"
                     value={otpCode}
-                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 9))}
                     className="block w-full rounded-xl border border-slate-200 bg-slate-50/50 py-3 px-4 text-center font-mono text-2xl tracking-[0.35em] text-slate-900 placeholder:text-slate-300 transition focus:border-[#FF6A00] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6A00]/20"
                   />
                 </div>
@@ -505,8 +478,6 @@ export function LoginPage() {
                       setPhoneStep("number");
                       setOtpCode("");
                       setError(null);
-                      setDevOtpHint(null);
-                      setSmsTraceId(null);
                     }}
                     className="font-semibold text-slate-600 hover:text-slate-900"
                   >

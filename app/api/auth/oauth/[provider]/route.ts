@@ -5,6 +5,8 @@ import {
   generateOAuthState,
   encodeOAuthState,
   OAUTH_STATE_COOKIE,
+  getOAuthAppBaseUrl,
+  isOAuthClientConfigured,
   type OAuthProvider,
 } from "@/lib/auth/oauth";
 
@@ -24,6 +26,16 @@ export async function GET(request: NextRequest, context: ApiRouteContext) {
 
   if (!provider || !SUPPORTED_PROVIDERS.includes(provider)) {
     return NextResponse.json({ error: "Unsupported provider" }, { status: 400 });
+  }
+
+  if (!isOAuthClientConfigured(provider)) {
+    const login = new URL("/login", getOAuthAppBaseUrl());
+    const msg =
+      provider === "google"
+        ? "Google sign-in is not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in your environment."
+        : "Facebook sign-in is not configured. Set FACEBOOK_APP_ID and FACEBOOK_APP_SECRET in your environment.";
+    login.searchParams.set("error", msg);
+    return NextResponse.redirect(login.toString());
   }
 
   const { searchParams } = new URL(request.url);
