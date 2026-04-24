@@ -77,7 +77,7 @@ export const phoneOtpSendSchema = z.object({
 /** Body for POST /api/auth/phone-otp/verify */
 export const phoneOtpVerifySchema = z.object({
   phone: z.string().min(10, "Enter a valid mobile number").max(32).trim(),
-  code: z.string().regex(/^\d{6}$/, "Enter the 6-digit OTP"),
+  code: z.string().regex(/^\d{4,9}$/, "Enter the OTP you received (4–9 digits)"),
 });
 
 export type PhoneOtpSendInput = z.infer<typeof phoneOtpSendSchema>;

@@ -105,7 +105,10 @@ function OtpVerifyField({
   };
 
   const handleConfirm = async () => {
-    if (!otp.trim()) { setError("Enter the 6-digit code."); return; }
+    if (!/^\d{4,9}$/.test(otp.trim())) {
+      setError("Enter the OTP you received (4–9 digits).");
+      return;
+    }
     setError(null);
     setStage("confirming");
     try {
@@ -162,16 +165,16 @@ function OtpVerifyField({
           <input
             type="text"
             inputMode="numeric"
-            maxLength={6}
-            placeholder="6-digit code"
+            maxLength={9}
+            placeholder="OTP"
             value={otp}
-            onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+            onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 9))}
             className="w-36 rounded-xl border border-slate-200 px-3 py-2.5 text-center text-lg font-bold tracking-[0.3em] text-slate-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
           />
           <button
             type="button"
             onClick={handleConfirm}
-            disabled={stage === "confirming" || otp.length < 6}
+            disabled={stage === "confirming" || otp.length < 4}
             className="rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {stage === "confirming" ? "Verifying…" : "Verify"}
@@ -1024,7 +1027,7 @@ export function VendorProfile() {
                       isVerified={formData.mobileVerified}
                       disabled={kycLocked}
                       placeholder="10-digit mobile number"
-                      helperText="We'll send a 6-digit OTP to this number."
+                      helperText="We'll send an OTP via MSG91 to this number."
                       onSendOtp={async () => {
                         await handleSaveDraft();
                         return vendorService.sendPhoneOtp();
@@ -1045,7 +1048,7 @@ export function VendorProfile() {
                       isVerified={formData.emailVerified}
                       disabled={kycLocked}
                       placeholder="your@email.com"
-                      helperText="A 6-digit code will be sent to this address."
+                      helperText="A verification code will be sent to this address."
                       onSendOtp={async () => {
                         await handleSaveDraft();
                         return vendorService.sendEmailOtp();

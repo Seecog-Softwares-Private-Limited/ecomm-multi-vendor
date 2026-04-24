@@ -1,19 +1,27 @@
-import { randomInt } from "crypto";
 import { NextRequest } from "next/server";
-import { withApiHandler, apiSuccess, apiBadRequest, apiError, apiForbidden, Status } from "@/lib/api";
+import {
+  withApiHandler,
+  apiSuccess,
+  apiBadRequest,
+  apiError,
+  apiForbidden,
+  Status,
+} from "@/lib/api";
 import { requireSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { normalizeIndianPhone, phoneNormToE164, INDIAN_MOBILE_HINT } from "@/lib/auth/phone";
-import { hashPhoneOtp } from "@/lib/auth/phone-otp-hash";
-import { sendLoginOtpSms, isSmsProviderConfigured } from "@/lib/sms/send-login-otp";
+import { normalizeIndianPhone, INDIAN_MOBILE_HINT } from "@/lib/auth/phone";
+import {
+  sendOtp,
+  isMsg91OtpConfigured,
+  PHONE_OTP_MSG91_MARKER,
+} from "@/lib/sms/msg91-otp";
 
 const RESEND_COOLDOWN_MS = 60_000;
-const OTP_EXPIRY_MS = 10 * 60_000;
+const OTP_WINDOW_MS = 10 * 60_000;
 
 /**
  * POST /api/vendor/verify/phone/send
- * Sends a 6-digit OTP to the phone number saved on the seller's profile.
- * Requires an active vendor session.
+ * Sends an OTP to the phone number on the seller profile (MSG91 — OTP not stored server-side).
  */
 export const POST = withApiHandler(async (request: NextRequest) => {
   const session = await requireSession(request);
@@ -34,50 +42,51 @@ export const POST = withApiHandler(async (request: NextRequest) => {
   const phoneNorm = normalizeIndianPhone(phoneRaw);
   if (!phoneNorm) return apiBadRequest(INDIAN_MOBILE_HINT);
 
-  // Rate-limit: one OTP per minute
-  if (seller.phoneOtpExpires && seller.phoneOtpExpires.getTime() > Date.now() + OTP_EXPIRY_MS - RESEND_COOLDOWN_MS) {
-    return apiError("Please wait a minute before requesting another code.", Status.TOO_MANY_REQUESTS, "TOO_MANY_REQUESTS");
-  }
-
-  const code = randomInt(0, 1_000_000).toString().padStart(6, "0");
-  const codeHash = hashPhoneOtp(phoneNorm, code);
-  const expiresAt = new Date(Date.now() + OTP_EXPIRY_MS);
-
-  const e164 = phoneNormToE164(phoneNorm);
-  const providerConfigured = isSmsProviderConfigured();
-  const sms = await sendLoginOtpSms(e164, code);
-
-  if (!sms.sent && providerConfigured) {
+  if (
+    seller.phoneOtpExpires &&
+    seller.phoneOtpExpires.getTime() > Date.now() + OTP_WINDOW_MS - RESEND_COOLDOWN_MS
+  ) {
     return apiError(
-      "SMS could not be sent. Check your SMS provider configuration.",
-      Status.BAD_GATEWAY,
-      "SMS_SEND_FAILED"
+      "Please wait a minute before requesting another code.",
+      Status.TOO_MANY_REQUESTS,
+      "TOO_MANY_REQUESTS"
     );
   }
 
-  if (!sms.sent && !providerConfigured && process.env.NODE_ENV === "production") {
+  if (!isMsg91OtpConfigured()) {
     return apiError(
-      "SMS is not configured on this server. Set BREVO_API_KEY in the environment used by the Node process.",
+      "SMS OTP is not configured on this server. Set MSG91_AUTH_KEY in the environment used by the Node process.",
       Status.SERVICE_UNAVAILABLE,
       "SMS_NOT_CONFIGURED"
     );
   }
 
+  const out = await sendOtp(phoneNorm);
+  if (!out.success) {
+    return apiError(
+      process.env.NODE_ENV === "development" && out.error
+        ? out.error
+        : "SMS could not be sent. Check MSG91 template and account.",
+      Status.BAD_GATEWAY,
+      "SMS_SEND_FAILED"
+    );
+  }
+
+  const expiresAt = new Date(Date.now() + OTP_WINDOW_MS);
   await prisma.seller.update({
     where: { id: sellerId },
-    data: { phoneOtpCode: codeHash, phoneOtpExpires: expiresAt },
+    data: {
+      phoneOtpCode: PHONE_OTP_MSG91_MARKER,
+      phoneOtpExpires: expiresAt,
+    },
   });
 
-  const masked = phoneNorm.length >= 10
-    ? "xxxxxx" + phoneNorm.slice(-4)
-    : "xxxxxx";
+  const masked =
+    phoneNorm.length >= 10 ? "xxxxxx" + phoneNorm.slice(-4) : "xxxxxx";
 
   return apiSuccess({
-    message: providerConfigured && sms.sent
-      ? `Verification code sent to ${masked}.`
-      : "No SMS provider configured — use the code below (dev only).",
-    expiresInSeconds: Math.floor(OTP_EXPIRY_MS / 1000),
-    smsSent: sms.sent,
-    ...(process.env.NODE_ENV !== "production" ? { devOtp: code } : {}),
+    message: `Verification code sent to ${masked}.`,
+    expiresInSeconds: Math.floor(OTP_WINDOW_MS / 1000),
+    smsSent: true as const,
   });
 });

@@ -4,6 +4,7 @@ import {
   exchangeOAuthCode,
   decodeOAuthState,
   OAUTH_STATE_COOKIE,
+  getOAuthAppBaseUrl,
   type OAuthProvider,
 } from "@/lib/auth/oauth";
 import { signToken, setAuthCookie } from "@/lib/auth";
@@ -33,8 +34,7 @@ export async function GET(request: NextRequest, context: ApiRouteContext) {
     | OAuthProvider
     | undefined;
 
-  const appBase =
-    (process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || "http://localhost:3000").replace(/\/$/, "");
+  const appBase = getOAuthAppBaseUrl();
 
   if (!provider || !SUPPORTED_PROVIDERS.includes(provider)) {
     return errorRedirect(appBase, "Unsupported login provider");
@@ -53,15 +53,19 @@ export async function GET(request: NextRequest, context: ApiRouteContext) {
     return errorRedirect(appBase, "Missing authorization code");
   }
 
-  // ── CSRF state verification ──────────────────────────────────────────────
+  // ── CSRF state verification (cookie must match provider-returned `state` param) ─
   const cookieState = request.cookies.get(OAUTH_STATE_COOKIE)?.value;
   if (!cookieState || !stateFromQuery) {
     return errorRedirect(appBase, "Missing OAuth state — please try again");
   }
 
-  const stateObj = decodeOAuthState(cookieState);
-  if (!stateObj || stateObj.state !== stateFromQuery) {
-    return errorRedirect(appBase, "Invalid OAuth state — possible CSRF attempt");
+  if (cookieState !== stateFromQuery) {
+    return errorRedirect(appBase, "Invalid OAuth state — please start sign-in again");
+  }
+
+  const stateObj = decodeOAuthState(stateFromQuery);
+  if (!stateObj) {
+    return errorRedirect(appBase, "Invalid OAuth state — please start sign-in again");
   }
 
   const returnUrl = stateObj.returnUrl || "/";
