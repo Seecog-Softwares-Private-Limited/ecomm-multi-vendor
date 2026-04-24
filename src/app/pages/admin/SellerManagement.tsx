@@ -37,6 +37,7 @@ function kycBadgeClass(kyc: string): string {
     case "pending":
       return `${base} bg-amber-50 text-amber-700 ring-1 ring-amber-600/20`;
     case "rejected":
+    case "blocked":
       return `${base} bg-rose-50 text-rose-700 ring-1 ring-rose-600/20`;
     default:
       return `${base} bg-slate-100 text-slate-600 ring-1 ring-slate-300/50`;
