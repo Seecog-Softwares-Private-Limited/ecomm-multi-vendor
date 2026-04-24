@@ -21,14 +21,41 @@ export interface OAuthUserInfo {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+/**
+ * Public origin for OAuth redirect_uri. Must match exactly what is registered
+ * in Google Cloud Console and Facebook Login (including port on localhost).
+ * Prefer explicit APP_URL / NEXT_PUBLIC_APP_URL; otherwise http://localhost:$PORT
+ * when PORT is set (e.g. node app.js dev with PORT=3005).
+ */
 function appUrl(): string {
-  return (
-    (process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || "http://localhost:3000").replace(/\/$/, "")
-  );
+  const fromEnv = process.env.NEXT_PUBLIC_APP_URL?.trim() || process.env.APP_URL?.trim();
+  if (fromEnv) {
+    return fromEnv.replace(/\/$/, "");
+  }
+  const port = process.env.PORT?.replace(/\D/g, "") || "3000";
+  return `http://localhost:${port}`;
+}
+
+export function getOAuthAppBaseUrl(): string {
+  return appUrl();
 }
 
 export function oauthRedirectUri(provider: OAuthProvider): string {
   return `${appUrl()}/api/auth/oauth/${provider}/callback`;
+}
+
+export function isOAuthClientConfigured(provider: OAuthProvider): boolean {
+  if (provider === "google") {
+    return Boolean(
+      process.env.GOOGLE_CLIENT_ID?.trim() && process.env.GOOGLE_CLIENT_SECRET?.trim()
+    );
+  }
+  if (provider === "facebook") {
+    return Boolean(
+      process.env.FACEBOOK_APP_ID?.trim() && process.env.FACEBOOK_APP_SECRET?.trim()
+    );
+  }
+  return false;
 }
 
 // ─── State cookie (CSRF protection) ──────────────────────────────────────────

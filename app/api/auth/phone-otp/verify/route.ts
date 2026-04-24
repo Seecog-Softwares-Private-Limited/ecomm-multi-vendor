@@ -20,7 +20,7 @@ import {
   syntheticEmailForPhoneNorm,
   INDIAN_MOBILE_HINT,
 } from "@/lib/auth/phone";
-import { verifyPhoneOtp } from "@/lib/auth/phone-otp-hash";
+import { verifyOtp, PHONE_OTP_MSG91_MARKER } from "@/lib/sms/msg91-otp";
 
 const MAX_ATTEMPTS = 5;
 
@@ -57,12 +57,16 @@ export const POST = withApiHandler(async (request: NextRequest) => {
     return apiUnauthorized("Code expired or invalid. Request a new OTP.");
   }
 
+  if (row.codeHash !== PHONE_OTP_MSG91_MARKER) {
+    return apiUnauthorized("Please request a new verification code and try again.");
+  }
+
   if (row.attemptCount >= MAX_ATTEMPTS) {
     return apiUnauthorized("Too many wrong attempts. Request a new OTP.");
   }
 
-  const ok = verifyPhoneOtp(phoneNorm, code, row.codeHash);
-  if (!ok) {
+  const v = await verifyOtp(phoneNorm, code);
+  if (!v.success) {
     await prisma.customerPhoneOtp.update({
       where: { id: row.id },
       data: { attemptCount: { increment: 1 } },

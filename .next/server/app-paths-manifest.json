@@ -203,5 +203,7 @@
   "/vendor/products/edit/[productId]/page": "app/vendor/products/edit/[productId]/page.js",
   "/(main)/home/page": "app/(main)/home/page.js",
   "/(main)/info/[slug]/page": "app/(main)/info/[slug]/page.js",
-  "/api-docs/page": "app/api-docs/page.js"
+  "/api-docs/page": "app/api-docs/page.js",
+  "/api/auth/send-otp/route": "app/api/auth/send-otp/route.js",
+  "/api/auth/verify-otp/route": "app/api/auth/verify-otp/route.js"
 }
