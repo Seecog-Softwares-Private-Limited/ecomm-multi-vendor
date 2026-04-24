@@ -19,6 +19,23 @@ const SELLER_STATUS_MAP: Record<string, "DRAFT" | "SUBMITTED" | "APPROVED" | "RE
 const KYC_STATUS_MAP = ["PENDING", "APPROVED", "REJECTED"] as const;
 
 /**
+ * Must match what the seller detail page shows as "KYC Status" (`Seller.status`),
+ * not derived only from KYC document rows (those can lag after admin approval).
+ */
+function kycLabelFromSellerStatus(status: string): "Pending" | "Approved" | "Rejected" | "Blocked" {
+  switch (status) {
+    case "APPROVED":
+      return "Approved";
+    case "REJECTED":
+      return "Rejected";
+    case "SUSPENDED":
+      return "Blocked";
+    default:
+      return "Pending";
+  }
+}
+
+/**
  * GET /api/admin/sellers — list sellers (admin only).
  * Query: search, status (active|blocked|draft|submitted|approved|rejected|suspended), kycStatus (pending|approved|rejected), page, pageSize.
  */
@@ -52,33 +69,17 @@ export const GET = withApiHandler(async (request: NextRequest) => {
 
   if (kycParam && KYC_STATUS_MAP.includes(kycParam.toUpperCase() as (typeof KYC_STATUS_MAP)[number])) {
     const kyc = kycParam.toUpperCase();
-    if (kyc === "REJECTED") {
-      where.kycDocuments = { some: { status: "REJECTED" } };
-    } else if (kyc === "APPROVED") {
-      where.AND = [
-        ...(Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : []),
-        { kycDocuments: { some: {} } },
-        { kycDocuments: { none: { status: "PENDING" } } },
-        { kycDocuments: { none: { status: "REJECTED" } } },
-      ];
-      delete where.kycDocuments;
+    const andBase = Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : [];
+    if (kyc === "APPROVED") {
+      where.AND = [...andBase, { status: "APPROVED" }];
+    } else if (kyc === "REJECTED") {
+      where.AND = [...andBase, { status: { in: ["REJECTED", "SUSPENDED"] } }];
     } else {
-      // PENDING: has no docs or has some PENDING and no REJECTED
+      // PENDING: seller not yet approved / blocked / rejected at account level
       where.AND = [
-        ...(Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : []),
-        {
-          OR: [
-            { kycDocuments: { none: {} } },
-            {
-              AND: [
-                { kycDocuments: { some: { status: "PENDING" } } },
-                { kycDocuments: { none: { status: "REJECTED" } } },
-              ],
-            },
-          ],
-        },
+        ...andBase,
+        { status: { notIn: ["APPROVED", "REJECTED", "SUSPENDED"] } },
       ];
-      delete where.kycDocuments;
     }
   }
 
@@ -101,9 +102,6 @@ export const GET = withApiHandler(async (request: NextRequest) => {
             orderItems: true,
           },
         },
-        kycDocuments: {
-          select: { status: true },
-        },
       },
     }),
     prisma.seller.count({ where }),
@@ -112,10 +110,7 @@ export const GET = withApiHandler(async (request: NextRequest) => {
   const totalPages = Math.ceil(total / pageSize);
 
   const rows = sellers.map((s) => {
-    const kycDocs = s.kycDocuments ?? [];
-    let kycStatus = "Pending";
-    if (kycDocs.some((d) => d.status === "REJECTED")) kycStatus = "Rejected";
-    else if (kycDocs.length > 0 && kycDocs.every((d) => d.status === "APPROVED")) kycStatus = "Approved";
+    const kycStatus = kycLabelFromSellerStatus(s.status);
 
     const statusDisplay =
       s.status === "APPROVED" ? "Active" : s.status === "SUSPENDED" ? "Blocked" : s.status;

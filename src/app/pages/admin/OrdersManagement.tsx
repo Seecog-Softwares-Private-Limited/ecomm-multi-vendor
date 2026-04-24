@@ -6,12 +6,49 @@ import { useSearchParams } from "next/navigation";
 import { Filter, Search, Eye, ShoppingBag, Package, ChevronLeft, ChevronRight, Banknote, Clock, IndianRupee } from "lucide-react";
 
 const PAGE_SIZE = 10;
+const PENDING_STATUS_SELECT = "pending_bucket";
+
 const statsConfig = [
-  { key: "totalOrders" as const, icon: ShoppingBag, label: "Total Orders", accent: "amber" as const },
-  { key: "totalRevenue" as const, icon: IndianRupee, label: "Total Revenue", accent: "slate" as const },
-  { key: "paidAmount" as const, icon: Banknote, label: "Paid Amount", accent: "emerald" as const },
-  { key: "unpaidAmount" as const, icon: Clock, label: "Unpaid Amount", accent: "blue" as const },
-  { key: "pendingOrders" as const, icon: Package, label: "Pending Orders", accent: "slate" as const },
+  {
+    key: "totalOrders" as const,
+    action: "all" as const,
+    title: "Show all orders (clear status and payment filters)",
+    icon: ShoppingBag,
+    label: "Total Orders",
+    accent: "amber" as const,
+  },
+  {
+    key: "totalRevenue" as const,
+    action: "all" as const,
+    title: "Show all orders — same list as total orders; revenue is the sum of their amounts",
+    icon: IndianRupee,
+    label: "Total Revenue",
+    accent: "slate" as const,
+  },
+  {
+    key: "paidAmount" as const,
+    action: "paid" as const,
+    title: "Filter to paid payments only",
+    icon: Banknote,
+    label: "Paid Amount",
+    accent: "emerald" as const,
+  },
+  {
+    key: "unpaidAmount" as const,
+    action: "unpaid" as const,
+    title: "Filter to unpaid or pending payments",
+    icon: Clock,
+    label: "Unpaid Amount",
+    accent: "blue" as const,
+  },
+  {
+    key: "pendingOrders" as const,
+    action: "pending" as const,
+    title: "Filter to orders in Placed or Payment confirmed",
+    icon: Package,
+    label: "Pending Orders",
+    accent: "slate" as const,
+  },
 ];
 
 interface OrderRow {
@@ -67,6 +104,8 @@ export function OrdersManagement() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [statusFilter, setStatusFilter] = useState("");
+  const [paymentFilter, setPaymentFilter] = useState<"" | "paid" | "unpaid">("");
+  const [pendingFilter, setPendingFilter] = useState(false);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [searchInput, setSearchInput] = useState(() => searchParamsHook?.get("search") ?? "");
@@ -80,7 +119,12 @@ export function OrdersManagement() {
       const params = new URLSearchParams();
       params.set("page", String(currentPage));
       params.set("pageSize", String(PAGE_SIZE));
-      if (statusFilter) params.set("status", statusFilter);
+      if (pendingFilter) {
+        params.set("pending", "1");
+      } else if (statusFilter) {
+        params.set("status", statusFilter);
+      }
+      if (paymentFilter) params.set("payment", paymentFilter);
       if (dateFrom) params.set("dateFrom", dateFrom);
       if (dateTo) params.set("dateTo", dateTo);
       if (search) params.set("search", search);
@@ -105,7 +149,7 @@ export function OrdersManagement() {
         setLoading(false);
       }
     },
-    [page, statusFilter, dateFrom, dateTo, search]
+    [page, statusFilter, paymentFilter, pendingFilter, dateFrom, dateTo, search]
   );
 
   useEffect(() => {
@@ -121,6 +165,44 @@ export function OrdersManagement() {
   const handleApplyFilters = () => {
     setSearch(searchInput.trim());
     setPage(1);
+  };
+
+  const applyStatCardFilter = (action: "all" | "paid" | "unpaid" | "pending") => {
+    setPage(1);
+    if (action === "all") {
+      setStatusFilter("");
+      setPaymentFilter("");
+      setPendingFilter(false);
+    } else if (action === "paid") {
+      setStatusFilter("");
+      setPaymentFilter("paid");
+      setPendingFilter(false);
+    } else if (action === "unpaid") {
+      setStatusFilter("");
+      setPaymentFilter("unpaid");
+      setPendingFilter(false);
+    } else {
+      setStatusFilter("");
+      setPaymentFilter("");
+      setPendingFilter(true);
+    }
+  };
+
+  const isStatCardActive = (key: (typeof statsConfig)[number]["key"], action: (typeof statsConfig)[number]["action"]) => {
+    if (statusFilter) return false;
+    if (pendingFilter) {
+      return key === "pendingOrders" && action === "pending";
+    }
+    if (paymentFilter === "paid") {
+      return key === "paidAmount" && action === "paid";
+    }
+    if (paymentFilter === "unpaid") {
+      return key === "unpaidAmount" && action === "unpaid";
+    }
+    if (!statusFilter && !paymentFilter && !pendingFilter) {
+      return action === "all" && (key === "totalOrders" || key === "totalRevenue");
+    }
+    return false;
   };
 
   const startItem = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
@@ -152,16 +234,25 @@ export function OrdersManagement() {
           </div>
         )}
 
-        {/* Stats cards */}
+        {/* Stats cards (click to apply matching filters) */}
         <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           {statsConfig.map((stat) => {
             const Icon = stat.icon;
             const style = accentStyles[stat.accent];
             const value = getSummaryValue(stat.key + "Formatted" as keyof Summary);
+            const active = isStatCardActive(stat.key, stat.action);
             return (
-              <div
+              <button
                 key={stat.label}
-                className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-lg shadow-slate-200/50 transition hover:shadow-xl"
+                type="button"
+                title={stat.title}
+                onClick={() => applyStatCardFilter(stat.action)}
+                aria-pressed={active}
+                className={`rounded-2xl border bg-white p-6 text-left shadow-lg shadow-slate-200/50 transition hover:shadow-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 ${
+                  active
+                    ? "cursor-pointer border-amber-400 ring-2 ring-amber-400/50"
+                    : "cursor-pointer border-slate-200/80 hover:border-amber-200/90"
+                }`}
               >
                 <div className="flex items-start justify-between">
                   <div>
@@ -171,18 +262,24 @@ export function OrdersManagement() {
                     </p>
                   </div>
                   <div
-                    className={`flex h-11 w-11 items-center justify-center rounded-xl ring-1 ${style.bg} ${style.text} ${style.ring}`}
+                    className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ring-1 ${style.bg} ${style.text} ${style.ring}`}
+                    aria-hidden
                   >
                     <Icon className="h-5 w-5" />
                   </div>
                 </div>
-              </div>
+              </button>
             );
           })}
         </div>
 
         {/* Filters */}
         <div className="mb-6 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm sm:p-5">
+          <p className="mb-3 text-xs text-slate-500">
+            Use <span className="font-medium text-slate-600">Payment → Paid</span> to list every order with a paid
+            payment (same as the Payment column). &quot;Payment confirmed&quot; in order status is only the short
+            PAYMENT_CONFIRMED step before processing.
+          </p>
           <div className="flex flex-wrap items-center gap-3">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 pointer-events-none" />
@@ -196,19 +293,44 @@ export function OrdersManagement() {
               />
             </div>
             <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              value={pendingFilter ? PENDING_STATUS_SELECT : statusFilter}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v === PENDING_STATUS_SELECT) {
+                  setPendingFilter(true);
+                  setStatusFilter("");
+                } else {
+                  setPendingFilter(false);
+                  setStatusFilter(v);
+                }
+              }}
               className="rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-2.5 text-sm font-medium text-slate-700 transition focus:border-amber-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+              aria-label="Order status"
             >
-              <option value="">All Status</option>
+              <option value="">All order statuses</option>
+              <option value={PENDING_STATUS_SELECT}>Pending (placed or payment confirmed)</option>
               <option value="placed">Placed</option>
-              <option value="payment_confirmed">Payment confirmed</option>
+              <option value="payment_confirmed">Payment confirmed (order step only)</option>
               <option value="processing">Processing</option>
               <option value="shipped">Shipped</option>
               <option value="out_for_delivery">Out for delivery</option>
               <option value="delivered">Delivered</option>
               <option value="cancelled">Cancelled</option>
               <option value="returned">Returned</option>
+            </select>
+            <select
+              value={paymentFilter}
+              onChange={(e) => {
+                const v = e.target.value;
+                setPaymentFilter(v === "paid" || v === "unpaid" ? v : "");
+                setPendingFilter(false);
+              }}
+              className="rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-2.5 text-sm font-medium text-slate-700 transition focus:border-amber-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+              aria-label="Payment"
+            >
+              <option value="">All payments</option>
+              <option value="paid">Paid</option>
+              <option value="unpaid">Unpaid or pending</option>
             </select>
             <input
               type="date"
