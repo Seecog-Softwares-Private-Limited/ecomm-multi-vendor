@@ -1,15 +1,40 @@
 "use client";
 
-import { Download, DollarSign, TrendingUp, TrendingDown } from "lucide-react";
+import { Download, DollarSign, TrendingDown } from "lucide-react";
 import { Button, Input, Card, Select } from "../components/UIComponents";
 import { DataState } from "../../components/DataState";
 import { useApi } from "@/lib/hooks/useApi";
 import { vendorService } from "@/services/vendor.service";
 import * as React from "react";
 
+function formatInr(amount: number): string {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 2,
+    minimumFractionDigits: 0,
+  }).format(amount);
+}
+
+function escapeCsvCell(value: string | number): string {
+  const s = String(value);
+  if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+}
+
+function defaultDateFrom(): string {
+  const d = new Date();
+  d.setDate(d.getDate() - 30);
+  return d.toISOString().slice(0, 10);
+}
+
+function defaultDateTo(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
 export function VendorEarnings() {
-  const [dateFrom, setDateFrom] = React.useState("2026-02-01");
-  const [dateTo, setDateTo] = React.useState("2026-02-25");
+  const [dateFrom, setDateFrom] = React.useState(defaultDateFrom);
+  const [dateTo, setDateTo] = React.useState(defaultDateTo);
   const [filterStatus, setFilterStatus] = React.useState("all");
   const [searchOrderId, setSearchOrderId] = React.useState("");
 
@@ -56,7 +81,7 @@ export function VendorEarnings() {
 
   const handleExport = () => {
     if (earnings.length === 0) {
-      alert("No data to export.");
+      alert("No data to export for the selected filters.");
       return;
     }
     const headers = [
@@ -66,27 +91,45 @@ export function VendorEarnings() {
       "Commission %",
       "Commission Amt",
       "Net Earning",
-      "Status",
-      "Payout Ref",
+      "Payout status",
+      "Payout ref",
     ];
-    const rows = earnings.map((e) =>
+    const lines = [
+      headers.map(escapeCsvCell).join(","),
+      ...earnings.map((e) =>
+        [
+          e.orderId,
+          e.orderDate,
+          e.grossAmount,
+          `${e.commissionPercent}`,
+          e.commissionAmount,
+          e.netEarning,
+          e.payoutStatus,
+          e.payoutRef ?? "",
+        ]
+          .map(escapeCsvCell)
+          .join(",")
+      ),
+      "",
       [
-        e.orderId,
-        e.orderDate,
-        e.grossAmount,
-        `${e.commissionPercent}%`,
-        e.commissionAmount,
-        e.netEarning,
-        e.payoutStatus,
-        e.payoutRef ?? "",
-      ].join(",")
-    );
-    const csv = [headers.join(","), ...rows].join("\n");
+        "TOTAL",
+        "",
+        summary.gross,
+        "",
+        summary.commission,
+        summary.net,
+        "",
+        "",
+      ]
+        .map(escapeCsvCell)
+        .join(","),
+    ];
+    const csv = "\uFEFF" + lines.join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `earnings-${dateFrom}-${dateTo}.csv`;
+    a.download = `vendor-earnings-${dateFrom}_to_${dateTo}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -113,13 +156,10 @@ export function VendorEarnings() {
             <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center">
               <DollarSign className="w-6 h-6 text-white" />
             </div>
-            <div className="flex items-center gap-1 text-green-600 text-sm font-semibold">
-              <TrendingUp className="w-4 h-4" />
-              +12%
-            </div>
+            <p className="text-sm text-[#64748B]">Selected range</p>
           </div>
-          <p className="text-[#64748B] text-sm mb-2">Total Gross Revenue</p>
-          <p className="text-3xl font-bold text-[#1E293B]">₹{summary.gross.toLocaleString()}</p>
+          <p className="text-[#64748B] text-sm mb-2">Total gross revenue</p>
+          <p className="text-3xl font-bold text-[#1E293B] tabular-nums">{formatInr(summary.gross)}</p>
         </Card>
 
         <Card>
@@ -127,10 +167,10 @@ export function VendorEarnings() {
             <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-orange-600 rounded-xl flex items-center justify-center">
               <TrendingDown className="w-6 h-6 text-white" />
             </div>
-            <p className="text-sm text-[#64748B]">10% avg</p>
+            <p className="text-sm text-[#64748B]">Deducted</p>
           </div>
-          <p className="text-[#64748B] text-sm mb-2">Total Commission</p>
-          <p className="text-3xl font-bold text-[#DC2626]">₹{summary.commission.toLocaleString()}</p>
+          <p className="text-[#64748B] text-sm mb-2">Total commission</p>
+          <p className="text-3xl font-bold text-[#DC2626] tabular-nums">{formatInr(summary.commission)}</p>
         </Card>
 
         <Card>
@@ -138,27 +178,27 @@ export function VendorEarnings() {
             <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
               <DollarSign className="w-6 h-6 text-white" />
             </div>
-            <div className="flex items-center gap-1 text-blue-600 text-sm font-semibold">
-              <TrendingUp className="w-4 h-4" />
-              +8%
-            </div>
+            <p className="text-sm text-[#64748B]">Gross − commission</p>
           </div>
-          <p className="text-[#64748B] text-sm mb-2">Net Earnings</p>
-          <p className="text-3xl font-bold text-[#3B82F6]">₹{summary.net.toLocaleString()}</p>
+          <p className="text-[#64748B] text-sm mb-2">Net earnings</p>
+          <p className="text-3xl font-bold text-[#3B82F6] tabular-nums">{formatInr(summary.net)}</p>
         </Card>
       </div>
 
-      {/* Filters */}
+      {/* Filters — summary & export follow From / To */}
       <Card>
+        <p className="text-sm text-[#64748B] mb-4">
+          Choose a date range, then use <strong>Export CSV</strong> to download the same rows as in the table (UTF‑8, Excel-friendly).
+        </p>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Input
-            label="From Date"
+            label="From date"
             type="date"
             value={dateFrom}
             onChange={(e) => setDateFrom(e.target.value)}
           />
           <Input
-            label="To Date"
+            label="To date"
             type="date"
             value={dateTo}
             onChange={(e) => setDateTo(e.target.value)}
@@ -215,6 +255,13 @@ export function VendorEarnings() {
               </tr>
             </thead>
             <tbody>
+              {earnings.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="py-12 text-center text-[#64748B] text-sm">
+                    No orders in this date range. Widen the dates or clear filters.
+                  </td>
+                </tr>
+              )}
               {earnings.map((earning, index) => (
                 <tr key={`${earning.orderId}-${earning.orderDate}-${index}`} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors">
                   <td className="py-4 px-4">
@@ -224,7 +271,7 @@ export function VendorEarnings() {
                     <p className="text-sm text-[#64748B]">{earning.orderDate}</p>
                   </td>
                   <td className="py-4 px-4 text-right">
-                    <p className="font-semibold text-[#1E293B]">₹{earning.grossAmount}</p>
+                    <p className="font-semibold text-[#1E293B] tabular-nums">{formatInr(earning.grossAmount)}</p>
                   </td>
                   <td className="py-4 px-4 text-center">
                     <span className="text-sm font-semibold text-[#64748B]">
@@ -232,10 +279,10 @@ export function VendorEarnings() {
                     </span>
                   </td>
                   <td className="py-4 px-4 text-right">
-                    <p className="font-semibold text-[#DC2626]">₹{earning.commissionAmount}</p>
+                    <p className="font-semibold text-[#DC2626] tabular-nums">{formatInr(earning.commissionAmount)}</p>
                   </td>
                   <td className="py-4 px-4 text-right">
-                    <p className="font-bold text-[#3B82F6]">₹{earning.netEarning}</p>
+                    <p className="font-bold text-[#3B82F6] tabular-nums">{formatInr(earning.netEarning)}</p>
                   </td>
                   <td className="py-4 px-4 text-center">
                     <span
@@ -264,14 +311,14 @@ export function VendorEarnings() {
                   <p className="font-bold text-[#1E293B]">TOTAL</p>
                 </td>
                 <td className="py-4 px-4 text-right">
-                  <p className="font-bold text-[#1E293B]">₹{summary.gross.toLocaleString()}</p>
+                  <p className="font-bold text-[#1E293B] tabular-nums">{formatInr(summary.gross)}</p>
                 </td>
                 <td className="py-4 px-4"></td>
                 <td className="py-4 px-4 text-right">
-                  <p className="font-bold text-[#DC2626]">₹{summary.commission.toLocaleString()}</p>
+                  <p className="font-bold text-[#DC2626] tabular-nums">{formatInr(summary.commission)}</p>
                 </td>
                 <td className="py-4 px-4 text-right">
-                  <p className="font-bold text-[#3B82F6]">₹{summary.net.toLocaleString()}</p>
+                  <p className="font-bold text-[#3B82F6] tabular-nums">{formatInr(summary.net)}</p>
                 </td>
                 <td colSpan={2}></td>
               </tr>

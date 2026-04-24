@@ -39,6 +39,8 @@ function orderDisplayId(id: string): string {
   return `#ORD-${id.slice(-6).toUpperCase()}`;
 }
 
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
 /**
  * Get earnings for a vendor: aggregated per order from OrderItems (this seller),
  * with payout status derived from Payout periods (paid if order date falls in a PAID payout).
@@ -48,8 +50,16 @@ export async function getVendorEarnings(
 ): Promise<VendorEarningsResult> {
   const { sellerId, dateFrom, dateTo, orderIdSearch, payoutStatus } = params;
 
+  const orderCreatedAt: { gte?: Date; lte?: Date } = {};
+  if (dateFrom) orderCreatedAt.gte = new Date(dateFrom + "T00:00:00.000Z");
+  if (dateTo) orderCreatedAt.lte = new Date(dateTo + "T23:59:59.999Z");
+  const hasOrderDateFilter = Boolean(dateFrom || dateTo);
+
   const items = await prisma.orderItem.findMany({
-    where: { sellerId },
+    where: {
+      sellerId,
+      ...(hasOrderDateFilter && { order: { createdAt: orderCreatedAt } }),
+    },
     include: {
       order: {
         select: { id: true, createdAt: true },
@@ -71,6 +81,7 @@ export async function getVendorEarnings(
       orderCreatedAt: Date;
       grossAmount: number;
       commissionAmount: number;
+      netLineSum: number;
       commissionPercentSum: number;
       commissionQty: number;
     }
@@ -81,12 +92,14 @@ export async function getVendorEarnings(
     const gross = toNumber(item.totalPrice);
     const commAmt = toNumber(item.commissionAmount);
     const commPct = toNumber(item.commissionPercent);
-    const net = toNumber(item.netPayable) || gross - commAmt;
+    const lineNet =
+      toNumber(item.netPayable) || Math.max(0, gross - commAmt);
 
     const existing = byOrderId.get(o.id);
     if (existing) {
       existing.grossAmount += gross;
       existing.commissionAmount += commAmt;
+      existing.netLineSum += lineNet;
       existing.commissionPercentSum += commPct;
       existing.commissionQty += 1;
     } else {
@@ -95,6 +108,7 @@ export async function getVendorEarnings(
         orderCreatedAt: o.createdAt,
         grossAmount: gross,
         commissionAmount: commAmt,
+        netLineSum: lineNet,
         commissionPercentSum: commPct,
         commissionQty: 1,
       });
@@ -108,10 +122,6 @@ export async function getVendorEarnings(
 
     const orderDate = row.orderCreatedAt;
     const dateStr = orderDate.toISOString().slice(0, 10);
-
-    // Optional date filter
-    if (dateFrom && dateStr < dateFrom) continue;
-    if (dateTo && dateStr > dateTo) continue;
 
     const displayId = orderDisplayId(orderId);
     if (orderIdSearch) {
@@ -128,7 +138,7 @@ export async function getVendorEarnings(
       row.commissionQty > 0
         ? Math.round(row.commissionPercentSum / row.commissionQty)
         : 0;
-    const netEarning = row.grossAmount - row.commissionAmount;
+    const netEarning = row.netLineSum;
 
     // Check if this order falls in a paid payout period
     const orderDay = new Date(orderDate);
@@ -153,10 +163,10 @@ export async function getVendorEarnings(
     rows.push({
       orderId: displayId,
       orderDate: dateStr,
-      grossAmount: row.grossAmount,
+      grossAmount: round2(row.grossAmount),
       commissionPercent: avgCommissionPercent,
-      commissionAmount: row.commissionAmount,
-      netEarning,
+      commissionAmount: round2(row.commissionAmount),
+      netEarning: round2(netEarning),
       payoutStatus: payoutStatusRow,
       payoutRef,
     });
@@ -172,6 +182,9 @@ export async function getVendorEarnings(
     }),
     { gross: 0, commission: 0, net: 0 }
   );
+  summary.gross = round2(summary.gross);
+  summary.commission = round2(summary.commission);
+  summary.net = round2(summary.net);
 
   return { summary, rows };
 }
