@@ -22,7 +22,7 @@ export const GET = withApiHandler(async (request: NextRequest, context?: ApiRout
   if (!categoryId) return apiNotFound("Category not found");
 
   const category = await prisma.category.findFirst({
-    where: { id: categoryId, deletedAt: null },
+    where: { id: categoryId },
     select: { id: true },
   });
   if (!category) return apiNotFound("Category not found");
@@ -48,7 +48,7 @@ export const POST = withApiHandler(async (request: NextRequest, context?: ApiRou
   if (!categoryId) return apiNotFound("Category not found");
 
   const category = await prisma.category.findFirst({
-    where: { id: categoryId, deletedAt: null },
+    where: { id: categoryId },
     select: { id: true },
   });
   if (!category) return apiNotFound("Category not found");
