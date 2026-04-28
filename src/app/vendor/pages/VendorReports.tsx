@@ -173,11 +173,13 @@ export function VendorReports() {
 
   return (
     <DataState isLoading={isLoading} error={error} retry={refetch}>
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-[#1E293B] mb-2">Reports</h1>
-        <p className="text-[#64748B]">Download detailed reports for your business records</p>
+      <div className="space-y-1">
+        <h1 className="text-xl font-bold leading-snug text-[#1E293B] sm:text-2xl lg:text-3xl">Reports</h1>
+        <p className="text-sm leading-relaxed text-[#64748B]">
+          Download detailed reports for your business records
+        </p>
       </div>
 
       {/* Info Alert */}
@@ -187,7 +189,7 @@ export function VendorReports() {
       />
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-6">
         {reportStats.map((stat, index) => {
           const Icon = stat.icon;
           return (
@@ -251,7 +253,7 @@ export function VendorReports() {
             </ul>
           </div>
 
-          <div className="flex flex-col md:flex-row gap-4 items-end">
+          <div className="flex flex-col gap-4 md:flex-row md:items-end">
             <div className="flex-1">
               <Input
                 label="From Date"
@@ -270,10 +272,11 @@ export function VendorReports() {
             </div>
             <Button
               variant="primary"
+              className="min-h-11 w-full shrink-0 md:w-auto"
               onClick={handleDownloadOrders}
               disabled={downloading !== null}
             >
-              <Download className="w-5 h-5" />
+              <Download className="h-5 w-5" />
               {downloading === "orders" ? "Downloading…" : "Download CSV"}
             </Button>
           </div>
@@ -325,7 +328,7 @@ export function VendorReports() {
             </ul>
           </div>
 
-          <div className="flex flex-col md:flex-row gap-4 items-end">
+          <div className="flex flex-col gap-4 md:flex-row md:items-end">
             <div className="flex-1">
               <Input
                 label="From Date"
@@ -344,10 +347,11 @@ export function VendorReports() {
             </div>
             <Button
               variant="primary"
+              className="min-h-11 w-full shrink-0 md:w-auto"
               onClick={handleDownloadProducts}
               disabled={downloading !== null}
             >
-              <Download className="w-5 h-5" />
+              <Download className="h-5 w-5" />
               {downloading === "products" ? "Downloading…" : "Download CSV"}
             </Button>
           </div>
@@ -399,7 +403,7 @@ export function VendorReports() {
             </ul>
           </div>
 
-          <div className="flex flex-col md:flex-row gap-4 items-end">
+          <div className="flex flex-col gap-4 md:flex-row md:items-end">
             <div className="flex-1">
               <Input
                 label="From Date"
@@ -418,10 +422,11 @@ export function VendorReports() {
             </div>
             <Button
               variant="primary"
+              className="min-h-11 w-full shrink-0 md:w-auto"
               onClick={handleDownloadEarnings}
               disabled={downloading !== null}
             >
-              <Download className="w-5 h-5" />
+              <Download className="h-5 w-5" />
               {downloading === "earnings" ? "Downloading…" : "Download CSV"}
             </Button>
           </div>
@@ -430,9 +435,9 @@ export function VendorReports() {
 
       {/* Help Section */}
       <Card title="Need Help?">
-        <div className="flex items-start gap-4">
-          <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-            <FileText className="w-6 h-6 text-blue-600" />
+        <div className="flex items-start gap-3 sm:gap-4">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-100">
+            <FileText className="h-6 w-6 text-blue-600" />
           </div>
           <div>
             <h4 className="font-semibold text-[#1E293B] mb-2">How to use reports?</h4>

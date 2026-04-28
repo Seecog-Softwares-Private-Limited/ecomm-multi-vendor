@@ -22,6 +22,7 @@ import {
   AlertCircle,
   Check,
   ArrowRight,
+  type LucideIcon,
 } from "lucide-react";
 import * as React from "react";
 import { toast } from "sonner";
@@ -200,6 +201,28 @@ export function VendorLayout({
     { name: "Support", path: "/vendor/support", icon: HelpCircle },
   ] as const;
 
+  /** Mobile bottom bar — mirrors seller-app style primary destinations. */
+  const bottomNavApproved: { name: string; path: string; icon: LucideIcon }[] = [
+    { name: "Home", path: "/vendor", icon: LayoutDashboard },
+    { name: "Orders", path: "/vendor/orders", icon: ShoppingBag },
+    { name: "Products", path: "/vendor/products", icon: Package },
+    { name: "Earnings", path: "/vendor/earnings", icon: Wallet },
+    { name: "Payouts", path: "/vendor/payouts", icon: CreditCard },
+  ];
+  const bottomNavOnboarding: { name: string; path: string; icon: LucideIcon }[] = [
+    { name: "Home", path: "/vendor", icon: LayoutDashboard },
+    { name: "Profile", path: "/vendor/profile", icon: User },
+    { name: "Support", path: "/vendor/support", icon: HelpCircle },
+  ];
+  const bottomNavItems = approved ? bottomNavApproved : bottomNavOnboarding;
+
+  function isBottomNavActive(path: string): boolean {
+    const p = activePath.split("?")[0] ?? activePath;
+    const normalized = p.length > 1 && p.endsWith("/") ? p.slice(0, -1) : p;
+    if (path === "/vendor") return normalized === "/vendor";
+    return normalized === path || normalized.startsWith(`${path}/`);
+  }
+
   const getStatusBadge = () => {
     const statusConfig: Record<string, { label: string; color: string }> = {
       approved:             { label: "Approved",             color: "bg-emerald-500" },
@@ -218,7 +241,7 @@ export function VendorLayout({
   };
 
   return (
-    <div className="relative flex h-screen overflow-hidden bg-[#F8FAFC]">
+    <div className="relative flex h-[100dvh] overflow-hidden bg-[#F8FAFC]">
       {sidebarOpen ? (
         <button
           type="button"
@@ -264,28 +287,30 @@ export function VendorLayout({
       {/* Main Content */}
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         {/* Top Bar */}
-        <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-[#E2E8F0] bg-white px-3 sm:h-16 sm:gap-4 sm:px-6">
+        <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between gap-2 border-b border-[#E2E8F0] bg-white/95 px-3 backdrop-blur-md supports-[backdrop-filter]:bg-white/80 sm:h-16 sm:gap-4 sm:px-6">
           <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-4">
             <button
               type="button"
               onClick={() => setSidebarOpen(true)}
-              className="shrink-0 rounded-lg p-2 text-[#64748B] transition hover:bg-slate-50 hover:text-[#1E293B] lg:hidden"
+              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-[#64748B] transition hover:bg-slate-50 hover:text-[#1E293B] lg:hidden"
               aria-label="Open navigation menu"
             >
               <Menu className="h-6 w-6" />
             </button>
-            <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-              <h2 className="truncate text-base font-bold text-[#1E293B] sm:text-lg">{businessName ?? "Vendor"}</h2>
-              <span className="shrink-0">{getStatusBadge()}</span>
+            <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+              <h2 className="min-w-0 flex-1 break-words text-base font-bold leading-snug text-[#1E293B] sm:text-lg sm:leading-normal lg:truncate">
+                {businessName ?? "Vendor"}
+              </h2>
+              <span className="shrink-0 scale-90 sm:scale-100">{getStatusBadge()}</span>
             </div>
           </div>
 
-          <div className="flex shrink-0 items-center gap-2 sm:gap-4">
+          <div className="flex shrink-0 items-center gap-1 sm:gap-4">
             {/* ── Notification bell ── */}
             <div className="relative" ref={notifRef}>
               <button
                 onClick={openNotifDropdown}
-                className="relative p-2 text-[#64748B] hover:text-[#1E293B] hover:bg-[#F8FAFC] rounded-lg transition-colors"
+                className="relative inline-flex h-11 w-11 items-center justify-center rounded-xl text-[#64748B] transition-colors hover:bg-[#F8FAFC] hover:text-[#1E293B]"
                 aria-label="Notifications"
               >
                 <Bell className="w-5 h-5" />
@@ -399,12 +424,14 @@ export function VendorLayout({
             <div className="relative">
               <button
                 onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-                className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-[#F8FAFC] transition-colors"
+                className="flex items-center gap-2 rounded-xl px-2 py-1.5 transition-colors hover:bg-[#F8FAFC] sm:gap-3 sm:px-3 sm:py-2"
+                aria-haspopup="menu"
+                aria-expanded={profileMenuOpen}
               >
-                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-sm font-bold text-white sm:h-10 sm:w-10">
                   {businessName ? businessName.slice(0, 2).toUpperCase() : "V"}
                 </div>
-                <ChevronDown className="w-4 h-4 text-[#64748B]" />
+                <ChevronDown className="hidden h-4 w-4 text-[#64748B] sm:block" />
               </button>
 
               {profileMenuOpen && (
@@ -438,10 +465,36 @@ export function VendorLayout({
           </div>
         </header>
 
-        {/* Page Content */}
-        <main className="flex-1 overflow-x-hidden overflow-y-auto px-3 py-4 sm:px-6 sm:py-6 lg:p-8">
+        {/* Page Content — extra bottom padding on mobile for tab bar + safe area */}
+        <main className="flex-1 overflow-x-hidden overflow-y-auto px-3 py-4 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] sm:px-6 sm:py-6 sm:pb-6 lg:p-8 lg:pb-8">
           {children}
         </main>
+
+        {/* Mobile bottom navigation */}
+        <nav
+          className="fixed bottom-0 left-0 right-0 z-40 border-t border-[#E2E8F0] bg-white/95 pb-[env(safe-area-inset-bottom,0px)] pt-1 shadow-[0_-4px_24px_rgba(15,23,42,0.06)] backdrop-blur-md supports-[backdrop-filter]:bg-white/90 lg:hidden"
+          aria-label="Primary"
+        >
+          <div className="mx-auto flex max-w-lg items-stretch justify-between gap-0 px-1">
+            {bottomNavItems.map((item) => {
+              const Icon = item.icon;
+              const active = isBottomNavActive(item.path);
+              return (
+                <Link
+                  key={item.path}
+                  href={item.path}
+                  onClick={() => setSidebarOpen(false)}
+                  className={`flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1.5 text-[10px] font-semibold transition-colors sm:text-[11px] ${
+                    active ? "text-indigo-600" : "text-[#64748B] hover:text-[#1E293B]"
+                  }`}
+                >
+                  <Icon className={`h-5 w-5 shrink-0 ${active ? "text-indigo-600" : "text-[#94A3B8]"}`} />
+                  <span className="max-w-full truncate">{item.name}</span>
+                </Link>
+              );
+            })}
+          </div>
+        </nav>
       </div>
     </div>
   );

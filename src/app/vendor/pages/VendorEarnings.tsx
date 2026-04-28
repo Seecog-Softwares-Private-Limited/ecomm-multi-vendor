@@ -136,21 +136,23 @@ export function VendorEarnings() {
 
   return (
     <DataState isLoading={isLoading} error={error} retry={refetch}>
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-[#1E293B] mb-2">Earnings</h1>
-          <p className="text-[#64748B]">Track your revenue and commission breakdown</p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 space-y-1">
+          <h1 className="text-xl font-bold leading-snug text-[#1E293B] sm:text-2xl lg:text-3xl">Earnings</h1>
+          <p className="text-sm leading-relaxed text-[#64748B]">
+            Track your revenue and commission breakdown
+          </p>
         </div>
-        <Button variant="primary" onClick={handleExport}>
-          <Download className="w-5 h-5" />
+        <Button variant="primary" onClick={handleExport} className="min-h-11 w-full shrink-0 sm:w-auto">
+          <Download className="h-5 w-5" />
           Export CSV
         </Button>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-6">
         <Card>
           <div className="flex items-start justify-between mb-4">
             <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center">
@@ -224,69 +226,122 @@ export function VendorEarnings() {
 
       {/* Earnings Table */}
       <Card title="Earnings Breakdown">
-        <div className="overflow-x-auto">
-          <table className="w-full">
+        <div className="space-y-3 md:hidden">
+          {earnings.length === 0 ? (
+            <p className="py-8 text-center text-sm text-[#64748B]">
+              No orders in this date range. Widen the dates or clear filters.
+            </p>
+          ) : (
+            <>
+              {earnings.map((earning, index) => (
+                <div
+                  key={`${earning.orderId}-${earning.orderDate}-${index}`}
+                  className="rounded-2xl border border-slate-200/80 bg-slate-50/50 p-4 shadow-sm"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="break-all font-bold text-[#1E293B]">{earning.orderId}</p>
+                    <span
+                      className={`shrink-0 rounded-lg px-2.5 py-1 text-xs font-bold ${
+                        earning.payoutStatus === "paid"
+                          ? "bg-green-100 text-green-700"
+                          : "bg-yellow-100 text-yellow-700"
+                      }`}
+                    >
+                      {earning.payoutStatus === "paid" ? "Paid" : "Unpaid"}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-sm text-[#64748B]">{earning.orderDate}</p>
+                  <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                      <p className="text-xs text-[#94A3B8]">Gross</p>
+                      <p className="font-semibold tabular-nums text-[#1E293B]">{formatInr(earning.grossAmount)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-[#94A3B8]">Commission</p>
+                      <p className="font-semibold text-[#64748B]">{earning.commissionPercent}%</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-[#94A3B8]">Comm. amt</p>
+                      <p className="font-semibold tabular-nums text-[#DC2626]">{formatInr(earning.commissionAmount)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-[#94A3B8]">Net</p>
+                      <p className="font-bold tabular-nums text-[#3B82F6]">{formatInr(earning.netEarning)}</p>
+                    </div>
+                  </div>
+                  {earning.payoutRef ? (
+                    <p className="mt-2 break-all font-mono text-xs text-[#3B82F6]">{earning.payoutRef}</p>
+                  ) : null}
+                </div>
+              ))}
+              <div className="rounded-2xl border-2 border-[#E2E8F0] bg-[#F8FAFC] p-4">
+                <p className="text-xs font-bold uppercase tracking-wide text-[#64748B]">Totals</p>
+                <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
+                  <div>
+                    <p className="text-[#94A3B8]">Gross</p>
+                    <p className="font-bold tabular-nums text-[#1E293B]">{formatInr(summary.gross)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[#94A3B8]">Commission</p>
+                    <p className="font-bold tabular-nums text-[#DC2626]">{formatInr(summary.commission)}</p>
+                  </div>
+                  <div className="col-span-2">
+                    <p className="text-[#94A3B8]">Net</p>
+                    <p className="text-lg font-bold tabular-nums text-[#3B82F6]">{formatInr(summary.net)}</p>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+        <div className="hidden overflow-x-auto md:block">
+          <table className="w-full min-w-[800px]">
             <thead>
               <tr className="border-b-2 border-[#E2E8F0]">
-                <th className="text-left py-4 px-4 text-sm font-bold text-[#64748B] uppercase">
-                  Order ID
-                </th>
-                <th className="text-left py-4 px-4 text-sm font-bold text-[#64748B] uppercase">
-                  Date
-                </th>
-                <th className="text-right py-4 px-4 text-sm font-bold text-[#64748B] uppercase">
-                  Gross Amount
-                </th>
-                <th className="text-center py-4 px-4 text-sm font-bold text-[#64748B] uppercase">
-                  Commission
-                </th>
-                <th className="text-right py-4 px-4 text-sm font-bold text-[#64748B] uppercase">
-                  Commission Amt
-                </th>
-                <th className="text-right py-4 px-4 text-sm font-bold text-[#64748B] uppercase">
-                  Net Earning
-                </th>
-                <th className="text-center py-4 px-4 text-sm font-bold text-[#64748B] uppercase">
-                  Status
-                </th>
-                <th className="text-left py-4 px-4 text-sm font-bold text-[#64748B] uppercase">
-                  Payout Ref
-                </th>
+                <th className="px-4 py-4 text-left text-sm font-bold uppercase text-[#64748B]">Order ID</th>
+                <th className="px-4 py-4 text-left text-sm font-bold uppercase text-[#64748B]">Date</th>
+                <th className="px-4 py-4 text-right text-sm font-bold uppercase text-[#64748B]">Gross Amount</th>
+                <th className="px-4 py-4 text-center text-sm font-bold uppercase text-[#64748B]">Commission</th>
+                <th className="px-4 py-4 text-right text-sm font-bold uppercase text-[#64748B]">Commission Amt</th>
+                <th className="px-4 py-4 text-right text-sm font-bold uppercase text-[#64748B]">Net Earning</th>
+                <th className="px-4 py-4 text-center text-sm font-bold uppercase text-[#64748B]">Status</th>
+                <th className="px-4 py-4 text-left text-sm font-bold uppercase text-[#64748B]">Payout Ref</th>
               </tr>
             </thead>
             <tbody>
               {earnings.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-[#64748B] text-sm">
+                  <td colSpan={8} className="py-12 text-center text-sm text-[#64748B]">
                     No orders in this date range. Widen the dates or clear filters.
                   </td>
                 </tr>
               )}
               {earnings.map((earning, index) => (
-                <tr key={`${earning.orderId}-${earning.orderDate}-${index}`} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors">
-                  <td className="py-4 px-4">
+                <tr
+                  key={`${earning.orderId}-${earning.orderDate}-${index}`}
+                  className="border-b border-[#E2E8F0] transition-colors hover:bg-[#F8FAFC]"
+                >
+                  <td className="px-4 py-4">
                     <p className="font-bold text-[#1E293B]">{earning.orderId}</p>
                   </td>
-                  <td className="py-4 px-4">
+                  <td className="px-4 py-4">
                     <p className="text-sm text-[#64748B]">{earning.orderDate}</p>
                   </td>
-                  <td className="py-4 px-4 text-right">
-                    <p className="font-semibold text-[#1E293B] tabular-nums">{formatInr(earning.grossAmount)}</p>
+                  <td className="px-4 py-4 text-right">
+                    <p className="font-semibold tabular-nums text-[#1E293B]">{formatInr(earning.grossAmount)}</p>
                   </td>
-                  <td className="py-4 px-4 text-center">
-                    <span className="text-sm font-semibold text-[#64748B]">
-                      {earning.commissionPercent}%
-                    </span>
+                  <td className="px-4 py-4 text-center">
+                    <span className="text-sm font-semibold text-[#64748B]">{earning.commissionPercent}%</span>
                   </td>
-                  <td className="py-4 px-4 text-right">
-                    <p className="font-semibold text-[#DC2626] tabular-nums">{formatInr(earning.commissionAmount)}</p>
+                  <td className="px-4 py-4 text-right">
+                    <p className="font-semibold tabular-nums text-[#DC2626]">{formatInr(earning.commissionAmount)}</p>
                   </td>
-                  <td className="py-4 px-4 text-right">
-                    <p className="font-bold text-[#3B82F6] tabular-nums">{formatInr(earning.netEarning)}</p>
+                  <td className="px-4 py-4 text-right">
+                    <p className="font-bold tabular-nums text-[#3B82F6]">{formatInr(earning.netEarning)}</p>
                   </td>
-                  <td className="py-4 px-4 text-center">
+                  <td className="px-4 py-4 text-center">
                     <span
-                      className={`text-xs font-bold px-3 py-1 rounded-lg ${
+                      className={`rounded-lg px-3 py-1 text-xs font-bold ${
                         earning.payoutStatus === "paid"
                           ? "bg-green-100 text-green-700"
                           : "bg-yellow-100 text-yellow-700"
@@ -295,9 +350,9 @@ export function VendorEarnings() {
                       {earning.payoutStatus === "paid" ? "Paid" : "Unpaid"}
                     </span>
                   </td>
-                  <td className="py-4 px-4">
+                  <td className="px-4 py-4">
                     {earning.payoutRef ? (
-                      <p className="text-sm font-mono text-[#3B82F6]">{earning.payoutRef}</p>
+                      <p className="font-mono text-sm text-[#3B82F6]">{earning.payoutRef}</p>
                     ) : (
                       <p className="text-sm text-[#94A3B8]">-</p>
                     )}
@@ -305,20 +360,20 @@ export function VendorEarnings() {
                 </tr>
               ))}
             </tbody>
-            <tfoot className="bg-[#F8FAFC] border-t-2 border-[#E2E8F0]">
+            <tfoot className="border-t-2 border-[#E2E8F0] bg-[#F8FAFC]">
               <tr>
-                <td colSpan={2} className="py-4 px-4">
+                <td colSpan={2} className="px-4 py-4">
                   <p className="font-bold text-[#1E293B]">TOTAL</p>
                 </td>
-                <td className="py-4 px-4 text-right">
-                  <p className="font-bold text-[#1E293B] tabular-nums">{formatInr(summary.gross)}</p>
+                <td className="px-4 py-4 text-right">
+                  <p className="font-bold tabular-nums text-[#1E293B]">{formatInr(summary.gross)}</p>
                 </td>
-                <td className="py-4 px-4"></td>
-                <td className="py-4 px-4 text-right">
-                  <p className="font-bold text-[#DC2626] tabular-nums">{formatInr(summary.commission)}</p>
+                <td className="px-4 py-4"></td>
+                <td className="px-4 py-4 text-right">
+                  <p className="font-bold tabular-nums text-[#DC2626]">{formatInr(summary.commission)}</p>
                 </td>
-                <td className="py-4 px-4 text-right">
-                  <p className="font-bold text-[#3B82F6] tabular-nums">{formatInr(summary.net)}</p>
+                <td className="px-4 py-4 text-right">
+                  <p className="font-bold tabular-nums text-[#3B82F6]">{formatInr(summary.net)}</p>
                 </td>
                 <td colSpan={2}></td>
               </tr>
