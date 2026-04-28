@@ -110,6 +110,8 @@ export async function getCategoryBySlug(slug: string): Promise<CategoryItem | nu
  */
 const SUBCATEGORY_SLUG_ALIASES: Record<string, string> = {
   "mobile-phones": "mobiles",
+  /** Common storefront path: /category/shoes → footwear subcategory (e.g. Sports Footwear). */
+  shoes: "footwear",
 };
 
 /**

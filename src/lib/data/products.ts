@@ -43,6 +43,43 @@ function normalizeProductSlugParam(raw: string): string {
 }
 
 /**
+ * Storefront search: match name, SKU, description, category name/slug, subcategory name/slug.
+ * Multi-word queries require every token to match somewhere (AND of per-token OR groups).
+ * MySQL utf8mb4_unicode_ci makes `contains` effectively case-insensitive for these text columns.
+ */
+function productTextSearchWhere(searchQuery: string | undefined): Prisma.ProductWhereInput {
+  const raw = searchQuery?.trim();
+  if (!raw) return {};
+
+  const tokens = raw.split(/\s+/).filter((t) => t.length > 0);
+  if (tokens.length === 0) return {};
+
+  const oneToken = (t: string): Prisma.ProductWhereInput => ({
+    OR: [
+      { name: { contains: t } },
+      { sku: { contains: t } },
+      { description: { contains: t } },
+      {
+        category: {
+          deletedAt: null,
+          OR: [{ name: { contains: t } }, { slug: { contains: t } }],
+        },
+      },
+      {
+        subCategory: {
+          deletedAt: null,
+          OR: [{ name: { contains: t } }, { slug: { contains: t } }],
+        },
+      },
+    ],
+  });
+
+  if (tokens.length === 1) return oneToken(tokens[0]!);
+
+  return { AND: tokens.map((t) => oneToken(t)) };
+}
+
+/**
  * If this active product has a real SEO slug, return it (for UUID → slug redirect).
  */
 export async function getActiveProductDbSlug(productId: string): Promise<string | null> {
@@ -81,7 +118,7 @@ export async function getProducts(options: {
     subCategoryId = id;
   }
 
-  const searchTerm = searchQuery?.trim();
+  const textSearch = productTextSearchWhere(searchQuery);
   const pinWhere = await productPinServiceableWhereAsync(pincode);
   const list = await prisma.product.findMany({
     where: {
@@ -90,7 +127,7 @@ export async function getProducts(options: {
       ...pinWhere,
       ...(categoryId && { categoryId }),
       ...(subCategoryId && { subCategoryId }),
-      ...(searchTerm && searchTerm.length > 0 ? { name: { contains: searchTerm } } : {}),
+      ...textSearch,
     },
     orderBy: { createdAt: "desc" },
     take: limit,
@@ -210,9 +247,7 @@ export async function getProductsByMenuType(
 ): Promise<ProductListItem[]> {
   const { limit = 48, offset = 0, pincode, q } = options;
   const svc = await productPinServiceableWhereAsync(pincode);
-  const searchTerm = q?.trim();
-  const nameWhere =
-    searchTerm && searchTerm.length > 0 ? { name: { contains: searchTerm } } : {};
+  const textSearch = productTextSearchWhere(q);
 
   const select = {
     id: true,
@@ -227,7 +262,7 @@ export async function getProductsByMenuType(
 
   if (type === "deals") {
     const list = await prisma.product.findMany({
-      where: { deletedAt: null, status: "ACTIVE", ...svc, ...nameWhere },
+      where: { deletedAt: null, status: "ACTIVE", ...svc, ...textSearch },
       orderBy: { createdAt: "desc" },
       take: 500,
       select,
@@ -254,7 +289,7 @@ export async function getProductsByMenuType(
 
   if (type === "new-arrivals") {
     const list = await prisma.product.findMany({
-      where: { deletedAt: null, status: "ACTIVE", ...svc },
+      where: { deletedAt: null, status: "ACTIVE", ...svc, ...textSearch },
       orderBy: { createdAt: "desc" },
       take: limit,
       skip: offset,
@@ -274,7 +309,7 @@ export async function getProductsByMenuType(
 
   if (type === "best-sellers") {
     const list = await prisma.product.findMany({
-      where: { deletedAt: null, status: "ACTIVE", ...svc, ...nameWhere },
+      where: { deletedAt: null, status: "ACTIVE", ...svc, ...textSearch },
       orderBy: [{ reviewCount: "desc" }, { createdAt: "desc" }],
       take: limit,
       skip: offset,
