@@ -59,29 +59,32 @@ export function VendorSettings() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-[#1E293B] mb-2">Settings</h1>
-        <p className="text-[#64748B]">Manage your account settings and preferences</p>
+      <div className="space-y-1">
+        <h1 className="text-xl font-bold leading-snug text-[#1E293B] sm:text-2xl lg:text-3xl">Settings</h1>
+        <p className="text-sm leading-relaxed text-[#64748B]">
+          Manage your account settings and preferences
+        </p>
       </div>
 
       {/* Tab Navigation */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:gap-2">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           return (
             <button
               key={tab.id}
+              type="button"
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-6 py-3 rounded-xl font-semibold whitespace-nowrap transition-all ${
+              className={`flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition-all sm:w-auto sm:min-w-0 sm:px-6 ${
                 activeTab === tab.id
                   ? "bg-[#3B82F6] text-white shadow-lg"
-                  : "bg-white text-[#64748B] border-2 border-[#E2E8F0] hover:border-[#3B82F6]"
+                  : "border-2 border-[#E2E8F0] bg-white text-[#64748B] hover:border-[#3B82F6]"
               }`}
             >
-              <Icon className="w-5 h-5" />
-              {tab.label}
+              <Icon className="h-5 w-5 shrink-0" />
+              <span className="text-center">{tab.label}</span>
             </button>
           );
         })}

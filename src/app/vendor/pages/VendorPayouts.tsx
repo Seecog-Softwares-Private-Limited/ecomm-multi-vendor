@@ -109,15 +109,17 @@ export function VendorPayouts() {
 
   return (
     <DataState isLoading={isLoading} error={error} retry={refetch}>
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-[#1E293B] mb-2">Payouts</h1>
-          <p className="text-[#64748B]">View your payout history and bank transfers</p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 space-y-1">
+          <h1 className="text-xl font-bold leading-snug text-[#1E293B] sm:text-2xl lg:text-3xl">Payouts</h1>
+          <p className="text-sm leading-relaxed text-[#64748B]">
+            View your payout history and bank transfers
+          </p>
         </div>
-        <Button variant="primary" onClick={handleExport}>
-          <Download className="w-5 h-5" />
+        <Button variant="primary" onClick={handleExport} className="min-h-11 w-full shrink-0 sm:w-auto">
+          <Download className="h-5 w-5" />
           Export Report
         </Button>
       </div>
@@ -137,7 +139,7 @@ export function VendorPayouts() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-6">
         <Card>
           <div className="flex items-start justify-between mb-4">
             <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center">
@@ -200,78 +202,106 @@ export function VendorPayouts() {
 
       {/* Payouts Table */}
       <Card title="Payout History">
-        <div className="overflow-x-auto">
-          <table className="w-full">
+        <div className="space-y-3 md:hidden">
+          {payouts.length === 0 ? (
+            <p className="py-8 text-center text-sm text-[#64748B]">
+              No payout batches in this date range. Try a wider range.
+            </p>
+          ) : (
+            payouts.map((payout) => (
+              <div
+                key={payout.id}
+                className="rounded-2xl border border-slate-200/80 bg-slate-50/50 p-4 shadow-sm"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <p className="break-all font-bold text-[#3B82F6]">{payout.id}</p>
+                  <span
+                    className={`shrink-0 rounded-lg border px-2.5 py-1 text-xs font-bold ${
+                      payout.status === "paid"
+                        ? "border-green-200 bg-green-100 text-green-700"
+                        : payout.status === "failed"
+                          ? "border-red-200 bg-red-100 text-red-700"
+                          : "border-yellow-200 bg-yellow-100 text-yellow-700"
+                    }`}
+                  >
+                    {payout.status.toUpperCase()}
+                  </span>
+                </div>
+                <p className="mt-2 break-words text-sm text-[#64748B]">{payout.period}</p>
+                <div className="mt-3 flex flex-wrap items-center gap-3">
+                  <span className="rounded bg-blue-100 px-2 py-1 text-xs font-bold text-blue-700">
+                    {payout.ordersCount} orders
+                  </span>
+                  <p className="text-lg font-bold tabular-nums text-[#1E293B]">{formatInr(payout.amount)}</p>
+                </div>
+                <div className="mt-3 space-y-1 border-t border-slate-200/80 pt-3 text-sm">
+                  <p>
+                    <span className="text-[#94A3B8]">Paid: </span>
+                    <span className="text-[#64748B]">{payout.paidDate ?? "—"}</span>
+                  </p>
+                  <p className="break-all font-mono text-xs text-[#64748B]">
+                    Ref: {payout.reference ?? "—"}
+                  </p>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+        <div className="hidden overflow-x-auto md:block">
+          <table className="w-full min-w-[640px]">
             <thead>
               <tr className="border-b-2 border-[#E2E8F0]">
-                <th className="text-left py-4 px-4 text-sm font-bold text-[#64748B] uppercase">
-                  Payout ID
-                </th>
-                <th className="text-left py-4 px-4 text-sm font-bold text-[#64748B] uppercase">
-                  Period
-                </th>
-                <th className="text-center py-4 px-4 text-sm font-bold text-[#64748B] uppercase">
-                  Orders
-                </th>
-                <th className="text-right py-4 px-4 text-sm font-bold text-[#64748B] uppercase">
-                  Amount
-                </th>
-                <th className="text-center py-4 px-4 text-sm font-bold text-[#64748B] uppercase">
-                  Status
-                </th>
-                <th className="text-left py-4 px-4 text-sm font-bold text-[#64748B] uppercase">
-                  Paid Date
-                </th>
-                <th className="text-left py-4 px-4 text-sm font-bold text-[#64748B] uppercase">
-                  Reference
-                </th>
+                <th className="px-4 py-4 text-left text-sm font-bold uppercase text-[#64748B]">Payout ID</th>
+                <th className="px-4 py-4 text-left text-sm font-bold uppercase text-[#64748B]">Period</th>
+                <th className="px-4 py-4 text-center text-sm font-bold uppercase text-[#64748B]">Orders</th>
+                <th className="px-4 py-4 text-right text-sm font-bold uppercase text-[#64748B]">Amount</th>
+                <th className="px-4 py-4 text-center text-sm font-bold uppercase text-[#64748B]">Status</th>
+                <th className="px-4 py-4 text-left text-sm font-bold uppercase text-[#64748B]">Paid Date</th>
+                <th className="px-4 py-4 text-left text-sm font-bold uppercase text-[#64748B]">Reference</th>
               </tr>
             </thead>
             <tbody>
               {payouts.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-[#64748B] text-sm">
+                  <td colSpan={7} className="py-12 text-center text-sm text-[#64748B]">
                     No payout batches in this date range. Try a wider range.
                   </td>
                 </tr>
               )}
               {payouts.map((payout) => (
-                <tr
-                  key={payout.id}
-                  className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors"
-                >
-                  <td className="py-4 px-4">
+                <tr key={payout.id} className="border-b border-[#E2E8F0] transition-colors hover:bg-[#F8FAFC]">
+                  <td className="px-4 py-4">
                     <p className="font-bold text-[#3B82F6]">{payout.id}</p>
                   </td>
-                  <td className="py-4 px-4">
+                  <td className="px-4 py-4">
                     <p className="text-sm text-[#64748B]">{payout.period}</p>
                   </td>
-                  <td className="py-4 px-4 text-center">
-                    <span className="inline-block bg-blue-100 text-blue-700 text-xs font-bold px-2 py-1 rounded">
+                  <td className="px-4 py-4 text-center">
+                    <span className="inline-block rounded bg-blue-100 px-2 py-1 text-xs font-bold text-blue-700">
                       {payout.ordersCount} orders
                     </span>
                   </td>
-                  <td className="py-4 px-4 text-right">
-                    <p className="font-bold text-[#1E293B] text-lg tabular-nums">{formatInr(payout.amount)}</p>
+                  <td className="px-4 py-4 text-right">
+                    <p className="text-lg font-bold tabular-nums text-[#1E293B]">{formatInr(payout.amount)}</p>
                   </td>
-                  <td className="py-4 px-4 text-center">
+                  <td className="px-4 py-4 text-center">
                     <span
-                      className={`inline-block text-xs font-bold px-3 py-1 rounded-lg border ${
+                      className={`inline-block rounded-lg border px-3 py-1 text-xs font-bold ${
                         payout.status === "paid"
-                          ? "bg-green-100 text-green-700 border-green-200"
+                          ? "border-green-200 bg-green-100 text-green-700"
                           : payout.status === "failed"
-                            ? "bg-red-100 text-red-700 border-red-200"
-                            : "bg-yellow-100 text-yellow-700 border-yellow-200"
+                            ? "border-red-200 bg-red-100 text-red-700"
+                            : "border-yellow-200 bg-yellow-100 text-yellow-700"
                       }`}
                     >
                       {payout.status.toUpperCase()}
                     </span>
                   </td>
-                  <td className="py-4 px-4">
+                  <td className="px-4 py-4">
                     <p className="text-sm text-[#64748B]">{payout.paidDate ?? "—"}</p>
                   </td>
-                  <td className="py-4 px-4">
-                    <p className="text-sm font-mono text-[#64748B]">{payout.reference ?? "—"}</p>
+                  <td className="px-4 py-4">
+                    <p className="font-mono text-sm text-[#64748B]">{payout.reference ?? "—"}</p>
                   </td>
                 </tr>
               ))}

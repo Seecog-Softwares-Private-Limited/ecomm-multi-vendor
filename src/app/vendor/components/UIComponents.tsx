@@ -28,9 +28,9 @@ export function Button({
   };
 
   const sizes = {
-    sm: "px-3 py-2 text-sm",
-    md: "px-6 py-3",
-    lg: "px-8 py-4 text-lg",
+    sm: "min-h-11 px-4 py-2.5 text-sm",
+    md: "min-h-11 px-6 py-3 text-[15px]",
+    lg: "min-h-12 px-8 py-3.5 text-base",
   };
 
   return (
@@ -60,7 +60,7 @@ export function Input({ label, error, helperText, icon, className = "", ...props
       <div className="relative">
         {icon && <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">{icon}</div>}
         <input
-          className={`w-full rounded-xl border bg-white px-4 py-3 text-slate-900 shadow-sm transition placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500 ${
+          className={`w-full min-h-11 rounded-xl border bg-white px-4 py-3 text-[15px] leading-normal text-slate-900 shadow-sm transition placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500 ${
             icon ? "pl-12" : ""
           } ${
             error ? "border-red-300 focus:border-red-500 focus:ring-red-500/20" : "border-slate-200"
@@ -91,7 +91,7 @@ export function Textarea({ label, error, helperText, className = "", ...props }:
     <div className="space-y-2">
       {label && <label className="block text-sm font-medium text-slate-700">{label}</label>}
       <textarea
-        className={`w-full resize-none rounded-xl border bg-white px-4 py-3 text-slate-900 shadow-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 ${
+        className={`w-full min-h-[5.5rem] resize-none rounded-xl border bg-white px-4 py-3 text-[15px] leading-relaxed text-slate-900 shadow-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 ${
           error ? "border-red-300 focus:border-red-500 focus:ring-red-500/20" : "border-slate-200"
         } ${className}`}
         {...props}
@@ -120,7 +120,7 @@ export function Select({ label, error, helperText, options, className = "", chil
     <div className="space-y-2">
       {label && <label className="block text-sm font-medium text-slate-700">{label}</label>}
       <select
-        className={`w-full cursor-pointer rounded-xl border bg-white px-4 py-3 text-slate-900 shadow-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 ${
+        className={`w-full min-h-11 cursor-pointer rounded-xl border bg-white px-4 py-3 text-[15px] text-slate-900 shadow-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 ${
           error ? "border-red-300 focus:border-red-500 focus:ring-red-500/20" : "border-slate-200"
         } ${className}`}
         {...props}
@@ -241,13 +241,13 @@ export function Alert({ type, title, message, dismissible = false, onDismiss }: 
   const Icon = config.icon;
 
   return (
-    <div className={`flex items-start gap-4 rounded-xl border p-4 shadow-sm ${config.bgColor} ${config.borderColor}`}>
+    <div className={`flex items-start gap-3 rounded-xl border p-4 shadow-sm sm:gap-4 ${config.bgColor} ${config.borderColor}`}>
       <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${config.iconColor}`}>
         <Icon className="h-5 w-5 opacity-90" />
       </div>
-      <div className="min-w-0 flex-1">
-        {title && <h4 className={`font-semibold ${config.textColor} mb-0.5`}>{title}</h4>}
-        <p className={`text-sm leading-relaxed ${config.textColor} opacity-95`}>{message}</p>
+      <div className="min-w-0 flex-1 overflow-hidden">
+        {title && <h4 className={`font-semibold ${config.textColor} mb-1 break-words`}>{title}</h4>}
+        <p className={`text-sm leading-relaxed ${config.textColor} opacity-95 break-words`}>{message}</p>
       </div>
       {dismissible && onDismiss && (
         <button
@@ -310,14 +310,14 @@ interface CardProps {
 
 export function Card({ title, children, className = "", actions }: CardProps) {
   return (
-    <div className={`overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/50 sm:rounded-2xl ${className}`}>
+    <div className={`overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/50 ${className}`}>
       {title && (
-        <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 px-6 py-5">
-          <h3 className="text-lg font-semibold tracking-tight text-slate-900">{title}</h3>
-          {actions && <div>{actions}</div>}
+        <div className="flex flex-col gap-3 border-b border-slate-100 bg-slate-50/50 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-5">
+          <h3 className="text-base font-semibold tracking-tight text-slate-900 sm:text-lg">{title}</h3>
+          {actions && <div className="min-w-0 shrink-0 sm:max-w-[55%]">{actions}</div>}
         </div>
       )}
-      <div className="p-6 sm:p-8">{children}</div>
+      <div className="p-4 sm:p-6 lg:p-8">{children}</div>
     </div>
   );
 }
@@ -342,7 +342,7 @@ export function EmptyState({ icon, title, description, action }: EmptyStateProps
       <h3 className="text-xl font-bold text-[#1E293B] mb-2">{title}</h3>
       <p className="text-[#64748B] mb-8 max-w-md mx-auto">{description}</p>
       {action && (
-        <Button onClick={action.onClick} variant="primary">
+        <Button onClick={action.onClick} variant="primary" className="w-full min-h-11 sm:w-auto">
           {action.label}
         </Button>
       )}

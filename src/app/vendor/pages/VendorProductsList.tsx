@@ -98,48 +98,48 @@ export function VendorProductsList() {
       error={error}
       retry={refetch}
     >
-      <div className="space-y-6">
+      <div className="space-y-5 sm:space-y-6">
         {/* Header */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-[#1E293B] mb-2">Products</h1>
-          <p className="text-[#64748B]">Manage your product catalog</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="inline-flex rounded-xl border border-[#E2E8F0] bg-white p-1 shadow-sm">
-            <button
-              type="button"
-              onClick={() => setListTab("active")}
-              className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
-                listTab === "active"
-                  ? "bg-[#3B82F6] text-white shadow"
-                  : "text-[#64748B] hover:bg-slate-50"
-              }`}
-            >
-              All
-            </button>
-            <button
-              type="button"
-              onClick={() => setListTab("trash")}
-              className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
-                listTab === "trash"
-                  ? "bg-[#3B82F6] text-white shadow"
-                  : "text-[#64748B] hover:bg-slate-50"
-              }`}
-            >
-              Trash
-            </button>
+        <div className="flex flex-col gap-4">
+          <div className="space-y-1">
+            <h1 className="text-xl font-bold leading-snug text-[#1E293B] sm:text-2xl lg:text-3xl">Products</h1>
+            <p className="text-sm leading-relaxed text-[#64748B]">Manage your product catalog</p>
           </div>
-          {listTab === "active" && (
-            <Link href="/vendor/products/create">
-              <Button variant="primary">
-                <Plus className="w-5 h-5" />
-                Add Product
-              </Button>
-            </Link>
-          )}
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+            <div className="inline-flex w-full rounded-xl border border-[#E2E8F0] bg-white p-1 shadow-sm sm:w-auto">
+              <button
+                type="button"
+                onClick={() => setListTab("active")}
+                className={`min-h-11 flex-1 rounded-lg px-4 py-2.5 text-sm font-semibold transition sm:flex-initial sm:min-h-0 ${
+                  listTab === "active"
+                    ? "bg-[#3B82F6] text-white shadow"
+                    : "text-[#64748B] hover:bg-slate-50"
+                }`}
+              >
+                All
+              </button>
+              <button
+                type="button"
+                onClick={() => setListTab("trash")}
+                className={`min-h-11 flex-1 rounded-lg px-4 py-2.5 text-sm font-semibold transition sm:flex-initial sm:min-h-0 ${
+                  listTab === "trash"
+                    ? "bg-[#3B82F6] text-white shadow"
+                    : "text-[#64748B] hover:bg-slate-50"
+                }`}
+              >
+                Trash
+              </button>
+            </div>
+            {listTab === "active" && (
+              <Link href="/vendor/products/create" className="w-full sm:w-auto">
+                <Button variant="primary" className="min-h-11 w-full sm:w-auto">
+                  <Plus className="h-5 w-5" />
+                  Add Product
+                </Button>
+              </Link>
+            )}
+          </div>
         </div>
-      </div>
 
       {/* Filters */}
       <Card>
@@ -192,142 +192,273 @@ export function VendorProductsList() {
           />
         </Card>
       ) : (
-        <Card>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b-2 border-[#E2E8F0]">
-                  <th className="text-left py-4 px-4 text-sm font-bold text-[#64748B] uppercase">Product</th>
-                  <th className="text-left py-4 px-4 text-sm font-bold text-[#64748B] uppercase">Category</th>
-                  <th className="text-left py-4 px-4 text-sm font-bold text-[#64748B] uppercase">SKU</th>
-                  <th className="text-right py-4 px-4 text-sm font-bold text-[#64748B] uppercase">Price</th>
-                  <th className="text-center py-4 px-4 text-sm font-bold text-[#64748B] uppercase">Stock</th>
-                  <th className="text-center py-4 px-4 text-sm font-bold text-[#64748B] uppercase">Status</th>
-                  <th className="text-left py-4 px-4 text-sm font-bold text-[#64748B] uppercase">
-                    {listTab === "trash" ? "Deleted" : "Updated"}
-                  </th>
-                  <th className="text-center py-4 px-4 text-sm font-bold text-[#64748B] uppercase">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredProducts.map((product) => (
-                  <tr key={product.id} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors">
-                    <td className="py-4 px-4">
-                      <div className="flex items-center gap-3">
-                        <div className="flex-shrink-0 relative w-12 h-12 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] overflow-hidden">
-                          {product.imageUrl ? (
-                            <>
-                              <img
-                                src={product.imageUrl}
-                                alt=""
-                                className="w-full h-full object-cover"
-                                onError={(e) => {
-                                  e.currentTarget.style.display = "none";
-                                  const fallback = e.currentTarget.nextElementSibling;
-                                  if (fallback instanceof HTMLElement) fallback.classList.remove("hidden");
-                                }}
-                              />
-                              <div className="hidden absolute inset-0 flex items-center justify-center text-[#94A3B8] bg-[#F8FAFC]">
-                                <Package className="w-6 h-6" />
+        <>
+          <div className="space-y-3 md:hidden">
+            {filteredProducts.map((product) => (
+              <div
+                key={product.id}
+                className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-md shadow-slate-200/40"
+              >
+                <div className="flex gap-3 border-b border-slate-100 p-4">
+                  <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-[#E2E8F0] bg-[#F8FAFC]">
+                    {product.imageUrl ? (
+                      <>
+                        <img
+                          src={product.imageUrl}
+                          alt=""
+                          className="h-full w-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.style.display = "none";
+                            const fallback = e.currentTarget.nextElementSibling;
+                            if (fallback instanceof HTMLElement) fallback.classList.remove("hidden");
+                          }}
+                        />
+                        <div className="absolute inset-0 hidden flex items-center justify-center bg-[#F8FAFC] text-[#94A3B8]">
+                          <Package className="h-7 w-7" />
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-[#94A3B8]">
+                        <Package className="h-7 w-7" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="break-words font-semibold leading-snug text-[#1E293B]">{product.name}</p>
+                    <p className="mt-1 break-words text-sm text-[#64748B]">{product.category}</p>
+                    <p className="mt-0.5 font-mono text-xs text-[#94A3B8]">SKU: {product.sku}</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3 px-4 py-3 text-sm">
+                  <div>
+                    <p className="text-xs font-semibold text-[#94A3B8]">Price</p>
+                    <p className="font-bold text-[#1E293B]">₹{product.price}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-[#94A3B8]">Stock</p>
+                    {product.stock === 0 ? (
+                      <span className="inline-block rounded bg-red-100 px-2 py-0.5 text-xs font-bold text-red-700">
+                        Out of Stock
+                      </span>
+                    ) : product.stock < 10 ? (
+                      <span className="inline-block rounded bg-orange-100 px-2 py-0.5 text-xs font-bold text-orange-700">
+                        {product.stock} left
+                      </span>
+                    ) : (
+                      <span className="font-semibold text-[#1E293B]">{product.stock}</span>
+                    )}
+                  </div>
+                  <div className="col-span-2">
+                    <p className="text-xs font-semibold text-[#94A3B8]">Status</p>
+                    <div className="mt-1 flex flex-col items-start gap-1">
+                      <StatusBadge status={product.status} size="sm" />
+                      {product.status === "rejected" && product.rejectionReason && (
+                        <p
+                          className="rounded bg-rose-50 px-2 py-1 text-xs leading-relaxed text-rose-600"
+                          title={product.rejectionReason}
+                        >
+                          {product.rejectionReason.length > 120
+                            ? `${product.rejectionReason.slice(0, 120)}…`
+                            : product.rejectionReason}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="col-span-2 text-xs text-[#64748B]">
+                    {listTab === "trash" && product.deletedAt
+                      ? `Deleted: ${product.deletedAt.slice(0, 10)}`
+                      : `Updated: ${product.lastUpdated}`}
+                  </div>
+                </div>
+                <div className="flex flex-col gap-2 border-t border-slate-100 p-4 sm:flex-row">
+                  {listTab === "active" ? (
+                    <>
+                      <Link href={`/vendor/products/edit/${product.id}`} className="flex-1">
+                        <span className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#3B82F6] bg-white text-sm font-semibold text-[#3B82F6] transition hover:bg-blue-50">
+                          <Edit className="h-4 w-4" />
+                          Edit
+                        </span>
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(product)}
+                        disabled={deletingId === product.id}
+                        className="min-h-11 flex-1 rounded-xl border border-red-200 bg-red-50 text-sm font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Move to trash
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => handleRestore(product)}
+                        disabled={deletingId === product.id}
+                        className="min-h-11 flex-1 rounded-xl border border-emerald-200 bg-emerald-50 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-100 disabled:opacity-50"
+                      >
+                        Restore
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handlePermanentDelete(product)}
+                        disabled={deletingId === product.id}
+                        className="min-h-11 flex-1 rounded-xl border border-red-200 bg-white text-sm font-semibold text-red-600 transition hover:bg-red-50 disabled:opacity-50"
+                      >
+                        Delete forever
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <Card className="hidden md:block">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[720px]">
+                <thead>
+                  <tr className="border-b-2 border-[#E2E8F0]">
+                    <th className="px-4 py-4 text-left text-sm font-bold uppercase text-[#64748B]">Product</th>
+                    <th className="px-4 py-4 text-left text-sm font-bold uppercase text-[#64748B]">Category</th>
+                    <th className="px-4 py-4 text-left text-sm font-bold uppercase text-[#64748B]">SKU</th>
+                    <th className="px-4 py-4 text-right text-sm font-bold uppercase text-[#64748B]">Price</th>
+                    <th className="px-4 py-4 text-center text-sm font-bold uppercase text-[#64748B]">Stock</th>
+                    <th className="px-4 py-4 text-center text-sm font-bold uppercase text-[#64748B]">Status</th>
+                    <th className="px-4 py-4 text-left text-sm font-bold uppercase text-[#64748B]">
+                      {listTab === "trash" ? "Deleted" : "Updated"}
+                    </th>
+                    <th className="px-4 py-4 text-center text-sm font-bold uppercase text-[#64748B]">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredProducts.map((product) => (
+                    <tr key={product.id} className="border-b border-[#E2E8F0] transition-colors hover:bg-[#F8FAFC]">
+                      <td className="px-4 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg border border-[#E2E8F0] bg-[#F8FAFC]">
+                            {product.imageUrl ? (
+                              <>
+                                <img
+                                  src={product.imageUrl}
+                                  alt=""
+                                  className="h-full w-full object-cover"
+                                  onError={(e) => {
+                                    e.currentTarget.style.display = "none";
+                                    const fallback = e.currentTarget.nextElementSibling;
+                                    if (fallback instanceof HTMLElement) fallback.classList.remove("hidden");
+                                  }}
+                                />
+                                <div className="absolute inset-0 hidden items-center justify-center bg-[#F8FAFC] text-[#94A3B8]">
+                                  <Package className="h-6 w-6" />
+                                </div>
+                              </>
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center text-[#94A3B8]">
+                                <Package className="h-6 w-6" />
                               </div>
-                            </>
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-[#94A3B8]">
-                              <Package className="w-6 h-6" />
-                            </div>
+                            )}
+                          </div>
+                          <p className="line-clamp-2 font-semibold text-[#1E293B]">{product.name}</p>
+                        </div>
+                      </td>
+                      <td className="px-4 py-4">
+                        <p className="text-sm text-[#64748B]">{product.category}</p>
+                      </td>
+                      <td className="px-4 py-4">
+                        <p className="font-mono text-sm text-[#64748B]">{product.sku}</p>
+                      </td>
+                      <td className="px-4 py-4 text-right">
+                        <p className="font-bold text-[#1E293B]">₹{product.price}</p>
+                      </td>
+                      <td className="px-4 py-4 text-center">
+                        {product.stock === 0 ? (
+                          <span className="inline-block rounded bg-red-100 px-2 py-1 text-xs font-bold text-red-700">
+                            Out of Stock
+                          </span>
+                        ) : product.stock < 10 ? (
+                          <span className="inline-block rounded bg-orange-100 px-2 py-1 text-xs font-bold text-orange-700">
+                            {product.stock} left
+                          </span>
+                        ) : (
+                          <span className="font-semibold text-[#1E293B]">{product.stock}</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-4 text-center">
+                        <div className="flex flex-col items-center gap-1">
+                          <StatusBadge status={product.status} size="sm" />
+                          {product.status === "rejected" && product.rejectionReason && (
+                            <p
+                              className="mt-1 max-w-[200px] rounded bg-rose-50 px-2 py-1 text-left text-xs text-rose-600"
+                              title={product.rejectionReason}
+                            >
+                              {product.rejectionReason.length > 60
+                                ? `${product.rejectionReason.slice(0, 60)}…`
+                                : product.rejectionReason}
+                            </p>
                           )}
                         </div>
-                        <p className="font-semibold text-[#1E293B] line-clamp-2">{product.name}</p>
-                      </div>
-                    </td>
-                    <td className="py-4 px-4">
-                      <p className="text-sm text-[#64748B]">{product.category}</p>
-                    </td>
-                    <td className="py-4 px-4">
-                      <p className="text-sm font-mono text-[#64748B]">{product.sku}</p>
-                    </td>
-                    <td className="py-4 px-4 text-right">
-                      <p className="font-bold text-[#1E293B]">₹{product.price}</p>
-                    </td>
-                    <td className="py-4 px-4 text-center">
-                      {product.stock === 0 ? (
-                        <span className="inline-block bg-red-100 text-red-700 text-xs font-bold px-2 py-1 rounded">
-                          Out of Stock
-                        </span>
-                      ) : product.stock < 10 ? (
-                        <span className="inline-block bg-orange-100 text-orange-700 text-xs font-bold px-2 py-1 rounded">
-                          {product.stock} left
-                        </span>
-                      ) : (
-                        <span className="font-semibold text-[#1E293B]">{product.stock}</span>
-                      )}
-                    </td>
-                    <td className="py-4 px-4 text-center">
-                      <div className="flex flex-col items-center gap-1">
-                        <StatusBadge status={product.status} size="sm" />
-                        {product.status === "rejected" && product.rejectionReason && (
-                          <p className="max-w-[200px] text-left text-xs text-rose-600 bg-rose-50 rounded px-2 py-1 mt-1" title={product.rejectionReason}>
-                            {product.rejectionReason.length > 60 ? `${product.rejectionReason.slice(0, 60)}…` : product.rejectionReason}
-                          </p>
-                        )}
-                      </div>
-                    </td>
-                    <td className="py-4 px-4">
-                      <p className="text-sm text-[#64748B]">
-                        {listTab === "trash" && product.deletedAt
-                          ? product.deletedAt.slice(0, 10)
-                          : product.lastUpdated}
-                      </p>
-                    </td>
-                    <td className="py-4 px-4">
-                      <div className="flex items-center justify-center gap-2">
-                        {listTab === "active" ? (
-                          <>
-                            <Link href={`/vendor/products/edit/${product.id}`}>
-                              <button className="p-2 text-[#3B82F6] hover:bg-blue-50 rounded-lg transition-colors">
-                                <Edit className="w-4 h-4" />
+                      </td>
+                      <td className="px-4 py-4">
+                        <p className="text-sm text-[#64748B]">
+                          {listTab === "trash" && product.deletedAt
+                            ? product.deletedAt.slice(0, 10)
+                            : product.lastUpdated}
+                        </p>
+                      </td>
+                      <td className="px-4 py-4">
+                        <div className="flex items-center justify-center gap-2">
+                          {listTab === "active" ? (
+                            <>
+                              <Link href={`/vendor/products/edit/${product.id}`}>
+                                <button
+                                  type="button"
+                                  className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-lg p-2 text-[#3B82F6] transition-colors hover:bg-blue-50"
+                                  aria-label="Edit product"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </button>
+                              </Link>
+                              <button
+                                type="button"
+                                onClick={() => handleDelete(product)}
+                                disabled={deletingId === product.id}
+                                className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-lg p-2 text-[#DC2626] transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                title="Move to trash"
+                              >
+                                <XCircle className="h-4 w-4" />
                               </button>
-                            </Link>
-                            <button
-                              type="button"
-                              onClick={() => handleDelete(product)}
-                              disabled={deletingId === product.id}
-                              className="p-2 text-[#DC2626] hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                              title="Move to trash"
-                            >
-                              <XCircle className="w-4 h-4" />
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() => handleRestore(product)}
-                              disabled={deletingId === product.id}
-                              className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors disabled:opacity-50"
-                              title="Restore product"
-                            >
-                              <RotateCcw className="w-4 h-4" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handlePermanentDelete(product)}
-                              disabled={deletingId === product.id}
-                              className="p-2 text-[#DC2626] hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
-                              title="Delete permanently"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => handleRestore(product)}
+                                disabled={deletingId === product.id}
+                                className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-lg p-2 text-rose-600 transition-colors hover:bg-rose-50 disabled:opacity-50"
+                                title="Restore product"
+                              >
+                                <RotateCcw className="h-4 w-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handlePermanentDelete(product)}
+                                disabled={deletingId === product.id}
+                                className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-lg p-2 text-[#DC2626] transition-colors hover:bg-red-50 disabled:opacity-50"
+                                title="Delete permanently"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </>
       )}
       </div>
     </DataState>
