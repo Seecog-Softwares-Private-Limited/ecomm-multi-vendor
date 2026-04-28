@@ -67,11 +67,15 @@ export function VendorDashboardContent({
   lowStockProducts,
 }: VendorDashboardContentProps) {
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 md:space-y-8">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-[#1E293B] mb-2">Dashboard</h1>
-        <p className="text-[#64748B]">Welcome back! Here&apos;s your store overview</p>
+      <div className="space-y-1">
+        <h1 className="text-xl font-bold leading-snug text-[#1E293B] sm:text-2xl lg:text-3xl">
+          Dashboard
+        </h1>
+        <p className="text-sm leading-relaxed text-[#64748B]">
+          Welcome back! Here&apos;s your store overview
+        </p>
       </div>
 
       <DataState
@@ -93,13 +97,13 @@ export function VendorDashboardContent({
             )}
 
             {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6 lg:grid-cols-4">
               {stats?.map((stat, index) => {
                 const Icon = stat.icon;
                 return (
                   <div
                     key={index}
-                    className="bg-white border-2 border-[#E2E8F0] rounded-2xl p-6 hover:shadow-xl transition-all"
+                    className="rounded-2xl border-2 border-[#E2E8F0] bg-white p-4 shadow-sm transition-all hover:shadow-lg sm:p-6"
                   >
                     <div className="flex items-start justify-between mb-4">
                       <div className={`w-12 h-12 bg-gradient-to-br ${stat.color} rounded-xl flex items-center justify-center`}>
@@ -136,7 +140,7 @@ export function VendorDashboardContent({
             </div>
 
             {/* Two Column Layout */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-6">
               {/* Recent Orders */}
               <div className="lg:col-span-2">
                 <Card
@@ -152,17 +156,17 @@ export function VendorDashboardContent({
                     {recentOrders.map((order) => (
                       <div
                         key={order.id}
-                        className="flex items-center justify-between p-4 bg-[#F8FAFC] rounded-xl hover:bg-[#F1F5F9] transition-colors"
+                        className="flex flex-col gap-3 rounded-xl bg-[#F8FAFC] p-4 transition-colors hover:bg-[#F1F5F9] sm:flex-row sm:items-center sm:justify-between"
                       >
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="mb-2 flex flex-wrap items-center gap-2">
                             <p className="font-bold text-[#1E293B]">{order.displayId ?? order.id}</p>
                             {getStatusBadge(order.status)}
                           </div>
-                          <p className="text-sm text-[#64748B]">{order.customer}</p>
+                          <p className="break-words text-sm text-[#64748B]">{order.customer}</p>
                         </div>
-                        <div className="text-right">
-                          <p className="font-bold text-[#1E293B] mb-1">{formatCurrency(order.amount)}</p>
+                        <div className="flex shrink-0 items-end justify-between gap-3 sm:flex-col sm:items-end sm:text-right">
+                          <p className="font-bold text-[#1E293B]">{formatCurrency(order.amount)}</p>
                           <p className="text-xs text-[#64748B]">{order.timeAgo}</p>
                         </div>
                       </div>
@@ -225,42 +229,42 @@ export function VendorDashboardContent({
 
             {/* Quick Links */}
             <Card title="Quick Actions">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
                 <Link
                   href="/vendor/orders"
-                  className="flex flex-col items-center gap-3 p-6 bg-[#F8FAFC] rounded-xl hover:bg-[#F1F5F9] hover:shadow-md transition-all"
+                  className="flex flex-col items-center gap-2 rounded-xl bg-[#F8FAFC] p-4 transition-all hover:bg-[#F1F5F9] hover:shadow-md sm:gap-3 sm:p-6"
                 >
                   <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
                     <ShoppingBag className="w-6 h-6 text-blue-600" />
                   </div>
-                  <p className="font-semibold text-[#1E293B]">Manage Orders</p>
+                  <p className="text-center text-sm font-semibold text-[#1E293B]">Manage Orders</p>
                 </Link>
                 <Link
                   href="/vendor/products"
-                  className="flex flex-col items-center gap-3 p-6 bg-[#F8FAFC] rounded-xl hover:bg-[#F1F5F9] hover:shadow-md transition-all"
+                  className="flex flex-col items-center gap-2 rounded-xl bg-[#F8FAFC] p-4 transition-all hover:bg-[#F1F5F9] hover:shadow-md sm:gap-3 sm:p-6"
                 >
                   <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
                     <Package className="w-6 h-6 text-green-600" />
                   </div>
-                  <p className="font-semibold text-[#1E293B]">My Products</p>
+                  <p className="text-center text-sm font-semibold text-[#1E293B]">My Products</p>
                 </Link>
                 <Link
                   href="/vendor/earnings"
-                  className="flex flex-col items-center gap-3 p-6 bg-[#F8FAFC] rounded-xl hover:bg-[#F1F5F9] hover:shadow-md transition-all"
+                  className="flex flex-col items-center gap-2 rounded-xl bg-[#F8FAFC] p-4 transition-all hover:bg-[#F1F5F9] hover:shadow-md sm:gap-3 sm:p-6"
                 >
                   <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
                     <DollarSign className="w-6 h-6 text-purple-600" />
                   </div>
-                  <p className="font-semibold text-[#1E293B]">View Earnings</p>
+                  <p className="text-center text-sm font-semibold text-[#1E293B]">View Earnings</p>
                 </Link>
                 <Link
                   href="/vendor/reports"
-                  className="flex flex-col items-center gap-3 p-6 bg-[#F8FAFC] rounded-xl hover:bg-[#F1F5F9] hover:shadow-md transition-all"
+                  className="flex flex-col items-center gap-2 rounded-xl bg-[#F8FAFC] p-4 transition-all hover:bg-[#F1F5F9] hover:shadow-md sm:col-span-2 sm:gap-3 sm:p-6 md:col-span-1"
                 >
                   <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
                     <Package className="w-6 h-6 text-orange-600" />
                   </div>
-                  <p className="font-semibold text-[#1E293B]">Download Reports</p>
+                  <p className="text-center text-sm font-semibold text-[#1E293B]">Download Reports</p>
                 </Link>
               </div>
             </Card>

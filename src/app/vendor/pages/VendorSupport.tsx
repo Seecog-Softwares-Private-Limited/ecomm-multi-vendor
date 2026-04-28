@@ -120,7 +120,9 @@ export function VendorSupport() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-[#1E293B] mb-2">Support & Help</h1>
+        <h1 className="text-xl font-bold leading-snug text-[#1E293B] sm:text-2xl lg:text-3xl mb-2">
+          Support & Help
+        </h1>
         <p className="text-[#64748B]">Get help with your vendor account</p>
       </div>
 

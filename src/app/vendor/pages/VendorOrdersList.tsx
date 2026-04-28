@@ -49,11 +49,11 @@ export function VendorOrdersList() {
 
   return (
     <DataState isLoading={isLoading} error={error} retry={refetch}>
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-[#1E293B] mb-2">Orders</h1>
-        <p className="text-[#64748B]">Manage and fulfill your orders</p>
+      <div className="space-y-1">
+        <h1 className="text-xl font-bold leading-snug text-[#1E293B] sm:text-2xl lg:text-3xl">Orders</h1>
+        <p className="text-sm leading-relaxed text-[#64748B]">Manage and fulfill your orders</p>
       </div>
 
       {/* Filters */}
@@ -95,45 +95,44 @@ export function VendorOrdersList() {
           />
         </Card>
       ) : (
-        <Card>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b-2 border-[#E2E8F0]">
-                  <th className="text-left py-4 px-4 text-sm font-bold text-[#64748B] uppercase">Order ID</th>
-                  <th className="text-left py-4 px-4 text-sm font-bold text-[#64748B] uppercase">Date & Time</th>
-                  <th className="text-left py-4 px-4 text-sm font-bold text-[#64748B] uppercase">Customer</th>
-                  <th className="text-center py-4 px-4 text-sm font-bold text-[#64748B] uppercase">Items</th>
-                  <th className="text-right py-4 px-4 text-sm font-bold text-[#64748B] uppercase">Amount</th>
-                  <th className="text-center py-4 px-4 text-sm font-bold text-[#64748B] uppercase">Payment</th>
-                  <th className="text-center py-4 px-4 text-sm font-bold text-[#64748B] uppercase">Status</th>
-                  <th className="text-center py-4 px-4 text-sm font-bold text-[#64748B] uppercase">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredOrders.map((order) => {
-                  const statusConfig = getStatusConfig(order.status);
-                  return (
-                    <tr key={order.id} className="border-b border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors">
-                      <td className="py-4 px-4">
-                        <p className="font-bold text-[#1E293B]">{orderDisplayId(order.id)}</p>
-                      </td>
-                      <td className="py-4 px-4">
-                        <p className="text-sm text-[#64748B]">{order.date}</p>
-                      </td>
-                      <td className="py-4 px-4">
-                        <p className="font-semibold text-[#1E293B]">{order.customer}</p>
-                        <p className="text-xs text-[#64748B]">{order.phone}</p>
-                      </td>
-                      <td className="py-4 px-4 text-center">
-                        <span className="font-semibold text-[#1E293B]">{order.itemsCount}</span>
-                      </td>
-                      <td className="py-4 px-4 text-right">
+        <>
+          {/* Mobile: stacked cards */}
+          <div className="space-y-3 md:hidden">
+            {filteredOrders.map((order) => {
+              const statusConfig = getStatusConfig(order.status);
+              return (
+                <div
+                  key={order.id}
+                  className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-md shadow-slate-200/40"
+                >
+                  <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-3">
+                    <div className="min-w-0">
+                      <p className="font-bold text-[#1E293B]">{orderDisplayId(order.id)}</p>
+                      <p className="mt-0.5 text-xs text-[#64748B]">{order.date}</p>
+                    </div>
+                    <span className={`shrink-0 ${statusConfig.color} rounded-lg border px-2.5 py-1 text-xs font-bold`}>
+                      {statusConfig.label}
+                    </span>
+                  </div>
+                  <div className="space-y-2 px-4 py-3 text-sm">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-[#94A3B8]">Customer</p>
+                      <p className="break-words font-medium text-[#1E293B]">{order.customer}</p>
+                      <p className="text-[#64748B]">{order.phone}</p>
+                    </div>
+                    <div className="flex flex-wrap gap-x-4 gap-y-2">
+                      <div>
+                        <p className="text-xs font-semibold text-[#94A3B8]">Amount</p>
                         <p className="font-bold text-[#1E293B]">₹{order.amount}</p>
-                      </td>
-                      <td className="py-4 px-4 text-center">
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-[#94A3B8]">Items</p>
+                        <p className="font-semibold text-[#1E293B]">{order.itemsCount}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-[#94A3B8]">Payment</p>
                         <span
-                          className={`inline-block text-xs font-bold px-2 py-1 rounded ${
+                          className={`inline-block rounded px-2 py-0.5 text-xs font-bold ${
                             order.paymentMode === "Prepaid"
                               ? "bg-green-100 text-green-700"
                               : "bg-yellow-100 text-yellow-700"
@@ -141,26 +140,95 @@ export function VendorOrdersList() {
                         >
                           {order.paymentMode}
                         </span>
-                      </td>
-                      <td className="py-4 px-4 text-center">
-                        <span className={`${statusConfig.color} text-xs font-bold px-3 py-1.5 rounded-lg border`}>
-                          {statusConfig.label}
-                        </span>
-                      </td>
-                      <td className="py-4 px-4 text-center">
-                        <Link href={`/vendor/orders/${order.id}`}>
-                          <button className="p-2 text-[#3B82F6] hover:bg-blue-50 rounded-lg transition-colors">
-                            <Eye className="w-4 h-4" />
-                          </button>
-                        </Link>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="border-t border-slate-100 px-4 py-3">
+                    <Link
+                      href={`/vendor/orders/${order.id}`}
+                      className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#3B82F6] text-sm font-semibold text-white transition hover:bg-[#2563EB]"
+                    >
+                      <Eye className="h-4 w-4" />
+                      View order
+                    </Link>
+                  </div>
+                </div>
+              );
+            })}
           </div>
-        </Card>
+
+          {/* Desktop: table */}
+          <Card className="hidden md:block">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[640px]">
+                <thead>
+                  <tr className="border-b-2 border-[#E2E8F0]">
+                    <th className="px-4 py-4 text-left text-sm font-bold uppercase text-[#64748B]">Order ID</th>
+                    <th className="px-4 py-4 text-left text-sm font-bold uppercase text-[#64748B]">Date & Time</th>
+                    <th className="px-4 py-4 text-left text-sm font-bold uppercase text-[#64748B]">Customer</th>
+                    <th className="px-4 py-4 text-center text-sm font-bold uppercase text-[#64748B]">Items</th>
+                    <th className="px-4 py-4 text-right text-sm font-bold uppercase text-[#64748B]">Amount</th>
+                    <th className="px-4 py-4 text-center text-sm font-bold uppercase text-[#64748B]">Payment</th>
+                    <th className="px-4 py-4 text-center text-sm font-bold uppercase text-[#64748B]">Status</th>
+                    <th className="px-4 py-4 text-center text-sm font-bold uppercase text-[#64748B]">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredOrders.map((order) => {
+                    const statusConfig = getStatusConfig(order.status);
+                    return (
+                      <tr key={order.id} className="border-b border-[#E2E8F0] transition-colors hover:bg-[#F8FAFC]">
+                        <td className="px-4 py-4">
+                          <p className="font-bold text-[#1E293B]">{orderDisplayId(order.id)}</p>
+                        </td>
+                        <td className="px-4 py-4">
+                          <p className="text-sm text-[#64748B]">{order.date}</p>
+                        </td>
+                        <td className="px-4 py-4">
+                          <p className="font-semibold text-[#1E293B]">{order.customer}</p>
+                          <p className="text-xs text-[#64748B]">{order.phone}</p>
+                        </td>
+                        <td className="px-4 py-4 text-center">
+                          <span className="font-semibold text-[#1E293B]">{order.itemsCount}</span>
+                        </td>
+                        <td className="px-4 py-4 text-right">
+                          <p className="font-bold text-[#1E293B]">₹{order.amount}</p>
+                        </td>
+                        <td className="px-4 py-4 text-center">
+                          <span
+                            className={`inline-block rounded px-2 py-1 text-xs font-bold ${
+                              order.paymentMode === "Prepaid"
+                                ? "bg-green-100 text-green-700"
+                                : "bg-yellow-100 text-yellow-700"
+                            }`}
+                          >
+                            {order.paymentMode}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4 text-center">
+                          <span className={`${statusConfig.color} rounded-lg border px-3 py-1.5 text-xs font-bold`}>
+                            {statusConfig.label}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4 text-center">
+                          <Link href={`/vendor/orders/${order.id}`}>
+                            <button
+                              type="button"
+                              className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-lg p-2 text-[#3B82F6] transition-colors hover:bg-blue-50"
+                              aria-label="View order"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </button>
+                          </Link>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </>
       )}
     </div>
     </DataState>

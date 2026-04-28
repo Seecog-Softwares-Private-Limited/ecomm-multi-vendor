@@ -127,21 +127,21 @@ function OtpVerifyField({
   return (
     <div className="space-y-2">
       <label className="block text-sm font-semibold text-[#1E293B]">{label}</label>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <input
           type={type}
           value={value}
           placeholder={placeholder}
           disabled={disabled || verified}
           onChange={(e) => onChange(e.target.value)}
-          className={`flex-1 rounded-xl border px-4 py-3 text-sm shadow-sm transition focus:outline-none focus:ring-2 focus:ring-indigo-500/20 ${
+          className={`min-h-11 w-full flex-1 rounded-xl border px-4 py-3 text-[15px] shadow-sm transition focus:outline-none focus:ring-2 focus:ring-indigo-500/20 sm:text-sm ${
             disabled || verified
               ? "cursor-not-allowed border-slate-200 bg-slate-50 text-slate-500"
               : "border-slate-200 bg-white text-slate-900 focus:border-indigo-500"
           }`}
         />
         {verified ? (
-          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-emerald-50 px-3 py-2.5 text-xs font-bold text-emerald-700 ring-1 ring-emerald-200">
+          <span className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl bg-emerald-50 px-3 py-2.5 text-xs font-bold text-emerald-700 ring-1 ring-emerald-200 sm:justify-start">
             <ShieldCheck size={14} /> Verified
           </span>
         ) : stage === "idle" || stage === "sending" ? (
@@ -149,19 +149,19 @@ function OtpVerifyField({
             type="button"
             onClick={handleSend}
             disabled={disabled || stage === "sending" || !value.trim()}
-            className="shrink-0 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
+            className="min-h-11 w-full shrink-0 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
           >
             {stage === "sending" ? "Sending…" : "Send OTP"}
           </button>
         ) : (
-          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-amber-50 px-3 py-2.5 text-xs font-bold text-amber-700 ring-1 ring-amber-200">
+          <span className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl bg-amber-50 px-3 py-2.5 text-xs font-bold text-amber-700 ring-1 ring-amber-200 sm:justify-start">
             <ShieldAlert size={14} /> Unverified
           </span>
         )}
       </div>
 
       {(stage === "awaiting" || stage === "confirming") && (
-        <div className="flex items-center gap-2 pt-1">
+        <div className="flex flex-col gap-2 pt-1 sm:flex-row sm:flex-wrap sm:items-center">
           <input
             type="text"
             inputMode="numeric"
@@ -169,13 +169,13 @@ function OtpVerifyField({
             placeholder="OTP"
             value={otp}
             onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 9))}
-            className="w-36 rounded-xl border border-slate-200 px-3 py-2.5 text-center text-lg font-bold tracking-[0.3em] text-slate-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+            className="min-h-11 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-center text-lg font-bold tracking-[0.3em] text-slate-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 sm:w-36"
           />
           <button
             type="button"
             onClick={handleConfirm}
             disabled={stage === "confirming" || otp.length < 4}
-            className="rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+            className="min-h-11 w-full rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
           >
             {stage === "confirming" ? "Verifying…" : "Verify"}
           </button>
@@ -694,11 +694,11 @@ export function VendorProfile() {
   return (
     <DataState isLoading={isLoading} error={error} retry={refetch}>
       <div className="min-h-screen bg-gradient-to-b from-slate-50/60 via-white to-slate-50/40">
-        <div className="mx-auto max-w-4xl space-y-8 px-4 py-8 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-4xl space-y-6 px-3 py-6 sm:space-y-8 sm:px-6 sm:py-8 lg:px-8">
           {/* Page header */}
           <div className="space-y-2">
-            <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+              <h1 className="text-lg font-semibold leading-snug tracking-tight text-slate-900 sm:text-2xl lg:text-3xl">
                 Vendor Profile & KYC
               </h1>
               <span
@@ -718,7 +718,7 @@ export function VendorProfile() {
                 {statusLabel}
               </span>
             </div>
-            <p className="text-sm text-slate-500">
+            <p className="text-sm leading-relaxed text-slate-500">
               {kycLocked
                 ? "Verified KYC and bank details are locked. You can still update your public store name, website, and other storefront fields where shown below."
                 : "Complete all tabs below to enable Submit for Approval."}
@@ -781,8 +781,8 @@ export function VendorProfile() {
           <Alert type="info" title="Upload" message={uploadSuccess} />
         )}
 
-        {/* Tab navigation */}
-        <div className="flex gap-1 rounded-2xl border border-slate-200/80 bg-slate-50/60 p-1.5 shadow-sm">
+        {/* Tab navigation — full-width stack on mobile, row on sm+ */}
+        <div className="flex flex-col gap-2 rounded-2xl border border-slate-200/80 bg-slate-50/60 p-1.5 shadow-sm sm:flex-row sm:flex-wrap sm:gap-1">
           {TABS.map((tab) => {
             const Icon = tab.icon;
             const tabComplete = isTabComplete(tab.id, vendorProfile, formData.gstNotApplicable);
@@ -794,8 +794,9 @@ export function VendorProfile() {
             return (
               <button
                 key={tab.id}
+                type="button"
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2.5 rounded-xl px-5 py-3 text-sm font-semibold whitespace-nowrap transition-all duration-200 ${
+                className={`flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-center text-sm font-semibold leading-tight transition-all duration-200 sm:min-h-0 sm:w-auto sm:flex-1 sm:justify-start sm:px-5 sm:py-3 ${
                   isActive
                     ? "bg-white text-slate-900 shadow-md ring-1 ring-slate-200/80"
                     : "text-slate-600 hover:bg-white/60 hover:text-slate-800"
@@ -807,7 +808,7 @@ export function VendorProfile() {
                 ) : (
                   <AlertTriangle className="h-5 w-5 shrink-0 text-amber-500" aria-label="Incomplete" />
                 )}
-                {tab.label}
+                <span className="break-words">{tab.label}</span>
               </button>
             );
           })}

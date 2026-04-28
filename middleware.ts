@@ -14,10 +14,8 @@ import {
   isSuperAdminLoginPage,
   SELLER_ROLES,
   ADMIN_ROLE,
-  SUPER_ADMIN_ROLE,
   VENDOR_LOGIN,
   ADMIN_LOGIN,
-  SUPER_ADMIN_LOGIN,
 } from "@/lib/auth/middleware-routes";
 
 const LOGIN_PATH = "/login";
@@ -67,11 +65,10 @@ export async function middleware(request: NextRequest) {
     return passThrough(request, pathname);
   }
 
-  // /superadmin routes
+  // /superadmin routes (UI): session uses Bearer JWT in localStorage, not the main auth cookie.
+  // A logged-in customer would otherwise hit session.role !== SUPER_ADMIN and get sent to /login.
+  // API routes under /api/superadmin/* enforce requireSuperAdmin separately (middleware excludes /api).
   if (isSuperAdminRoute(pathname) && !isSuperAdminLoginPage(pathname)) {
-    if (!session) return redirectToLogin(request, pathname, SUPER_ADMIN_LOGIN);
-    if (session.role !== SUPER_ADMIN_ROLE)
-      return NextResponse.redirect(new URL("/login", request.url));
     return passThrough(request, pathname);
   }
 

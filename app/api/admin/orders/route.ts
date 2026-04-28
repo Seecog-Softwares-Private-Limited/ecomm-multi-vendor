@@ -41,7 +41,12 @@ function orderStatusToDisplay(s: OrderStatus): string {
 
 /**
  * GET /api/admin/orders — list orders with summary stats (admin only).
- * Query: status, dateFrom, dateTo, search, page, pageSize.
+ * Query: status, pending (1), payment (paid|unpaid), dateFrom, dateTo, search, page, pageSize.
+ *
+ * `payment` filters by Payment row status (what the admin table "Payment" column shows).
+ * `status` filters by Order.fulfillment status — "Payment confirmed" is only the
+ * PAYMENT_CONFIRMED step; use payment=paid to list all paid orders.
+ * `pending=1` limits to early-stage orders (PLACED or PAYMENT_CONFIRMED); takes precedence over `status`.
  */
 export const GET = withApiHandler(async (request: NextRequest) => {
   const ctx = await requireAdminPermission(request, "orders");
@@ -49,6 +54,10 @@ export const GET = withApiHandler(async (request: NextRequest) => {
 
   const { searchParams } = new URL(request.url);
   const statusParam = searchParams.get("status")?.toLowerCase().replace(/-/g, "_") ?? "";
+  const pendingParam = searchParams.get("pending");
+  const pendingBucket =
+    pendingParam === "1" || pendingParam?.toLowerCase() === "true";
+  const paymentParam = searchParams.get("payment")?.toLowerCase() ?? "";
   const dateFrom = searchParams.get("dateFrom")?.trim();
   const dateTo = searchParams.get("dateTo")?.trim();
   const search = searchParams.get("search")?.trim() ?? "";
@@ -57,8 +66,16 @@ export const GET = withApiHandler(async (request: NextRequest) => {
 
   const where: Prisma.OrderWhereInput = {};
 
-  if (statusParam && STATUS_MAP[statusParam]) {
+  if (pendingBucket) {
+    where.status = { in: ["PLACED", "PAYMENT_CONFIRMED"] };
+  } else if (statusParam && STATUS_MAP[statusParam]) {
     where.status = STATUS_MAP[statusParam];
+  }
+
+  if (paymentParam === "paid") {
+    where.payments = { some: { status: "PAID" } };
+  } else if (paymentParam === "unpaid") {
+    where.NOT = { payments: { some: { status: "PAID" } } };
   }
 
   if (search) {

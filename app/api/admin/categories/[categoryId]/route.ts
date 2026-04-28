@@ -32,8 +32,10 @@ export const PUT = withApiHandler(async (request: NextRequest, context?: ApiRout
   const categoryId = typeof params.categoryId === "string" ? params.categoryId : "";
   if (!categoryId) return apiNotFound("Category not found");
 
+  // Look up by id only (not deletedAt). Inactive/soft-deleted rows still appear in the
+  // admin list; updates must be able to reactivate them (set deletedAt to null).
   const category = await prisma.category.findFirst({
-    where: { id: categoryId, deletedAt: null },
+    where: { id: categoryId },
     select: { id: true, name: true, slug: true },
   });
   if (!category) return apiNotFound("Category not found");
@@ -92,10 +94,14 @@ export const DELETE = withApiHandler(async (request: NextRequest, context?: ApiR
   if (!categoryId) return apiNotFound("Category not found");
 
   const category = await prisma.category.findFirst({
-    where: { id: categoryId, deletedAt: null },
-    select: { id: true },
+    where: { id: categoryId },
+    select: { id: true, deletedAt: true },
   });
   if (!category) return apiNotFound("Category not found");
+
+  if (category.deletedAt != null) {
+    return apiSuccess({ id: categoryId, deleted: true, alreadyDeleted: true });
+  }
 
   await prisma.category.update({
     where: { id: categoryId },

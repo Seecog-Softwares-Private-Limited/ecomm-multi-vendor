@@ -33,6 +33,13 @@ const labelBase = "block text-sm font-medium text-slate-700 mb-1.5";
 
 export function NotificationsManagement() {
   const [showModal, setShowModal] = useState(false);
+  const [sendType, setSendType] = useState("system");
+  const [sendTitle, setSendTitle] = useState("");
+  const [sendMessage, setSendMessage] = useState("");
+  const [sendTarget, setSendTarget] = useState("all_sellers");
+  const [sendLoading, setSendLoading] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
+  const [broadcastInfo, setBroadcastInfo] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
@@ -99,6 +106,70 @@ export function NotificationsManagement() {
     setPage(1);
   };
 
+  const resetSendForm = () => {
+    setSendType("system");
+    setSendTitle("");
+    setSendMessage("");
+    setSendTarget("all_sellers");
+    setSendError(null);
+  };
+
+  const openSendModal = () => {
+    resetSendForm();
+    setShowModal(true);
+  };
+
+  const closeSendModal = () => {
+    setShowModal(false);
+    resetSendForm();
+  };
+
+  const handleSendNotification = async () => {
+    setSendError(null);
+    const title = sendTitle.trim();
+    const message = sendMessage.trim();
+    if (!title) {
+      setSendError("Please enter a title.");
+      return;
+    }
+    if (!message) {
+      setSendError("Please enter a message.");
+      return;
+    }
+    setSendLoading(true);
+    try {
+      const res = await fetch("/api/admin/notifications", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: sendType,
+          title,
+          message,
+          target: sendTarget,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setSendError(
+          json?.error?.message ?? "Could not send notification. Try again."
+        );
+        return;
+      }
+      const sent = json?.data?.sent ?? 0;
+      closeSendModal();
+      setBroadcastInfo(
+        sent === 0
+          ? "No recipients were found for this target."
+          : `Notification sent to ${sent} recipient${sent === 1 ? "" : "s"}.`
+      );
+    } catch {
+      setSendError("Network error. Please try again.");
+    } finally {
+      setSendLoading(false);
+    }
+  };
+
   const handleMarkAsRead = useCallback(async (id: string) => {
     try {
       const res = await fetch(`/api/admin/notifications/${encodeURIComponent(id)}/read`, {
@@ -155,13 +226,26 @@ export function NotificationsManagement() {
           </div>
           <button
             type="button"
-            onClick={() => setShowModal(true)}
+            onClick={openSendModal}
             className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-slate-900/25 transition hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2"
           >
             <Send className="h-4 w-4" />
             Send Notification
           </button>
         </div>
+
+        {broadcastInfo && (
+          <div className="mb-6 flex items-start justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+            <span>{broadcastInfo}</span>
+            <button
+              type="button"
+              onClick={() => setBroadcastInfo(null)}
+              className="shrink-0 text-emerald-700 underline-offset-2 hover:underline"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
 
         {error && (
           <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
@@ -344,28 +428,39 @@ export function NotificationsManagement() {
               </div>
               <button
                 type="button"
-                onClick={() => setShowModal(false)}
+                onClick={closeSendModal}
                 className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
                 aria-label="Close"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
+            {sendError && (
+              <div className="mx-6 mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+                {sendError}
+              </div>
+            )}
             <div className="space-y-5 px-6 py-6">
               <div>
                 <label className={labelBase}>Type</label>
-                <select className={inputBase}>
-                  <option>System</option>
-                  <option>Order</option>
-                  <option>Seller</option>
-                  <option>Payment</option>
-                  <option>Return</option>
+                <select
+                  className={inputBase}
+                  value={sendType}
+                  onChange={(e) => setSendType(e.target.value)}
+                >
+                  <option value="system">System</option>
+                  <option value="order">Order</option>
+                  <option value="seller">Seller</option>
+                  <option value="payment">Payment</option>
+                  <option value="return">Return</option>
                 </select>
               </div>
               <div>
                 <label className={labelBase}>Title</label>
                 <input
                   type="text"
+                  value={sendTitle}
+                  onChange={(e) => setSendTitle(e.target.value)}
                   placeholder="Notification title"
                   className={inputBase}
                 />
@@ -374,33 +469,42 @@ export function NotificationsManagement() {
                 <label className={labelBase}>Message</label>
                 <textarea
                   rows={4}
+                  value={sendMessage}
+                  onChange={(e) => setSendMessage(e.target.value)}
                   placeholder="Notification message"
                   className={inputBase + " resize-y min-h-[100px]"}
                 />
               </div>
               <div>
                 <label className={labelBase}>Target Users</label>
-                <select className={inputBase}>
-                  <option>All Users</option>
-                  <option>All Sellers</option>
-                  <option>All Customers</option>
-                  <option>All Admins</option>
+                <select
+                  className={inputBase}
+                  value={sendTarget}
+                  onChange={(e) => setSendTarget(e.target.value)}
+                >
+                  <option value="all_users">All Users</option>
+                  <option value="all_sellers">All Sellers</option>
+                  <option value="all_customers">All Customers</option>
+                  <option value="all_admins">All Admins</option>
                 </select>
               </div>
             </div>
             <div className="flex gap-3 border-t border-slate-100 px-6 py-4">
               <button
                 type="button"
-                onClick={() => setShowModal(false)}
-                className="flex-1 rounded-xl border border-slate-200 bg-white py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:ring-offset-2"
+                onClick={closeSendModal}
+                disabled={sendLoading}
+                className="flex-1 rounded-xl border border-slate-200 bg-white py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:ring-offset-2 disabled:opacity-60"
               >
                 Cancel
               </button>
               <button
                 type="button"
-                className="flex-1 rounded-xl border border-amber-600 bg-amber-500 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2"
+                onClick={handleSendNotification}
+                disabled={sendLoading}
+                className="flex-1 rounded-xl border border-amber-600 bg-amber-500 py-3 text-sm font-semibold text-white shadow-md transition hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 disabled:opacity-60"
               >
-                Send
+                {sendLoading ? "Sending…" : "Send"}
               </button>
             </div>
           </div>

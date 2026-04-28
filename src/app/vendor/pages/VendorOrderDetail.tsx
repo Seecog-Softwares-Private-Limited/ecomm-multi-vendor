@@ -255,7 +255,7 @@ export function VendorOrderDetail({ orderId = "", order: orderProp, onBack }: Ve
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6">
       {banner ? (
         <Alert
           type={banner.type === "success" ? "success" : "error"}
@@ -266,23 +266,26 @@ export function VendorOrderDetail({ orderId = "", order: orderProp, onBack }: Ve
       ) : null}
 
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 items-start gap-3 sm:gap-4">
           <button
             type="button"
             onClick={() => onBack?.()}
-            className="p-2 hover:bg-[#F8FAFC] rounded-lg transition-colors"
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-[#64748B] transition-colors hover:bg-[#F8FAFC]"
+            aria-label="Back to orders"
           >
-            <ArrowLeft className="w-6 h-6 text-[#64748B]" />
+            <ArrowLeft className="h-6 w-6" />
           </button>
-          <div>
-            <h1 className="text-3xl font-bold text-[#1E293B] mb-2">Order {order.id}</h1>
-            <p className="text-[#64748B]">{order.date}</p>
+          <div className="min-w-0">
+            <h1 className="break-words text-xl font-bold leading-snug text-[#1E293B] sm:text-2xl lg:text-3xl">
+              Order {order.id}
+            </h1>
+            <p className="mt-1 text-sm text-[#64748B]">{order.date}</p>
           </div>
         </div>
-        <div>
+        <div className="shrink-0 self-start sm:self-center">
           <span
-            className={`${getStatusColor(order.status)} text-white text-sm font-bold px-4 py-2 rounded-lg`}
+            className={`inline-block rounded-lg px-3 py-2 text-xs font-bold text-white sm:px-4 sm:text-sm ${getStatusColor(order.status)}`}
           >
             {order.status.toUpperCase()}
           </span>
@@ -303,17 +306,23 @@ export function VendorOrderDetail({ orderId = "", order: orderProp, onBack }: Ve
       {/* Action Buttons */}
       {order.status === "new" && (
         <Card>
-          <div className="flex items-center gap-4">
-            <Button variant="primary" disabled={actionBusy} onClick={() => void handleAcceptOrder()}>
-              <CheckCircle className="w-5 h-5" />
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+            <Button
+              variant="primary"
+              disabled={actionBusy}
+              className="min-h-11 w-full sm:w-auto"
+              onClick={() => void handleAcceptOrder()}
+            >
+              <CheckCircle className="h-5 w-5" />
               Accept Order
             </Button>
             <Button
               variant="danger"
               disabled={actionBusy}
+              className="min-h-11 w-full sm:w-auto"
               onClick={() => setShowRejectModal(true)}
             >
-              <XCircle className="w-5 h-5" />
+              <XCircle className="h-5 w-5" />
               Reject Order
             </Button>
           </div>
@@ -322,13 +331,23 @@ export function VendorOrderDetail({ orderId = "", order: orderProp, onBack }: Ve
 
       {order.status === "accepted" && (
         <Card>
-          <div className="flex items-center gap-4">
-            <Button variant="primary" disabled={actionBusy} onClick={() => setShowShipModal(true)}>
-              <Truck className="w-5 h-5" />
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+            <Button
+              variant="primary"
+              disabled={actionBusy}
+              className="min-h-11 w-full sm:w-auto"
+              onClick={() => setShowShipModal(true)}
+            >
+              <Truck className="h-5 w-5" />
               Mark as Shipped
             </Button>
-            <Button variant="secondary" disabled={actionBusy} onClick={() => setShowCancelModal(true)}>
-              <XCircle className="w-5 h-5" />
+            <Button
+              variant="secondary"
+              disabled={actionBusy}
+              className="min-h-11 w-full sm:w-auto"
+              onClick={() => setShowCancelModal(true)}
+            >
+              <XCircle className="h-5 w-5" />
               Cancel Order
             </Button>
           </div>
@@ -337,13 +356,23 @@ export function VendorOrderDetail({ orderId = "", order: orderProp, onBack }: Ve
 
       {order.status === "shipped" && (
         <Card>
-          <div className="flex items-center gap-4">
-            <Button variant="primary" disabled={actionBusy} onClick={() => void handleDeliverOrder()}>
-              <CheckCircle className="w-5 h-5" />
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+            <Button
+              variant="primary"
+              disabled={actionBusy}
+              className="min-h-11 w-full sm:w-auto"
+              onClick={() => void handleDeliverOrder()}
+            >
+              <CheckCircle className="h-5 w-5" />
               Mark as Delivered
             </Button>
-            <Button variant="secondary" disabled={actionBusy} onClick={() => setShowDisputeModal(true)}>
-              <AlertTriangle className="w-5 h-5" />
+            <Button
+              variant="secondary"
+              disabled={actionBusy}
+              className="min-h-11 w-full sm:w-auto"
+              onClick={() => setShowDisputeModal(true)}
+            >
+              <AlertTriangle className="h-5 w-5" />
               Report an Issue
             </Button>
           </div>
@@ -351,7 +380,7 @@ export function VendorOrderDetail({ orderId = "", order: orderProp, onBack }: Ve
       )}
 
       {/* Two Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-6">
         {/* Left Column - Order Details */}
         <div className="lg:col-span-2 space-y-6">
           {/* Order Items */}
@@ -360,19 +389,19 @@ export function VendorOrderDetail({ orderId = "", order: orderProp, onBack }: Ve
               {order.items.map((item, index) => (
                 <div
                   key={`${item.sku}-${index}`}
-                  className="flex items-center gap-4 p-4 bg-[#F8FAFC] rounded-xl"
+                  className="flex flex-col gap-3 rounded-xl bg-[#F8FAFC] p-4 sm:flex-row sm:items-center"
                 >
                   <img
                     src={item.image}
                     alt={item.name}
-                    className="w-20 h-20 object-cover rounded-lg border-2 border-[#E2E8F0]"
+                    className="h-20 w-20 shrink-0 rounded-lg border-2 border-[#E2E8F0] object-cover"
                   />
-                  <div className="flex-1">
-                    <h4 className="font-bold text-[#1E293B] mb-1">{item.name}</h4>
-                    <p className="text-sm text-[#64748B] mb-2">SKU: {item.sku}</p>
+                  <div className="min-w-0 flex-1">
+                    <h4 className="mb-1 break-words font-bold text-[#1E293B]">{item.name}</h4>
+                    <p className="mb-2 text-sm text-[#64748B]">SKU: {item.sku}</p>
                     <p className="text-sm text-[#64748B]">Quantity: {item.qty}</p>
                   </div>
-                  <div className="text-right">
+                  <div className="text-left sm:shrink-0 sm:text-right">
                     <p className="font-bold text-[#1E293B]">₹{item.price}</p>
                     <p className="text-sm text-[#64748B]">per unit</p>
                   </div>
@@ -470,9 +499,9 @@ export function VendorOrderDetail({ orderId = "", order: orderProp, onBack }: Ve
           {/* Payment Details */}
           <Card title="Payment Details">
             <div className="space-y-3">
-              <div className="flex items-center gap-3 mb-4">
-                <CreditCard className="w-5 h-5 text-[#64748B]" />
-                <div>
+              <div className="mb-4 flex min-w-0 items-center gap-3">
+                <CreditCard className="h-5 w-5 shrink-0 text-[#64748B]" />
+                <div className="min-w-0">
                   <p className="font-semibold text-[#1E293B]">{order.payment.mode}</p>
                   <p className="text-sm text-[#64748B]">{order.payment.status}</p>
                 </div>
@@ -542,11 +571,16 @@ export function VendorOrderDetail({ orderId = "", order: orderProp, onBack }: Ve
             onChange={(e) => setRejectReason(e.target.value)}
             required
           />
-          <div className="flex gap-3 justify-end">
-            <Button variant="ghost" onClick={() => setShowRejectModal(false)}>
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <Button variant="ghost" className="min-h-11 w-full sm:w-auto" onClick={() => setShowRejectModal(false)}>
               Cancel
             </Button>
-            <Button variant="danger" disabled={actionBusy} onClick={() => void handleRejectOrder()}>
+            <Button
+              variant="danger"
+              disabled={actionBusy}
+              className="min-h-11 w-full sm:w-auto"
+              onClick={() => void handleRejectOrder()}
+            >
               Reject Order
             </Button>
           </div>
@@ -574,11 +608,16 @@ export function VendorOrderDetail({ orderId = "", order: orderProp, onBack }: Ve
             value={trackingLink}
             onChange={(e) => setTrackingLink(e.target.value)}
           />
-          <div className="flex gap-3 justify-end">
-            <Button variant="ghost" onClick={() => setShowShipModal(false)}>
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <Button variant="ghost" className="min-h-11 w-full sm:w-auto" onClick={() => setShowShipModal(false)}>
               Cancel
             </Button>
-            <Button variant="primary" disabled={actionBusy} onClick={() => void handleShipOrder()}>
+            <Button
+              variant="primary"
+              disabled={actionBusy}
+              className="min-h-11 w-full sm:w-auto"
+              onClick={() => void handleShipOrder()}
+            >
               Confirm Shipment
             </Button>
           </div>
@@ -605,11 +644,11 @@ export function VendorOrderDetail({ orderId = "", order: orderProp, onBack }: Ve
             onChange={(e) => setCancelReason(e.target.value)}
             required
           />
-          <div className="flex gap-3 justify-end">
-            <Button variant="ghost" onClick={() => setShowCancelModal(false)}>
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <Button variant="ghost" className="min-h-11 w-full sm:w-auto" onClick={() => setShowCancelModal(false)}>
               Cancel
             </Button>
-            <Button variant="danger" onClick={handleCancelOrder}>
+            <Button variant="danger" className="min-h-11 w-full sm:w-auto" onClick={handleCancelOrder}>
               Cancel Order
             </Button>
           </div>
@@ -649,11 +688,11 @@ export function VendorOrderDetail({ orderId = "", order: orderProp, onBack }: Ve
             type="info"
             message="Admin will review this issue and take necessary action. You'll be notified via email."
           />
-          <div className="flex gap-3 justify-end">
-            <Button variant="ghost" onClick={() => setShowDisputeModal(false)}>
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <Button variant="ghost" className="min-h-11 w-full sm:w-auto" onClick={() => setShowDisputeModal(false)}>
               Cancel
             </Button>
-            <Button variant="primary" onClick={handleReportIssue}>
+            <Button variant="primary" className="min-h-11 w-full sm:w-auto" onClick={handleReportIssue}>
               Submit Issue
             </Button>
           </div>
