@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Heart, X, Star } from "lucide-react";
 import { AccountLayout } from "@/components/AccountLayout";
 import { toast } from "sonner";
-import { useCartDrawer } from "@/contexts/CartDrawerContext";
+import { useCartDrawer, dispatchCartUpdated } from "@/contexts/CartDrawerContext";
 
 type WishlistProduct = {
   id: string;
@@ -112,6 +112,7 @@ export function WishlistPage() {
         return;
       }
       toast.success("Added to cart");
+      dispatchCartUpdated();
       openCartDrawer();
     } catch {
       toast.error("Could not add to cart");

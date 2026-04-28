@@ -17,6 +17,7 @@ import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getGuestCart, clearGuestCart } from "@/lib/guest-cart";
 import { IndovyaparLogo } from "@/components/IndovyaparLogo";
+import { dispatchCartUpdated } from "@/contexts/CartDrawerContext";
 
 const inputClass =
   "block w-full rounded-xl border border-slate-200 bg-slate-50/50 py-3 text-slate-900 placeholder:text-slate-400 transition focus:border-[#FF6A00] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6A00]/20";
@@ -177,6 +178,7 @@ export function RegisterPage() {
           });
         }
         clearGuestCart();
+        dispatchCartUpdated();
       }
       router.push(returnUrl);
     } catch {
