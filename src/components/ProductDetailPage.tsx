@@ -29,7 +29,7 @@ import {
   distinctVariantSizes,
 } from "@/lib/product-sku-variant";
 import { addToGuestCart } from "@/lib/guest-cart";
-import { useCartDrawer } from "@/contexts/CartDrawerContext";
+import { useCartDrawer, dispatchCartUpdated } from "@/contexts/CartDrawerContext";
 import { useDeliveryLocation } from "@/contexts/DeliveryLocationContext";
 import { addRecentlyViewedId } from "@/lib/recently-viewed";
 
@@ -434,6 +434,7 @@ export function ProductDetailPage({
         return;
       }
       toast.success("Added to cart");
+      dispatchCartUpdated();
       openCartDrawer();
     } catch {
       toast.error("Could not add to cart. Please try again.");
@@ -502,6 +503,7 @@ export function ProductDetailPage({
         return;
       }
       toast.success("Added to cart");
+      dispatchCartUpdated();
       router.push("/checkout");
     } catch {
       toast.error("Could not add to cart. Please try again.");

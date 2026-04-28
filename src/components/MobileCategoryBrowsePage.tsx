@@ -61,7 +61,8 @@ export function MobileCategoryBrowsePage() {
 
   useLayoutEffect(() => {
     if (selectedKey != null || !rows.length) return;
-    setSelectedKey(rowKey(rows[0]));
+    const firstDepartment = rows.find((r) => r.kind === "category");
+    setSelectedKey(rowKey(firstDepartment ?? rows[0]));
   }, [rows, selectedKey]);
 
   useLayoutEffect(() => {

@@ -7,12 +7,13 @@ import { toast } from "sonner";
 import { Star, ShoppingCart, Search, SlidersHorizontal, SearchX } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { addToGuestCart } from "@/lib/guest-cart";
-import { useCartDrawer } from "@/contexts/CartDrawerContext";
+import { useCartDrawer, dispatchCartUpdated } from "@/contexts/CartDrawerContext";
 import { useDeliveryLocation } from "@/contexts/DeliveryLocationContext";
 import { MENU_TYPE_SLUGS, type MenuTypeSlug } from "@/lib/catalog-constants";
 
 type ProductItem = {
   id: string;
+  slug?: string;
   name: string;
   price: number;
   oldPrice?: number;
@@ -43,6 +44,8 @@ export function SearchResultsPage() {
   const [products, setProducts] = useState<ProductItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  /** True when first request used pincode and returned 0, but a retry without pincode found items. */
+  const [expandedPastPinFilter, setExpandedPastPinFilter] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [addingToCartId, setAddingToCartId] = useState<string | null>(null);
   const { openCartDrawer } = useCartDrawer();
@@ -53,31 +56,59 @@ export function SearchResultsPage() {
   const fetchProducts = useCallback(() => {
     if (!searchTerm) {
       setProducts([]);
+      setExpandedPastPinFilter(false);
       setLoading(false);
       return;
     }
     setLoading(true);
     setError(false);
-    const params = new URLSearchParams({ q: searchTerm, limit: "48" });
-    if (categorySlugFromUrl) params.set("categorySlug", categorySlugFromUrl);
-    if (menuTypeFromUrl) params.set("menuType", menuTypeFromUrl);
+    setExpandedPastPinFilter(false);
+
     const pin = (location.pincode ?? "").replace(/\D/g, "").slice(0, 6);
-    if (/^\d{6}$/.test(pin)) params.set("pincode", pin);
-    fetch(`/api/products?${params.toString()}`, { credentials: "include" })
+    const hasPin = /^\d{6}$/.test(pin);
+
+    const buildParams = (includePincode: boolean) => {
+      const params = new URLSearchParams({ q: searchTerm, limit: "48" });
+      if (categorySlugFromUrl) params.set("categorySlug", categorySlugFromUrl);
+      if (menuTypeFromUrl) params.set("menuType", menuTypeFromUrl);
+      if (includePincode && hasPin) params.set("pincode", pin);
+      return params;
+    };
+
+    const mapRows = (data: unknown): ProductItem[] => {
+      const list = Array.isArray((data as { data?: unknown })?.data)
+        ? (data as { data: Record<string, unknown>[] }).data
+        : [];
+      return list.map((p) => ({
+        id: String(p.id),
+        slug: typeof p.slug === "string" ? p.slug : undefined,
+        name: String(p.name),
+        price: Number(p.price),
+        oldPrice: typeof p.oldPrice === "number" ? p.oldPrice : undefined,
+        rating: typeof p.rating === "number" ? p.rating : 0,
+        reviews: typeof p.reviews === "number" ? p.reviews : 0,
+        imageUrl: (p.imageUrl as string | null | undefined) ?? null,
+      }));
+    };
+
+    fetch(`/api/products?${buildParams(true).toString()}`, { credentials: "include" })
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error("Failed"))))
-      .then((data) => {
-        const list = Array.isArray(data?.data) ? data.data : [];
-        setProducts(
-          list.map((p: { id: string; name: string; price: number; oldPrice?: number; rating: number; reviews: number; imageUrl?: string | null }) => ({
-            id: p.id,
-            name: p.name,
-            price: p.price,
-            oldPrice: p.oldPrice,
-            rating: p.rating ?? 0,
-            reviews: p.reviews ?? 0,
-            imageUrl: p.imageUrl,
-          }))
-        );
+      .then(async (data) => {
+        let rows = mapRows(data);
+        if (rows.length === 0 && hasPin) {
+          const res2 = await fetch(`/api/products?${buildParams(false).toString()}`, {
+            credentials: "include",
+          });
+          if (res2.ok) {
+            const data2 = await res2.json();
+            const retryRows = mapRows(data2);
+            if (retryRows.length > 0) {
+              rows = retryRows;
+              setExpandedPastPinFilter(true);
+            }
+          }
+        }
+        setProducts(rows);
       })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
@@ -144,14 +175,22 @@ export function SearchResultsPage() {
           </form>
 
           {searchTerm && (
-            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-1">
-              Results for <span className="text-[#FF6A00]">&quot;{searchTerm}&quot;</span>
-              {scopeHint ? (
-                <span className="block mt-1 text-base font-semibold capitalize text-slate-600 sm:text-lg">
-                  in {scopeHint}
-                </span>
+            <div className="mb-1">
+              <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">
+                Results for <span className="text-[#FF6A00]">&quot;{searchTerm}&quot;</span>
+                {scopeHint ? (
+                  <span className="block mt-1 text-base font-semibold capitalize text-slate-600 sm:text-lg">
+                    in {scopeHint}
+                  </span>
+                ) : null}
+              </h1>
+              {expandedPastPinFilter ? (
+                <p className="mt-2 max-w-2xl text-sm leading-relaxed text-amber-900/90">
+                  Your saved PIN isn&apos;t in the platform delivery list, so results were widened to the full
+                  catalog. Availability for your address is confirmed at checkout.
+                </p>
               ) : null}
-            </h1>
+            </div>
           )}
         </div>
 
@@ -305,6 +344,7 @@ export function SearchResultsPage() {
                             return;
                           }
                           toast.success("Added to cart");
+                          dispatchCartUpdated();
                           openCartDrawer();
                         } catch {
                           toast.error("Could not add to cart.");

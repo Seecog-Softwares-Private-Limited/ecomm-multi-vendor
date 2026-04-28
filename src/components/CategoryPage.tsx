@@ -21,7 +21,7 @@ import {
 import type { ProductListItem } from "@/types/catalog";
 import { getBaseUrl } from "@/services/client";
 import { addToGuestCart } from "@/lib/guest-cart";
-import { useCartDrawer } from "@/contexts/CartDrawerContext";
+import { useCartDrawer, dispatchCartUpdated } from "@/contexts/CartDrawerContext";
 import { useDeliveryLocation } from "@/contexts/DeliveryLocationContext";
 import { isMenuTypeSlug } from "@/lib/catalog-constants";
 
@@ -679,6 +679,7 @@ export function CategoryPage({
                               return;
                             }
                             toast.success("Added to cart");
+                            dispatchCartUpdated();
                             openCartDrawer();
                           } catch {
                             toast.error("Could not add to cart.");

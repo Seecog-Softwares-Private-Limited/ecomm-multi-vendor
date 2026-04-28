@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import type { ProductDetail } from "@/types/catalog";
 import { addToGuestCart } from "@/lib/guest-cart";
-import { useCartDrawer } from "@/contexts/CartDrawerContext";
+import { useCartDrawer, dispatchCartUpdated } from "@/contexts/CartDrawerContext";
 import { useDeliveryLocation } from "@/contexts/DeliveryLocationContext";
 import { addRecentlyViewedId } from "@/lib/recently-viewed";
 
@@ -127,6 +127,7 @@ export function ProductDetailPageDynamic({
         return;
       }
       toast.success("Added to cart");
+      dispatchCartUpdated();
       openCartDrawer();
     } catch {
       toast.error("Could not add to cart. Please try again.");

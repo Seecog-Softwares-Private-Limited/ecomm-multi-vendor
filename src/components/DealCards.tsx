@@ -40,7 +40,8 @@ const dealCards: DealCard[] = [
       "https://images.unsplash.com/photo-1758640927926-9f0b1cda712e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400",
       "https://images.unsplash.com/photo-1735980968208-1b85bdcd857b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=400",
     ],
-    href: "/category/deals",
+    /** Sneakers / lifestyle grid: send users to shoe results, not the generic deals menu (phones, etc.). */
+    href: "/search?q=shoes",
   },
 ];
 

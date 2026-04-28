@@ -19,6 +19,7 @@ import { IndovyaparLogo } from "@/components/IndovyaparLogo";
 import { getGuestCart, clearGuestCart } from "@/lib/guest-cart";
 import { normalizeIndianPhone, INDIAN_MOBILE_HINT } from "@/lib/auth/phone";
 import { syncCustomerDefaultAddressToDeliveryLocation } from "@/lib/delivery-location";
+import { dispatchCartUpdated } from "@/contexts/CartDrawerContext";
 
 type LoginMode = "email" | "phone";
 type PhoneStep = "number" | "otp";
@@ -71,6 +72,7 @@ export function LoginPage() {
         });
       }
       clearGuestCart();
+      dispatchCartUpdated();
     }
     await syncCustomerDefaultAddressToDeliveryLocation();
     await new Promise((r) => setTimeout(r, 50));
