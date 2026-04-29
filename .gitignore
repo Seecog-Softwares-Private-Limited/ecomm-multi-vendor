@@ -7,6 +7,10 @@ out/
 
 # Production
 # build/
+<<<<<<< HEAD
+.next/
+=======
+>>>>>>> af7f34ac5343b787053f92f173f0fb49e735e503
 
 
 # Debug
@@ -21,6 +25,7 @@ yarn-error.log*
 .env.development.local
 .env.test.local
 .env.production.local
+properties.env
 
 # Vercel
 .vercel

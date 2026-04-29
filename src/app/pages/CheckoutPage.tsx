@@ -18,6 +18,10 @@ import {
 import { TopBar } from "@/components/TopBar";
 import { Navbar } from "@/components/Navbar";
 import { DEFAULT_GST_PERCENT } from "@/lib/constants/gst";
+<<<<<<< HEAD
+import { storefrontTermsOfServiceHref } from "@/lib/cms-footer-pages";
+=======
+>>>>>>> af7f34ac5343b787053f92f173f0fb49e735e503
 
 type AddressApi = {
   id: string;
@@ -780,8 +784,16 @@ export function CheckoutPage() {
 
                 <p className="text-xs text-center text-[#6B7280] mt-4">
                   By placing this order, you agree to our{" "}
+<<<<<<< HEAD
+                  <Link
+                    href={storefrontTermsOfServiceHref()}
+                    className="text-[#FF6A00] hover:underline"
+                  >
+                    Terms &amp; Conditions
+=======
                   <Link href="/terms" className="text-[#FF6A00] hover:underline">
                     Terms & Conditions
+>>>>>>> af7f34ac5343b787053f92f173f0fb49e735e503
                   </Link>
                 </p>
               </div>
