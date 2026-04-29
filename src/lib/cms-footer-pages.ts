@@ -93,6 +93,20 @@ export function cmsFooterPublicPath(slug: string): string {
   return `/info/${slug}`;
 }
 
+/** Slug for the storefront Terms of Service policy page. */
+export const TERMS_OF_SERVICE_SLUG = "terms-of-service" as const;
+
+/**
+ * Href for Terms of Service links (checkout, registration, etc.).
+ * Uses `NEXT_PUBLIC_APP_URL` when set so Web/production builds match the public site origin;
+ * otherwise falls back to the same-origin `/info/...` path (local dev).
+ */
+export function storefrontTermsOfServiceHref(): string {
+  const base = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, "");
+  if (base) return `${base}${cmsFooterPublicPath(TERMS_OF_SERVICE_SLUG)}`;
+  return cmsFooterPublicPath(TERMS_OF_SERVICE_SLUG);
+}
+
 /** Footer slugs that render a built-in storefront page (not editable in Admin → CMS). */
 export const STATIC_STOREFRONT_FOOTER_SLUGS = new Set(["about-indovyapar", "careers"]);
 

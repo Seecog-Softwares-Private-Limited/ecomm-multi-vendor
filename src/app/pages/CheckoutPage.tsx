@@ -18,6 +18,7 @@ import {
 import { TopBar } from "@/components/TopBar";
 import { Navbar } from "@/components/Navbar";
 import { DEFAULT_GST_PERCENT } from "@/lib/constants/gst";
+import { storefrontTermsOfServiceHref } from "@/lib/cms-footer-pages";
 
 type AddressApi = {
   id: string;
@@ -780,8 +781,11 @@ export function CheckoutPage() {
 
                 <p className="text-xs text-center text-[#6B7280] mt-4">
                   By placing this order, you agree to our{" "}
-                  <Link href="/terms" className="text-[#FF6A00] hover:underline">
-                    Terms & Conditions
+                  <Link
+                    href={storefrontTermsOfServiceHref()}
+                    className="text-[#FF6A00] hover:underline"
+                  >
+                    Terms &amp; Conditions
                   </Link>
                 </p>
               </div>

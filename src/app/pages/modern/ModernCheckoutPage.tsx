@@ -1,6 +1,7 @@
 "use client";
 
 import { Link } from "../../components/Link";
+import { storefrontTermsOfServiceHref } from "@/lib/cms-footer-pages";
 import { Search, ShoppingBag, User, Check, Plus, CreditCard, Smartphone } from "lucide-react";
 import * as React from "react";
 
@@ -258,7 +259,10 @@ export function ModernCheckoutPage() {
               </Link>
 
               <p className="text-xs text-center text-gray-600">
-                By placing this order, you agree to our Terms & Conditions
+                By placing this order, you agree to our{" "}
+                <Link href={storefrontTermsOfServiceHref()} className="text-orange-600 hover:underline">
+                  Terms &amp; Conditions
+                </Link>
               </p>
             </div>
           </div>

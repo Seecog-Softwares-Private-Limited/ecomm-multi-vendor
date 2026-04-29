@@ -1,12 +1,10 @@
-import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import {
-  getCmsFooterPageMeta,
-  isStaticStorefrontFooterSlug,
-  isValidCmsFooterSlug,
-} from "@/lib/cms-footer-pages";
+import { TopBar } from "@/components/TopBar";
+import { Navbar } from "@/components/Navbar";
+import { CategoryNav } from "@/components/CategoryNav";
+import { getCmsFooterPageMeta, isValidCmsFooterSlug } from "@/lib/cms-footer-pages";
 import { isLikelyHtmlContent } from "@/lib/cms-content-render";
 import type { ComponentType } from "react";
 import { AboutIndovyaparPage } from "@/components/AboutIndovyaparPage";
@@ -123,20 +121,28 @@ export default async function Page({
     );
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10 sm:py-14">
-      <Link
-        href="/"
-        className="text-sm font-medium text-amber-800 hover:text-amber-900 hover:underline mb-8 inline-block"
+    <>
+      <header className="sticky top-0 z-[80]">
+        <TopBar tone="onBrand" />
+        <Navbar surface="solid" />
+        <CategoryNav />
+      </header>
+      <div
+        className="min-h-[50vh] bg-slate-100 pb-12 pt-6 sm:pt-10"
+        style={{ fontFamily: "'Manrope', sans-serif" }}
       >
-        ← Back to home
-      </Link>
-      <h1
-        className="text-2xl sm:text-3xl font-bold text-slate-900 mb-8"
-        style={{ fontFamily: "'Nunito', 'Manrope', sans-serif" }}
-      >
-        {title}
-      </h1>
-      {inner}
-    </div>
+        <div className="mx-auto max-w-3xl px-4 sm:px-6">
+          <article className="rounded-lg border border-slate-200/90 bg-white px-5 py-8 shadow-sm sm:px-10 sm:py-12">
+            <h1
+              className="mb-8 text-2xl font-bold text-slate-900 sm:text-3xl"
+              style={{ fontFamily: "'Nunito', 'Manrope', sans-serif" }}
+            >
+              {title}
+            </h1>
+            {inner}
+          </article>
+        </div>
+      </div>
+    </>
   );
 }

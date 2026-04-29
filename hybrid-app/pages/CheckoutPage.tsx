@@ -19,6 +19,13 @@ export function HybridCheckoutPage() {
         </div>
       </GlassCard>
       <button className="mt-4 h-11 w-full rounded-xl bg-orange-500 text-sm font-bold text-white">Place Order</button>
+      <p className="mt-3 px-1 text-center text-[11px] leading-snug text-slate-500">
+        By placing this order, you agree to our{" "}
+        <a href="https://indovyapar.com/info/terms-of-service" className="font-medium text-orange-600 underline">
+          Terms &amp; Conditions
+        </a>
+        .
+      </p>
     </MobileAppShell>
   );
 }

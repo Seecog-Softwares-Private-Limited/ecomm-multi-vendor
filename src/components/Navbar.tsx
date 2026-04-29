@@ -41,9 +41,18 @@ export type NavbarProps = {
   showBackButton?: boolean;
   /** When history has no usable back entry, navigate here */
   backFallbackHref?: string;
+  /**
+   * `solid` = filled primary bar (logo, search, account) like major marketplaces.
+   * Default keeps the frosted glass header used on the home page.
+   */
+  surface?: "default" | "solid";
 };
 
-export function Navbar({ showBackButton = false, backFallbackHref = "/" }: NavbarProps = {}) {
+export function Navbar({
+  showBackButton = false,
+  backFallbackHref = "/",
+  surface = "default",
+}: NavbarProps) {
   const [query, setQuery] = useState("");
   const [searchScope, setSearchScope] = useState<SearchScope>({ kind: "all" });
   const [deptDropdownOpen, setDeptDropdownOpen] = useState(false);
@@ -183,14 +192,24 @@ export function Navbar({ showBackButton = false, backFallbackHref = "/" }: Navba
     }
   };
 
+  const isSolid = surface === "solid";
+
   return (
     <div
       ref={accountDropdownRef}
-      className="relative z-[60] w-full border-b border-white/60 px-3 py-2 backdrop-blur-xl sm:px-6 md:flex md:h-[70px] md:flex-row md:items-center md:justify-between md:py-0"
-      style={{
-        background:
-          "linear-gradient(180deg, rgba(255,255,255,0.86) 0%, rgba(255,255,255,0.74) 100%)",
-      }}
+      className={`relative z-[60] w-full px-3 py-2 sm:px-6 md:flex md:h-[70px] md:flex-row md:items-center md:justify-between md:py-0 ${
+        isSolid
+          ? "border-b border-white/15 bg-[#1E5128] shadow-[0_1px_0_rgba(0,0,0,0.06)]"
+          : "border-b border-white/60 backdrop-blur-xl"
+      }`}
+      style={
+        isSolid
+          ? undefined
+          : {
+              background:
+                "linear-gradient(180deg, rgba(255,255,255,0.86) 0%, rgba(255,255,255,0.74) 100%)",
+            }
+      }
     >
       {/* Logo — centered on mobile, left-aligned from md; optional back for PDP */}
       <div
@@ -202,7 +221,11 @@ export function Navbar({ showBackButton = false, backFallbackHref = "/" }: Navba
           <button
             type="button"
             onClick={handleNavBack}
-            className="absolute left-0 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full text-[#111827] transition-colors hover:bg-black/[0.06] active:bg-black/[0.08] md:static md:top-auto md:translate-y-0 md:hover:bg-black/[0.04]"
+            className={`absolute left-0 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full transition-colors md:static md:top-auto md:translate-y-0 ${
+              isSolid
+                ? "text-white hover:bg-white/10 active:bg-white/15 md:hover:bg-white/10"
+                : "text-[#111827] hover:bg-black/[0.06] active:bg-black/[0.08] md:hover:bg-black/[0.04]"
+            }`}
             aria-label="Go back"
           >
             <ArrowLeft className="h-6 w-6" strokeWidth={2.25} />
@@ -210,10 +233,10 @@ export function Navbar({ showBackButton = false, backFallbackHref = "/" }: Navba
         ) : null}
         <div className="flex-shrink-0 cursor-pointer" onClick={() => router.push("/")}>
           <h1 className="md:hidden" style={{ margin: 0 }}>
-            <IndovyaparLogo fontSize={20} />
+            <IndovyaparLogo fontSize={20} variant={isSolid ? "light" : "default"} />
           </h1>
           <h1 className="hidden md:block" style={{ margin: 0 }}>
-            <IndovyaparLogo fontSize={26} />
+            <IndovyaparLogo fontSize={26} variant={isSolid ? "light" : "default"} />
           </h1>
         </div>
       </div>
@@ -223,11 +246,13 @@ export function Navbar({ showBackButton = false, backFallbackHref = "/" }: Navba
         className="mt-2 flex flex-row items-center md:mt-0 md:mx-6 md:flex-1 md:max-w-2xl"
         style={{
           height: 40,
-          background: "rgba(255,255,255,0.72)",
-          border: "1px solid rgba(255,255,255,0.8)",
-          boxShadow: "0px 10px 28px rgba(17,24,39,0.08), 0px 2px 6px rgba(17,24,39,0.05)",
+          background: isSolid ? "#FFFFFF" : "rgba(255,255,255,0.72)",
+          border: isSolid ? "1px solid rgba(255,255,255,0.95)" : "1px solid rgba(255,255,255,0.8)",
+          boxShadow: isSolid
+            ? "0 2px 8px rgba(0,0,0,0.12)"
+            : "0px 10px 28px rgba(17,24,39,0.08), 0px 2px 6px rgba(17,24,39,0.05)",
           borderRadius: 14,
-          backdropFilter: "blur(10px)",
+          backdropFilter: isSolid ? undefined : "blur(10px)",
         }}
       >
         {/* Department scope (desktop): All + categories + curated lists */}
@@ -376,26 +401,30 @@ export function Navbar({ showBackButton = false, backFallbackHref = "/" }: Navba
                 fontFamily: "'Manrope', sans-serif",
                 fontWeight: 500,
                 fontSize: 18,
-                color: "#0A0A0A",
+                color: isSolid ? "#FFFFFF" : "#0A0A0A",
                 whiteSpace: "nowrap",
               }}
             >
-              <User size={19} color="#0A0A0A" />
+              <User size={19} color={isSolid ? "#FFFFFF" : "#0A0A0A"} />
               <span>Account</span>
             </div>
           ) : !isLoggedIn ? (
             <Link
               href="/login"
-              className="flex flex-row items-center gap-2 hover:opacity-90 transition-opacity"
+              className={
+                isSolid
+                  ? "flex flex-row items-center gap-2 rounded-md bg-white px-4 py-2 shadow-sm transition-opacity hover:opacity-95"
+                  : "flex flex-row items-center gap-2 transition-opacity hover:opacity-90"
+              }
               style={{
                 fontFamily: "'Manrope', sans-serif",
                 fontWeight: 600,
-                fontSize: 18,
-                color: "#FF6A00",
+                fontSize: isSolid ? 16 : 18,
+                color: isSolid ? "#1E5128" : "#FF6A00",
                 whiteSpace: "nowrap",
               }}
             >
-              <LogIn size={19} />
+              <LogIn size={19} color={isSolid ? "#1E5128" : "#FF6A00"} />
               <span>Login</span>
             </Link>
           ) : (
@@ -408,15 +437,15 @@ export function Navbar({ showBackButton = false, backFallbackHref = "/" }: Navba
                   fontFamily: "'Manrope', sans-serif",
                   fontWeight: 500,
                   fontSize: 18,
-                  color: "#0A0A0A",
+                  color: isSolid ? "#FFFFFF" : "#0A0A0A",
                   whiteSpace: "nowrap",
                 }}
               >
-                <User size={19} color="#0A0A0A" />
+                <User size={19} color={isSolid ? "#FFFFFF" : "#0A0A0A"} />
                 <span>Account &amp; Lists</span>
                 <ChevronDown
                   size={16}
-                  color="#0A0A0A"
+                  color={isSolid ? "#FFFFFF" : "#0A0A0A"}
                   className={`transition-transform ${accountDropdownOpen ? "rotate-180" : ""}`}
                 />
               </button>
@@ -431,7 +460,7 @@ export function Navbar({ showBackButton = false, backFallbackHref = "/" }: Navba
             fontFamily: "'Manrope', sans-serif",
             fontWeight: 500,
             fontSize: 18,
-            color: "#0A0A0A",
+            color: isSolid ? "#FFFFFF" : "#0A0A0A",
             whiteSpace: "nowrap",
           }}
         >
@@ -439,7 +468,7 @@ export function Navbar({ showBackButton = false, backFallbackHref = "/" }: Navba
         </Link>
 
         <button type="button" className="relative" onClick={openCartDrawer}>
-          <ShoppingCart size={24} color="#0A0A0A" />
+          <ShoppingCart size={24} color={isSolid ? "#FFFFFF" : "#0A0A0A"} />
           {cartCount > 0 && (
             <span
               className="absolute flex items-center justify-center bg-red-500 text-white font-bold text-[11px] rounded-full min-w-[20px] h-5 px-1"
