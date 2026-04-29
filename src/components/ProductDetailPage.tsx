@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { TopBar } from "./TopBar";
 import { Navbar } from "./Navbar";
@@ -225,6 +225,7 @@ export function ProductDetailPage({
   relatedToItem = [],
 }: ProductDetailPageProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const { openCartDrawer } = useCartDrawer();
   const { deliverToLabel, openDeliveryModal, location } = useDeliveryLocation();
 
@@ -282,7 +283,8 @@ export function ProductDetailPage({
   const [selectedStorage, setSelectedStorage] = useState(storageVariation?.values?.[0] ?? "");
   const [skuColor, setSkuColor] = useState<string | null>(null);
   const [skuSize, setSkuSize] = useState<string | null>(null);
-  const [wishlisted, setWishlisted] = useState(false);
+  const [wishlistItemId, setWishlistItemId] = useState<string | null>(null);
+  const [wishlistToggling, setWishlistToggling] = useState(false);
   const [qty, setQty] = useState(1);
   const [addingToCart, setAddingToCart] = useState(false);
   const [buyNowLoading, setBuyNowLoading] = useState(false);
@@ -299,6 +301,35 @@ export function ProductDetailPage({
     );
     obs.observe(el);
     return () => obs.disconnect();
+  }, [product.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/wishlist", { credentials: "include" })
+      .then((res) => {
+        if (cancelled) return;
+        if (!res.ok) {
+          setWishlistItemId(null);
+          return;
+        }
+        return res.json();
+      })
+      .then((json) => {
+        if (cancelled || !json) return;
+        const items = json?.data?.items;
+        if (!Array.isArray(items)) {
+          setWishlistItemId(null);
+          return;
+        }
+        const row = items.find((i: { productId?: string }) => i.productId === product.id);
+        setWishlistItemId(typeof row?.id === "string" ? row.id : null);
+      })
+      .catch(() => {
+        if (!cancelled) setWishlistItemId(null);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [product.id]);
 
   useEffect(() => {
@@ -512,6 +543,84 @@ export function ProductDetailPage({
       setBuyNowLoading(false);
     }
   };
+
+  const wishlisted = wishlistItemId !== null;
+
+  const handleWishlistToggle = useCallback(async () => {
+    if (wishlistToggling) return;
+    setWishlistToggling(true);
+    try {
+      if (wishlistItemId) {
+        const res = await fetch(`/api/wishlist/${wishlistItemId}`, {
+          method: "DELETE",
+          credentials: "include",
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          toast.error(data?.error?.message ?? "Could not update wishlist.");
+          return;
+        }
+        setWishlistItemId(null);
+        toast.success("Removed from wishlist");
+        return;
+      }
+
+      let variantKey: string | null = null;
+      if (hasSkuVariants) {
+        variantKey = buildSkuVariantKey(skuColor, skuSize);
+        if (!findSkuVariantByKey(skuVariants, variantKey)) {
+          toast.error("Choose a valid color and size.");
+          return;
+        }
+      } else {
+        const parts: string[] = [];
+        if (colorVariation && selectedColor) parts.push(`Color:${selectedColor}`);
+        if (storageVariation && selectedStorage) parts.push(`Storage:${selectedStorage}`);
+        variantKey = parts.length > 0 ? parts.join("|") : null;
+      }
+
+      const res = await fetch("/api/wishlist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ productId: product.id, variantKey }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        if (res.status === 401 || res.status === 403) {
+          const ret =
+            pathname && pathname !== "/login" ? pathname : `/product/${product.slug ?? product.id}`;
+          router.push(`/login?returnUrl=${encodeURIComponent(ret)}`);
+          toast.info("Sign in to save items to your wishlist.");
+          return;
+        }
+        toast.error(data?.error?.message ?? "Could not add to wishlist.");
+        return;
+      }
+      const newId = data?.data?.id;
+      if (typeof newId === "string") setWishlistItemId(newId);
+      toast.success("Added to wishlist");
+    } catch {
+      toast.error("Could not update wishlist.");
+    } finally {
+      setWishlistToggling(false);
+    }
+  }, [
+    wishlistToggling,
+    wishlistItemId,
+    product.id,
+    product.slug,
+    hasSkuVariants,
+    skuColor,
+    skuSize,
+    skuVariants,
+    colorVariation,
+    selectedColor,
+    storageVariation,
+    selectedStorage,
+    pathname,
+    router,
+  ]);
 
   const buyBoxCard = (
     <div
@@ -771,14 +880,16 @@ export function ProductDetailPage({
     
                 {/* Wishlist */}
                 <button
-                  onClick={() => setWishlisted((w) => !w)}
+                  type="button"
+                  onClick={() => void handleWishlistToggle()}
+                  disabled={wishlistToggling}
                   style={{
                     width: "100%",
                     height: 36,
                     background: "none",
                     border: "1px solid #E5E7EB",
                     borderRadius: 8,
-                    cursor: "pointer",
+                    cursor: wishlistToggling ? "wait" : "pointer",
                     fontFamily: "'Manrope', sans-serif",
                     fontWeight: 500,
                     fontSize: 13,
@@ -788,6 +899,7 @@ export function ProductDetailPage({
                     justifyContent: "center",
                     gap: 6,
                     transition: "border-color 0.15s",
+                    opacity: wishlistToggling ? 0.7 : 1,
                   }}
                 >
                   <Heart
@@ -930,7 +1042,9 @@ export function ProductDetailPage({
             )}
             {/* Wishlist */}
             <button
-              onClick={() => setWishlisted((w) => !w)}
+              type="button"
+              onClick={() => void handleWishlistToggle()}
+              disabled={wishlistToggling}
               style={{
                 position: "absolute",
                 top: 14,
@@ -943,8 +1057,9 @@ export function ProductDetailPage({
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                cursor: "pointer",
+                cursor: wishlistToggling ? "wait" : "pointer",
                 boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
+                opacity: wishlistToggling ? 0.7 : 1,
               }}
             >
               <Heart
