@@ -191,15 +191,15 @@ export function SupportTicketsPage() {
   return (
     <AccountLayout>
       <div className="bg-white rounded-2xl shadow-md border border-slate-200/80 p-6 sm:p-8">
-        <div className="flex items-center justify-between mb-8">
-          <div>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-8">
+          <div className="min-w-0">
             <h1 className="text-2xl font-bold text-slate-900 mb-1">Support Tickets</h1>
             <p className="text-slate-600">Manage your support requests</p>
           </div>
           <button
             type="button"
             onClick={() => setNewTicketOpen(true)}
-            className="flex items-center gap-2 px-5 py-2.5 bg-[#FF6A00] text-white rounded-xl font-semibold hover:bg-[#E55F00] transition-colors"
+            className="flex shrink-0 items-center justify-center gap-2 px-5 py-2.5 bg-[#FF6A00] text-white rounded-xl font-semibold hover:bg-[#E55F00] transition-colors sm:justify-start"
           >
             <Plus className="w-5 h-5" />
             New Ticket
@@ -261,27 +261,27 @@ export function SupportTicketsPage() {
                 key={ticket.id}
                 className="border border-slate-200 rounded-xl p-5 hover:shadow-md transition-all"
               >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-3 mb-2">
-                      <span className="text-sm text-slate-500 font-semibold">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-2">
+                      <span className="text-sm font-semibold text-slate-500">
                         {ticket.shortId}
                       </span>
                       <span
                         className={`${
                           STATUS_COLORS[ticket.status] ?? "bg-slate-500 text-white"
-                        } px-3 py-1 rounded-lg text-sm font-bold`}
+                        } shrink-0 rounded-lg px-3 py-1 text-sm font-bold`}
                       >
                         {STATUS_LABELS[ticket.status] ?? ticket.status}
                       </span>
                     </div>
-                    <h3 className="text-lg font-bold text-slate-900 mb-2">
+                    <h3 className="mb-2 text-lg font-bold text-slate-900">
                       {ticket.subject}
                     </h3>
-                    <div className="flex items-center gap-4 text-sm text-slate-600">
-                      <span>Created: {formatDate(ticket.createdAt)}</span>
-                      <span className="flex items-center gap-1">
-                        <Clock className="w-4 h-4" />
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-600">
+                      <span className="min-w-0">Created: {formatDate(ticket.createdAt)}</span>
+                      <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap">
+                        <Clock className="h-4 w-4 shrink-0" aria-hidden />
                         {formatRelative(ticket.createdAt)}
                       </span>
                     </div>
@@ -289,7 +289,7 @@ export function SupportTicketsPage() {
                   <button
                     type="button"
                     onClick={() => setDetailTicket(ticket)}
-                    className="px-5 py-2 bg-slate-50 border border-slate-200 text-slate-700 hover:border-[#FF6A00] hover:text-[#FF6A00] rounded-xl font-semibold transition-colors shrink-0"
+                    className="w-full shrink-0 rounded-xl border border-slate-200 bg-slate-50 px-5 py-2 font-semibold text-slate-700 transition-colors hover:border-[#FF6A00] hover:text-[#FF6A00] sm:w-auto sm:self-start"
                   >
                     View Details
                   </button>
