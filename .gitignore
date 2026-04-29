@@ -7,11 +7,6 @@ out/
 
 # Production
 # build/
-<<<<<<< HEAD
-.next/
-=======
->>>>>>> af7f34ac5343b787053f92f173f0fb49e735e503
-
 
 # Debug
 npm-debug.log*
