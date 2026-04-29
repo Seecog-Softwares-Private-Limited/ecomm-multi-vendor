@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { TopBar } from "./TopBar";
 import { Navbar } from "./Navbar";
@@ -60,17 +60,56 @@ export function ProductDetailPageDynamic({
   brand,
 }: ProductDetailPageDynamicProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const { openCartDrawer } = useCartDrawer();
   const { deliverToLabel, openDeliveryModal } = useDeliveryLocation();
+
+  const [activeImage, setActiveImage] = useState(0);
+  const [wishlistItemId, setWishlistItemId] = useState<string | null>(null);
+  const [wishlistToggling, setWishlistToggling] = useState(false);
+  const [qty, setQty] = useState(1);
+  const [addingToCart, setAddingToCart] = useState(false);
+  const [cartError, setCartError] = useState<string | null>(null);
+
+  const colorVariation = product.variations.find((v) => v.name.toLowerCase() === "color");
+  const storageVariation = product.variations.find(
+    (v) => v.name.toLowerCase() === "storage" || v.name.toLowerCase() === "storage capacity"
+  );
+  const [selectedColor, setSelectedColor] = useState(colorVariation?.values[0] ?? "");
+  const [selectedStorage, setSelectedStorage] = useState(storageVariation?.values[0] ?? "");
 
   useEffect(() => {
     addRecentlyViewedId(product.id);
   }, [product.id]);
-  const [activeImage, setActiveImage] = useState(0);
-  const [wishlisted, setWishlisted] = useState(false);
-  const [qty, setQty] = useState(1);
-  const [addingToCart, setAddingToCart] = useState(false);
-  const [cartError, setCartError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/wishlist", { credentials: "include" })
+      .then((res) => {
+        if (cancelled) return;
+        if (!res.ok) {
+          setWishlistItemId(null);
+          return;
+        }
+        return res.json();
+      })
+      .then((json) => {
+        if (cancelled || !json) return;
+        const items = json?.data?.items;
+        if (!Array.isArray(items)) {
+          setWishlistItemId(null);
+          return;
+        }
+        const row = items.find((i: { productId?: string }) => i.productId === product.id);
+        setWishlistItemId(typeof row?.id === "string" ? row.id : null);
+      })
+      .catch(() => {
+        if (!cancelled) setWishlistItemId(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [product.id]);
 
   const price = product.price;
   const mrp = product.mrp;
@@ -82,10 +121,6 @@ export function ProductDetailPageDynamic({
   const brandSpec = product.specifications.find((s) => s.label.toLowerCase() === "brand");
   const displayBrand = brandSpec?.value ?? brand;
   const keyFeatures = product.specifications.filter((s) => s.label.toLowerCase() !== "brand").slice(0, 6);
-  const colorVariation = product.variations.find((v) => v.name.toLowerCase() === "color");
-  const storageVariation = product.variations.find((v) => v.name.toLowerCase() === "storage" || v.name.toLowerCase() === "storage capacity");
-  const [selectedColor, setSelectedColor] = useState(colorVariation?.values[0] ?? "");
-  const [selectedStorage, setSelectedStorage] = useState(storageVariation?.values[0] ?? "");
 
   const handleAddToCart = async () => {
     setCartError(null);
@@ -136,6 +171,71 @@ export function ProductDetailPageDynamic({
       setAddingToCart(false);
     }
   };
+
+  const wishlisted = wishlistItemId !== null;
+
+  const handleWishlistToggle = useCallback(async () => {
+    if (wishlistToggling) return;
+    setWishlistToggling(true);
+    try {
+      if (wishlistItemId) {
+        const res = await fetch(`/api/wishlist/${wishlistItemId}`, {
+          method: "DELETE",
+          credentials: "include",
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          toast.error(data?.error?.message ?? "Could not update wishlist.");
+          return;
+        }
+        setWishlistItemId(null);
+        toast.success("Removed from wishlist");
+        return;
+      }
+
+      const parts: string[] = [];
+      if (colorVariation && selectedColor) parts.push(`Color:${selectedColor}`);
+      if (storageVariation && selectedStorage) parts.push(`Storage:${selectedStorage}`);
+      const variantKey = parts.length > 0 ? parts.join("|") : null;
+
+      const res = await fetch("/api/wishlist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ productId: product.id, variantKey }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        if (res.status === 401 || res.status === 403) {
+          const ret =
+            pathname && pathname !== "/login" ? pathname : `/product/${product.slug ?? product.id}`;
+          router.push(`/login?returnUrl=${encodeURIComponent(ret)}`);
+          toast.info("Sign in to save items to your wishlist.");
+          return;
+        }
+        toast.error(data?.error?.message ?? "Could not add to wishlist.");
+        return;
+      }
+      const newId = data?.data?.id;
+      if (typeof newId === "string") setWishlistItemId(newId);
+      toast.success("Added to wishlist");
+    } catch {
+      toast.error("Could not update wishlist.");
+    } finally {
+      setWishlistToggling(false);
+    }
+  }, [
+    wishlistToggling,
+    wishlistItemId,
+    product.id,
+    product.slug,
+    colorVariation,
+    selectedColor,
+    storageVariation,
+    selectedStorage,
+    pathname,
+    router,
+  ]);
 
   const breadcrumbs = [
     { label: "Home", href: "/" },
@@ -193,8 +293,9 @@ export function ProductDetailPageDynamic({
             )}
             <button
               type="button"
-              onClick={() => setWishlisted((w) => !w)}
-              className="absolute top-3 right-3 w-9 h-9 bg-white rounded-full border border-[#E5E7EB] flex items-center justify-center shadow-sm hover:bg-gray-50"
+              onClick={() => void handleWishlistToggle()}
+              disabled={wishlistToggling}
+              className="absolute top-3 right-3 w-9 h-9 bg-white rounded-full border border-[#E5E7EB] flex items-center justify-center shadow-sm hover:bg-gray-50 disabled:cursor-wait disabled:opacity-70"
             >
               <Heart size={16} fill={wishlisted ? "#FF4D4D" : "none"} color={wishlisted ? "#FF4D4D" : "#6B7280"} />
             </button>
@@ -417,8 +518,9 @@ export function ProductDetailPageDynamic({
             </button>
             <button
               type="button"
-              onClick={() => setWishlisted((w) => !w)}
-              className="w-full text-[13px] text-[#374151] font-medium flex items-center justify-center gap-1.5 py-2 hover:underline"
+              onClick={() => void handleWishlistToggle()}
+              disabled={wishlistToggling}
+              className="w-full text-[13px] text-[#374151] font-medium flex items-center justify-center gap-1.5 py-2 hover:underline disabled:cursor-wait disabled:opacity-70"
             >
               <Heart size={14} fill={wishlisted ? "#FF4D4D" : "none"} color={wishlisted ? "#FF4D4D" : "#6B7280"} />
               {wishlisted ? "Wishlisted" : "Add to Wishlist"}
