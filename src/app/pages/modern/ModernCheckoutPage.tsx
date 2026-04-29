@@ -1,7 +1,10 @@
 "use client";
 
 import { Link } from "../../components/Link";
+<<<<<<< HEAD
 import { storefrontTermsOfServiceHref } from "@/lib/cms-footer-pages";
+=======
+>>>>>>> af7f34ac5343b787053f92f173f0fb49e735e503
 import { Search, ShoppingBag, User, Check, Plus, CreditCard, Smartphone } from "lucide-react";
 import * as React from "react";
 

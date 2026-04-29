@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
@@ -5,6 +6,17 @@ import { TopBar } from "@/components/TopBar";
 import { Navbar } from "@/components/Navbar";
 import { CategoryNav } from "@/components/CategoryNav";
 import { getCmsFooterPageMeta, isValidCmsFooterSlug } from "@/lib/cms-footer-pages";
+=======
+import Link from "next/link";
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { prisma } from "@/lib/prisma";
+import {
+  getCmsFooterPageMeta,
+  isStaticStorefrontFooterSlug,
+  isValidCmsFooterSlug,
+} from "@/lib/cms-footer-pages";
+>>>>>>> af7f34ac5343b787053f92f173f0fb49e735e503
 import { isLikelyHtmlContent } from "@/lib/cms-content-render";
 import type { ComponentType } from "react";
 import { AboutIndovyaparPage } from "@/components/AboutIndovyaparPage";
@@ -121,6 +133,7 @@ export default async function Page({
     );
 
   return (
+<<<<<<< HEAD
     <>
       <header className="sticky top-0 z-[80]">
         <TopBar tone="onBrand" />
@@ -144,5 +157,22 @@ export default async function Page({
         </div>
       </div>
     </>
+=======
+    <div className="mx-auto max-w-3xl px-4 py-10 sm:py-14">
+      <Link
+        href="/"
+        className="text-sm font-medium text-amber-800 hover:text-amber-900 hover:underline mb-8 inline-block"
+      >
+        ← Back to home
+      </Link>
+      <h1
+        className="text-2xl sm:text-3xl font-bold text-slate-900 mb-8"
+        style={{ fontFamily: "'Nunito', 'Manrope', sans-serif" }}
+      >
+        {title}
+      </h1>
+      {inner}
+    </div>
+>>>>>>> af7f34ac5343b787053f92f173f0fb49e735e503
   );
 }

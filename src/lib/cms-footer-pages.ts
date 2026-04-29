@@ -9,7 +9,7 @@ export type CmsFooterSectionId =
 export type CmsFooterPageDef = {
   slug: string;
   label: string;
-};
+}
 
 export type CmsFooterSectionDef = {
   id: CmsFooterSectionId;
