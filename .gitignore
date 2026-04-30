@@ -1,7 +1,7 @@
 # Dependencies
 
-# Next.js — track the build output so server only needs git pull + pm2 restart
-# .next/ is committed; only the large webpack cache is excluded
+# Next.js — build output (never commit; run `next build` on the server or in CI)
+.next/
 
 out/
 
