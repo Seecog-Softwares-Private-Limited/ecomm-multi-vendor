@@ -44,6 +44,12 @@ jobs:
           node-version: "22"
           cache: npm
 
+      - name: Setup npm (lockfile compatibility)
+        run: |
+          npm install -g npm@11.6.2
+          npm -v
+          node -v
+
       - name: Install dependencies and build
         run: npm ci && npm run build
         env:
