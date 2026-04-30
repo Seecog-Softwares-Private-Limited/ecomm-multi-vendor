@@ -9,12 +9,17 @@ import { ServiceError } from "./errors";
 
 export function getBaseUrl(): string {
   if (typeof window !== "undefined") return "";
-  const explicit = process.env.NEXT_PUBLIC_APP_URL;
-  if (explicit) return explicit;
+  const internal = process.env.INTERNAL_APP_URL?.trim();
+  if (internal) return internal.replace(/\/+$/, "");
+  const appUrl = process.env.APP_URL?.trim();
+  if (appUrl) return appUrl.replace(/\/+$/, "");
+  const explicit = process.env.NEXT_PUBLIC_APP_URL?.trim();
+  if (explicit) return explicit.replace(/\/+$/, "");
   const vercel = process.env.VERCEL_URL;
   if (vercel) return `https://${vercel}`;
   const port = process.env.PORT;
-  return port ? `http://localhost:${port}` : "";
+  // Avoid IPv6 localhost (::1) ECONNREFUSED on some Linux/PM2 setups.
+  return port ? `http://127.0.0.1:${port}` : "";
 }
 
 export type RequestMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";

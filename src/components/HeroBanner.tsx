@@ -40,6 +40,7 @@ export function HeroBanner() {
         .slice(0, 4)
         .map((p) => ({
           id: p.id,
+          slug: p.slug,
           name: p.name,
           imageUrl:
             p.imageUrl ??

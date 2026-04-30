@@ -279,7 +279,6 @@ export function LoginPage() {
                 onClick={() => {
                   setLoginMode("phone");
                   setError(null);
-                  setDevOtpHint(null);
                 }}
                 className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-semibold transition ${
                   loginMode === "phone"
@@ -295,7 +294,6 @@ export function LoginPage() {
                 onClick={() => {
                   setLoginMode("email");
                   setError(null);
-                  setDevOtpHint(null);
                   setPhoneStep("number");
                 }}
                 className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-semibold transition ${
