@@ -18,6 +18,7 @@ import {
   uuid,
 } from "@/lib/validation";
 import { generateUniqueSlug } from "@/lib/utils/slug";
+import { generateUniqueProductSku } from "@/lib/utils/unique-product-sku";
 
 /** Map form returnPolicy to Prisma enum */
 const RETURN_POLICY_MAP: Record<string, "DAYS_7" | "DAYS_15" | "DAYS_30" | "NO_RETURN"> = {
@@ -66,7 +67,7 @@ export const PUT = withApiHandler(async (request: NextRequest, context?: RouteCo
 
   const existing = await prisma.product.findFirst({
     where: { id, sellerId, deletedAt: null },
-    select: { id: true, name: true, status: true, slug: true },
+    select: { id: true, name: true, status: true, slug: true, sku: true },
   });
   if (!existing) return apiNotFound("Product not found");
 
@@ -130,6 +131,11 @@ export const PUT = withApiHandler(async (request: NextRequest, context?: RouteCo
   const slug =
     nameChanged || needsInitialSlug ? await generateUniqueSlug(parsed.data.name, id) : undefined;
 
+  const resolvedSku =
+    parsed.data.sku ??
+    existing.sku ??
+    (await generateUniqueProductSku(sellerId, parsed.data.name));
+
   await prisma.product.update({
     where: { id },
     data: {
@@ -138,7 +144,7 @@ export const PUT = withApiHandler(async (request: NextRequest, context?: RouteCo
       name: parsed.data.name,
       ...(slug !== undefined && { slug }),
       description: parsed.data.description ?? null,
-      sku: parsed.data.sku,
+      sku: resolvedSku,
       mrp: parsed.data.mrp,
       sellingPrice,
       gstPercent: parsed.data.gstPercent ?? null,

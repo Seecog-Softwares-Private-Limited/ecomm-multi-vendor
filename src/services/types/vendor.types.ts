@@ -43,7 +43,8 @@ export interface CreateVendorProductPayload {
   description?: string;
   categorySlug: string;
   subCategorySlug: string;
-  sku: string;
+  /** Omit or leave empty to let the server generate a unique SKU. */
+  sku?: string;
   mrp: number;
   sellingPrice: number;
   gstPercent?: number;

@@ -209,21 +209,30 @@ export function AdminDashboard() {
             </div>
           </div>
         </div>
-        <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
+        <Link
+          href="/admin/orders"
+          className="block overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm transition-all hover:border-slate-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/40 focus-visible:ring-offset-2"
+        >
           <h3 className="text-base font-semibold text-slate-900">Orders Overview</h3>
           <div className="mt-4 flex h-64 items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50/50">
             <div className="text-center">
               <p className="text-sm font-medium text-slate-400">Bar chart</p>
-              <p className="mt-0.5 text-xs text-slate-400">Orders trend</p>
+              <p className="mt-0.5 text-xs text-slate-400">Orders trend — click to open Orders</p>
             </div>
           </div>
-        </div>
+        </Link>
       </div>
 
       {/* Recent orders table */}
       <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
-        <div className="border-b border-slate-200/80 px-6 py-4">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/80 px-6 py-4">
           <h3 className="text-base font-semibold text-slate-900">Recent Orders</h3>
+          <Link
+            href="/admin/orders"
+            className="text-sm font-semibold text-amber-600 hover:text-amber-700 hover:underline"
+          >
+            View all orders →
+          </Link>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px]">

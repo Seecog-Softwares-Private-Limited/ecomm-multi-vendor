@@ -19,7 +19,7 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleSearch = () => {
-    const q = searchQuery.trim();
+    const q = searchQuery.trim().replace(/^#+/u, "").trim();
     if (!q) return;
     // UUIDs / hex strings that look like order IDs go to orders; everything else to sellers
     const isOrderLike = /^[0-9a-f-]{8,}$/i.test(q);

@@ -170,8 +170,8 @@ export function VendorProductForm({ productId = "", onBack, onSave }: VendorProd
   const [uploadError, setUploadError] = React.useState<string | null>(null);
 
   const handleSubmit = async (isDraft: boolean) => {
-    if (!formData.name.trim() || !formData.category || !formData.subCategory || !formData.sku.trim()) {
-      setSubmitError("Please fill in required fields: Name, Category, Sub Category, SKU.");
+    if (!formData.name.trim() || !formData.category || !formData.subCategory) {
+      setSubmitError("Please fill in required fields: Name, Category, and Sub Category.");
       return;
     }
     const mrp = Number(formData.mrp);
@@ -234,7 +234,7 @@ export function VendorProductForm({ productId = "", onBack, onSave }: VendorProd
       description: formData.description?.trim() || undefined,
       categorySlug: formData.category,
       subCategorySlug: formData.subCategory,
-      sku: formData.sku.trim(),
+      sku: formData.sku.trim() || undefined,
       mrp,
       sellingPrice,
       gstPercent: formData.gst ? Number(formData.gst) : undefined,
@@ -400,11 +400,10 @@ export function VendorProductForm({ productId = "", onBack, onSave }: VendorProd
 
           <Input
             label="SKU (Stock Keeping Unit)"
-            placeholder="e.g., WBH-001"
+            placeholder="e.g., WBH-001 (optional)"
             value={formData.sku}
             onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-            helperText="Unique identifier for your product"
-            required
+            helperText="Optional — leave blank and we will generate a unique SKU from your product name."
           />
         </div>
       </Card>

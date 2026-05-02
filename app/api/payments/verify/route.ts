@@ -62,6 +62,10 @@ export const POST = withApiHandler(async (request: NextRequest) => {
         updatedAt: new Date(),
       },
     });
+    await tx.order.updateMany({
+      where: { id: order.id, status: "PLACED" },
+      data: { status: "PAYMENT_CONFIRMED", updatedAt: new Date() },
+    });
     await tx.orderStatusEvent.create({
       data: { orderId: order.id, status: "PAYMENT_CONFIRMED", note: "Payment received via Razorpay" },
     });

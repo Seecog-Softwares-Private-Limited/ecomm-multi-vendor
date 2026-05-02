@@ -196,7 +196,11 @@ function CartDrawerPanel({ isOpen, onClose }: CartDrawerPanelProps) {
         body: JSON.stringify({ quantity: newQty }),
       });
       if (!res.ok) {
-        toast.error("Could not update quantity.");
+        const data = await res.json().catch(() => ({}));
+        toast.error(
+          (data as { error?: { message?: string } })?.error?.message ??
+            "Could not update quantity."
+        );
         return;
       }
       setItems((prev) =>

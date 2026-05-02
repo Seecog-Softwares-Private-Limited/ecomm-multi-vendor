@@ -198,7 +198,8 @@ export const POST = withApiHandler(async (request: NextRequest) => {
         data: {
           orderId: orderCreated.id,
           productId: p.id,
-          sellerId: p.sellerId,
+          // Trim for CHAR(36) / legacy padded IDs so vendor queries match.
+          sellerId: String(p.sellerId).trim(),
           quantity: it.quantity,
           unitPrice,
           totalPrice,

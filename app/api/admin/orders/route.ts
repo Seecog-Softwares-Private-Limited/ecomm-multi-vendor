@@ -25,6 +25,42 @@ function formatRupee(n: number): string {
   return "₹" + n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+/** Matches what admins copy from the table (`#` + first 8 chars of UUID). */
+function normalizeAdminOrderSearch(raw: string): string {
+  return raw.trim().replace(/^#+/u, "").trim();
+}
+
+/**
+ * Match customer search against user rows. Single token: substring on first/last/email.
+ * Multiple tokens (e.g. "John Doe"): every token must appear in at least one of those fields
+ * so full names shown in the table work even when first and last are stored separately.
+ */
+function userMatchesCustomerSearch(searchTerm: string): Prisma.UserWhereInput {
+  const t = searchTerm.trim();
+  if (!t) return {};
+
+  const tokens = t.split(/\s+/).filter(Boolean);
+  if (tokens.length <= 1) {
+    return {
+      OR: [
+        { firstName: { contains: t } },
+        { lastName: { contains: t } },
+        { email: { contains: t } },
+      ],
+    };
+  }
+
+  return {
+    AND: tokens.map((token) => ({
+      OR: [
+        { firstName: { contains: token } },
+        { lastName: { contains: token } },
+        { email: { contains: token } },
+      ],
+    })),
+  };
+}
+
 function orderStatusToDisplay(s: OrderStatus): string {
   const map: Record<OrderStatus, string> = {
     PLACED: "Placed",
@@ -60,32 +96,10 @@ export const GET = withApiHandler(async (request: NextRequest) => {
   const paymentParam = searchParams.get("payment")?.toLowerCase() ?? "";
   const dateFrom = searchParams.get("dateFrom")?.trim();
   const dateTo = searchParams.get("dateTo")?.trim();
-  const search = searchParams.get("search")?.trim() ?? "";
+  const searchRaw = searchParams.get("search")?.trim() ?? "";
+  const searchTerm = normalizeAdminOrderSearch(searchRaw);
   const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10) || 1);
   const pageSize = Math.min(50, Math.max(1, parseInt(searchParams.get("pageSize") ?? String(PAGE_SIZE), 10) || PAGE_SIZE));
-
-  const where: Prisma.OrderWhereInput = {};
-
-  if (pendingBucket) {
-    where.status = { in: ["PLACED", "PAYMENT_CONFIRMED"] };
-  } else if (statusParam && STATUS_MAP[statusParam]) {
-    where.status = STATUS_MAP[statusParam];
-  }
-
-  if (paymentParam === "paid") {
-    where.payments = { some: { status: "PAID" } };
-  } else if (paymentParam === "unpaid") {
-    where.NOT = { payments: { some: { status: "PAID" } } };
-  }
-
-  if (search) {
-    where.OR = [
-      { id: { contains: search } },
-      { user: { firstName: { contains: search } } },
-      { user: { lastName: { contains: search } } },
-      { user: { email: { contains: search } } },
-    ];
-  }
 
   const dateFilter: { gte?: Date; lte?: Date } = {};
   if (dateFrom) {
@@ -96,9 +110,33 @@ export const GET = withApiHandler(async (request: NextRequest) => {
     const d = new Date(dateTo);
     if (!isNaN(d.getTime())) dateFilter.lte = d;
   }
-  if (dateFilter.gte ?? dateFilter.lte) {
-    where.createdAt = dateFilter;
+
+  const filters: Prisma.OrderWhereInput[] = [];
+
+  if (pendingBucket) {
+    filters.push({ status: { in: ["PLACED", "PAYMENT_CONFIRMED"] } });
+  } else if (statusParam && STATUS_MAP[statusParam]) {
+    filters.push({ status: STATUS_MAP[statusParam] });
   }
+
+  if (paymentParam === "paid") {
+    filters.push({ payments: { some: { status: "PAID" } } });
+  } else if (paymentParam === "unpaid") {
+    filters.push({ NOT: { payments: { some: { status: "PAID" } } } });
+  }
+
+  if (dateFilter.gte ?? dateFilter.lte) {
+    filters.push({ createdAt: dateFilter });
+  }
+
+  if (searchTerm) {
+    filters.push({
+      OR: [{ id: { contains: searchTerm } }, { user: userMatchesCustomerSearch(searchTerm) }],
+    });
+  }
+
+  const where: Prisma.OrderWhereInput =
+    filters.length === 0 ? {} : filters.length === 1 ? filters[0]! : { AND: filters };
 
   const [list, total, agg] = await Promise.all([
     prisma.order.findMany({

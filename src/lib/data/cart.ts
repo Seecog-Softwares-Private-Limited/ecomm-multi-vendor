@@ -164,24 +164,60 @@ export async function addToCart(
   return { id: created.id, quantity: created.quantity };
 }
 
+export type UpdateCartItemQuantityResult =
+  | { ok: true; quantity: number }
+  | { ok: false; reason: "not_found" }
+  | { ok: false; reason: "insufficient_stock"; available: number };
+
 /**
- * Update cart item quantity. Returns updated quantity or null if not found.
+ * Update cart item quantity. Validates live stock (product or SKU row).
  */
 export async function updateCartItemQuantity(
   userId: string,
   cartItemId: string,
   quantity: number
-): Promise<number | null> {
+): Promise<UpdateCartItemQuantityResult> {
   const qty = Math.max(1, Math.min(quantity, 99));
   const item = await prisma.cartItem.findFirst({
     where: { id: cartItemId, userId, deletedAt: null },
+    include: {
+      product: {
+        select: {
+          stock: true,
+          deletedAt: true,
+          productVariants: {
+            where: { deletedAt: null },
+            select: { color: true, size: true, stock: true, price: true },
+          },
+        },
+      },
+    },
   });
-  if (!item) return null;
+  if (!item || item.product.deletedAt != null) {
+    return { ok: false, reason: "not_found" };
+  }
+
+  const pv = item.product.productVariants ?? [];
+  let available: number;
+  if (pv.length > 0) {
+    const line = resolveSkuRowForCart(pv, item.variantKey);
+    if (!line) {
+      return { ok: false, reason: "not_found" };
+    }
+    available = line.stock;
+  } else {
+    available = item.product.stock;
+  }
+
+  if (qty > available) {
+    return { ok: false, reason: "insufficient_stock", available };
+  }
+
   await prisma.cartItem.update({
     where: { id: cartItemId },
     data: { quantity: qty, updatedAt: new Date() },
   });
-  return qty;
+  return { ok: true, quantity: qty };
 }
 
 /**

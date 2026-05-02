@@ -40,6 +40,7 @@ function ApprovedDashboardContent() {
         trend: data.todayOrdersChangePercent != null && data.todayOrdersChangePercent >= 0 ? "up" : data.todayOrdersChangePercent != null ? "down" : "neutral",
         icon: ShoppingBag,
         color: "from-blue-500 to-indigo-600",
+        href: "/vendor/orders",
       },
       {
         label: "Pending Orders",
@@ -48,6 +49,7 @@ function ApprovedDashboardContent() {
         trend: "alert",
         icon: Clock,
         color: "from-orange-500 to-red-600",
+        href: "/vendor/orders",
       },
       {
         label: "Total Revenue (30d)",
@@ -56,6 +58,7 @@ function ApprovedDashboardContent() {
         trend: data.todayOrdersChangePercent != null && data.todayOrdersChangePercent >= 0 ? "up" : "down",
         icon: DollarSign,
         color: "from-green-500 to-emerald-600",
+        href: "/vendor/earnings",
       },
       {
         label: "Commission Deducted",
@@ -64,6 +67,7 @@ function ApprovedDashboardContent() {
         trend: "neutral",
         icon: TrendingUp,
         color: "from-purple-500 to-pink-600",
+        href: "/vendor/earnings",
       },
     ];
   }, [data]);
