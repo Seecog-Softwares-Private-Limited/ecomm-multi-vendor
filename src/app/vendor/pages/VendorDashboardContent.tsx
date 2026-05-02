@@ -45,6 +45,8 @@ export type StatItem = {
   trend: string;
   icon: LucideIcon;
   color: string;
+  /** When set, the whole stat card links here (e.g. /vendor/orders). */
+  href?: string;
 };
 
 export interface VendorDashboardContentProps {
@@ -100,11 +102,10 @@ export function VendorDashboardContent({
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6 lg:grid-cols-4">
               {stats?.map((stat, index) => {
                 const Icon = stat.icon;
-                return (
-                  <div
-                    key={index}
-                    className="rounded-2xl border-2 border-[#E2E8F0] bg-white p-4 shadow-sm transition-all hover:shadow-lg sm:p-6"
-                  >
+                const cardClass =
+                  "rounded-2xl border-2 border-[#E2E8F0] bg-white p-4 shadow-sm transition-all hover:shadow-lg sm:p-6";
+                const inner = (
+                  <>
                     <div className="flex items-start justify-between mb-4">
                       <div className={`w-12 h-12 bg-gradient-to-br ${stat.color} rounded-xl flex items-center justify-center`}>
                         <Icon className="w-6 h-6 text-white" />
@@ -134,6 +135,22 @@ export function VendorDashboardContent({
                     <p className="text-3xl font-bold text-[#1E293B]">{stat.value}</p>
                     {stat.trend === "neutral" && <p className="text-sm text-[#64748B] mt-1">{stat.change} of revenue</p>}
                     {stat.trend === "alert" && <p className="text-sm text-orange-600 font-semibold mt-1">{stat.change}</p>}
+                  </>
+                );
+                if (stat.href) {
+                  return (
+                    <Link
+                      key={index}
+                      href={stat.href}
+                      className={`${cardClass} block cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2`}
+                    >
+                      {inner}
+                    </Link>
+                  );
+                }
+                return (
+                  <div key={index} className={cardClass}>
+                    {inner}
                   </div>
                 );
               })}

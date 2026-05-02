@@ -116,6 +116,7 @@ async function getLowStockProductsForDashboard(
 export async function getVendorDashboardSummary(
   sellerId: string
 ): Promise<VendorDashboardSummary> {
+  const sid = sellerId.trim();
   const now = new Date();
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const endOfToday = new Date(startOfToday);
@@ -137,7 +138,7 @@ export async function getVendorDashboardSummary(
   ] = await Promise.all([
     prisma.orderItem.findMany({
       where: {
-        sellerId,
+        sellerId: sid,
         order: {
           createdAt: { gte: startOfToday, lte: endOfToday },
         },
@@ -147,7 +148,7 @@ export async function getVendorDashboardSummary(
     }),
     prisma.orderItem.findMany({
       where: {
-        sellerId,
+        sellerId: sid,
         order: { status: { in: ["PLACED", "PAYMENT_CONFIRMED"] } },
       },
       select: { orderId: true },
@@ -155,7 +156,7 @@ export async function getVendorDashboardSummary(
     }).then((rows) => rows.length),
     prisma.orderItem.findMany({
       where: {
-        sellerId,
+        sellerId: sid,
         order: { createdAt: { gte: startOf30d } },
       },
       select: {
@@ -165,7 +166,7 @@ export async function getVendorDashboardSummary(
       },
     }),
     prisma.orderItem.findMany({
-      where: { sellerId },
+      where: { sellerId: sid },
       select: {
         totalPrice: true,
         commissionAmount: true,
@@ -174,15 +175,15 @@ export async function getVendorDashboardSummary(
     }),
     prisma.payout
       .findMany({
-        where: { sellerId, status: "PAID" },
+        where: { sellerId: sid, status: "PAID" },
         select: { amount: true },
       })
       .then((rows) => rows.reduce((sum, r) => sum + toNumber(r.amount), 0)),
-    getVendorOrdersBySellerId(sellerId),
-    getLowStockProductsForDashboard(sellerId),
+    getVendorOrdersBySellerId(sid),
+    getLowStockProductsForDashboard(sid),
     prisma.orderItem.findMany({
       where: {
-        sellerId,
+        sellerId: sid,
         order: {
           createdAt: {
             gte: new Date(startOfToday.getTime() - 86400000),

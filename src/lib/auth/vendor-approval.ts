@@ -42,7 +42,7 @@ export async function requireVendorApproved(
   if (session.role !== "SELLER") {
     throw new ApiRouteError("Vendor access required", Status.FORBIDDEN, "FORBIDDEN");
   }
-  const sellerId = session.sub;
+  const sellerId = session.sub?.trim() ?? "";
   if (!sellerId) {
     throw new ApiRouteError("Vendor not found", Status.NOT_FOUND, "NOT_FOUND");
   }

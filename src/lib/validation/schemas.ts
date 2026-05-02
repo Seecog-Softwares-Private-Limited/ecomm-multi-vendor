@@ -122,7 +122,12 @@ export const createVendorProductSchema = z
     description: z.string().max(10000).trim().optional(),
     categorySlug: createProductSlug,
     subCategorySlug: createProductSlug,
-    sku: z.string().min(1, "SKU is required").max(100).trim(),
+    sku: z
+      .string()
+      .max(100)
+      .trim()
+      .optional()
+      .transform((s) => (s != null && s.length > 0 ? s : undefined)),
     mrp: priceSchema,
     sellingPrice: priceSchema,
     gstPercent: z

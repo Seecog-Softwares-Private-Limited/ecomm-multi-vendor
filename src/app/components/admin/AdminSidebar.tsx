@@ -93,7 +93,13 @@ export function AdminSidebar({
             item.path === "/admin"
               ? activePath === "/admin"
               : activePath === item.path || activePath.startsWith(`${item.path}/`);
-          const locked = item.permission ? (permissions ? !permissions.has(item.permission) : true) : false;
+          /** Only lock after permissions load; while null (loading), links stay usable. */
+          const perm = item.permission;
+          const locked =
+            typeof perm === "string" &&
+            perm.length > 0 &&
+            permissions !== null &&
+            !permissions.has(perm);
 
           return (
             <Link

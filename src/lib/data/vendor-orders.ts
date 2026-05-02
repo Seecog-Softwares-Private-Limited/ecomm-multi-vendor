@@ -127,74 +127,55 @@ export async function getVendorOrdersBySellerId(
   dateFrom?: string,
   dateTo?: string
 ): Promise<VendorOrderListItem[]> {
+  const sid = sellerId.trim();
+  if (!sid) return [];
+
   const orderDateFilter: { gte?: Date; lte?: Date } = {};
   if (dateFrom) orderDateFilter.gte = new Date(dateFrom + "T00:00:00.000Z");
   if (dateTo) orderDateFilter.lte = new Date(dateTo + "T23:59:59.999Z");
   const hasOrderDateFilter = dateFrom || dateTo;
 
-  const items = await prisma.orderItem.findMany({
+  /** One query per order: avoids grouping bugs and CHAR-padding mismatches on sellerId. */
+  const orders = await prisma.order.findMany({
     where: {
-      sellerId,
-      ...(hasOrderDateFilter && { order: { createdAt: orderDateFilter } }),
+      ...(hasOrderDateFilter && { createdAt: orderDateFilter }),
+      items: { some: { sellerId: sid } },
     },
     include: {
-      order: {
-        include: {
-          user: {
-            select: {
-              firstName: true,
-              lastName: true,
-              phone: true,
-            },
-          },
-          shippingAddress: {
-            select: { fullName: true, phone: true },
-          },
-          payments: {
-            take: 1,
-            orderBy: { createdAt: "asc" },
-            select: { mode: true },
-          },
+      user: {
+        select: {
+          firstName: true,
+          lastName: true,
+          phone: true,
+        },
+      },
+      shippingAddress: {
+        select: { fullName: true, phone: true },
+      },
+      payments: {
+        take: 1,
+        orderBy: { createdAt: "asc" },
+        select: { mode: true },
+      },
+      items: {
+        where: { sellerId: sid },
+        select: {
+          status: true,
+          totalPrice: true,
+          quantity: true,
         },
       },
     },
     orderBy: { createdAt: "desc" },
   });
 
-  // Group by order id: one row per order with this seller's items count and amount.
-  // Preserve order by first-seen (items are already ordered by createdAt desc).
-  const byOrderId = new Map<
-    string,
-    {
-      order: (typeof items)[0]["order"];
-      itemsCount: number;
-      amount: number;
-    }
-  >;
-  const orderIds: string[] = [];
-
-  for (const item of items) {
-    const o = item.order;
-    const existing = byOrderId.get(o.id);
-    const itemTotal = toNumber(item.totalPrice);
-    if (existing) {
-      existing.itemsCount += item.quantity;
-      existing.amount += itemTotal;
-    } else {
-      orderIds.push(o.id);
-      byOrderId.set(o.id, {
-        order: o,
-        itemsCount: item.quantity,
-        amount: itemTotal,
-      });
-    }
-  }
-
   const list: VendorOrderListItem[] = [];
-  for (const orderId of orderIds) {
-    const row = byOrderId.get(orderId);
-    if (!row) continue;
-    const { order, itemsCount, amount } = row;
+  for (const order of orders) {
+    const sellerLines = order.items;
+    const amount = sellerLines.reduce((s, it) => s + toNumber(it.totalPrice), 0);
+    const itemsCount = sellerLines.reduce((s, it) => s + it.quantity, 0);
+    const sellerStatuses = sellerLines.map((it) => it.status);
+
     const userName = [order.user.firstName, order.user.lastName]
       .filter(Boolean)
       .join(" ")
@@ -206,10 +187,6 @@ export async function getVendorOrdersBySellerId(
     const paymentMode = order.payments[0]
       ? mapPaymentMode(order.payments[0].mode)
       : "—";
-
-    const sellerStatuses = items
-      .filter((it) => it.order.id === orderId && it.sellerId === sellerId)
-      .map((it) => it.status);
 
     list.push({
       id: order.id,
@@ -224,7 +201,11 @@ export async function getVendorOrdersBySellerId(
     });
   }
 
-  list.sort((a, b) => b.date.localeCompare(a.date));
+  list.sort((a, b) => {
+    const tb = b.createdAt ?? "";
+    const ta = a.createdAt ?? "";
+    return tb.localeCompare(ta);
+  });
   return list;
 }
 

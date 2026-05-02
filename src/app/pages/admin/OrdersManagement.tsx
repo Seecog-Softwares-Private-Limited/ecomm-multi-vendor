@@ -1,12 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Filter, Search, Eye, ShoppingBag, Package, ChevronLeft, ChevronRight, Banknote, Clock, IndianRupee } from "lucide-react";
 
 const PAGE_SIZE = 10;
 const PENDING_STATUS_SELECT = "pending_bucket";
+
+/** Match API: table shows `#` + short ID; strip `#` so `contains` matches stored UUIDs. */
+function normalizeOrderSearchInput(raw: string): string {
+  return raw.trim().replace(/^#+/u, "").trim();
+}
 
 const statsConfig = [
   {
@@ -50,6 +55,36 @@ const statsConfig = [
     accent: "slate" as const,
   },
 ];
+
+type StatCardAction = (typeof statsConfig)[number]["action"];
+
+/** Stat cards are `<Link>`s; URL drives filters via sync effect. */
+function buildOrdersStatHref(
+  action: StatCardAction,
+  ctx: { search: string; dateFrom: string; dateTo: string }
+): string {
+  const params = new URLSearchParams();
+  params.set("page", "1");
+  const q = ctx.search.trim();
+  if (q) params.set("search", q);
+  if (ctx.dateFrom) params.set("dateFrom", ctx.dateFrom);
+  if (ctx.dateTo) params.set("dateTo", ctx.dateTo);
+
+  if (action === "all") {
+    const qs = params.toString();
+    return qs ? `/admin/orders?${qs}` : "/admin/orders";
+  }
+  if (action === "paid") {
+    params.set("payment", "paid");
+    return `/admin/orders?${params.toString()}`;
+  }
+  if (action === "unpaid") {
+    params.set("payment", "unpaid");
+    return `/admin/orders?${params.toString()}`;
+  }
+  params.set("pending", "1");
+  return `/admin/orders?${params.toString()}`;
+}
 
 interface OrderRow {
   id: string;
@@ -101,21 +136,59 @@ export function OrdersManagement() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(() =>
+    Math.max(1, parseInt(searchParamsHook.get("page") ?? "1", 10) || 1)
+  );
   const [totalPages, setTotalPages] = useState(1);
   const [statusFilter, setStatusFilter] = useState("");
   const [paymentFilter, setPaymentFilter] = useState<"" | "paid" | "unpaid">("");
   const [pendingFilter, setPendingFilter] = useState(false);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [searchInput, setSearchInput] = useState(() => searchParamsHook?.get("search") ?? "");
-  const [search, setSearch] = useState(() => searchParamsHook?.get("search") ?? "");
+  const [searchInput, setSearchInput] = useState(() =>
+    normalizeOrderSearchInput(searchParamsHook?.get("search") ?? "")
+  );
+  const [search, setSearch] = useState(() =>
+    normalizeOrderSearchInput(searchParamsHook?.get("search") ?? "")
+  );
+
+  useLayoutEffect(() => {
+    const sp = searchParamsHook;
+    const pageNum = Math.max(1, parseInt(sp.get("page") ?? "1", 10) || 1);
+    setPage(pageNum);
+
+    setDateFrom(sp.get("dateFrom") ?? "");
+    setDateTo(sp.get("dateTo") ?? "");
+
+    const se = normalizeOrderSearchInput(sp.get("search") ?? "");
+    setSearch(se);
+    setSearchInput(se);
+
+    const pending = sp.get("pending") === "1" || sp.get("pending")?.toLowerCase() === "true";
+    const pr = sp.get("payment")?.toLowerCase();
+    const payment = pr === "paid" || pr === "unpaid" ? pr : "";
+    const statusRaw = sp.get("status")?.toLowerCase().replace(/-/g, "_") ?? "";
+
+    if (pending) {
+      setPendingFilter(true);
+      setPaymentFilter("");
+      setStatusFilter("");
+    } else {
+      setPendingFilter(false);
+      setPaymentFilter(payment);
+      setStatusFilter(statusRaw);
+    }
+  }, [searchParamsHook]);
+
+  /** Avoid double-fetch when Apply runs `fetchOrders({ page, search })` and state updates retrigger the effect. */
+  const skipNextEffectFetchRef = useRef(false);
 
   const fetchOrders = useCallback(
-    async (overridePage?: number) => {
+    async (override?: { page?: number; search?: string }) => {
       setLoading(true);
       setError(null);
-      const currentPage = overridePage ?? page;
+      const currentPage = override?.page ?? page;
+      const effectiveSearch = override?.search !== undefined ? override.search : search;
       const params = new URLSearchParams();
       params.set("page", String(currentPage));
       params.set("pageSize", String(PAGE_SIZE));
@@ -127,9 +200,12 @@ export function OrdersManagement() {
       if (paymentFilter) params.set("payment", paymentFilter);
       if (dateFrom) params.set("dateFrom", dateFrom);
       if (dateTo) params.set("dateTo", dateTo);
-      if (search) params.set("search", search);
+      if (effectiveSearch) params.set("search", effectiveSearch);
       try {
-        const res = await fetch(`/api/admin/orders?${params.toString()}`, { credentials: "include" });
+        const res = await fetch(`/api/admin/orders?${params.toString()}`, {
+          credentials: "include",
+          cache: "no-store",
+        });
         const json = await res.json();
         if (!res.ok) {
           setError(json?.error?.message ?? "Failed to load orders");
@@ -153,7 +229,11 @@ export function OrdersManagement() {
   );
 
   useEffect(() => {
-    fetchOrders();
+    if (skipNextEffectFetchRef.current) {
+      skipNextEffectFetchRef.current = false;
+      return;
+    }
+    void fetchOrders();
   }, [fetchOrders]);
 
   useEffect(() => {
@@ -163,29 +243,12 @@ export function OrdersManagement() {
   }, [totalPages, page]);
 
   const handleApplyFilters = () => {
-    setSearch(searchInput.trim());
+    const q = normalizeOrderSearchInput(searchInput);
+    setSearchInput(q);
+    setSearch(q);
     setPage(1);
-  };
-
-  const applyStatCardFilter = (action: "all" | "paid" | "unpaid" | "pending") => {
-    setPage(1);
-    if (action === "all") {
-      setStatusFilter("");
-      setPaymentFilter("");
-      setPendingFilter(false);
-    } else if (action === "paid") {
-      setStatusFilter("");
-      setPaymentFilter("paid");
-      setPendingFilter(false);
-    } else if (action === "unpaid") {
-      setStatusFilter("");
-      setPaymentFilter("unpaid");
-      setPendingFilter(false);
-    } else {
-      setStatusFilter("");
-      setPaymentFilter("");
-      setPendingFilter(true);
-    }
+    skipNextEffectFetchRef.current = true;
+    void fetchOrders({ page: 1, search: q });
   };
 
   const isStatCardActive = (key: (typeof statsConfig)[number]["key"], action: (typeof statsConfig)[number]["action"]) => {
@@ -234,41 +297,43 @@ export function OrdersManagement() {
           </div>
         )}
 
-        {/* Stats cards (click to apply matching filters) */}
-        <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        {/* Stats cards — full card + icon are one link (URL-synced filters) */}
+        <div className="mb-8 grid min-w-0 items-stretch gap-4 sm:grid-cols-2 lg:grid-cols-5">
           {statsConfig.map((stat) => {
             const Icon = stat.icon;
             const style = accentStyles[stat.accent];
             const value = getSummaryValue(stat.key + "Formatted" as keyof Summary);
             const active = isStatCardActive(stat.key, stat.action);
             return (
-              <button
+              <Link
                 key={stat.label}
-                type="button"
+                href={buildOrdersStatHref(stat.action, { search, dateFrom, dateTo })}
+                scroll={false}
+                replace
+                prefetch={false}
                 title={stat.title}
-                onClick={() => applyStatCardFilter(stat.action)}
-                aria-pressed={active}
-                className={`rounded-2xl border bg-white p-6 text-left shadow-lg shadow-slate-200/50 transition hover:shadow-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 ${
+                aria-current={active ? "true" : undefined}
+                className={`group relative flex min-h-[112px] min-w-0 w-full flex-col overflow-hidden rounded-2xl border bg-white p-6 text-left shadow-lg shadow-slate-200/50 ring-offset-2 transition hover:shadow-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 active:scale-[0.99] touch-manipulation select-none ${
                   active
                     ? "cursor-pointer border-amber-400 ring-2 ring-amber-400/50"
                     : "cursor-pointer border-slate-200/80 hover:border-amber-200/90"
                 }`}
               >
-                <div className="flex items-start justify-between">
-                  <div>
+                <div className="flex min-w-0 flex-1 items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-slate-500">{stat.label}</p>
-                    <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
+                    <p className="mt-2 break-words text-2xl font-semibold tabular-nums tracking-tight text-slate-900">
                       {loading && !summary ? "—" : value}
                     </p>
                   </div>
                   <div
-                    className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ring-1 ${style.bg} ${style.text} ${style.ring}`}
+                    className={`pointer-events-none flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ring-1 transition group-hover:ring-2 group-hover:ring-amber-400/40 ${style.bg} ${style.text} ${style.ring}`}
                     aria-hidden
                   >
-                    <Icon className="h-5 w-5" />
+                    <Icon className="h-5 w-5 shrink-0 pointer-events-none" strokeWidth={2} />
                   </div>
                 </div>
-              </button>
+              </Link>
             );
           })}
         </div>
