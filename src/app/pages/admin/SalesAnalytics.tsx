@@ -42,6 +42,14 @@ interface TopProduct {
   revenue: string;
 }
 
+interface TrendPoint {
+  key: string;
+  label: string;
+  revenue: number;
+  orders: number;
+  revenueFormatted: string;
+}
+
 const metricCardsConfig = [
   {
     key: "revenue" as const,
@@ -115,6 +123,7 @@ export function SalesAnalytics() {
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [topSellers, setTopSellers] = useState<TopSeller[]>([]);
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
+  const [trend, setTrend] = useState<TrendPoint[]>([]);
 
   const fetchAnalytics = useCallback(async () => {
     setLoading(true);
@@ -133,10 +142,12 @@ export function SalesAnalytics() {
           metrics?: Metrics;
           topSellers?: TopSeller[];
           topProducts?: TopProduct[];
+          trend?: TrendPoint[];
         };
         setMetrics(d.metrics ?? null);
         setTopSellers(d.topSellers ?? []);
         setTopProducts(d.topProducts ?? []);
+        setTrend(d.trend ?? []);
       }
     } catch {
       setError("Failed to load analytics");
@@ -148,6 +159,16 @@ export function SalesAnalytics() {
   useEffect(() => {
     fetchAnalytics();
   }, [fetchAnalytics]);
+
+  const maxRevenue = Math.max(...trend.map((p) => p.revenue), 0);
+  const maxOrders = Math.max(...trend.map((p) => p.orders), 0);
+  const linePoints = trend
+    .map((point, index) => {
+      const x = trend.length <= 1 ? 16 : 16 + (index * 268) / (trend.length - 1);
+      const y = 140 - (maxRevenue > 0 ? (point.revenue / maxRevenue) * 120 : 0);
+      return `${x},${y}`;
+    })
+    .join(" ");
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-amber-50/30">
@@ -233,11 +254,35 @@ export function SalesAnalytics() {
               </div>
               <h3 className="text-lg font-semibold text-slate-900">Revenue Trend</h3>
             </div>
-            <div className="flex h-72 items-center justify-center bg-slate-50/50 px-6 py-8">
-              <div className="text-center">
-                <p className="text-sm font-medium text-slate-500">Chart placeholder</p>
-                <p className="mt-1 text-xs text-slate-400">Monthly revenue performance</p>
-              </div>
+            <div className="bg-slate-50/50 px-6 py-5">
+              {trend.length === 0 ? (
+                <div className="flex h-60 items-center justify-center text-sm text-slate-400">No trend data</div>
+              ) : (
+                <>
+                  <svg viewBox="0 0 300 160" className="h-56 w-full">
+                    <polyline
+                      fill="none"
+                      stroke="#f59e0b"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      points={linePoints}
+                    />
+                    {trend.map((point, index) => {
+                      const x = trend.length <= 1 ? 16 : 16 + (index * 268) / (trend.length - 1);
+                      const y = 140 - (maxRevenue > 0 ? (point.revenue / maxRevenue) * 120 : 0);
+                      return <circle key={point.key} cx={x} cy={y} r="3.5" fill="#f59e0b" />;
+                    })}
+                  </svg>
+                  <div className="mt-1 grid gap-1 text-center text-xs text-slate-500" style={{ gridTemplateColumns: `repeat(${trend.length}, minmax(0, 1fr))` }}>
+                    {trend.map((point) => (
+                      <div key={point.key} title={point.revenueFormatted}>
+                        {point.label}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           </div>
           <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-lg shadow-slate-200/50">
@@ -247,11 +292,32 @@ export function SalesAnalytics() {
               </div>
               <h3 className="text-lg font-semibold text-slate-900">Orders Trend</h3>
             </div>
-            <div className="flex h-72 items-center justify-center bg-slate-50/50 px-6 py-8">
-              <div className="text-center">
-                <p className="text-sm font-medium text-slate-500">Chart placeholder</p>
-                <p className="mt-1 text-xs text-slate-400">Monthly order volume</p>
-              </div>
+            <div className="bg-slate-50/50 px-6 py-5">
+              {trend.length === 0 ? (
+                <div className="flex h-60 items-center justify-center text-sm text-slate-400">No trend data</div>
+              ) : (
+                <>
+                  <div className="flex h-56 items-end gap-2">
+                    {trend.map((point) => {
+                      const barHeight = maxOrders > 0 ? Math.max(10, Math.round((point.orders / maxOrders) * 180)) : 10;
+                      return (
+                        <div key={point.key} className="flex flex-1 flex-col items-center justify-end">
+                          <div
+                            className="w-full rounded-t-md bg-emerald-400/90"
+                            style={{ height: `${barHeight}px` }}
+                            title={`${point.orders.toLocaleString()} orders`}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="mt-1 grid gap-1 text-center text-xs text-slate-500" style={{ gridTemplateColumns: `repeat(${trend.length}, minmax(0, 1fr))` }}>
+                    {trend.map((point) => (
+                      <div key={point.key}>{point.label}</div>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>

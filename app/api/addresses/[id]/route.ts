@@ -58,38 +58,49 @@ export const PATCH = withApiHandler(async (request: NextRequest, context?: ApiRo
   if (state !== null && !state) return apiBadRequest("state cannot be empty.");
   if (pincode !== null && !pincode) return apiBadRequest("pincode cannot be empty.");
 
-  if (isDefault === true) {
-    await prisma.address.updateMany({
-      where: { userId: session.sub },
-      data: { isDefault: false },
-    });
-  }
+  const updateData = {
+    ...(fullName !== null && { fullName }),
+    ...(phone !== null && { phone }),
+    ...(line1 !== null && { line1 }),
+    ...(line2 !== undefined && { line2 }),
+    ...(city !== null && { city }),
+    ...(state !== null && { state }),
+    ...(pincode !== null && { pincode }),
+    ...(type !== null && { type }),
+    ...(isDefault !== undefined && { isDefault }),
+  };
 
-  const address = await prisma.address.update({
-    where: { id },
-    data: {
-      ...(fullName !== null && { fullName }),
-      ...(phone !== null && { phone }),
-      ...(line1 !== null && { line1 }),
-      ...(line2 !== undefined && { line2 }),
-      ...(city !== null && { city }),
-      ...(state !== null && { state }),
-      ...(pincode !== null && { pincode }),
-      ...(type !== null && { type }),
-      ...(isDefault !== undefined && { isDefault }),
-    },
-    select: {
-      id: true,
-      type: true,
-      fullName: true,
-      line1: true,
-      line2: true,
-      city: true,
-      state: true,
-      pincode: true,
-      phone: true,
-      isDefault: true,
-    },
+  const address = await prisma.$transaction(async (tx) => {
+    if (isDefault === true) {
+      // Keep exactly one active default for this customer.
+      await tx.address.updateMany({
+        where: { userId: session.sub, deletedAt: null },
+        data: { isDefault: false },
+      });
+    }
+
+    await tx.address.updateMany({
+      where: { id, userId: session.sub, deletedAt: null },
+      data: updateData,
+    });
+
+    const updated = await tx.address.findFirst({
+      where: { id, userId: session.sub, deletedAt: null },
+      select: {
+        id: true,
+        type: true,
+        fullName: true,
+        line1: true,
+        line2: true,
+        city: true,
+        state: true,
+        pincode: true,
+        phone: true,
+        isDefault: true,
+      },
+    });
+    if (!updated) throw new Error("Address not found after update.");
+    return updated;
   });
 
   const name = address.type === "HOME" ? "Home" : address.type === "OFFICE" ? "Office" : "Other";

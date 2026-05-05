@@ -75,6 +75,16 @@ function orderStatusToDisplay(s: OrderStatus): string {
   return map[s] ?? s;
 }
 
+function returnStatusToDisplay(s: string): string {
+  const map: Record<string, string> = {
+    PENDING: "Requested",
+    APPROVED: "Approved",
+    REJECTED: "Rejected",
+    REFUNDED: "Refunded",
+  };
+  return map[s] ?? s;
+}
+
 /**
  * GET /api/admin/orders — list orders with summary stats (admin only).
  * Query: status, pending (1), payment (paid|unpaid), dateFrom, dateTo, search, page, pageSize.
@@ -138,6 +148,18 @@ export const GET = withApiHandler(async (request: NextRequest) => {
   const where: Prisma.OrderWhereInput =
     filters.length === 0 ? {} : filters.length === 1 ? filters[0]! : { AND: filters };
 
+  const summaryFilters: Prisma.OrderWhereInput[] = [];
+  if (dateFilter.gte ?? dateFilter.lte) {
+    summaryFilters.push({ createdAt: dateFilter });
+  }
+  if (searchTerm) {
+    summaryFilters.push({
+      OR: [{ id: { contains: searchTerm } }, { user: userMatchesCustomerSearch(searchTerm) }],
+    });
+  }
+  const summaryWhere: Prisma.OrderWhereInput =
+    summaryFilters.length === 0 ? {} : summaryFilters.length === 1 ? summaryFilters[0]! : { AND: summaryFilters };
+
   const [list, total, agg] = await Promise.all([
     prisma.order.findMany({
       where,
@@ -148,11 +170,12 @@ export const GET = withApiHandler(async (request: NextRequest) => {
         user: { select: { firstName: true, lastName: true, email: true } },
         items: { include: { seller: { select: { businessName: true } } } },
         payments: { select: { status: true } },
+        returns: { where: { deletedAt: null }, select: { status: true, createdAt: true } },
       },
     }),
     prisma.order.count({ where }),
     prisma.order.aggregate({
-      where,
+      where: summaryWhere,
       _count: true,
       _sum: { totalAmount: true },
     }),
@@ -160,17 +183,17 @@ export const GET = withApiHandler(async (request: NextRequest) => {
 
   const [pendingCount, deliveredCount, paidRevenueAgg, unpaidRevenueAgg] = await Promise.all([
     prisma.order.count({
-      where: { ...where, status: { in: ["PLACED", "PAYMENT_CONFIRMED"] } },
+      where: { ...summaryWhere, status: { in: ["PLACED", "PAYMENT_CONFIRMED"] } },
     }),
     prisma.order.count({
-      where: { ...where, status: "DELIVERED" },
+      where: { ...summaryWhere, status: "DELIVERED" },
     }),
     prisma.order.aggregate({
-      where: { ...where, payments: { some: { status: "PAID" } } },
+      where: { ...summaryWhere, payments: { some: { status: "PAID" } } },
       _sum: { totalAmount: true },
     }),
     prisma.order.aggregate({
-      where: { ...where, NOT: { payments: { some: { status: "PAID" } } } },
+      where: { ...summaryWhere, NOT: { payments: { some: { status: "PAID" } } } },
       _sum: { totalAmount: true },
     }),
   ]);
@@ -187,6 +210,8 @@ export const GET = withApiHandler(async (request: NextRequest) => {
     const sellerIds = [...new Set(order.items.map((i) => i.seller?.businessName).filter(Boolean))];
     const seller = sellerIds.length > 1 ? "Multiple" : sellerIds[0] ?? "—";
     const paymentStatus = order.payments?.some((p) => p.status === "PAID") ? "Paid" : "Pending";
+    const latestReturn = [...(order.returns ?? [])].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0];
+    const refundStatus = latestReturn ? returnStatusToDisplay(String(latestReturn.status)) : "No Return";
     return {
       id: order.id,
       customer,
@@ -194,6 +219,7 @@ export const GET = withApiHandler(async (request: NextRequest) => {
       amount: Number(order.totalAmount),
       amountFormatted: formatRupee(Number(order.totalAmount)),
       paymentStatus,
+      refundStatus,
       orderStatus: order.status,
       orderStatusDisplay: orderStatusToDisplay(order.status),
       date: order.createdAt.toISOString().slice(0, 10),

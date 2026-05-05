@@ -3,6 +3,7 @@
 import { Download, DollarSign, TrendingDown } from "lucide-react";
 import { Button, Input, Card, Select } from "../components/UIComponents";
 import { DataState } from "../../components/DataState";
+import { Link } from "../../components/Link";
 import { useApi } from "@/lib/hooks/useApi";
 import { vendorService } from "@/services/vendor.service";
 import * as React from "react";
@@ -153,6 +154,10 @@ export function VendorEarnings() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-6">
+        <Link
+          href="/vendor/earnings#earnings-breakdown"
+          className="block rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
+        >
         <Card>
           <div className="flex items-start justify-between mb-4">
             <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center">
@@ -163,7 +168,12 @@ export function VendorEarnings() {
           <p className="text-[#64748B] text-sm mb-2">Total gross revenue</p>
           <p className="text-3xl font-bold text-[#1E293B] tabular-nums">{formatInr(summary.gross)}</p>
         </Card>
+        </Link>
 
+        <Link
+          href="/vendor/earnings#earnings-breakdown"
+          className="block rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
+        >
         <Card>
           <div className="flex items-start justify-between mb-4">
             <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-orange-600 rounded-xl flex items-center justify-center">
@@ -174,7 +184,12 @@ export function VendorEarnings() {
           <p className="text-[#64748B] text-sm mb-2">Total commission</p>
           <p className="text-3xl font-bold text-[#DC2626] tabular-nums">{formatInr(summary.commission)}</p>
         </Card>
+        </Link>
 
+        <Link
+          href="/vendor/earnings#earnings-breakdown"
+          className="block rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
+        >
         <Card>
           <div className="flex items-start justify-between mb-4">
             <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
@@ -185,6 +200,7 @@ export function VendorEarnings() {
           <p className="text-[#64748B] text-sm mb-2">Net earnings</p>
           <p className="text-3xl font-bold text-[#3B82F6] tabular-nums">{formatInr(summary.net)}</p>
         </Card>
+        </Link>
       </div>
 
       {/* Filters — summary & export follow From / To */}
@@ -225,6 +241,7 @@ export function VendorEarnings() {
       </Card>
 
       {/* Earnings Table */}
+      <div id="earnings-breakdown">
       <Card title="Earnings Breakdown">
         <div className="space-y-3 md:hidden">
           {earnings.length === 0 ? (
@@ -381,6 +398,7 @@ export function VendorEarnings() {
           </table>
         </div>
       </Card>
+      </div>
     </div>
     </DataState>
   );

@@ -35,6 +35,14 @@ interface RecentOrder {
   date: string;
 }
 
+interface DashboardChartPoint {
+  key: string;
+  label: string;
+  revenue: number;
+  orders: number;
+  revenueFormatted: string;
+}
+
 const statsConfig = [
   {
     key: "gmv" as const,
@@ -116,6 +124,7 @@ export function AdminDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([]);
+  const [chartData, setChartData] = useState<DashboardChartPoint[]>([]);
 
   const fetchDashboard = useCallback(async () => {
     setLoading(true);
@@ -128,9 +137,10 @@ export function AdminDashboard() {
         return;
       }
       if (json.success && json.data) {
-        const d = json.data as { stats?: DashboardStats; recentOrders?: RecentOrder[] };
+        const d = json.data as { stats?: DashboardStats; recentOrders?: RecentOrder[]; chartData?: DashboardChartPoint[] };
         setStats(d.stats ?? null);
         setRecentOrders(d.recentOrders ?? []);
+        setChartData(d.chartData ?? []);
       }
     } catch {
       setError("Failed to load dashboard");
@@ -142,6 +152,16 @@ export function AdminDashboard() {
   useEffect(() => {
     fetchDashboard();
   }, [fetchDashboard]);
+
+  const maxRevenue = Math.max(...chartData.map((p) => p.revenue), 0);
+  const maxOrders = Math.max(...chartData.map((p) => p.orders), 0);
+  const linePoints = chartData
+    .map((point, index) => {
+      const x = chartData.length <= 1 ? 16 : 16 + (index * 268) / (chartData.length - 1);
+      const y = 140 - (maxRevenue > 0 ? (point.revenue / maxRevenue) * 120 : 0);
+      return `${x},${y}`;
+    })
+    .join(" ");
 
   return (
     <div className="min-h-full bg-slate-50/80 px-3 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
@@ -202,11 +222,35 @@ export function AdminDashboard() {
       <div className="mb-8 grid gap-6 lg:grid-cols-2">
         <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
           <h3 className="text-base font-semibold text-slate-900">Revenue Overview</h3>
-          <div className="mt-4 flex h-64 items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50/50">
-            <div className="text-center">
-              <p className="text-sm font-medium text-slate-400">Line chart</p>
-              <p className="mt-0.5 text-xs text-slate-400">Revenue trend</p>
-            </div>
+          <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50/50 p-4">
+            {chartData.length === 0 ? (
+              <div className="flex h-56 items-center justify-center text-sm text-slate-400">No chart data</div>
+            ) : (
+              <>
+                <svg viewBox="0 0 300 160" className="h-56 w-full">
+                  <polyline
+                    fill="none"
+                    stroke="#f59e0b"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    points={linePoints}
+                  />
+                  {chartData.map((point, index) => {
+                    const x = chartData.length <= 1 ? 16 : 16 + (index * 268) / (chartData.length - 1);
+                    const y = 140 - (maxRevenue > 0 ? (point.revenue / maxRevenue) * 120 : 0);
+                    return <circle key={point.key} cx={x} cy={y} r="3.5" fill="#f59e0b" />;
+                  })}
+                </svg>
+                <div className="mt-2 grid grid-cols-6 gap-1 text-center text-xs text-slate-500">
+                  {chartData.map((point) => (
+                    <div key={point.key} title={point.revenueFormatted}>
+                      {point.label}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         </div>
         <Link
@@ -214,11 +258,32 @@ export function AdminDashboard() {
           className="block overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm transition-all hover:border-slate-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/40 focus-visible:ring-offset-2"
         >
           <h3 className="text-base font-semibold text-slate-900">Orders Overview</h3>
-          <div className="mt-4 flex h-64 items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50/50">
-            <div className="text-center">
-              <p className="text-sm font-medium text-slate-400">Bar chart</p>
-              <p className="mt-0.5 text-xs text-slate-400">Orders trend — click to open Orders</p>
-            </div>
+          <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50/50 p-4">
+            {chartData.length === 0 ? (
+              <div className="flex h-56 items-center justify-center text-sm text-slate-400">No chart data</div>
+            ) : (
+              <>
+                <div className="flex h-56 items-end gap-2">
+                  {chartData.map((point) => {
+                    const barHeight = maxOrders > 0 ? Math.max(10, Math.round((point.orders / maxOrders) * 180)) : 10;
+                    return (
+                      <div key={point.key} className="flex flex-1 flex-col items-center justify-end gap-2">
+                        <div
+                          className="w-full rounded-t-md bg-emerald-400/90 transition-all"
+                          style={{ height: `${barHeight}px` }}
+                          title={`${point.orders.toLocaleString()} orders`}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="mt-2 grid grid-cols-6 gap-1 text-center text-xs text-slate-500">
+                  {chartData.map((point) => (
+                    <div key={point.key}>{point.label}</div>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         </Link>
       </div>

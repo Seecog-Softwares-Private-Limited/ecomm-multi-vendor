@@ -93,6 +93,7 @@ interface OrderRow {
   amount: number;
   amountFormatted: string;
   paymentStatus: string;
+  refundStatus: string;
   orderStatus: string;
   orderStatusDisplay: string;
   date: string;
@@ -127,6 +128,14 @@ const orderStatusStyles: Record<string, string> = {
 const paymentStatusStyles: Record<string, string> = {
   Paid: "bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200",
   Pending: "bg-amber-50 text-amber-800 ring-1 ring-amber-200",
+};
+
+const refundStatusStyles: Record<string, string> = {
+  "No Return": "bg-slate-50 text-slate-700 ring-1 ring-slate-200",
+  Requested: "bg-amber-50 text-amber-800 ring-1 ring-amber-200",
+  Approved: "bg-blue-50 text-blue-800 ring-1 ring-blue-200",
+  Rejected: "bg-rose-50 text-rose-800 ring-1 ring-rose-200",
+  Refunded: "bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200",
 };
 
 export function OrdersManagement() {
@@ -443,6 +452,9 @@ export function OrdersManagement() {
                     Payment
                   </th>
                   <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    Refund Status
+                  </th>
+                  <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
                     Order Status
                   </th>
                   <th className="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
@@ -456,13 +468,13 @@ export function OrdersManagement() {
               <tbody className="divide-y divide-slate-100">
                 {loading && orders.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-6 py-12 text-center text-sm text-slate-500">
+                    <td colSpan={9} className="px-6 py-12 text-center text-sm text-slate-500">
                       Loading orders…
                     </td>
                   </tr>
                 ) : orders.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-6 py-12 text-center text-sm text-slate-500">
+                    <td colSpan={9} className="px-6 py-12 text-center text-sm text-slate-500">
                       No orders found.
                     </td>
                   </tr>
@@ -484,6 +496,15 @@ export function OrdersManagement() {
                           }`}
                         >
                           {order.paymentStatus}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span
+                          className={`inline-flex rounded-lg px-2.5 py-1 text-xs font-semibold ring-1 ${
+                            refundStatusStyles[order.refundStatus] ?? "bg-slate-50 text-slate-700 ring-slate-200"
+                          }`}
+                        >
+                          {order.refundStatus}
                         </span>
                       </td>
                       <td className="px-6 py-4">
