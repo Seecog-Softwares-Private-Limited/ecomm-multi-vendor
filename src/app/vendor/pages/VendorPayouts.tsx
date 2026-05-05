@@ -3,6 +3,7 @@
 import { CreditCard, Calendar, Download, Info } from "lucide-react";
 import { Button, Card, Alert, Input } from "../components/UIComponents";
 import { DataState } from "../../components/DataState";
+import { Link } from "../../components/Link";
 import { useApi } from "@/lib/hooks/useApi";
 import { vendorService } from "@/services/vendor.service";
 import * as React from "react";
@@ -140,6 +141,10 @@ export function VendorPayouts() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-6">
+        <Link
+          href="/vendor/payouts#payout-history"
+          className="block rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
+        >
         <Card>
           <div className="flex items-start justify-between mb-4">
             <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center">
@@ -152,7 +157,12 @@ export function VendorPayouts() {
             {summary.transactionCount} payout run{summary.transactionCount === 1 ? "" : "s"} in range
           </p>
         </Card>
+        </Link>
 
+        <Link
+          href="/vendor/payouts#payout-history"
+          className="block rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
+        >
         <Card>
           <div className="flex items-start justify-between mb-4">
             <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
@@ -165,7 +175,12 @@ export function VendorPayouts() {
           </p>
           <p className="text-sm text-[#64748B] mt-2">{summary.lastPayoutDate ?? "—"}</p>
         </Card>
+        </Link>
 
+        <Link
+          href="/vendor/payouts#payout-history"
+          className="block rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
+        >
         <Card>
           <div className="flex items-start justify-between mb-4">
             <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center">
@@ -176,6 +191,7 @@ export function VendorPayouts() {
           <p className="text-3xl font-bold text-[#1E293B] tabular-nums">{summary.ordersPaid}</p>
           <p className="text-sm text-[#64748B] mt-2">From completed payouts in this filter</p>
         </Card>
+        </Link>
       </div>
 
       {/* Date filter: payout *period* overlaps this window */}
@@ -201,6 +217,7 @@ export function VendorPayouts() {
       </Card>
 
       {/* Payouts Table */}
+      <div id="payout-history">
       <Card title="Payout History">
         <div className="space-y-3 md:hidden">
           {payouts.length === 0 ? (
@@ -309,6 +326,7 @@ export function VendorPayouts() {
           </table>
         </div>
       </Card>
+      </div>
 
       {/* Bank Details Card */}
       <Card title="Registered Bank Account">

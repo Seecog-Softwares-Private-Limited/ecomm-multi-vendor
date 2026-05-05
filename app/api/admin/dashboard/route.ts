@@ -39,6 +39,8 @@ export const GET = withApiHandler(async (request: NextRequest) => {
   const orderWhere = { status: { notIn: EXCLUDED_ORDER_STATUSES } };
 
   const now = new Date();
+  const chartMonths = 6;
+  const chartStart = new Date(now.getFullYear(), now.getMonth() - (chartMonths - 1), 1);
   const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
@@ -52,6 +54,7 @@ export const GET = withApiHandler(async (request: NextRequest) => {
     pendingKycCount,
     pendingReturnsCount,
     recentOrdersList,
+    chartOrders,
   ] = await Promise.all([
     prisma.order.aggregate({
       where: orderWhere,
@@ -87,6 +90,16 @@ export const GET = withApiHandler(async (request: NextRequest) => {
         items: { include: { seller: { select: { businessName: true } } } },
       },
     }),
+    prisma.order.findMany({
+      where: {
+        ...orderWhere,
+        createdAt: { gte: chartStart },
+      },
+      select: {
+        createdAt: true,
+        totalAmount: true,
+      },
+    }),
   ]);
 
   const gmv = Number(gmvAgg._sum.totalAmount ?? 0);
@@ -113,6 +126,33 @@ export const GET = withApiHandler(async (request: NextRequest) => {
     };
   });
 
+  const monthlyMap = new Map<string, { revenue: number; orders: number }>();
+  for (let i = chartMonths - 1; i >= 0; i -= 1) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    monthlyMap.set(key, { revenue: 0, orders: 0 });
+  }
+
+  for (const order of chartOrders) {
+    const d = new Date(order.createdAt);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const bucket = monthlyMap.get(key);
+    if (!bucket) continue;
+    bucket.revenue += Number(order.totalAmount ?? 0);
+    bucket.orders += 1;
+  }
+
+  const chartData = Array.from(monthlyMap.entries()).map(([key, values]) => {
+    const [year, month] = key.split("-");
+    return {
+      key,
+      label: new Date(Number(year), Number(month) - 1, 1).toLocaleString("en-IN", { month: "short" }),
+      revenue: values.revenue,
+      orders: values.orders,
+      revenueFormatted: formatRupee(values.revenue),
+    };
+  });
+
   const stats = {
     gmv,
     gmvFormatted: formatRupee(gmv),
@@ -134,5 +174,5 @@ export const GET = withApiHandler(async (request: NextRequest) => {
     pendingReturnsChange: null,
   };
 
-  return apiSuccess({ stats, recentOrders }, Status.OK);
+  return apiSuccess({ stats, recentOrders, chartData }, Status.OK);
 });

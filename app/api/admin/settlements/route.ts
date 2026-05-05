@@ -82,14 +82,14 @@ export const GET = withApiHandler(async (request: NextRequest) => {
     }),
   ]);
 
-  const total = await prisma.settlement.count({ where });
+  let total = await prisma.settlement.count({ where });
 
   const totalCommission = Number(agg._sum.commissionAmount ?? 0);
   const totalPayout = Number(agg._sum.payoutAmount ?? 0);
   const pendingAmount = Number(pendingSum._sum.payoutAmount ?? 0);
   const completedThisMonth = Number(completedThisMonthSum._sum.payoutAmount ?? 0);
 
-  const settlements = list.map((s) => ({
+  let settlements = list.map((s) => ({
     id: s.id,
     seller: s.seller.businessName,
     revenue: Number(s.revenue),
@@ -98,6 +98,94 @@ export const GET = withApiHandler(async (request: NextRequest) => {
     status: s.status,
     date: s.periodEnd.toISOString().slice(0, 10),
   }));
+
+  // Fallback: if no settlement records exist yet, derive a pending view from order items
+  // so the dashboard still shows meaningful payout estimates.
+  if (total === 0) {
+    const canUsePendingFallback = !statusParam || statusParam === "pending";
+    if (canUsePendingFallback) {
+      const fallbackOrderItemWhere: Prisma.OrderItemWhereInput = {
+        order: {
+          status: { in: ["PLACED", "PAYMENT_CONFIRMED", "PROCESSING", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED"] },
+          ...(periodEnd.gte ?? periodEnd.lte ? { createdAt: dateFilterFromPeriod(periodEnd) } : {}),
+        },
+      };
+      const fallbackItems = await prisma.orderItem.findMany({
+        where: fallbackOrderItemWhere,
+        select: {
+          sellerId: true,
+          totalPrice: true,
+          order: { select: { createdAt: true } },
+          seller: { select: { businessName: true } },
+        },
+      });
+      const grouped = new Map<string, { seller: string; revenue: number; lastDate: Date }>();
+      for (const item of fallbackItems) {
+        const entry = grouped.get(item.sellerId);
+        const sellerName = item.seller?.businessName ?? "Unknown Seller";
+        const rev = Number(item.totalPrice ?? 0);
+        const createdAt = item.order.createdAt;
+        if (entry) {
+          entry.revenue += rev;
+          if (createdAt > entry.lastDate) entry.lastDate = createdAt;
+        } else {
+          grouped.set(item.sellerId, { seller: sellerName, revenue: rev, lastDate: createdAt });
+        }
+      }
+      settlements = Array.from(grouped.entries())
+        .map(([sellerId, v]) => {
+          const commission = v.revenue * 0.1;
+          const payout = v.revenue - commission;
+          return {
+            id: `fallback-${sellerId}`,
+            seller: v.seller,
+            revenue: v.revenue,
+            commission,
+            payout,
+            status: "PENDING" as const,
+            date: v.lastDate.toISOString().slice(0, 10),
+          };
+        })
+        .sort((a, b) => b.revenue - a.revenue)
+        .slice((page - 1) * pageSize, page * pageSize);
+
+      const fallbackTotals = Array.from(grouped.values()).reduce(
+        (acc, v) => {
+          const commission = v.revenue * 0.1;
+          const payout = v.revenue - commission;
+          acc.totalCommission += commission;
+          acc.totalPayout += payout;
+          return acc;
+        },
+        { totalCommission: 0, totalPayout: 0 }
+      );
+
+      total = grouped.size;
+      const fallbackPendingAmount = fallbackTotals.totalPayout;
+      return apiSuccess(
+        {
+          summary: {
+            totalCommission: fallbackTotals.totalCommission,
+            totalPayout: fallbackTotals.totalPayout,
+            pendingAmount: fallbackPendingAmount,
+            completedThisMonth: 0,
+          },
+          settlements,
+          totalCommissionFormatted: formatRupee(fallbackTotals.totalCommission),
+          totalPayoutFormatted: formatRupee(fallbackTotals.totalPayout),
+          pendingFormatted: formatRupee(fallbackPendingAmount),
+          completedThisMonthFormatted: formatRupee(0),
+        },
+        Status.OK,
+        {
+          total,
+          page,
+          pageSize,
+          totalPages: Math.ceil(total / pageSize) || 1,
+        }
+      );
+    }
+  }
 
   return apiSuccess(
     {
@@ -122,3 +210,10 @@ export const GET = withApiHandler(async (request: NextRequest) => {
     }
   );
 });
+
+function dateFilterFromPeriod(periodEnd: { gte?: Date; lte?: Date }): { gte?: Date; lte?: Date } {
+  const f: { gte?: Date; lte?: Date } = {};
+  if (periodEnd.gte) f.gte = periodEnd.gte;
+  if (periodEnd.lte) f.lte = periodEnd.lte;
+  return f;
+}

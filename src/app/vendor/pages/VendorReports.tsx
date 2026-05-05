@@ -3,6 +3,7 @@
 import { FileText, Download, Package, ShoppingBag, DollarSign } from "lucide-react";
 import { Button, Card, Input, Alert } from "../components/UIComponents";
 import { DataState } from "../../components/DataState";
+import { Link } from "../../components/Link";
 import { useApi } from "@/lib/hooks/useApi";
 import { vendorService } from "@/services/vendor.service";
 import * as React from "react";
@@ -168,6 +169,7 @@ export function VendorReports() {
       value: summary != null ? `₹${summary.totalEarnings.toLocaleString()}` : "—",
       icon: DollarSign,
       color: "from-purple-500 to-pink-600",
+      href: "/vendor/earnings",
     },
   ];
 
@@ -192,7 +194,7 @@ export function VendorReports() {
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-6">
         {reportStats.map((stat, index) => {
           const Icon = stat.icon;
-          return (
+          const statCard = (
             <Card key={index}>
               <div className="flex items-start justify-between mb-4">
                 <div
@@ -205,6 +207,18 @@ export function VendorReports() {
               <p className="text-3xl font-bold text-[#1E293B]">{stat.value}</p>
             </Card>
           );
+          if (stat.href) {
+            return (
+              <Link
+                key={index}
+                href={stat.href}
+                className="block rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
+              >
+                {statCard}
+              </Link>
+            );
+          }
+          return statCard;
         })}
       </div>
 

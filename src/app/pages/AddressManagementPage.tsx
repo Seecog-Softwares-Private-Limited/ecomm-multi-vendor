@@ -169,11 +169,15 @@ export function AddressManagementPage() {
         credentials: "include",
         body: JSON.stringify({ isDefault: true }),
       });
-      if (!res.ok) throw new Error("Failed");
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error?.message ?? "Could not set default address");
+      }
       toast.success("Default address updated");
       await fetchAddresses();
-    } catch {
-      toast.error("Could not set default address");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Could not set default address";
+      toast.error(message);
     } finally {
       setSettingDefaultId(null);
     }

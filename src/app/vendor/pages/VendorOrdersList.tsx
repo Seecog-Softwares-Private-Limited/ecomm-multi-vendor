@@ -1,7 +1,7 @@
 "use client";
 
 import { Link } from "../../components/Link";
-import { Search, Eye, ShoppingBag } from "lucide-react";
+import { Search, Eye, ShoppingBag, Clock, CheckCircle, Truck } from "lucide-react";
 import { Input, Select, Card, EmptyState } from "../components/UIComponents";
 import { DataState } from "../../components/DataState";
 import { useApi } from "@/lib/hooks/useApi";
@@ -47,6 +47,21 @@ export function VendorOrdersList() {
     return matchesSearch && matchesFilter;
   });
 
+  const counts = React.useMemo(() => {
+    const total = orders.length;
+    const pending = orders.filter((o) => o.status === "new").length;
+    const accepted = orders.filter((o) => o.status === "accepted").length;
+    const shipped = orders.filter((o) => o.status === "shipped").length;
+    return { total, pending, accepted, shipped };
+  }, [orders]);
+
+  const applyStatusFilter = (status: string) => {
+    setFilterStatus(status);
+    if (typeof window !== "undefined") {
+      window.location.hash = "orders-table";
+    }
+  };
+
   return (
     <DataState isLoading={isLoading} error={error} retry={refetch}>
     <div className="space-y-5 sm:space-y-6">
@@ -57,6 +72,61 @@ export function VendorOrdersList() {
       </div>
 
       {/* Filters */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <button
+          type="button"
+          onClick={() => applyStatusFilter("all")}
+          className="rounded-2xl border-2 border-[#E2E8F0] bg-white p-5 text-left shadow-sm transition hover:shadow-md"
+        >
+          <div className="mb-3 flex items-center justify-between">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-100">
+              <ShoppingBag className="h-5 w-5 text-blue-700" />
+            </div>
+          </div>
+          <p className="text-sm text-[#64748B]">Total Orders</p>
+          <p className="text-2xl font-bold text-[#1E293B]">{counts.total}</p>
+        </button>
+        <button
+          type="button"
+          onClick={() => applyStatusFilter("new")}
+          className="rounded-2xl border-2 border-[#E2E8F0] bg-white p-5 text-left shadow-sm transition hover:shadow-md"
+        >
+          <div className="mb-3 flex items-center justify-between">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-100">
+              <Clock className="h-5 w-5 text-amber-700" />
+            </div>
+          </div>
+          <p className="text-sm text-[#64748B]">Pending Orders</p>
+          <p className="text-2xl font-bold text-[#1E293B]">{counts.pending}</p>
+        </button>
+        <button
+          type="button"
+          onClick={() => applyStatusFilter("accepted")}
+          className="rounded-2xl border-2 border-[#E2E8F0] bg-white p-5 text-left shadow-sm transition hover:shadow-md"
+        >
+          <div className="mb-3 flex items-center justify-between">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-100">
+              <CheckCircle className="h-5 w-5 text-emerald-700" />
+            </div>
+          </div>
+          <p className="text-sm text-[#64748B]">Accepted Orders</p>
+          <p className="text-2xl font-bold text-[#1E293B]">{counts.accepted}</p>
+        </button>
+        <button
+          type="button"
+          onClick={() => applyStatusFilter("shipped")}
+          className="rounded-2xl border-2 border-[#E2E8F0] bg-white p-5 text-left shadow-sm transition hover:shadow-md"
+        >
+          <div className="mb-3 flex items-center justify-between">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-100">
+              <Truck className="h-5 w-5 text-violet-700" />
+            </div>
+          </div>
+          <p className="text-sm text-[#64748B]">Shipped Orders</p>
+          <p className="text-2xl font-bold text-[#1E293B]">{counts.shipped}</p>
+        </button>
+      </div>
+
       <Card>
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1">
@@ -86,6 +156,7 @@ export function VendorOrdersList() {
       </Card>
 
       {/* Orders Table */}
+      <div id="orders-table">
       {filteredOrders.length === 0 ? (
         <Card>
           <EmptyState
@@ -230,6 +301,7 @@ export function VendorOrdersList() {
           </Card>
         </>
       )}
+      </div>
     </div>
     </DataState>
   );

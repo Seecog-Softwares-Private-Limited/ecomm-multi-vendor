@@ -23,6 +23,21 @@ const STATUS_LABELS: Record<string, string> = {
   CLOSED: "Closed",
 };
 
+function normalizeCategory(raw: string): string {
+  return raw.trim().toLowerCase().replace(/\s+/g, "_");
+}
+
+function displayCategory(raw: string): string {
+  const normalized = normalizeCategory(raw);
+  return (
+    CATEGORY_LABELS[normalized] ??
+    raw
+      .toLowerCase()
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (c) => c.toUpperCase())
+  );
+}
+
 export function VendorSupport() {
   const [subject, setSubject] = React.useState("");
   const [message, setMessage] = React.useState("");
@@ -222,7 +237,7 @@ export function VendorSupport() {
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold text-[#1E293B]">{t.subject}</p>
                     <p className="text-sm text-[#64748B] mt-1">
-                      {CATEGORY_LABELS[t.category] ?? t.category} ·{" "}
+                      {displayCategory(t.category)} ·{" "}
                       {STATUS_LABELS[t.status] ?? t.status}
                     </p>
                     <p className="text-sm text-[#64748B] mt-1 line-clamp-2">
@@ -253,6 +268,7 @@ export function VendorSupport() {
       </Card>
 
       {/* FAQs */}
+      <div id="faqs">
       <Card title="Frequently Asked Questions">
         <div className="space-y-4">
           {faqs.map((faq, index) => (
@@ -271,12 +287,13 @@ export function VendorSupport() {
           ))}
         </div>
       </Card>
+      </div>
 
       {/* Help Resources */}
       <Card title="Additional Resources">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <a
-            href="#"
+            href="/vendor/guidelines"
             className="flex items-center gap-3 p-4 bg-[#F8FAFC] rounded-xl hover:bg-[#F1F5F9] transition-colors border-2 border-transparent hover:border-[#3B82F6]"
           >
             <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
@@ -288,7 +305,7 @@ export function VendorSupport() {
             </div>
           </a>
           <a
-            href="#"
+            href="/vendor/support#faqs"
             className="flex items-center gap-3 p-4 bg-[#F8FAFC] rounded-xl hover:bg-[#F1F5F9] transition-colors border-2 border-transparent hover:border-[#3B82F6]"
           >
             <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
