@@ -19,6 +19,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useCartDrawer } from "@/contexts/CartDrawerContext";
 import { getGuestCartCount, subscribeToGuestCartChanges } from "@/lib/guest-cart";
+import { useAppMode } from "@/contexts/AppModeContext";
 
 const CART_UPDATED_EVENT = "indovyapar-cart-updated";
 
@@ -79,6 +80,7 @@ const accountQuickLinks: Array<{ href: string; label: string; icon: LucideIcon }
 const publicQuickLinks: Array<{ href: string; label: string; icon: LucideIcon }> = [];
 
 export function MobileBottomNav() {
+  const { isAppMode } = useAppMode();
   const pathname = usePathname();
   const router = useRouter();
   const { openCartDrawer } = useCartDrawer();
@@ -353,7 +355,7 @@ export function MobileBottomNav() {
     </>
   );
 
-  if (!portalEl) return null;
+  if (isAppMode || !portalEl) return null;
 
   return createPortal(shell, portalEl);
 }

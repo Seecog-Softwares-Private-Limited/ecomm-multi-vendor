@@ -1,12 +1,19 @@
+"use client";
+
 import Link from "next/link";
 import { Facebook, Twitter, Instagram, Youtube, Smartphone } from "lucide-react";
 import { IndovyaparLogo } from "./IndovyaparLogo";
 import { CMS_FOOTER_SECTIONS, cmsFooterPublicPath } from "@/lib/cms-footer-pages";
+import { useAppMode } from "@/contexts/AppModeContext";
 
 export function Footer() {
+  const { isAppMode } = useAppMode();
+
+  if (isAppMode) return null;
+
   return (
     <footer
-      className="hidden w-full md:block"
+      className="w-full"
       style={{ background: "#1E5128" }}
     >
       <div

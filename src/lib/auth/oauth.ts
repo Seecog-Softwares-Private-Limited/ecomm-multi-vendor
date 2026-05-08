@@ -40,8 +40,9 @@ export function getOAuthAppBaseUrl(): string {
   return appUrl();
 }
 
-export function oauthRedirectUri(provider: OAuthProvider): string {
-  return `${appUrl()}/api/auth/oauth/${provider}/callback`;
+export function oauthRedirectUri(provider: OAuthProvider, baseUrl?: string): string {
+  const origin = (baseUrl?.trim() || appUrl()).replace(/\/$/, "");
+  return `${origin}/api/auth/oauth/${provider}/callback`;
 }
 
 export function isOAuthClientConfigured(provider: OAuthProvider): boolean {
@@ -91,10 +92,10 @@ export function decodeOAuthState(raw: string): OAuthState | null {
 
 // ─── Google ───────────────────────────────────────────────────────────────────
 
-export function googleAuthUrl(stateStr: string): string {
+export function googleAuthUrl(stateStr: string, baseUrl?: string): string {
   const params = new URLSearchParams({
     client_id: process.env.GOOGLE_CLIENT_ID ?? "",
-    redirect_uri: oauthRedirectUri("google"),
+    redirect_uri: oauthRedirectUri("google", baseUrl),
     response_type: "code",
     scope: "openid email profile",
     state: stateStr,
@@ -104,7 +105,7 @@ export function googleAuthUrl(stateStr: string): string {
   return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
 }
 
-export async function exchangeGoogleCode(code: string): Promise<OAuthUserInfo> {
+export async function exchangeGoogleCode(code: string, baseUrl?: string): Promise<OAuthUserInfo> {
   const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -112,7 +113,7 @@ export async function exchangeGoogleCode(code: string): Promise<OAuthUserInfo> {
       code,
       client_id: process.env.GOOGLE_CLIENT_ID ?? "",
       client_secret: process.env.GOOGLE_CLIENT_SECRET ?? "",
-      redirect_uri: oauthRedirectUri("google"),
+      redirect_uri: oauthRedirectUri("google", baseUrl),
       grant_type: "authorization_code",
     }).toString(),
   });
@@ -154,10 +155,10 @@ export async function exchangeGoogleCode(code: string): Promise<OAuthUserInfo> {
 
 // ─── Facebook ─────────────────────────────────────────────────────────────────
 
-export function facebookAuthUrl(stateStr: string): string {
+export function facebookAuthUrl(stateStr: string, baseUrl?: string): string {
   const params = new URLSearchParams({
     client_id: process.env.FACEBOOK_APP_ID ?? "",
-    redirect_uri: oauthRedirectUri("facebook"),
+    redirect_uri: oauthRedirectUri("facebook", baseUrl),
     state: stateStr,
     scope: "email,public_profile",
     response_type: "code",
@@ -165,11 +166,11 @@ export function facebookAuthUrl(stateStr: string): string {
   return `https://www.facebook.com/v19.0/dialog/oauth?${params.toString()}`;
 }
 
-export async function exchangeFacebookCode(code: string): Promise<OAuthUserInfo> {
+export async function exchangeFacebookCode(code: string, baseUrl?: string): Promise<OAuthUserInfo> {
   const tokenUrl = new URL("https://graph.facebook.com/v19.0/oauth/access_token");
   tokenUrl.searchParams.set("client_id", process.env.FACEBOOK_APP_ID ?? "");
   tokenUrl.searchParams.set("client_secret", process.env.FACEBOOK_APP_SECRET ?? "");
-  tokenUrl.searchParams.set("redirect_uri", oauthRedirectUri("facebook"));
+  tokenUrl.searchParams.set("redirect_uri", oauthRedirectUri("facebook", baseUrl));
   tokenUrl.searchParams.set("code", code);
 
   const tokenRes = await fetch(tokenUrl.toString());
@@ -211,17 +212,22 @@ export async function exchangeFacebookCode(code: string): Promise<OAuthUserInfo>
 
 // ─── Router ───────────────────────────────────────────────────────────────────
 
-export function buildOAuthAuthUrl(provider: OAuthProvider, stateStr: string): string {
-  if (provider === "google") return googleAuthUrl(stateStr);
-  if (provider === "facebook") return facebookAuthUrl(stateStr);
+export function buildOAuthAuthUrl(
+  provider: OAuthProvider,
+  stateStr: string,
+  baseUrl?: string
+): string {
+  if (provider === "google") return googleAuthUrl(stateStr, baseUrl);
+  if (provider === "facebook") return facebookAuthUrl(stateStr, baseUrl);
   throw new Error(`Unsupported provider: ${provider}`);
 }
 
 export async function exchangeOAuthCode(
   provider: OAuthProvider,
-  code: string
+  code: string,
+  baseUrl?: string
 ): Promise<OAuthUserInfo> {
-  if (provider === "google") return exchangeGoogleCode(code);
-  if (provider === "facebook") return exchangeFacebookCode(code);
+  if (provider === "google") return exchangeGoogleCode(code, baseUrl);
+  if (provider === "facebook") return exchangeFacebookCode(code, baseUrl);
   throw new Error(`Unsupported provider: ${provider}`);
 }
