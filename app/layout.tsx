@@ -4,6 +4,8 @@ import { Manrope, Nunito, Katibeh } from "next/font/google";
 import { Toaster } from "sonner";
 import { CartDrawerProvider } from "@/contexts/CartDrawerContext";
 import { DeliveryLocationProvider } from "@/contexts/DeliveryLocationContext";
+import { AppModeProvider } from "@/contexts/AppModeContext";
+import { ChunkLoadRecovery } from "@/components/ChunkLoadRecovery";
 
 const manrope = Manrope({
   subsets: ["latin"],
@@ -41,8 +43,11 @@ export default function RootLayout({
       className={`${manrope.variable} ${nunito.variable} ${katibeh.variable}`}
     >
       <body className={manrope.className}>
+        <ChunkLoadRecovery />
         <CartDrawerProvider>
-          <DeliveryLocationProvider>{children}</DeliveryLocationProvider>
+          <AppModeProvider>
+            <DeliveryLocationProvider>{children}</DeliveryLocationProvider>
+          </AppModeProvider>
         </CartDrawerProvider>
         <Toaster position="top-center" richColors closeButton />
       </body>

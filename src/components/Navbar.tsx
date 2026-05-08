@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { IndovyaparLogo } from "./IndovyaparLogo";
 import { getGuestCartCount, subscribeToGuestCartChanges } from "@/lib/guest-cart";
 import { useCartDrawer } from "@/contexts/CartDrawerContext";
+import { useAppMode } from "@/contexts/AppModeContext";
 import type { MenuTypeSlug } from "@/lib/catalog-constants";
 
 type SearchScope =
@@ -53,6 +54,7 @@ export function Navbar({
   backFallbackHref = "/",
   surface = "default",
 }: NavbarProps) {
+  const { isAppMode } = useAppMode();
   const [query, setQuery] = useState("");
   const [searchScope, setSearchScope] = useState<SearchScope>({ kind: "all" });
   const [deptDropdownOpen, setDeptDropdownOpen] = useState(false);
@@ -193,6 +195,8 @@ export function Navbar({
   };
 
   const isSolid = surface === "solid";
+
+  if (isAppMode) return null;
 
   return (
     <div

@@ -44,6 +44,7 @@ export function LoginPage() {
   const [verifyOtpLoading, setVerifyOtpLoading] = React.useState(false);
   const [resendSeconds, setResendSeconds] = React.useState(0);
   const [error, setError] = React.useState<string | null>(null);
+  const [isEmbeddedWebView, setIsEmbeddedWebView] = React.useState(false);
 
   const returnUrl =
     searchParams?.get("returnUrl") ?? searchParams?.get("callbackUrl") ?? "/";
@@ -55,6 +56,27 @@ export function LoginPage() {
     const oauthErr = searchParams?.get("error")?.trim();
     if (oauthErr) setError(oauthErr);
   }, [searchParams]);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const ua = window.navigator.userAgent || "";
+    const embedded =
+      /\bwv\b/i.test(ua) || // Android WebView
+      /WebView/i.test(ua) ||
+      /(iPhone|iPad|iPod)(?!.*Safari)/i.test(ua) || // iOS in-app browser/webview
+      /FBAN|FBAV|Instagram/i.test(ua);
+    setIsEmbeddedWebView(embedded);
+  }, []);
+
+  const openSocialLogin = (provider: "google" | "facebook") => {
+    if (isEmbeddedWebView) {
+      setError(
+        "Google/Facebook login is blocked inside in-app browsers. Please open this page in your phone browser (Chrome/Safari) and try again."
+      );
+      return;
+    }
+    window.location.href = `/api/auth/oauth/${provider}?returnUrl=${encodeURIComponent(returnUrl)}`;
+  };
 
   const mergeGuestCartAndGoHome = React.useCallback(async () => {
     const guestItems = getGuestCart();
@@ -523,10 +545,17 @@ export function LoginPage() {
                 <div className="flex-1 border-t border-slate-200" />
               </div>
 
+              {isEmbeddedWebView ? (
+                <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700 ring-1 ring-amber-200">
+                  Social login requires a secure browser session. Open this page in Chrome/Safari if you are inside an app webview.
+                </p>
+              ) : null}
+
               <div className="mt-4 grid grid-cols-2 gap-3">
                 {/* Google */}
-                <a
-                  href={`/api/auth/oauth/google?returnUrl=${encodeURIComponent(returnUrl)}`}
+                <button
+                  type="button"
+                  onClick={() => openSocialLogin("google")}
                   className="flex items-center justify-center gap-2.5 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#FF6A00]/25"
                 >
                   {/* Google "G" logo SVG */}
@@ -554,11 +583,12 @@ export function LoginPage() {
                     />
                   </svg>
                   Google
-                </a>
+                </button>
 
                 {/* Facebook */}
-                <a
-                  href={`/api/auth/oauth/facebook?returnUrl=${encodeURIComponent(returnUrl)}`}
+                <button
+                  type="button"
+                  onClick={() => openSocialLogin("facebook")}
                   className="flex items-center justify-center gap-2.5 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#FF6A00]/25"
                 >
                   {/* Facebook "f" logo SVG */}
@@ -574,7 +604,7 @@ export function LoginPage() {
                     />
                   </svg>
                   Facebook
-                </a>
+                </button>
               </div>
             </div>
 

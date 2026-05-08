@@ -12,6 +12,18 @@ import {
 
 const SUPPORTED_PROVIDERS: OAuthProvider[] = ["google", "facebook"];
 
+function resolveOAuthBaseUrl(request: NextRequest): string {
+  const fromEnv = process.env.NEXT_PUBLIC_APP_URL?.trim() || process.env.APP_URL?.trim();
+  if (fromEnv) return fromEnv.replace(/\/$/, "");
+
+  const host =
+    request.headers.get("x-forwarded-host") ??
+    request.headers.get("host") ??
+    request.nextUrl.host;
+  const proto = request.headers.get("x-forwarded-proto") ?? request.nextUrl.protocol.replace(":", "");
+  return `${proto === "https" ? "https" : "http"}://${host}`;
+}
+
 /**
  * GET /api/auth/oauth/[provider]?returnUrl=/...
  *
@@ -44,7 +56,8 @@ export async function GET(request: NextRequest, context: ApiRouteContext) {
   const stateObj = generateOAuthState(returnUrl);
   const stateStr = encodeOAuthState(stateObj);
 
-  const authUrl = buildOAuthAuthUrl(provider, stateStr);
+  const oauthBaseUrl = resolveOAuthBaseUrl(request);
+  const authUrl = buildOAuthAuthUrl(provider, stateStr, oauthBaseUrl);
 
   const response = NextResponse.redirect(authUrl);
   response.cookies.set(OAUTH_STATE_COOKIE, stateStr, {
