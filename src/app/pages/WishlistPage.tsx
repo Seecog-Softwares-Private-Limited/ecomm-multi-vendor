@@ -6,6 +6,7 @@ import { Heart, X, Star } from "lucide-react";
 import { AccountLayout } from "@/components/AccountLayout";
 import { toast } from "sonner";
 import { useCartDrawer, dispatchCartUpdated } from "@/contexts/CartDrawerContext";
+import { ProductImage } from "@/components/ProductImage";
 
 type WishlistProduct = {
   id: string;
@@ -195,20 +196,12 @@ export function WishlistPage() {
                 )}
 
                 <Link href={`/product/${item.product.slug ?? item.productId}`} className="block">
-                  <div
-                    className={`aspect-[4/5] bg-slate-100 flex items-center justify-center ${
-                      item.product.imageUrl ? "" : "bg-gradient-to-br from-slate-200 to-slate-300"
-                    } group-hover:scale-[1.02] transition-transform duration-300`}
-                  >
-                    {item.product.imageUrl ? (
-                      <img
-                        src={item.product.imageUrl}
-                        alt={item.product.name}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <Heart className="w-12 h-12 text-slate-400" />
-                    )}
+                  <div className="aspect-[4/5] bg-slate-100 flex items-center justify-center group-hover:scale-[1.02] transition-transform duration-300">
+                    <ProductImage
+                      src={item.product.imageUrl}
+                      alt={item.product.name}
+                      className="w-full h-full object-cover"
+                    />
                   </div>
                 </Link>
 

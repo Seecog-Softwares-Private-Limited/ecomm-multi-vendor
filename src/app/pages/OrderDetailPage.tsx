@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Package, Truck, MapPin, XCircle } from "lucide-react";
 import { AccountLayout } from "@/components/AccountLayout";
+import { DEFAULT_PRODUCT_IMAGE_URL } from "@/lib/product-image";
 
 function formatRupee(n: number) {
   return new Intl.NumberFormat("en-IN", {
@@ -14,8 +15,7 @@ function formatRupee(n: number) {
   }).format(n);
 }
 
-const PLACEHOLDER_IMAGE =
-  "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400";
+const PLACEHOLDER_IMAGE = DEFAULT_PRODUCT_IMAGE_URL;
 
 const STATUS_LABEL: Record<string, string> = {
   PLACED: "Placed",

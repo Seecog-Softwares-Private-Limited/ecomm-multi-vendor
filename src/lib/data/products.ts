@@ -5,6 +5,7 @@ import { productPinServiceableWhereAsync } from "@/lib/data/product-pin-filter";
 import { coalesceVariantImagesFromDb } from "@/lib/product-sku-variant";
 import { memCacheGetOrSet } from "@/lib/utils/mem-cache";
 import type { ProductDetail, ProductListItem, ReviewItem, ProductQuestionItem } from "@/types/catalog";
+import { ensureProductImageList, resolveProductImageUrl } from "@/lib/product-image";
 
 const CAT_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
@@ -152,7 +153,7 @@ export async function getProducts(options: {
     oldPrice: toNumber(p.mrp) > toNumber(p.sellingPrice) ? toNumber(p.mrp) : undefined,
     rating: toNumber(p.avgRating) || 0,
     reviews: p.reviewCount ?? 0,
-    imageUrl: p.images[0]?.url,
+    imageUrl: resolveProductImageUrl(p.images[0]?.url),
   }));
 }
 
@@ -224,7 +225,7 @@ export async function getRelatedProducts(
     oldPrice: toNumber(p.mrp) > toNumber(p.sellingPrice) ? toNumber(p.mrp) : undefined,
     rating: toNumber(p.avgRating) || 0,
     reviews: p.reviewCount ?? 0,
-    imageUrl: p.images[0]?.url,
+    imageUrl: resolveProductImageUrl(p.images[0]?.url),
   }));
 }
 
@@ -277,7 +278,7 @@ export async function getProductsByMenuType(
         oldPrice: toNumber(p.mrp),
         rating: toNumber(p.avgRating) || 0,
         reviews: p.reviewCount ?? 0,
-        imageUrl: p.images[0]?.url,
+        imageUrl: resolveProductImageUrl(p.images[0]?.url),
         _discountPct: toNumber(p.mrp) > 0
           ? ((toNumber(p.mrp) - toNumber(p.sellingPrice)) / toNumber(p.mrp)) * 100
           : 0,
@@ -303,7 +304,7 @@ export async function getProductsByMenuType(
       oldPrice: toNumber(p.mrp) > toNumber(p.sellingPrice) ? toNumber(p.mrp) : undefined,
       rating: toNumber(p.avgRating) || 0,
       reviews: p.reviewCount ?? 0,
-      imageUrl: p.images[0]?.url,
+      imageUrl: resolveProductImageUrl(p.images[0]?.url),
     }));
   }
 
@@ -323,7 +324,7 @@ export async function getProductsByMenuType(
       oldPrice: toNumber(p.mrp) > toNumber(p.sellingPrice) ? toNumber(p.mrp) : undefined,
       rating: toNumber(p.avgRating) || 0,
       reviews: p.reviewCount ?? 0,
-      imageUrl: p.images[0]?.url,
+      imageUrl: resolveProductImageUrl(p.images[0]?.url),
     }));
   }
 
@@ -517,14 +518,14 @@ export async function getProductBySlug(slug: string): Promise<ProductDetail | nu
     stock: product.stock,
     avgRating: product.avgRating != null ? toNumber(product.avgRating) : null,
     reviewCount: product.reviewCount ?? 0,
-    images: product.images.map((i) => i.url),
+    images: ensureProductImageList(product.images.map((i) => i.url)),
     specifications: product.specifications.map((s) => ({ label: s.key, value: s.value })),
     variations: product.variations.map((v) => ({
       name: v.name,
       values: valuesFromJson(v.values),
     })),
     skuVariants: (product.productVariants ?? []).map((v) => {
-      const imgs = coalesceVariantImagesFromDb(v.images, v.image);
+      const imgs = ensureProductImageList(coalesceVariantImagesFromDb(v.images, v.image));
       return {
         id: v.id,
         color: v.color ?? null,
@@ -573,14 +574,14 @@ export async function getProductById(id: string): Promise<ProductDetail | null> 
     stock: product.stock,
     avgRating: product.avgRating != null ? toNumber(product.avgRating) : null,
     reviewCount: product.reviewCount ?? 0,
-    images: product.images.map((i) => i.url),
+    images: ensureProductImageList(product.images.map((i) => i.url)),
     specifications: product.specifications.map((s) => ({ label: s.key, value: s.value })),
     variations: product.variations.map((v) => ({
       name: v.name,
       values: valuesFromJson(v.values),
     })),
     skuVariants: (product.productVariants ?? []).map((v) => {
-      const imgs = coalesceVariantImagesFromDb(v.images, v.image);
+      const imgs = ensureProductImageList(coalesceVariantImagesFromDb(v.images, v.image));
       return {
         id: v.id,
         color: v.color ?? null,

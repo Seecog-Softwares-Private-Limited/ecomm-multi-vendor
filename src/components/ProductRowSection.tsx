@@ -1,5 +1,6 @@
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { ProductImage } from "@/components/ProductImage";
 
 interface ProductRowSectionProps {
   title: string;
@@ -62,7 +63,7 @@ export function ProductRowSection({
               aria-label={p.alt}
               title={p.alt}
             >
-              <img
+              <ProductImage
                 src={p.src}
                 alt={p.alt}
                 className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"

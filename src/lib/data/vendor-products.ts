@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { resolveProductImageUrl } from "@/lib/product-image";
 import { coalesceVariantImagesFromDb } from "@/lib/product-sku-variant";
 
 const toNumber = (v: unknown): number => (typeof v === "number" ? v : Number(v) ?? 0);
@@ -43,8 +44,8 @@ export interface VendorProductListItem {
   /** Reason for rejection from admin (when status is rejected). */
   rejectionReason: string | null;
   lastUpdated: string;
-  /** First product image URL for listing thumbnail; null if none. */
-  imageUrl: string | null;
+  /** First product image URL for listing thumbnail (placeholder when missing). */
+  imageUrl: string;
   /** When listing trash, ISO time when the product was moved to trash. */
   deletedAt?: string | null;
 }
@@ -100,7 +101,7 @@ export async function getVendorProductsBySellerId(
     status: trash ? "deleted" : mapProductStatus(p.status),
     rejectionReason: p.rejectionReason ?? null,
     lastUpdated: formatRelativeTime(p.updatedAt),
-    imageUrl: p.images[0]?.url ?? null,
+    imageUrl: resolveProductImageUrl(p.images[0]?.url),
     deletedAt: trash ? (p.deletedAt?.toISOString() ?? null) : null,
   }));
 }

@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, CheckCircle, XCircle, Filter, Search, X, Trash2, RotateCcw } from "lucide-react";
 import * as React from "react";
 import { toast } from "sonner";
+import { DEFAULT_PRODUCT_IMAGE_URL } from "@/lib/product-image";
 
 type ProductRow = {
   id: string;
@@ -71,8 +72,8 @@ function statusBadgeClass(status: string): string {
 
 /** Build image src: support absolute URLs (from upload API) or root-relative paths. */
 function productImageSrc(url: string): string {
-  if (!url) return "";
-  const u = url.trim();
+  const u = url?.trim() ?? "";
+  if (!u) return DEFAULT_PRODUCT_IMAGE_URL;
   if (u.startsWith("http://") || u.startsWith("https://")) return u;
   if (u.startsWith("/")) return u;
   return `/${u.replace(/^\//, "")}`;

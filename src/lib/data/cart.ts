@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { resolveProductImageUrl } from "@/lib/product-image";
 import { coalesceVariantImagesFromDb, resolveSkuRowForCart } from "@/lib/product-sku-variant";
 
 export type CartItemWithProduct = {
@@ -14,7 +15,8 @@ export type CartItemWithProduct = {
     mrp: number;
     stock: number;
     status: string;
-    imageUrl: string | null;
+    /** Resolved display URL (never empty). */
+    imageUrl: string;
     gstPercent: number | null;
     /** True when the listing is not ACTIVE (e.g. pending admin re-approval); prices come from snapshot when available. */
     listingPaused?: boolean;
@@ -100,7 +102,7 @@ export async function getCartItems(userId: string): Promise<CartItemWithProduct[
           gstPercent: p.gstPercent !== null && p.gstPercent !== undefined ? Number(p.gstPercent) : null,
           stock: stockDisplay,
           status: p.status,
-          imageUrl: variantThumb ?? p.images[0]?.url ?? null,
+          imageUrl: resolveProductImageUrl(variantThumb ?? p.images[0]?.url),
           ...(listingPaused ? { listingPaused: true } : {}),
         },
       };

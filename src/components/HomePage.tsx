@@ -12,9 +12,9 @@ import { ProductRowSection } from "./ProductRowSection";
 import { InspiredSection } from "./InspiredSection";
 import type { ProductListItem } from "@/types/catalog";
 import { useDeliveryLocation } from "@/contexts/DeliveryLocationContext";
+import { DEFAULT_PRODUCT_IMAGE_URL } from "@/lib/product-image";
 
-const PLACEHOLDER =
-  "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400";
+const PLACEHOLDER = DEFAULT_PRODUCT_IMAGE_URL;
 
 async function fetchProductsByCategory(
   categorySlug: string,

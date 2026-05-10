@@ -10,6 +10,7 @@ import { addToGuestCart } from "@/lib/guest-cart";
 import { useCartDrawer, dispatchCartUpdated } from "@/contexts/CartDrawerContext";
 import { useDeliveryLocation } from "@/contexts/DeliveryLocationContext";
 import { MENU_TYPE_SLUGS, type MenuTypeSlug } from "@/lib/catalog-constants";
+import { ProductImage } from "@/components/ProductImage";
 
 type ProductItem = {
   id: string;
@@ -265,17 +266,11 @@ export function SearchResultsPage() {
                 >
                   <Link href={`/product/${product.slug ?? product.id}`} className="block">
                     <div className="aspect-square bg-slate-100 relative overflow-hidden">
-                      {product.imageUrl ? (
-                        <img
-                          src={product.imageUrl}
-                          alt={product.name}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-200 to-slate-300">
-                          <ShoppingCart className="w-16 h-16 text-white/50" />
-                        </div>
-                      )}
+                      <ProductImage
+                        src={product.imageUrl}
+                        alt={product.name}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
                       {product.oldPrice != null && product.oldPrice > product.price && (
                         <span className="absolute top-3 left-3 px-2 py-1 bg-red-500 text-white text-xs font-bold rounded">
                           SALE

@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { Check, Package, Truck, Home } from "lucide-react";
 import { TopBar } from "@/components/TopBar";
 import { Navbar } from "@/components/Navbar";
+import { DEFAULT_PRODUCT_IMAGE_URL } from "@/lib/product-image";
 
 type OrderDetail = {
   id: string;
@@ -34,8 +35,7 @@ type OrderDetail = {
   }>;
 };
 
-const PLACEHOLDER_IMAGE =
-  "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400";
+const PLACEHOLDER_IMAGE = DEFAULT_PRODUCT_IMAGE_URL;
 
 function OrderConfirmationContent() {
   const searchParams = useSearchParams();
