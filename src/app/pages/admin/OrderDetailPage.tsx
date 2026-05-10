@@ -12,6 +12,7 @@ import {
   Store,
   ChevronRight,
 } from "lucide-react";
+import { DEFAULT_PRODUCT_IMAGE_URL } from "@/lib/product-image";
 
 type OrderDetailApi = {
   id: string;
@@ -63,8 +64,7 @@ export type OrderDetailPageProps = {
   orderId?: string;
 };
 
-const PLACEHOLDER_IMAGE =
-  "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400";
+const PLACEHOLDER_IMAGE = DEFAULT_PRODUCT_IMAGE_URL;
 
 function formatRupee(n: number): string {
   return "₹" + n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });

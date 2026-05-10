@@ -5,9 +5,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, ArrowLeft } from "lucide-react";
 import type { ProductDetail } from "@/types/catalog";
 import { getRecentlyViewedIds } from "@/lib/recently-viewed";
-
-const PLACEHOLDER =
-  "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400";
+import { resolveProductImageUrl } from "@/lib/product-image";
+import { ProductImage } from "@/components/ProductImage";
 
 type RecentItem = { id: string; name: string; imageUrl: string; slug?: string };
 
@@ -45,7 +44,7 @@ export function RecentlyViewed() {
           id: p.id,
           name: p.name,
           slug: p.slug,
-          imageUrl: (Array.isArray(p.images) && p.images.length > 0 ? p.images[0] : PLACEHOLDER) as string,
+          imageUrl: resolveProductImageUrl(Array.isArray(p.images) ? p.images[0] : undefined),
         }));
       setItems(next);
     })();
@@ -111,7 +110,7 @@ export function RecentlyViewed() {
               aria-label={p.name}
               style={{ borderRadius: 12 }}
             >
-              <img
+              <ProductImage
                 src={p.imageUrl}
                 alt={p.name}
                 className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"

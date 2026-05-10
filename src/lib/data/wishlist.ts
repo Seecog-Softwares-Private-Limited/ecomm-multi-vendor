@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { resolveProductImageUrl } from "@/lib/product-image";
 import { resolveSkuRowForCart } from "@/lib/product-sku-variant";
 
 export type WishlistItemWithProduct = {
@@ -13,7 +14,7 @@ export type WishlistItemWithProduct = {
     mrp: number;
     stock: number;
     status: string;
-    imageUrl: string | null;
+    imageUrl: string;
     avgRating: number | null;
     listingPaused?: boolean;
   };
@@ -86,7 +87,7 @@ export async function getWishlistItems(userId: string): Promise<WishlistItemWith
           stock: p.stock,
           status: p.status,
           avgRating: p.avgRating != null ? Number(p.avgRating) : null,
-          imageUrl: p.images[0]?.url ?? null,
+          imageUrl: resolveProductImageUrl(p.images[0]?.url),
           ...(listingPaused ? { listingPaused: true } : {}),
         },
       };

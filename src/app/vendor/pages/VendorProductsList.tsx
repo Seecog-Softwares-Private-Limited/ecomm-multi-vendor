@@ -7,6 +7,7 @@ import { DataState } from "../../components/DataState";
 import { useApi } from "@/lib/hooks/useApi";
 import { vendorService } from "@/services/vendor.service";
 import * as React from "react";
+import { ProductImage } from "@/components/ProductImage";
 
 export function VendorProductsList() {
   const [searchQuery, setSearchQuery] = React.useState("");
@@ -201,27 +202,7 @@ export function VendorProductsList() {
               >
                 <div className="flex gap-3 border-b border-slate-100 p-4">
                   <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-[#E2E8F0] bg-[#F8FAFC]">
-                    {product.imageUrl ? (
-                      <>
-                        <img
-                          src={product.imageUrl}
-                          alt=""
-                          className="h-full w-full object-cover"
-                          onError={(e) => {
-                            e.currentTarget.style.display = "none";
-                            const fallback = e.currentTarget.nextElementSibling;
-                            if (fallback instanceof HTMLElement) fallback.classList.remove("hidden");
-                          }}
-                        />
-                        <div className="absolute inset-0 hidden flex items-center justify-center bg-[#F8FAFC] text-[#94A3B8]">
-                          <Package className="h-7 w-7" />
-                        </div>
-                      </>
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center text-[#94A3B8]">
-                        <Package className="h-7 w-7" />
-                      </div>
-                    )}
+                    <ProductImage src={product.imageUrl} alt="" className="h-full w-full object-cover" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="break-words font-semibold leading-snug text-[#1E293B]">{product.name}</p>
@@ -336,27 +317,7 @@ export function VendorProductsList() {
                       <td className="px-4 py-4">
                         <div className="flex items-center gap-3">
                           <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg border border-[#E2E8F0] bg-[#F8FAFC]">
-                            {product.imageUrl ? (
-                              <>
-                                <img
-                                  src={product.imageUrl}
-                                  alt=""
-                                  className="h-full w-full object-cover"
-                                  onError={(e) => {
-                                    e.currentTarget.style.display = "none";
-                                    const fallback = e.currentTarget.nextElementSibling;
-                                    if (fallback instanceof HTMLElement) fallback.classList.remove("hidden");
-                                  }}
-                                />
-                                <div className="absolute inset-0 hidden items-center justify-center bg-[#F8FAFC] text-[#94A3B8]">
-                                  <Package className="h-6 w-6" />
-                                </div>
-                              </>
-                            ) : (
-                              <div className="flex h-full w-full items-center justify-center text-[#94A3B8]">
-                                <Package className="h-6 w-6" />
-                              </div>
-                            )}
+                            <ProductImage src={product.imageUrl} alt="" className="h-full w-full object-cover" />
                           </div>
                           <p className="line-clamp-2 font-semibold text-[#1E293B]">{product.name}</p>
                         </div>

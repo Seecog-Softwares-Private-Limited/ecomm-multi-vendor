@@ -24,6 +24,7 @@ import { addToGuestCart } from "@/lib/guest-cart";
 import { useCartDrawer, dispatchCartUpdated } from "@/contexts/CartDrawerContext";
 import { useDeliveryLocation } from "@/contexts/DeliveryLocationContext";
 import { addRecentlyViewedId } from "@/lib/recently-viewed";
+import { DEFAULT_PRODUCT_IMAGE_URL } from "@/lib/product-image";
 
 export type ProductDetailPageDynamicProps = {
   product: ProductDetail;
@@ -114,7 +115,8 @@ export function ProductDetailPageDynamic({
   const price = product.price;
   const mrp = product.mrp;
   const discount = mrp > price ? Math.round(((mrp - price) / mrp) * 100) : 0;
-  const images = product.images.length > 0 ? product.images : ["https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=600"];
+  const images =
+    product.images.length > 0 ? product.images : [DEFAULT_PRODUCT_IMAGE_URL];
   const rating = product.avgRating ?? 0;
   const reviewCount = product.reviewCount ?? 0;
 

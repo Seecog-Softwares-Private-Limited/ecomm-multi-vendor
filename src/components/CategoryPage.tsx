@@ -19,6 +19,7 @@ import {
   Tag,
 } from "lucide-react";
 import type { ProductListItem } from "@/types/catalog";
+import { ProductImage } from "@/components/ProductImage";
 import { getBaseUrl } from "@/services/client";
 import { addToGuestCart } from "@/lib/guest-cart";
 import { useCartDrawer, dispatchCartUpdated } from "@/contexts/CartDrawerContext";
@@ -524,17 +525,11 @@ export function CategoryPage({
                         className="absolute inset-0 z-0 block outline-none"
                         aria-label={product.name}
                       >
-                        {product.imageUrl ? (
-                          <img
-                            src={product.imageUrl}
-                            alt=""
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-gray-300 text-sm">
-                            No image
-                          </div>
-                        )}
+                        <ProductImage
+                          src={product.imageUrl}
+                          alt=""
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
                       </Link>
                       {discountPct > 0 && (
                         <span

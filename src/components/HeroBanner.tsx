@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, ArrowLeft } from "lucide-react";
 import type { ProductListItem } from "@/types/catalog";
+import { resolveProductImageUrl } from "@/lib/product-image";
+import { ProductImage } from "@/components/ProductImage";
 
 const slides = [
   {
@@ -42,9 +44,7 @@ export function HeroBanner() {
           id: p.id,
           slug: p.slug,
           name: p.name,
-          imageUrl:
-            p.imageUrl ??
-            "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=300",
+          imageUrl: resolveProductImageUrl(p.imageUrl),
         })),
     [trending]
   );
@@ -155,7 +155,7 @@ export function HeroBanner() {
         >
           {trendingThumbs.map((p) => (
             <Link key={p.id} href={`/product/${p.slug ?? p.id}`} className="block" title={p.name} aria-label={p.name}>
-              <img
+              <ProductImage
                 src={p.imageUrl}
                 alt={p.name}
                 className="object-cover hover:scale-105 transition-transform duration-300"

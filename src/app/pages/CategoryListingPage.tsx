@@ -4,6 +4,7 @@ import { Link } from "../components/Link";
 import { Search, ShoppingBag, User, ChevronRight, Star, Heart, SlidersHorizontal } from "lucide-react";
 import * as React from "react";
 import type { ProductListItem } from "@/types/catalog";
+import { resolveProductImageUrl } from "@/lib/product-image";
 
 export type CategoryListingPageProps = {
   categoryName: string;
@@ -206,7 +207,9 @@ export function CategoryListingPage({ categoryName, categorySlug, products }: Ca
                         idx % 4 === 2 ? "bg-gradient-to-br from-green-200 to-emerald-300" :
                         "bg-gradient-to-br from-orange-200 to-red-300"
                       } group-hover:scale-110 transition-transform duration-500 flex items-center justify-center bg-cover bg-center`}
-                      style={product.imageUrl ? { backgroundImage: `url(${product.imageUrl})` } : undefined}
+                      style={{
+                        backgroundImage: `url(${resolveProductImageUrl(product.imageUrl)})`,
+                      }}
                     />
                     <button className="absolute top-4 right-4 bg-white w-10 h-10 rounded-full flex items-center justify-center hover:bg-[#DC2626] hover:text-white transition-colors shadow-lg z-10">
                       <Heart className="w-5 h-5" />

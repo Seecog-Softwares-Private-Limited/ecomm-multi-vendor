@@ -7,6 +7,7 @@ import {
   type ApiRouteContext,
 } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
+import { resolveProductImageUrl } from "@/lib/product-image";
 import { requireAdminPermission } from "@/lib/admin-rbac";
 
 const ORDER_STATUS_DISPLAY: Record<OrderStatus, string> = {
@@ -111,7 +112,7 @@ export const GET = withApiHandler(async (request: NextRequest, context?: ApiRout
       id: item.id,
       productId: item.productId,
       productName: item.product?.name ?? "—",
-      imageUrl: item.product?.images?.[0]?.url ?? null,
+      imageUrl: resolveProductImageUrl(item.product?.images?.[0]?.url),
       quantity: item.quantity,
       unitPrice: Number(item.unitPrice),
       totalPrice: Number(item.totalPrice),

@@ -19,6 +19,7 @@ import { TopBar } from "@/components/TopBar";
 import { Navbar } from "@/components/Navbar";
 import { DEFAULT_GST_PERCENT } from "@/lib/constants/gst";
 import { storefrontTermsOfServiceHref } from "@/lib/cms-footer-pages";
+import { DEFAULT_PRODUCT_IMAGE_URL } from "@/lib/product-image";
 
 type AddressApi = {
   id: string;
@@ -52,8 +53,7 @@ type CartItemApi = {
   };
 };
 
-const PLACEHOLDER_IMAGE =
-  "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400";
+const PLACEHOLDER_IMAGE = DEFAULT_PRODUCT_IMAGE_URL;
 const SHIPPING_FREE_THRESHOLD = 500;
 const SHIPPING_COST = 50;
 

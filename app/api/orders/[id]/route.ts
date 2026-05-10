@@ -11,6 +11,7 @@ import {
 } from "@/lib/api";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { resolveProductImageUrl } from "@/lib/product-image";
 
 const CUSTOMER_CANCELLABLE_STATUSES: OrderStatus[] = [
   "PLACED",
@@ -50,7 +51,7 @@ async function buildCustomerOrderPayload(orderId: string, userId: string) {
     id: oi.id,
     productId: oi.productId,
     productName: oi.product.name,
-    imageUrl: oi.product.images[0]?.url ?? null,
+    imageUrl: resolveProductImageUrl(oi.product.images[0]?.url),
     quantity: oi.quantity,
     unitPrice: Number(oi.unitPrice),
     totalPrice: Number(oi.totalPrice),

@@ -24,6 +24,7 @@ import {
   updateGuestCartQuantity,
   type GuestCartItem,
 } from "@/lib/guest-cart";
+import { DEFAULT_PRODUCT_IMAGE_URL } from "@/lib/product-image";
 
 type CartItemApi = {
   id: string;
@@ -64,8 +65,7 @@ function guestToDisplayItem(g: GuestCartItem): CartItemApi {
   };
 }
 
-const PLACEHOLDER_IMAGE =
-  "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400";
+const PLACEHOLDER_IMAGE = DEFAULT_PRODUCT_IMAGE_URL;
 
 export function ShoppingCartPage() {
   const router = useRouter();

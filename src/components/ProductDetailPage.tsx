@@ -32,8 +32,10 @@ import { addToGuestCart } from "@/lib/guest-cart";
 import { useCartDrawer, dispatchCartUpdated } from "@/contexts/CartDrawerContext";
 import { useDeliveryLocation } from "@/contexts/DeliveryLocationContext";
 import { addRecentlyViewedId } from "@/lib/recently-viewed";
+import { DEFAULT_PRODUCT_IMAGE_URL } from "@/lib/product-image";
+import { ProductImage } from "@/components/ProductImage";
 
-const PLACEHOLDER_IMAGE = "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=600";
+const PLACEHOLDER_IMAGE = DEFAULT_PRODUCT_IMAGE_URL;
 
 const EMPTY_SKU_VARIANTS: ProductSkuVariant[] = [] as ProductSkuVariant[];
 
@@ -59,17 +61,11 @@ function RelatedProductCard({ item }: { item: ProductListItem }) {
       className="flex w-[200px] shrink-0 flex-col overflow-hidden rounded-xl border border-gray-100 bg-white transition-all hover:shadow-lg group sm:w-[220px] md:w-[240px]"
     >
       <div className="relative aspect-square overflow-hidden bg-gray-50">
-        {item.imageUrl ? (
-          <img
-            src={item.imageUrl}
-            alt={item.name}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-gray-300 text-sm">
-            No image
-          </div>
-        )}
+        <ProductImage
+          src={item.imageUrl}
+          alt={item.name}
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+        />
         {discountPct > 0 && (
           <span
             className="absolute bottom-2 left-2 px-2 py-1 text-xs font-bold text-white rounded"
@@ -1012,7 +1008,7 @@ export function ProductDetailPage({
               overflow: "hidden",
             }}
           >
-            <img
+            <ProductImage
               src={images[activeImage]}
               alt={product.name}
               className="h-full w-full object-cover"
@@ -1091,7 +1087,7 @@ export function ProductDetailPage({
                 }}
                 className="sm:h-[72px] sm:w-[72px]"
               >
-                <img
+                <ProductImage
                   src={img}
                   alt={`View ${i + 1}`}
                   style={{ width: "100%", height: "100%", objectFit: "cover" }}
