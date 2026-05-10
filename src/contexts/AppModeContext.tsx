@@ -1,6 +1,13 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  Suspense,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { useSearchParams } from "next/navigation";
 
 const APP_MODE_SESSION_KEY = "indovyapar-app-mode";
@@ -17,7 +24,7 @@ function isTruthyAppParam(value: string | null): boolean {
   return normalized === "true" || normalized === "1" || normalized === "yes";
 }
 
-export function AppModeProvider({ children }: { children: React.ReactNode }) {
+function AppModeProviderInner({ children }: { children: React.ReactNode }) {
   const searchParams = useSearchParams();
   const [isAppMode, setIsAppMode] = useState(false);
 
@@ -47,6 +54,20 @@ export function AppModeProvider({ children }: { children: React.ReactNode }) {
   const contextValue = useMemo(() => ({ isAppMode }), [isAppMode]);
 
   return <AppModeContext.Provider value={contextValue}>{children}</AppModeContext.Provider>;
+}
+
+export function AppModeProvider({ children }: { children: React.ReactNode }) {
+  return (
+    <Suspense
+      fallback={
+        <AppModeContext.Provider value={{ isAppMode: false }}>
+          {children}
+        </AppModeContext.Provider>
+      }
+    >
+      <AppModeProviderInner>{children}</AppModeProviderInner>
+    </Suspense>
+  );
 }
 
 export function useAppMode() {
