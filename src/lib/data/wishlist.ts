@@ -100,21 +100,32 @@ export async function addWishlistItem(
   variantKey: string | null = null,
   listed?: { selling: number; mrp: number } | null
 ): Promise<{ id: string }> {
-  const existing = await prisma.wishlistItem.findFirst({
-    where: {
-      userId,
-      productId,
-      deletedAt: null,
-    },
+  const row = await prisma.wishlistItem.findFirst({
+    where: { userId, productId },
   });
-  if (existing) {
+
+  if (row) {
+    if (row.deletedAt != null) {
+      await prisma.wishlistItem.update({
+        where: { id: row.id },
+        data: {
+          deletedAt: null,
+          variantKey: variantKey ?? null,
+          ...(listed
+            ? { listedSellingPrice: listed.selling, listedMrp: listed.mrp }
+            : { listedSellingPrice: null, listedMrp: null }),
+        },
+      });
+      return { id: row.id };
+    }
+
     if (
       listed &&
-      existing.listedSellingPrice == null &&
-      existing.listedMrp == null
+      row.listedSellingPrice == null &&
+      row.listedMrp == null
     ) {
       await prisma.wishlistItem.update({
-        where: { id: existing.id },
+        where: { id: row.id },
         data: {
           listedSellingPrice: listed.selling,
           listedMrp: listed.mrp,
@@ -122,7 +133,7 @@ export async function addWishlistItem(
         },
       });
     }
-    return { id: existing.id };
+    return { id: row.id };
   }
 
   const created = await prisma.wishlistItem.create({

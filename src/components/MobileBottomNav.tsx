@@ -72,7 +72,6 @@ const accountQuickLinks: Array<{ href: string; label: string; icon: LucideIcon }
   { href: "/my-orders", label: "Orders", icon: ClipboardList },
   { href: "/wishlist", label: "Wishlist", icon: Heart },
   { href: "/profile", label: "My Profile", icon: User },
-  { href: "/my-orders", label: "Returns", icon: ClipboardList },
   { href: "/support-tickets", label: "Support", icon: LifeBuoy },
 ];
 

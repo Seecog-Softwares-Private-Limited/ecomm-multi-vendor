@@ -43,9 +43,9 @@ function loadProjectEnvFiles(cwd: string = process.cwd()) {
 
 loadProjectEnvFiles();
 
+/** Default `cleanDistDir` (true) clears `.next` each build — avoids stale chunks vs new HTML after deploy. */
 const nextConfig: NextConfig = {
   transpilePackages: ["@mui/material", "@mui/icons-material"],
-  cleanDistDir: false,
   typescript: { ignoreBuildErrors: true },
   eslint: { ignoreDuringBuilds: true },
   productionBrowserSourceMaps: false,
