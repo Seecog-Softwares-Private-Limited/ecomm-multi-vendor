@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
+import "./globals.css";
+import { isChunkOrModuleLoadFailure } from "@/lib/chunk-load-errors";
 
 type GlobalErrorProps = {
   error: Error & { digest?: string };
@@ -9,15 +11,6 @@ type GlobalErrorProps = {
 
 const CHUNK_RELOAD_KEY = "__chunk_reload_attempted_at";
 const RETRY_WINDOW_MS = 60_000;
-const CHUNK_ERROR_PATTERNS = [
-  /ChunkLoadError/i,
-  /Loading chunk [\d]+ failed/i,
-  /Failed to fetch dynamically imported module/i,
-];
-
-function isChunkLoadError(message: string): boolean {
-  return CHUNK_ERROR_PATTERNS.some((pattern) => pattern.test(message));
-}
 
 async function clearClientCaches() {
   try {
@@ -53,7 +46,7 @@ async function recoverFromChunkError() {
 
 export default function GlobalError({ error, reset }: GlobalErrorProps) {
   const errorMessage = useMemo(() => error?.message || "", [error]);
-  const chunkLoadError = useMemo(() => isChunkLoadError(errorMessage), [errorMessage]);
+  const chunkLoadError = useMemo(() => isChunkOrModuleLoadFailure(error), [error]);
 
   const onTryAgain = () => {
     if (chunkLoadError) {

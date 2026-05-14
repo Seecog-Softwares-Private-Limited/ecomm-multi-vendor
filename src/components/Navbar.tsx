@@ -31,7 +31,6 @@ const ACCOUNT_DROPDOWN_LINKS = [
   { href: "/profile", label: "My Profile" },
   { href: "/my-orders", label: "Orders" },
   { href: "/wishlist", label: "Wishlist" },
-  { href: "/my-orders", label: "Return" },
   { href: "/support-tickets", label: "Support" },
 ] as const;
 
@@ -468,7 +467,7 @@ export function Navbar({
             whiteSpace: "nowrap",
           }}
         >
-          Returns &amp; Orders
+          Orders
         </Link>
 
         <button type="button" className="relative" onClick={openCartDrawer}>

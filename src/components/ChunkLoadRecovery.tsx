@@ -1,27 +1,10 @@
 "use client";
 
 import { useEffect } from "react";
+import { isChunkOrModuleLoadFailure } from "@/lib/chunk-load-errors";
 
 const CHUNK_RELOAD_KEY = "__chunk_reload_attempted_at";
 const RETRY_WINDOW_MS = 60_000;
-const CHUNK_ERROR_PATTERNS = [
-  /ChunkLoadError/i,
-  /Loading chunk [\d]+ failed/i,
-  /Failed to fetch dynamically imported module/i,
-];
-
-function isChunkError(reason: unknown): boolean {
-  const message =
-    reason instanceof Error
-      ? reason.message
-      : typeof reason === "string"
-        ? reason
-        : reason && typeof reason === "object" && "message" in reason
-          ? String((reason as { message?: unknown }).message ?? "")
-          : "";
-
-  return CHUNK_ERROR_PATTERNS.some((pattern) => pattern.test(message));
-}
 
 async function clearClientCaches() {
   try {
@@ -58,13 +41,29 @@ async function recoverFromChunkError() {
 
 export function ChunkLoadRecovery() {
   useEffect(() => {
-    const onError = (event: ErrorEvent) => {
-      if (!isChunkError(event.error ?? event.message)) return;
-      void recoverFromChunkError();
+    const onError = (event: Event) => {
+      const t = event.target;
+      if (t instanceof HTMLScriptElement && t.src.includes("/_next/")) {
+        void recoverFromChunkError();
+        return;
+      }
+      if (
+        t instanceof HTMLLinkElement &&
+        t.rel === "stylesheet" &&
+        t.href.includes("/_next/")
+      ) {
+        void recoverFromChunkError();
+        return;
+      }
+      if (event instanceof ErrorEvent) {
+        if (isChunkOrModuleLoadFailure(event.error ?? event.message)) {
+          void recoverFromChunkError();
+        }
+      }
     };
 
     const onUnhandledRejection = (event: PromiseRejectionEvent) => {
-      if (!isChunkError(event.reason)) return;
+      if (!isChunkOrModuleLoadFailure(event.reason)) return;
       void recoverFromChunkError();
     };
 
