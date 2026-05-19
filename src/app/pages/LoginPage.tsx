@@ -154,8 +154,8 @@ export function LoginPage() {
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (!/^\d{4,9}$/.test(otpCode.trim())) {
-      setError("Enter the code from your SMS (4–9 digits).");
+    if (!/^\d{6}$/.test(otpCode.trim())) {
+      setError("Enter the 6-digit code from your SMS.");
       return;
     }
     setVerifyOtpLoading(true);
@@ -164,7 +164,7 @@ export function LoginPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ phone: phone.trim(), code: otpCode.trim() }),
+        body: JSON.stringify({ phone: phone.trim(), otp: otpCode.trim() }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -469,8 +469,8 @@ export function LoginPage() {
                     <strong>Transactions</strong> and search for the OTP.
                   </p>
                   <p>
-                    One-time codes are sent by <strong>MSG91</strong> (template-based). If you don&apos;t receive
-                    the SMS, check DLT and template status in the MSG91 dashboard and your account balance.
+                    A 6-digit code is sent by SMS to your mobile number. If you don&apos;t receive it, wait a
+                    minute and try again or check your network / DND settings.
                   </p>
                 </div>
                 <div>
@@ -485,10 +485,11 @@ export function LoginPage() {
                     type="text"
                     inputMode="numeric"
                     autoComplete="one-time-code"
-                    maxLength={9}
-                    placeholder="Enter OTP"
+                    maxLength={6}
+                    pattern="\d{6}"
+                    placeholder="6-digit OTP"
                     value={otpCode}
-                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 9))}
+                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
                     className="block w-full rounded-xl border border-slate-200 bg-slate-50/50 py-3 px-4 text-center font-mono text-2xl tracking-[0.35em] text-slate-900 placeholder:text-slate-300 transition focus:border-[#FF6A00] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6A00]/20"
                   />
                 </div>

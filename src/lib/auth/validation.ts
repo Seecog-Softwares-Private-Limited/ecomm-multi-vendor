@@ -74,11 +74,27 @@ export const phoneOtpSendSchema = z.object({
   phone: z.string().min(10, "Enter a valid mobile number").max(32).trim(),
 });
 
-/** Body for POST /api/auth/phone-otp/verify */
-export const phoneOtpVerifySchema = z.object({
-  phone: z.string().min(10, "Enter a valid mobile number").max(32).trim(),
-  code: z.string().regex(/^\d{4,9}$/, "Enter the OTP you received (4–9 digits)"),
-});
+/** Body for POST /api/auth/phone-otp/verify — accepts `otp` or legacy `code`. */
+export const phoneOtpVerifySchema = z
+  .object({
+    phone: z.string().min(10, "Enter a valid mobile number").max(32).trim(),
+    code: z
+      .string()
+      .regex(/^\d{4,9}$/, "Enter the OTP you received")
+      .optional(),
+    otp: z
+      .string()
+      .regex(/^\d{4,9}$/, "Enter the OTP you received")
+      .optional(),
+  })
+  .refine((d) => Boolean(d.code?.trim() || d.otp?.trim()), {
+    message: "OTP is required",
+    path: ["otp"],
+  })
+  .transform((d) => ({
+    phone: d.phone,
+    code: (d.otp ?? d.code ?? "").trim(),
+  }));
 
 export type PhoneOtpSendInput = z.infer<typeof phoneOtpSendSchema>;
 export type PhoneOtpVerifyInput = z.infer<typeof phoneOtpVerifySchema>;
