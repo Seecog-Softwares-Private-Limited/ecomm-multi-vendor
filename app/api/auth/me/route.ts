@@ -7,10 +7,13 @@ import {
   apiBadRequest,
   apiConflict,
 } from "@/lib/api";
-import { getSession } from "@/lib/auth";
+import { getSession, requireSession, verifyPassword, clearAuthCookie } from "@/lib/auth";
+import { hardDeleteCustomerAccount } from "@/lib/auth/delete-customer-account";
 import { normalizeIndianPhone, INDIAN_MOBILE_HINT } from "@/lib/auth/phone";
 import { prisma } from "@/lib/prisma";
 import { getUserAvatarUrlSafe } from "@/lib/data/user-avatar";
+
+const DELETE_CONFIRM_PHRASE = "DELETE";
 
 /**
  * GET /api/auth/me — return current user from HTTP-only cookie (token verification).
@@ -33,6 +36,7 @@ export const GET = withApiHandler(async (request: NextRequest) => {
       lastName: true,
       phone: true,
       deletedAt: true,
+      passwordHash: true,
     },
   });
 
@@ -41,8 +45,12 @@ export const GET = withApiHandler(async (request: NextRequest) => {
   }
 
   const avatarUrl = await getUserAvatarUrlSafe(session.sub);
-  const { deletedAt: _, ...rest } = user;
-  const safeUser = { ...rest, avatarUrl };
+  const { deletedAt: _, passwordHash, ...rest } = user;
+  const safeUser = {
+    ...rest,
+    avatarUrl,
+    ...(session.role === "CUSTOMER" ? { hasPassword: Boolean(passwordHash) } : {}),
+  };
   const payload: { user: typeof safeUser & { role: string }; stats?: { orderCount: number; wishlistCount: number; addressCount: number } } = {
     user: { ...safeUser, role: session.role },
   };
@@ -113,4 +121,61 @@ export const PATCH = withApiHandler(async (request: NextRequest) => {
   });
 
   return apiSuccess({ message: "Profile updated" });
+});
+
+/**
+ * DELETE /api/auth/me — permanently delete the customer account and related data.
+ * Body: { password?: string, confirm?: string }
+ * - Email/password accounts: `password` required.
+ * - OAuth-only accounts: `confirm` must be "DELETE".
+ */
+export const DELETE = withApiHandler(async (request: NextRequest) => {
+  const session = await requireSession(request);
+  if (session.role !== "CUSTOMER") {
+    return apiForbidden("Only customers can delete their account here.");
+  }
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return apiBadRequest("Invalid JSON body");
+  }
+  if (typeof body !== "object" || body === null) {
+    return apiBadRequest("Body must be an object.");
+  }
+
+  const b = body as Record<string, unknown>;
+  const password = typeof b.password === "string" ? b.password : "";
+  const confirm = typeof b.confirm === "string" ? b.confirm.trim() : "";
+
+  const user = await prisma.user.findFirst({
+    where: { id: session.sub, deletedAt: null },
+    select: { id: true, passwordHash: true },
+  });
+
+  if (!user) {
+    return apiForbidden("User not found");
+  }
+
+  if (user.passwordHash) {
+    if (!password) {
+      return apiBadRequest("Enter your password to confirm account deletion.");
+    }
+    const valid = await verifyPassword(password, user.passwordHash);
+    if (!valid) {
+      return apiBadRequest("Password is incorrect.");
+    }
+  } else if (confirm !== DELETE_CONFIRM_PHRASE) {
+    return apiBadRequest(`Type ${DELETE_CONFIRM_PHRASE} to confirm account deletion.`);
+  }
+
+  const deleted = await hardDeleteCustomerAccount(user.id);
+  if (!deleted) {
+    return apiForbidden("User not found");
+  }
+
+  const response = apiSuccess({ message: "Account deleted successfully" });
+  clearAuthCookie(response);
+  return response;
 });

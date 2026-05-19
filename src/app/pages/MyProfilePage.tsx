@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Camera, Edit2, LogOut, Eye, EyeOff, Loader2 } from "lucide-react";
+import { Camera, Edit2, LogOut, Eye, EyeOff, Loader2, Trash2 } from "lucide-react";
 import { AccountLayout } from "@/components/AccountLayout";
 import { toast } from "sonner";
 import Image from "next/image";
@@ -15,6 +15,7 @@ type UserProfile = {
   phone: string | null;
   avatarUrl: string | null;
   role: string;
+  hasPassword?: boolean;
 };
 
 type Stats = {
@@ -33,6 +34,10 @@ export function MyProfilePage() {
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState("");
+  const [deletePassword, setDeletePassword] = useState("");
   const router = useRouter();
 
   const [formFirstName, setFormFirstName] = useState("");
@@ -182,6 +187,37 @@ export function MyProfilePage() {
       setUploadingAvatar(false);
       // Reset the input so the same file can be re-selected
       if (avatarInputRef.current) avatarInputRef.current.value = "";
+    }
+  };
+
+  const handleDeleteAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setDeletingAccount(true);
+    try {
+      const body: { password?: string; confirm?: string } = {};
+      if (user?.hasPassword) {
+        body.password = deletePassword;
+      } else {
+        body.confirm = deleteConfirm.trim();
+      }
+
+      const res = await fetch("/api/auth/me", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data?.error?.message ?? "Failed to delete account");
+        return;
+      }
+      toast.success("Your account has been deleted");
+      router.push("/");
+    } catch {
+      toast.error("Failed to delete account. Please try again.");
+    } finally {
+      setDeletingAccount(false);
     }
   };
 
@@ -340,6 +376,26 @@ export function MyProfilePage() {
           </button>
         </div>
 
+        <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-8 border border-red-100">
+          <h3 className="text-xl font-bold text-[#111827] mb-2">Delete account</h3>
+          <p className="text-slate-600 mb-4 text-sm leading-relaxed">
+            Permanently delete your account, orders, addresses, wishlist, cart, and all other
+            personal data. This cannot be undone.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setDeleteConfirm("");
+              setDeletePassword("");
+              setDeleteOpen(true);
+            }}
+            className="flex items-center gap-2 px-6 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors"
+          >
+            <Trash2 className="w-5 h-5" />
+            Delete account
+          </button>
+        </div>
+
         <div className="bg-white rounded-2xl shadow-lg p-4 sm:p-8">
           <h3 className="text-xl font-bold text-[#111827] mb-6">Logout</h3>
           <p className="text-slate-600 mb-4">Sign out of your account on this device.</p>
@@ -478,6 +534,71 @@ export function MyProfilePage() {
                   className="flex-1 px-4 py-3 bg-[#111827] text-white rounded-xl font-semibold hover:bg-gray-800 disabled:opacity-70"
                 >
                   {savingPassword ? "Updating…" : "Update"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {deleteOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 sm:p-8">
+            <h3 className="text-xl font-bold text-red-700 mb-2">Delete account permanently?</h3>
+            <p className="text-sm text-slate-600 mb-6 leading-relaxed">
+              This removes your profile, orders, addresses, cart, wishlist, reviews, and support
+              tickets from our database. You will be signed out immediately.
+            </p>
+            <form onSubmit={handleDeleteAccount} className="space-y-4">
+              {user.hasPassword ? (
+                <div>
+                  <label className="block text-sm font-semibold text-[#111827] mb-2">
+                    Password
+                  </label>
+                  <input
+                    type="password"
+                    value={deletePassword}
+                    onChange={(e) => setDeletePassword(e.target.value)}
+                    placeholder="Enter your password"
+                    required
+                    autoComplete="current-password"
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-red-500 focus:outline-none bg-[#F9FAFB]"
+                  />
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-sm font-semibold text-[#111827] mb-2">
+                    Type DELETE to confirm
+                  </label>
+                  <input
+                    type="text"
+                    value={deleteConfirm}
+                    onChange={(e) => setDeleteConfirm(e.target.value)}
+                    placeholder="DELETE"
+                    required
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-red-500 focus:outline-none bg-[#F9FAFB] uppercase"
+                  />
+                </div>
+              )}
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setDeleteOpen(false)}
+                  disabled={deletingAccount}
+                  className="flex-1 px-4 py-3 border-2 border-slate-200 text-slate-700 rounded-xl font-semibold hover:bg-slate-50 disabled:opacity-70"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={
+                    deletingAccount ||
+                    (!user.hasPassword && deleteConfirm.trim() !== "DELETE")
+                  }
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 disabled:opacity-70"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  {deletingAccount ? "Deleting…" : "Delete forever"}
                 </button>
               </div>
             </form>
