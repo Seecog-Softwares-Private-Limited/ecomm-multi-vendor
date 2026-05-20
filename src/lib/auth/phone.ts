@@ -73,3 +73,13 @@ export function phoneNormToE164(phoneNorm: string): string {
 export function syntheticEmailForPhoneNorm(phoneNorm: string): string {
   return `${phoneNorm}@phone-otp.indovyapar.local`;
 }
+
+/** 10-digit national number from normalized `919876543210` (SMS APIs, Quick SMS). */
+export function toIndianMobile10Digits(phoneNorm: string): string {
+  const digits = phoneNorm.replace(/\D/g, "");
+  if (digits.startsWith("91") && digits.length === 12) {
+    return digits.slice(2);
+  }
+  if (digits.length === 10) return digits;
+  return digits;
+}

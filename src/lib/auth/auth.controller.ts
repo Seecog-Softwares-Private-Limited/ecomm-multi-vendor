@@ -1,6 +1,10 @@
 /**
  * Customer phone OTP handlers (send / verify).
  * Used by POST /api/auth/send-otp and POST /api/auth/verify-otp route aliases.
+ *
+ * Fast2SMS customer OTP: server-generated 6-digit code, HMAC in DB, 5-minute expiry.
+ * SMS delivery uses Quick SMS (`POST /dev/bulkV2`, `route: q`) via `sendSMS()` — no FAST2SMS_OTP_ID required.
+ * Optional DLT migration: use `sendOtpViaFast2Sms` + FAST2SMS_OTP_ID in `sms.service.ts` if you switch this flow later.
  */
 
 import { randomBytes, randomUUID } from "crypto";
@@ -41,8 +45,9 @@ import {
   OTP_EXPIRY_MS,
   isSixDigitOtp,
   isDevConsoleOtpAllowed,
+  formatCustomerOtpQuickSms,
 } from "@/lib/auth/otp.service";
-import { isFast2SmsConfigured, sendOtpViaFast2Sms } from "@/lib/sms/sms.service";
+import { sendSMS, isSmsProviderConfigured } from "@/lib/sendSMS";
 import {
   sendOtp as msg91SendOtp,
   verifyOtp as msg91VerifyOtp,
@@ -57,6 +62,8 @@ export type SendOtpSuccess = {
   message: string;
   expiresInSeconds: number;
   smsSent: boolean;
+  /** True when client sent `resend: true` (same rate limits apply). */
+  resent?: boolean;
 };
 
 export type VerifyOtpSuccess = {
@@ -74,9 +81,9 @@ export type VerifyOtpSuccess = {
 /**
  * POST /api/auth/send-otp
  * 1. Validate Indian mobile
- * 2. Rate-limit
+ * 2. Rate-limit (resend uses same limits — cooldown + hourly cap)
  * 3. Generate 6-digit OTP, hash & store (5 min expiry)
- * 4. Deliver via Fast2SMS (or MSG91 / dev console fallback)
+ * 4. Deliver via Fast2SMS Quick SMS (or MSG91 / dev console fallback)
  */
 export async function handleSendCustomerOtp(
   body: unknown
@@ -91,11 +98,15 @@ export async function handleSendCustomerOtp(
     return apiBadRequest(INDIAN_MOBILE_HINT);
   }
 
+  const isResend = validation.data.resend === true;
+
   const rate = await checkOtpSendRateLimit(phoneNorm);
   if (!rate.allowed) {
     if (rate.reason === "cooldown") {
       return apiError(
-        "Please wait a minute before requesting another code.",
+        isResend
+          ? "Please wait before requesting another code."
+          : "Please wait a minute before requesting another code.",
         Status.TOO_MANY_REQUESTS,
         "TOO_MANY_REQUESTS",
         { retryAfterSeconds: rate.retryAfterSeconds }
@@ -112,8 +123,8 @@ export async function handleSendCustomerOtp(
   if (!provider) {
     return apiError(
       process.env.NODE_ENV === "production"
-        ? "SMS OTP is not configured. Set FAST2SMS_API_KEY and FAST2SMS_OTP_ID (or MSG91_AUTH_KEY) on the server."
-        : "SMS OTP is not configured. Set Fast2SMS env vars, MSG91_AUTH_KEY, or OTP_DEV_CONSOLE=true for local testing.",
+        ? "SMS OTP is not configured. Set FAST2SMS_API_KEY (or MSG91_AUTH_KEY) on the server."
+        : "SMS OTP is not configured. Set FAST2SMS_API_KEY, MSG91_AUTH_KEY, or OTP_DEV_CONSOLE=true for local testing.",
       Status.SERVICE_UNAVAILABLE,
       "SMS_NOT_CONFIGURED"
     );
@@ -129,28 +140,51 @@ export async function handleSendCustomerOtp(
       const tail = phoneNorm.slice(-4);
       console.info(`[phone-otp][DEV] OTP for ***${tail}: ${plainOtp} (expires in ${OTP_EXPIRY_MS / 1000}s)`);
     } else {
-      if (!isFast2SmsConfigured()) {
+      if (!isSmsProviderConfigured()) {
+        await invalidatePendingOtps(phoneNorm);
         return apiError(
-          "Fast2SMS is not configured correctly.",
+          "SMS is not configured. Add FAST2SMS_API_KEY to the server environment.",
           Status.SERVICE_UNAVAILABLE,
           "SMS_NOT_CONFIGURED"
         );
       }
-      const sms = await sendOtpViaFast2Sms(phoneNorm, plainOtp);
+
+      const message = formatCustomerOtpQuickSms(plainOtp);
+      let sms: { success: boolean; error?: string };
+      try {
+        sms = await sendSMS(phoneNorm, message);
+      } catch (e) {
+        console.error("[phone-otp] Unexpected error while sending Quick SMS", e);
+        await invalidatePendingOtps(phoneNorm);
+        return apiError(
+          process.env.NODE_ENV === "development"
+            ? `SMS failed: ${e instanceof Error ? e.message : String(e)}`
+            : "We could not send the verification code. Try again in a few minutes.",
+          Status.BAD_GATEWAY,
+          "SMS_SEND_FAILED"
+        );
+      }
+
       if (!sms.success) {
         await invalidatePendingOtps(phoneNorm);
-        const message =
+        const userMessage =
           process.env.NODE_ENV === "development" && sms.error
             ? `SMS failed: ${sms.error}`
             : "We could not send the verification code. Try again in a few minutes.";
-        return apiError(message, Status.BAD_GATEWAY, "SMS_SEND_FAILED");
+        console.error("[phone-otp] Fast2SMS Quick SMS failed:", sms.error);
+        return apiError(userMessage, Status.BAD_GATEWAY, "SMS_SEND_FAILED");
       }
+
+      console.info(`[phone-otp] Quick SMS sent successfully for ***${phoneNorm.slice(-4)}`);
     }
 
     return apiSuccess<SendOtpSuccess>({
-      message: "OTP sent successfully",
+      message: isResend
+        ? "A new verification code has been sent to your mobile number."
+        : "OTP sent successfully",
       expiresInSeconds: Math.floor(OTP_EXPIRY_MS / 1000),
       smsSent: provider !== "dev_console",
+      ...(isResend ? { resent: true } : {}),
     });
   }
 
@@ -169,6 +203,7 @@ export async function handleSendCustomerOtp(
       process.env.NODE_ENV === "development" && out.error
         ? `SMS failed: ${out.error}`
         : "We could not send the verification code. Try again in a few minutes.";
+    console.error("[phone-otp] MSG91 send failed:", out.error);
     return apiError(message, Status.BAD_GATEWAY, "SMS_SEND_FAILED");
   }
 
@@ -182,17 +217,22 @@ export async function handleSendCustomerOtp(
     },
   });
 
+  console.info(`[phone-otp] MSG91 OTP triggered for ***${phoneNorm.slice(-4)}`);
+
   return apiSuccess<SendOtpSuccess>({
-    message: "OTP sent successfully",
+    message: isResend
+      ? "A new verification code has been sent to your mobile number."
+      : "OTP sent successfully",
     expiresInSeconds: Math.floor(OTP_EXPIRY_MS / 1000),
     smsSent: true,
+    ...(isResend ? { resent: true } : {}),
   });
 }
 
 /**
  * POST /api/auth/verify-otp
  * 1. Validate phone + 6-digit OTP
- * 2. Verify hash (Fast2SMS / local) or MSG91 API
+ * 2. Verify against MSG91 if row is MSG91-backed; else local HMAC
  * 3. Issue JWT and set auth cookie
  */
 export async function handleVerifyCustomerOtp(
@@ -209,14 +249,13 @@ export async function handleVerifyCustomerOtp(
   }
 
   const code = validation.data.code.trim();
-  const provider = resolveOtpProvider();
 
   const row = await findActiveOtpRow(phoneNorm);
   if (!row) {
     return apiUnauthorized("Code expired or invalid. Request a new OTP.");
   }
 
-  if (isMsg91BackedRow(row.codeHash) || provider === "msg91") {
+  if (isMsg91BackedRow(row.codeHash)) {
     if (row.attemptCount >= 5) {
       return apiUnauthorized("Too many wrong attempts. Request a new OTP.");
     }

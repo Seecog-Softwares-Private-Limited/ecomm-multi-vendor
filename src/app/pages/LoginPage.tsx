@@ -107,7 +107,7 @@ export function LoginPage() {
     return () => clearInterval(t);
   }, [resendSeconds]);
 
-  const requestOtp = async () => {
+  const requestOtp = async (isResend = false) => {
     setError(null);
     const trimmed = phone.trim();
     if (!trimmed) {
@@ -123,7 +123,10 @@ export function LoginPage() {
       const res = await fetch("/api/auth/send-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: trimmed }),
+        body: JSON.stringify({
+          phone: trimmed,
+          ...(isResend ? { resend: true } : {}),
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -511,7 +514,7 @@ export function LoginPage() {
                   ) : (
                     <button
                       type="button"
-                      onClick={() => void requestOtp()}
+                      onClick={() => void requestOtp(true)}
                       className="font-semibold text-[#FF6A00] hover:text-[#E55F00]"
                     >
                       Resend OTP

@@ -9,6 +9,7 @@
  */
 
 import axios, { isAxiosError, type AxiosRequestConfig } from "axios";
+import { toIndianMobile10Digits } from "@/lib/auth/phone";
 
 /** Kept in sync with `otp.service.ts` (5 minutes, 6 digits). */
 const OTP_LENGTH = 6;
@@ -36,8 +37,8 @@ function trimEnv(key: string): string | undefined {
   return v && v.length > 0 ? v : undefined;
 }
 
-/** Fast2SMS is ready when API key and OTP template id are set. */
-export function isFast2SmsConfigured(): boolean {
+/** True when Fast2SMS DLT OTP API (`/dev/otp/send`) can be used — requires OTP template id. */
+export function isFast2SmsOtpApiConfigured(): boolean {
   return Boolean(trimEnv("FAST2SMS_API_KEY") && trimEnv("FAST2SMS_OTP_ID"));
 }
 
@@ -59,20 +60,10 @@ export function getFast2SmsConfig(): Fast2SmsConfig | null {
 }
 
 /**
- * Human-readable OTP text (for logs / dev console). Fast2SMS DLT template carries the SMS body.
+ * Human-readable OTP text for logs / dev console (Quick SMS sends `formatCustomerOtpQuickSms` from otp.service).
  */
 export function formatOtpSmsMessage(otp: string): string {
-  return `Your IndoVyapar OTP is ${otp}. Do not share this OTP with anyone.`;
-}
-
-/** 10-digit Indian mobile from normalized `919876543210`. */
-export function formatMobile10(phoneNorm: string): string {
-  const digits = phoneNorm.replace(/\D/g, "");
-  if (digits.startsWith("91") && digits.length === 12) {
-    return digits.slice(2);
-  }
-  if (digits.length === 10) return digits;
-  return digits;
+  return `Your IndoVyapar OTP is ${otp}. Do not share it.`;
 }
 
 function otpExpiryMinutes(): number {
@@ -187,7 +178,7 @@ export async function sendOtpViaFast2Sms(
     };
   }
 
-  const mobile10 = formatMobile10(phoneNorm);
+  const mobile10 = toIndianMobile10Digits(phoneNorm);
   if (!/^[6-9]\d{9}$/.test(mobile10)) {
     return { success: false, error: "Invalid Indian mobile number for SMS" };
   }
