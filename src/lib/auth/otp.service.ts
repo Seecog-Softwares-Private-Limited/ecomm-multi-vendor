@@ -203,11 +203,14 @@ export function isDevConsoleOtpAllowed(): boolean {
 }
 
 export function resolveOtpProvider(): OtpProvider | null {
-  const fast2 = Boolean(
-    process.env.FAST2SMS_API_KEY?.trim() && process.env.FAST2SMS_OTP_ID?.trim()
-  );
-  if (fast2) return "fast2sms";
+  /** Quick SMS (`/dev/bulkV2`, route q): only FAST2SMS_API_KEY required. DLT OTP API is optional later. */
+  if (process.env.FAST2SMS_API_KEY?.trim()) return "fast2sms";
   if (process.env.MSG91_AUTH_KEY?.trim()) return "msg91";
   if (isDevConsoleOtpAllowed()) return "dev_console";
   return null;
+}
+
+/** Exact SMS body for customer login OTP (Quick SMS / open template). */
+export function formatCustomerOtpQuickSms(otp: string): string {
+  return `Your IndoVyapar OTP is ${otp}. Do not share it.`;
 }

@@ -69,9 +69,10 @@ export function validateVendorRegister(
   return { success: false, errors: result.error.issues };
 }
 
-/** Body for POST /api/auth/phone-otp/send */
+/** Body for POST /api/auth/phone-otp/send (optional `resend` for UX / logging after OTP step). */
 export const phoneOtpSendSchema = z.object({
   phone: z.string().min(10, "Enter a valid mobile number").max(32).trim(),
+  resend: z.boolean().optional(),
 });
 
 /** Body for POST /api/auth/phone-otp/verify — accepts `otp` or legacy `code`. */
