@@ -3,7 +3,6 @@
 import { CreditCard, Calendar, Download, Info } from "lucide-react";
 import { Button, Card, Alert, Input } from "../components/UIComponents";
 import { DataState } from "../../components/DataState";
-import { Link } from "../../components/Link";
 import { useApi } from "@/lib/hooks/useApi";
 import { vendorService } from "@/services/vendor.service";
 import * as React from "react";
@@ -108,6 +107,13 @@ export function VendorPayouts() {
     URL.revokeObjectURL(url);
   };
 
+  const scrollToPayoutHistory = React.useCallback(() => {
+    document.getElementById("payout-history")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (typeof window !== "undefined") {
+      window.history.replaceState(null, "", `${window.location.pathname}#payout-history`);
+    }
+  }, []);
+
   return (
     <DataState isLoading={isLoading} error={error} retry={refetch}>
     <div className="space-y-5 sm:space-y-6">
@@ -139,63 +145,8 @@ export function VendorPayouts() {
         />
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-6">
-        <Link
-          href="/vendor/payouts#payout-history"
-          className="block rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
-        >
-        <Card>
-          <div className="flex items-start justify-between mb-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center">
-              <CreditCard className="w-6 h-6 text-white" />
-            </div>
-          </div>
-          <p className="text-[#64748B] text-sm mb-2">Total paid (selected range)</p>
-          <p className="text-3xl font-bold text-[#1E293B] tabular-nums">{formatInr(summary.totalPayouts)}</p>
-          <p className="text-sm text-[#64748B] mt-2">
-            {summary.transactionCount} payout run{summary.transactionCount === 1 ? "" : "s"} in range
-          </p>
-        </Card>
-        </Link>
-
-        <Link
-          href="/vendor/payouts#payout-history"
-          className="block rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
-        >
-        <Card>
-          <div className="flex items-start justify-between mb-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
-              <Calendar className="w-6 h-6 text-white" />
-            </div>
-          </div>
-          <p className="text-[#64748B] text-sm mb-2">Most recent completed payout</p>
-          <p className="text-3xl font-bold text-[#3B82F6] tabular-nums">
-            {summary.lastPayoutAmount != null ? formatInr(summary.lastPayoutAmount) : "—"}
-          </p>
-          <p className="text-sm text-[#64748B] mt-2">{summary.lastPayoutDate ?? "—"}</p>
-        </Card>
-        </Link>
-
-        <Link
-          href="/vendor/payouts#payout-history"
-          className="block rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
-        >
-        <Card>
-          <div className="flex items-start justify-between mb-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center">
-              <Info className="w-6 h-6 text-white" />
-            </div>
-          </div>
-          <p className="text-[#64748B] text-sm mb-2">Orders paid (in paid payouts)</p>
-          <p className="text-3xl font-bold text-[#1E293B] tabular-nums">{summary.ordersPaid}</p>
-          <p className="text-sm text-[#64748B] mt-2">From completed payouts in this filter</p>
-        </Card>
-        </Link>
-      </div>
-
-      {/* Date filter: payout *period* overlaps this window */}
-      <Card>
+      {/* Date filter first so native date pickers don’t overlap the summary row (clicks were hitting Next.js Links behind the calendar). */}
+      <Card className="relative z-20">
         <p className="text-sm text-[#64748B] mb-4">
           Show payout batches whose <strong>statement period</strong> overlaps the dates below. Use{" "}
           <strong>Export report</strong> to download the table as CSV.
@@ -215,6 +166,64 @@ export function VendorPayouts() {
           />
         </div>
       </Card>
+
+      {/* Summary cards: use buttons so stray picker clicks never trigger client-side navigation */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-6">
+        <button
+          type="button"
+          onClick={scrollToPayoutHistory}
+          className="block w-full rounded-2xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
+        >
+          <Card>
+            <div className="flex items-start justify-between mb-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center">
+                <CreditCard className="w-6 h-6 text-white" />
+              </div>
+            </div>
+            <p className="text-[#64748B] text-sm mb-2">Total paid (selected range)</p>
+            <p className="text-3xl font-bold text-[#1E293B] tabular-nums">{formatInr(summary.totalPayouts)}</p>
+            <p className="text-sm text-[#64748B] mt-2">
+              {summary.transactionCount} payout run{summary.transactionCount === 1 ? "" : "s"} in range
+            </p>
+          </Card>
+        </button>
+
+        <button
+          type="button"
+          onClick={scrollToPayoutHistory}
+          className="block w-full rounded-2xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
+        >
+          <Card>
+            <div className="flex items-start justify-between mb-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
+                <Calendar className="w-6 h-6 text-white" />
+              </div>
+            </div>
+            <p className="text-[#64748B] text-sm mb-2">Most recent completed payout</p>
+            <p className="text-3xl font-bold text-[#3B82F6] tabular-nums">
+              {summary.lastPayoutAmount != null ? formatInr(summary.lastPayoutAmount) : "—"}
+            </p>
+            <p className="text-sm text-[#64748B] mt-2">{summary.lastPayoutDate ?? "—"}</p>
+          </Card>
+        </button>
+
+        <button
+          type="button"
+          onClick={scrollToPayoutHistory}
+          className="block w-full rounded-2xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
+        >
+          <Card>
+            <div className="flex items-start justify-between mb-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center">
+                <Info className="w-6 h-6 text-white" />
+              </div>
+            </div>
+            <p className="text-[#64748B] text-sm mb-2">Orders paid (in paid payouts)</p>
+            <p className="text-3xl font-bold text-[#1E293B] tabular-nums">{summary.ordersPaid}</p>
+            <p className="text-sm text-[#64748B] mt-2">From completed payouts in this filter</p>
+          </Card>
+        </button>
+      </div>
 
       {/* Payouts Table */}
       <div id="payout-history">

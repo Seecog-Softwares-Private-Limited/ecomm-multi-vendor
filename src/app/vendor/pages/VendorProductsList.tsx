@@ -6,13 +6,26 @@ import { Button, Input, Select, StatusBadge, EmptyState, Card } from "../compone
 import { DataState } from "../../components/DataState";
 import { useApi } from "@/lib/hooks/useApi";
 import { vendorService } from "@/services/vendor.service";
+import { useSearchParams } from "next/navigation";
 import * as React from "react";
 import { ProductImage } from "@/components/ProductImage";
 
+const APPROVED_STATUS = "approved";
+
 export function VendorProductsList() {
+  const searchParams = useSearchParams();
+  const statusFromUrl = searchParams.get("status");
+  const showApprovedOnly = statusFromUrl === APPROVED_STATUS;
+
   const [searchQuery, setSearchQuery] = React.useState("");
-  const [filterStatus, setFilterStatus] = React.useState("all");
+  const [filterStatus, setFilterStatus] = React.useState(
+    showApprovedOnly ? APPROVED_STATUS : "all"
+  );
   const [listTab, setListTab] = React.useState<"active" | "trash">("active");
+
+  React.useEffect(() => {
+    if (showApprovedOnly) setFilterStatus(APPROVED_STATUS);
+  }, [showApprovedOnly]);
 
   const [deletingId, setDeletingId] = React.useState<string | null>(null);
   const { data, error, isLoading, refetch } = useApi(() =>
@@ -104,7 +117,11 @@ export function VendorProductsList() {
         <div className="flex flex-col gap-4">
           <div className="space-y-1">
             <h1 className="text-xl font-bold leading-snug text-[#1E293B] sm:text-2xl lg:text-3xl">Products</h1>
-            <p className="text-sm leading-relaxed text-[#64748B]">Manage your product catalog</p>
+            <p className="text-sm leading-relaxed text-[#64748B]">
+              {showApprovedOnly
+                ? "Approved products live on your storefront"
+                : "Manage your product catalog"}
+            </p>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
             <div className="inline-flex w-full rounded-xl border border-[#E2E8F0] bg-white p-1 shadow-sm sm:w-auto">
@@ -176,11 +193,19 @@ export function VendorProductsList() {
         <Card>
           <EmptyState
             icon={<Package className="w-12 h-12" />}
-            title={listTab === "trash" ? "Trash is empty" : "No Products Found"}
+            title={
+              listTab === "trash"
+                ? "Trash is empty"
+                : showApprovedOnly
+                  ? "No Approved Products"
+                  : "No Products Found"
+            }
             description={
               listTab === "trash"
                 ? "Deleted products appear here. You can restore them or remove them permanently."
-                : "You haven't added any products yet. Start by creating your first product."
+                : showApprovedOnly
+                  ? "You have no approved products yet. Submit a product for review or check pending items under All Status."
+                  : "You haven't added any products yet. Start by creating your first product."
             }
             action={
               listTab === "active"
