@@ -6,6 +6,8 @@ import { Input, Select, Card, EmptyState } from "../components/UIComponents";
 import { DataState } from "../../components/DataState";
 import { useApi } from "@/lib/hooks/useApi";
 import { vendorService } from "@/services/vendor.service";
+import { getCurrentMonthLabel } from "@/lib/vendor/date-ranges";
+import { useSearchParams } from "next/navigation";
 import * as React from "react";
 
 /** Display order ID for table (short form from UUID). */
@@ -15,12 +17,28 @@ function orderDisplayId(id: string): string {
 }
 
 export function VendorOrdersList() {
+  const searchParams = useSearchParams();
+  const period = searchParams.get("period");
+  const dateFrom = searchParams.get("dateFrom") ?? undefined;
+  const dateTo = searchParams.get("dateTo") ?? undefined;
+  const isThisMonthFilter = period === "this-month" || Boolean(dateFrom || dateTo);
+
   const [searchQuery, setSearchQuery] = React.useState("");
   const [filterStatus, setFilterStatus] = React.useState("all");
 
-  const { data, error, isLoading, refetch } = useApi(() =>
-    vendorService.getOrders()
+  const orderListParams = React.useMemo(
+    () => (dateFrom || dateTo ? { dateFrom, dateTo } : undefined),
+    [dateFrom, dateTo]
   );
+
+  const { data, error, isLoading, refetch } = useApi(() =>
+    vendorService.getOrders(orderListParams)
+  );
+
+  React.useEffect(() => {
+    void refetch();
+  }, [dateFrom, dateTo, refetch]);
+
   const orders = data ?? [];
 
   const getStatusConfig = (status: string) => {
@@ -68,7 +86,11 @@ export function VendorOrdersList() {
       {/* Header */}
       <div className="space-y-1">
         <h1 className="text-xl font-bold leading-snug text-[#1E293B] sm:text-2xl lg:text-3xl">Orders</h1>
-        <p className="text-sm leading-relaxed text-[#64748B]">Manage and fulfill your orders</p>
+        <p className="text-sm leading-relaxed text-[#64748B]">
+          {isThisMonthFilter
+            ? `Orders placed in ${getCurrentMonthLabel()}`
+            : "Manage and fulfill your orders"}
+        </p>
       </div>
 
       {/* Filters */}
@@ -161,8 +183,12 @@ export function VendorOrdersList() {
         <Card>
           <EmptyState
             icon={<ShoppingBag className="w-12 h-12" />}
-            title="No Orders Found"
-            description="You don't have any orders yet. Once customers place orders, they'll appear here."
+            title={isThisMonthFilter ? "No Orders This Month" : "No Orders Found"}
+            description={
+              isThisMonthFilter
+                ? "No customer orders include your items for the selected date range."
+                : "You don't have any orders yet. Once customers place orders, they'll appear here."
+            }
           />
         </Card>
       ) : (

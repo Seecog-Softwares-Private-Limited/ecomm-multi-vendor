@@ -6,6 +6,7 @@ import { DataState } from "../../components/DataState";
 import { Link } from "../../components/Link";
 import { useApi } from "@/lib/hooks/useApi";
 import { vendorService } from "@/services/vendor.service";
+import { getStartOfCurrentMonthIsoDate } from "@/lib/vendor/date-ranges";
 import * as React from "react";
 
 function orderDisplayId(id: string): string {
@@ -151,18 +152,22 @@ export function VendorReports() {
     }
   };
 
+  const ordersThisMonthHref = `/vendor/orders?period=this-month&dateFrom=${getStartOfCurrentMonthIsoDate()}`;
+
   const reportStats = [
     {
       label: "Orders This Month",
       value: summary ? String(summary.ordersThisMonth) : "—",
       icon: ShoppingBag,
       color: "from-blue-500 to-indigo-600",
+      href: ordersThisMonthHref,
     },
     {
       label: "Products Listed",
       value: summary ? String(summary.productsListed) : "—",
       icon: Package,
       color: "from-green-500 to-emerald-600",
+      href: "/vendor/products?status=approved",
     },
     {
       label: "Total Earnings",
@@ -212,7 +217,7 @@ export function VendorReports() {
               <Link
                 key={index}
                 href={stat.href}
-                className="block rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
+                className="block rounded-2xl transition hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 cursor-pointer"
               >
                 {statCard}
               </Link>
