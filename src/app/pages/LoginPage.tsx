@@ -58,6 +58,7 @@ export function LoginPage() {
   }, [searchParams]);
 
   React.useEffect(() => {
+    console.log("User agent:", "=> isEmbeddedWebView:", isEmbeddedWebView, window);
     if (typeof window === "undefined") return;
     const ua = window.navigator.userAgent || "";
     const embedded =
@@ -65,16 +66,17 @@ export function LoginPage() {
       /WebView/i.test(ua) ||
       /(iPhone|iPad|iPod)(?!.*Safari)/i.test(ua) || // iOS in-app browser/webview
       /FBAN|FBAV|Instagram/i.test(ua);
+    console.log("User agent:", ua, "=> isEmbeddedWebView:", embedded, isEmbeddedWebView);
     setIsEmbeddedWebView(embedded);
   }, []);
 
   const openSocialLogin = (provider: "google" | "facebook") => {
-    if (isEmbeddedWebView) {
-      setError(
-        "Google/Facebook login is blocked inside in-app browsers. Please open this page in your phone browser (Chrome/Safari) and try again."
-      );
-      return;
-    }
+    // if (isEmbeddedWebView) {
+    //   setError(
+    //     "Google/Facebook login is blocked inside in-app browsers. Please open this page in your phone browser (Chrome/Safari) and try again."
+    //   );
+    //   return;
+    // }
     window.location.href = `/api/auth/oauth/${provider}?returnUrl=${encodeURIComponent(returnUrl)}`;
   };
 
