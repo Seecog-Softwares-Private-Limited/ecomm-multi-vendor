@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { randomUUID } from "node:crypto";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { getPublicUploadsRoot } from "@/lib/uploads/storage";
@@ -48,7 +49,7 @@ export const POST = withApiHandler(async (request: NextRequest) => {
 
   const ext = path.extname(file.name) || ".jpg";
   const safeExt = /^\.(jpe?g|png|webp|gif)$/i.test(ext) ? ext : ".jpg";
-  const filename = `${crypto.randomUUID()}${safeExt}`;
+  const filename = `${randomUUID()}${safeExt}`;
   const uploadsDir = getPublicUploadsRoot();
   const filePath = path.join(uploadsDir, filename);
 

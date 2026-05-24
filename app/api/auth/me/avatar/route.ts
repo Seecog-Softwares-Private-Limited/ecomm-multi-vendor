@@ -1,24 +1,43 @@
 import { NextRequest } from "next/server";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
+import { randomUUID } from "node:crypto";
 import {
   withApiHandler,
   apiSuccess,
   apiUnauthorized,
   apiForbidden,
   apiBadRequest,
+  apiError,
+  Status,
 } from "@/lib/api";
 import { getSession } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { setUserAvatarUrlSafe } from "@/lib/data/user-avatar";
 import { getAvatarsUploadDir } from "@/lib/uploads/storage";
+
+export const runtime = "nodejs";
 
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 const MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
+
+const EXT_TO_MIME: Record<string, string> = {
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+  ".webp": "image/webp",
+  ".gif": "image/gif",
+};
 
 function getBaseUrl(request: NextRequest): string {
   const host = request.headers.get("host") || `localhost:${process.env.PORT ?? "3000"}`;
   const proto = request.headers.get("x-forwarded-proto") || "http";
   return `${proto === "https" ? "https" : "http"}://${host}`;
+}
+
+function resolveImageMime(file: File): string | null {
+  if (file.type && ALLOWED_TYPES.includes(file.type)) return file.type;
+  const ext = path.extname(file.name).toLowerCase();
+  return EXT_TO_MIME[ext] ?? null;
 }
 
 /**
@@ -42,7 +61,7 @@ export const POST = withApiHandler(async (request: NextRequest) => {
   if (!file || !(file instanceof File)) {
     return apiBadRequest("No file provided");
   }
-  if (!ALLOWED_TYPES.includes(file.type)) {
+  if (!resolveImageMime(file)) {
     return apiBadRequest("Invalid file type. Use JPEG, PNG, WebP, or GIF.");
   }
   if (file.size > MAX_SIZE_BYTES) {
@@ -51,19 +70,39 @@ export const POST = withApiHandler(async (request: NextRequest) => {
 
   const ext = path.extname(file.name) || ".jpg";
   const safeExt = /^\.(jpe?g|png|webp|gif)$/i.test(ext) ? ext : ".jpg";
-  const filename = `avatar-${session.sub}-${crypto.randomUUID()}${safeExt}`;
+  const filename = `avatar-${session.sub}-${randomUUID()}${safeExt}`;
 
   const dir = getAvatarsUploadDir();
-  await mkdir(dir, { recursive: true });
-  const buffer = Buffer.from(await file.arrayBuffer());
-  await writeFile(path.join(dir, filename), buffer);
+  try {
+    await mkdir(dir, { recursive: true });
+    const buffer = Buffer.from(await file.arrayBuffer());
+    await writeFile(path.join(dir, filename), buffer);
+  } catch (err) {
+    console.error("[avatar] Failed to write file:", err);
+    const code = typeof err === "object" && err !== null && "code" in err ? String((err as NodeJS.ErrnoException).code) : "";
+    if (code === "EACCES" || code === "EROFS" || code === "ENOSPC") {
+      return apiError(
+        "Server cannot save uploaded files. Set PUBLIC_UPLOAD_ROOT to a writable directory and restart the app.",
+        Status.INTERNAL_SERVER_ERROR,
+        "UPLOAD_STORAGE"
+      );
+    }
+    throw err;
+  }
 
   const avatarUrl = `${getBaseUrl(request)}/uploads/avatars/${filename}`;
 
-  await prisma.user.update({
-    where: { id: session.sub },
-    data: { avatarUrl },
-  });
+  const saved = await setUserAvatarUrlSafe(session.sub, avatarUrl);
+  if (!saved.ok) {
+    if (saved.reason === "missing_column") {
+      return apiError(
+        "Profile photos are not enabled on this database yet. Run: npx prisma migrate deploy",
+        Status.INTERNAL_SERVER_ERROR,
+        "DATABASE_SCHEMA"
+      );
+    }
+    return apiBadRequest("User not found");
+  }
 
   return apiSuccess({ avatarUrl });
 });

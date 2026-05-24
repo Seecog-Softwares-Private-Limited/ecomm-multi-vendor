@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { randomUUID } from "node:crypto";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { getVendorDocsUploadDir } from "@/lib/uploads/storage";
@@ -65,7 +66,7 @@ export const POST = withApiHandler(async (request: NextRequest) => {
   const ext = path.extname(file.name) || ".pdf";
   const safeExt = /^\.(jpe?g|png|webp|gif|pdf)$/i.test(ext) ? ext : ".pdf";
   const safeName = documentName.trim().replace(/[^a-zA-Z0-9_\-\s]/g, "_").slice(0, 200);
-  const filename = `vendor-doc-${safeName}-${crypto.randomUUID()}${safeExt}`.replace(/\s+/g, "-");
+  const filename = `vendor-doc-${safeName}-${randomUUID()}${safeExt}`.replace(/\s+/g, "-");
   const uploadsDir = getVendorDocsUploadDir();
   const filePath = path.join(uploadsDir, filename);
 

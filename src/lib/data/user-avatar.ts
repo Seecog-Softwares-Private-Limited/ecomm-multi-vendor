@@ -17,3 +17,30 @@ export async function getUserAvatarUrlSafe(userId: string): Promise<string | nul
     return null;
   }
 }
+
+export type SetUserAvatarResult =
+  | { ok: true }
+  | { ok: false; reason: "missing_column" | "user_not_found" };
+
+/**
+ * Persists avatar URL via raw SQL so it matches {@link getUserAvatarUrlSafe} behavior
+ * when `avatar_url` exists, and returns a clear result when the column is missing.
+ */
+export async function setUserAvatarUrlSafe(
+  userId: string,
+  avatarUrl: string
+): Promise<SetUserAvatarResult> {
+  try {
+    const updated = await prisma.$executeRaw(
+      Prisma.sql`UPDATE users SET avatar_url = ${avatarUrl} WHERE id = ${userId} AND deleted_at IS NULL`
+    );
+    if (updated === 0) return { ok: false, reason: "user_not_found" };
+    return { ok: true };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (/Unknown column.*avatar_url|avatar_url.*doesn't exist/i.test(msg)) {
+      return { ok: false, reason: "missing_column" };
+    }
+    throw err;
+  }
+}

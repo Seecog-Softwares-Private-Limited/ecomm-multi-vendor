@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { randomUUID } from "node:crypto";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { getKycUploadDir } from "@/lib/uploads/storage";
@@ -70,7 +71,7 @@ export const POST = withApiHandler(async (request: NextRequest) => {
 
   const ext = path.extname(file.name) || ".pdf";
   const safeExt = /^\.(jpe?g|png|webp|gif|pdf)$/i.test(ext) ? ext : ".pdf";
-  const filename = `kyc-${documentType}-${crypto.randomUUID()}${safeExt}`;
+  const filename = `kyc-${documentType}-${randomUUID()}${safeExt}`;
   const uploadsDir = getKycUploadDir();
   const filePath = path.join(uploadsDir, filename);
 
