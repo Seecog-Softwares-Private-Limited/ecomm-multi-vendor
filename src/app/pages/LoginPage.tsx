@@ -20,6 +20,7 @@ import { getGuestCart, clearGuestCart } from "@/lib/guest-cart";
 import { normalizeIndianPhone, INDIAN_MOBILE_HINT } from "@/lib/auth/phone";
 import { syncCustomerDefaultAddressToDeliveryLocation } from "@/lib/delivery-location";
 import { dispatchCartUpdated } from "@/contexts/CartDrawerContext";
+import { postToNative } from "@/lib/native-bridge";
 
 type LoginMode = "email" | "phone";
 type PhoneStep = "number" | "otp";
@@ -77,9 +78,14 @@ export function LoginPage() {
     //   );
     //   return;
     // }
-    window.location.href = `/api/auth/oauth/${provider}?returnUrl=${encodeURIComponent(returnUrl)}`;
+    console.log("xxxx", "=> isEmbeddedWebView:", returnUrl, isEmbeddedWebView);
+    postToNative({
+      type : "custom",
+      name: "OPEN_EXTERNAL_BROWSER",
+      payload: `/api/auth/oauth/${provider}?returnUrl=${encodeURIComponent(returnUrl)}`
+    })
   };
-
+  
   const mergeGuestCartAndGoHome = React.useCallback(async () => {
     const guestItems = getGuestCart();
     if (guestItems.length > 0) {
