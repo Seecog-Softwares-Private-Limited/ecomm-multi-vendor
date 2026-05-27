@@ -20,6 +20,7 @@ import { getGuestCart, clearGuestCart } from "@/lib/guest-cart";
 import { normalizeIndianPhone, INDIAN_MOBILE_HINT } from "@/lib/auth/phone";
 import { syncCustomerDefaultAddressToDeliveryLocation } from "@/lib/delivery-location";
 import { dispatchCartUpdated } from "@/contexts/CartDrawerContext";
+import { postToNative } from "@/lib/native-bridge";
 
 type LoginMode = "email" | "phone";
 type PhoneStep = "number" | "otp";
@@ -58,6 +59,7 @@ export function LoginPage() {
   }, [searchParams]);
 
   React.useEffect(() => {
+    console.log("User agent:", "=> isEmbeddedWebView:", isEmbeddedWebView, window);
     if (typeof window === "undefined") return;
     const ua = window.navigator.userAgent || "";
     const embedded =
@@ -65,19 +67,25 @@ export function LoginPage() {
       /WebView/i.test(ua) ||
       /(iPhone|iPad|iPod)(?!.*Safari)/i.test(ua) || // iOS in-app browser/webview
       /FBAN|FBAV|Instagram/i.test(ua);
+    console.log("User agent:", ua, "=> isEmbeddedWebView:", embedded, isEmbeddedWebView);
     setIsEmbeddedWebView(embedded);
   }, []);
 
   const openSocialLogin = (provider: "google" | "facebook") => {
-    if (isEmbeddedWebView) {
-      setError(
-        "Google/Facebook login is blocked inside in-app browsers. Please open this page in your phone browser (Chrome/Safari) and try again."
-      );
-      return;
-    }
-    window.location.href = `/api/auth/oauth/${provider}?returnUrl=${encodeURIComponent(returnUrl)}`;
+    // if (isEmbeddedWebView) {
+    //   setError(
+    //     "Google/Facebook login is blocked inside in-app browsers. Please open this page in your phone browser (Chrome/Safari) and try again."
+    //   );
+    //   return;
+    // }
+    console.log("xxxx", "=> isEmbeddedWebView:", returnUrl, isEmbeddedWebView);
+    postToNative({
+      type : "custom",
+      name: "OPEN_EXTERNAL_BROWSER",
+      payload: `/api/auth/oauth/${provider}?returnUrl=${encodeURIComponent(returnUrl)}`
+    })
   };
-
+  
   const mergeGuestCartAndGoHome = React.useCallback(async () => {
     const guestItems = getGuestCart();
     if (guestItems.length > 0) {
