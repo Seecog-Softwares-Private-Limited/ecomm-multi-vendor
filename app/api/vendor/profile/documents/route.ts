@@ -2,7 +2,9 @@ import { NextRequest } from "next/server";
 import { randomUUID } from "node:crypto";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
+import { randomUUID } from "node:crypto";
 import { getKycUploadDir } from "@/lib/uploads/storage";
+import { parseFormDataUpload } from "@/lib/uploads/parse-form-file";
 import {
   withApiHandler,
   apiSuccess,
@@ -58,25 +60,29 @@ export const POST = withApiHandler(async (request: NextRequest) => {
     return apiBadRequest("documentType must be PAN, GST_CERTIFICATE, or ADDRESS_PROOF");
   }
 
-  const file = formData.get("file");
-  if (!file || !(file instanceof File)) {
+  const upload = parseFormDataUpload(formData, "file");
+  if (!upload) {
     return apiBadRequest("Missing or invalid file");
   }
-  if (!ALLOWED_TYPES.includes(file.type)) {
+  const ext = path.extname(upload.name).toLowerCase();
+  const mime = upload.type.split(";")[0]?.trim().toLowerCase() || "";
+  const typeOk =
+    ALLOWED_TYPES.includes(mime) ||
+    (mime === "" && /^\.(jpe?g|png|webp|gif|pdf)$/i.test(ext));
+  if (!typeOk) {
     return apiBadRequest("Invalid file type. Use JPEG, PNG, WebP, GIF, or PDF.");
   }
-  if (file.size > MAX_SIZE_BYTES) {
+  if (upload.size > MAX_SIZE_BYTES) {
     return apiBadRequest("File too large. Maximum size is 5MB.");
   }
 
-  const ext = path.extname(file.name) || ".pdf";
   const safeExt = /^\.(jpe?g|png|webp|gif|pdf)$/i.test(ext) ? ext : ".pdf";
   const filename = `kyc-${documentType}-${randomUUID()}${safeExt}`;
   const uploadsDir = getKycUploadDir();
   const filePath = path.join(uploadsDir, filename);
 
   await mkdir(uploadsDir, { recursive: true });
-  const buffer = Buffer.from(await file.arrayBuffer());
+  const buffer = Buffer.from(await upload.blob.arrayBuffer());
   await writeFile(filePath, buffer);
 
   const baseUrl = getBaseUrl(request);

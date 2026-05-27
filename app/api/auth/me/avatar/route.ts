@@ -12,21 +12,15 @@ import {
   Status,
 } from "@/lib/api";
 import { getSession } from "@/lib/auth";
-import { setUserAvatarUrlSafe } from "@/lib/data/user-avatar";
+import { prisma } from "@/lib/prisma";
+import { resolveImageMime, safeImageExtension } from "@/lib/uploads/image-mime";
+import { parseFormDataUpload } from "@/lib/uploads/parse-form-file";
 import { getAvatarsUploadDir } from "@/lib/uploads/storage";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 const MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
-
-const EXT_TO_MIME: Record<string, string> = {
-  ".jpg": "image/jpeg",
-  ".jpeg": "image/jpeg",
-  ".png": "image/png",
-  ".webp": "image/webp",
-  ".gif": "image/gif",
-};
 
 function getBaseUrl(request: NextRequest): string {
   const host = request.headers.get("host") || `localhost:${process.env.PORT ?? "3000"}`;
@@ -34,15 +28,17 @@ function getBaseUrl(request: NextRequest): string {
   return `${proto === "https" ? "https" : "http"}://${host}`;
 }
 
-function resolveImageMime(file: File): string | null {
-  if (file.type && ALLOWED_TYPES.includes(file.type)) return file.type;
-  const ext = path.extname(file.name).toLowerCase();
-  return EXT_TO_MIME[ext] ?? null;
+function isStorageError(err: unknown): boolean {
+  const code =
+    typeof err === "object" && err !== null && "code" in err
+      ? String((err as NodeJS.ErrnoException).code)
+      : "";
+  return ["EACCES", "EROFS", "ENOSPC", "ENOENT", "EPERM"].includes(code);
 }
 
 /**
  * POST /api/auth/me/avatar
- * Multipart body: field "file" (JPEG/PNG/WebP/GIF, max 5 MB).
+ * Multipart body: field "file" (JPEG/PNG/WebP/GIF/HEIC, max 5 MB).
  * Returns { avatarUrl: string }
  */
 export const POST = withApiHandler(async (request: NextRequest) => {
@@ -53,36 +49,40 @@ export const POST = withApiHandler(async (request: NextRequest) => {
   let formData: FormData;
   try {
     formData = await request.formData();
-  } catch {
-    return apiBadRequest("Invalid form data");
+  } catch (err) {
+    console.error("[avatar] formData parse failed:", err);
+    return apiBadRequest("Could not read upload. Try a smaller image (under 5 MB).");
   }
 
-  const file = formData.get("file");
-  if (!file || !(file instanceof File)) {
+  const upload = parseFormDataUpload(formData, "file");
+  if (!upload) {
     return apiBadRequest("No file provided");
   }
-  if (!resolveImageMime(file)) {
-    return apiBadRequest("Invalid file type. Use JPEG, PNG, WebP, or GIF.");
+
+  const mime = resolveImageMime(upload.type, upload.name);
+  if (!mime) {
+    return apiBadRequest("Invalid file type. Use JPEG, PNG, WebP, GIF, or HEIC.");
   }
-  if (file.size > MAX_SIZE_BYTES) {
+  if (upload.size > MAX_SIZE_BYTES) {
     return apiBadRequest("File too large. Maximum size is 5 MB.");
   }
+  if (upload.size === 0) {
+    return apiBadRequest("File is empty.");
+  }
 
-  const ext = path.extname(file.name) || ".jpg";
-  const safeExt = /^\.(jpe?g|png|webp|gif)$/i.test(ext) ? ext : ".jpg";
+  const safeExt = safeImageExtension(upload.name, mime);
   const filename = `avatar-${session.sub}-${randomUUID()}${safeExt}`;
 
   const dir = getAvatarsUploadDir();
   try {
     await mkdir(dir, { recursive: true });
-    const buffer = Buffer.from(await file.arrayBuffer());
+    const buffer = Buffer.from(await upload.blob.arrayBuffer());
     await writeFile(path.join(dir, filename), buffer);
   } catch (err) {
     console.error("[avatar] Failed to write file:", err);
-    const code = typeof err === "object" && err !== null && "code" in err ? String((err as NodeJS.ErrnoException).code) : "";
-    if (code === "EACCES" || code === "EROFS" || code === "ENOSPC") {
+    if (isStorageError(err)) {
       return apiError(
-        "Server cannot save uploaded files. Set PUBLIC_UPLOAD_ROOT to a writable directory and restart the app.",
+        "Server cannot save uploaded files. Set PUBLIC_UPLOAD_ROOT to a writable folder and restart.",
         Status.INTERNAL_SERVER_ERROR,
         "UPLOAD_STORAGE"
       );
@@ -92,17 +92,10 @@ export const POST = withApiHandler(async (request: NextRequest) => {
 
   const avatarUrl = `${getBaseUrl(request)}/uploads/avatars/${filename}`;
 
-  const saved = await setUserAvatarUrlSafe(session.sub, avatarUrl);
-  if (!saved.ok) {
-    if (saved.reason === "missing_column") {
-      return apiError(
-        "Profile photos are not enabled on this database yet. Run: npx prisma migrate deploy",
-        Status.INTERNAL_SERVER_ERROR,
-        "DATABASE_SCHEMA"
-      );
-    }
-    return apiBadRequest("User not found");
-  }
+  await prisma.user.update({
+    where: { id: session.sub, deletedAt: null },
+    data: { avatarUrl },
+  });
 
   return apiSuccess({ avatarUrl });
 });

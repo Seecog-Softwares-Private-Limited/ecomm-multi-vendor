@@ -1,8 +1,10 @@
 import { NextRequest } from "next/server";
-import { randomUUID } from "node:crypto";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
+import { randomUUID } from "node:crypto";
 import { getPublicUploadsRoot } from "@/lib/uploads/storage";
+import { parseFormDataUpload } from "@/lib/uploads/parse-form-file";
+import { resolveImageMime, safeImageExtension } from "@/lib/uploads/image-mime";
 import {
   withApiHandler,
   apiSuccess,
@@ -33,28 +35,28 @@ export const POST = withApiHandler(async (request: NextRequest) => {
     return apiBadRequest("Invalid form data");
   }
 
-  const file = formData.get("file");
-  if (!file || !(file instanceof File)) {
+  const upload = parseFormDataUpload(formData, "file");
+  if (!upload) {
     return apiBadRequest("Missing or invalid file");
   }
 
-  if (!ALLOWED_TYPES.includes(file.type)) {
+  const mime = resolveImageMime(upload.type, upload.name);
+  if (!mime || !ALLOWED_TYPES.includes(mime)) {
     return apiBadRequest(
       "Invalid file type. Use JPEG, PNG, WebP, or GIF."
     );
   }
-  if (file.size > MAX_SIZE_BYTES) {
+  if (upload.size > MAX_SIZE_BYTES) {
     return apiBadRequest("File too large. Maximum size is 5MB.");
   }
 
-  const ext = path.extname(file.name) || ".jpg";
-  const safeExt = /^\.(jpe?g|png|webp|gif)$/i.test(ext) ? ext : ".jpg";
+  const safeExt = safeImageExtension(upload.name, mime);
   const filename = `${randomUUID()}${safeExt}`;
   const uploadsDir = getPublicUploadsRoot();
   const filePath = path.join(uploadsDir, filename);
 
   await mkdir(uploadsDir, { recursive: true });
-  const buffer = Buffer.from(await file.arrayBuffer());
+  const buffer = Buffer.from(await upload.blob.arrayBuffer());
   await writeFile(filePath, buffer);
 
   const baseUrl = getBaseUrl(request);
