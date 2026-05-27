@@ -13,7 +13,10 @@ import {
 } from "@/lib/api";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { resolveImageMime, safeImageExtension } from "@/lib/uploads/image-mime";
+import {
+  resolveImageMimeWithBuffer,
+  avatarStorageExtension,
+} from "@/lib/uploads/image-mime";
 import { parseFormDataUpload } from "@/lib/uploads/parse-form-file";
 import { getAvatarsUploadDir } from "@/lib/uploads/storage";
 
@@ -59,10 +62,6 @@ export const POST = withApiHandler(async (request: NextRequest) => {
     return apiBadRequest("No file provided");
   }
 
-  const mime = resolveImageMime(upload.type, upload.name);
-  if (!mime) {
-    return apiBadRequest("Invalid file type. Use JPEG, PNG, WebP, GIF, or HEIC.");
-  }
   if (upload.size > MAX_SIZE_BYTES) {
     return apiBadRequest("File too large. Maximum size is 5 MB.");
   }
@@ -70,13 +69,27 @@ export const POST = withApiHandler(async (request: NextRequest) => {
     return apiBadRequest("File is empty.");
   }
 
-  const safeExt = safeImageExtension(upload.name, mime);
+  const dir = getAvatarsUploadDir();
+  let buffer: Buffer;
+  try {
+    buffer = Buffer.from(await upload.blob.arrayBuffer());
+  } catch (err) {
+    console.error("[avatar] arrayBuffer failed:", err);
+    return apiBadRequest("Could not read uploaded image.");
+  }
+
+  const mime = resolveImageMimeWithBuffer(upload.type, upload.name, buffer);
+  if (!mime) {
+    return apiBadRequest(
+      "Invalid file type. Use JPEG, PNG, WebP, GIF, or HEIC (iPhone photos are supported)."
+    );
+  }
+
+  const safeExt = avatarStorageExtension(upload.name, mime, buffer);
   const filename = `avatar-${session.sub}-${randomUUID()}${safeExt}`;
 
-  const dir = getAvatarsUploadDir();
   try {
     await mkdir(dir, { recursive: true });
-    const buffer = Buffer.from(await upload.blob.arrayBuffer());
     await writeFile(path.join(dir, filename), buffer);
   } catch (err) {
     console.error("[avatar] Failed to write file:", err);
