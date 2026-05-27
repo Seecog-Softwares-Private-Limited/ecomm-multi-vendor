@@ -153,18 +153,32 @@ export function MyProfilePage() {
   };
 
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const picked = e.target.files?.[0];
+    if (!picked) return;
 
-    // Instant local preview
-    const objectUrl = URL.createObjectURL(file);
-    setAvatarPreview(objectUrl);
+    const maxBytes = 5 * 1024 * 1024;
+    if (picked.size > maxBytes * 2) {
+      toast.error("Image is too large. Choose a smaller photo or take a new one.");
+      if (avatarInputRef.current) avatarInputRef.current.value = "";
+      return;
+    }
 
-    // Upload to server
     setUploadingAvatar(true);
+    let objectUrl: string | null = null;
     try {
+      const { prepareAvatarUploadFile } = await import("@/lib/client/prepare-avatar-upload");
+      const file = await prepareAvatarUploadFile(picked);
+
+      if (file.size > maxBytes) {
+        toast.error("Image must be 5 MB or smaller after processing.");
+        return;
+      }
+
+      objectUrl = URL.createObjectURL(file);
+      setAvatarPreview(objectUrl);
+
       const fd = new FormData();
-      fd.append("file", file);
+      fd.append("file", file, file.name || "avatar.jpg");
       const res = await fetch("/api/auth/me/avatar", {
         method: "POST",
         credentials: "include",
@@ -172,7 +186,13 @@ export function MyProfilePage() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        toast.error(data?.error?.message ?? "Failed to upload photo");
+        const msg =
+          typeof data?.error?.message === "string"
+            ? data.error.message
+            : res.status === 413
+              ? "Photo is too large for the server. Try a smaller image."
+              : `Failed to upload photo (${res.status})`;
+        toast.error(msg);
         setAvatarPreview(user?.avatarUrl ?? null);
         return;
       }
@@ -180,12 +200,13 @@ export function MyProfilePage() {
       setAvatarPreview(url);
       setUser((prev) => prev ? { ...prev, avatarUrl: url } : null);
       toast.success("Profile photo updated");
-    } catch {
-      toast.error("Failed to upload photo. Please try again.");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to upload photo. Please try again.";
+      toast.error(msg);
       setAvatarPreview(user?.avatarUrl ?? null);
     } finally {
+      if (objectUrl?.startsWith("blob:")) URL.revokeObjectURL(objectUrl);
       setUploadingAvatar(false);
-      // Reset the input so the same file can be re-selected
       if (avatarInputRef.current) avatarInputRef.current.value = "";
     }
   };
@@ -305,7 +326,7 @@ export function MyProfilePage() {
                 <input
                   ref={avatarInputRef}
                   type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  accept="image/*,.heic,.heif"
                   className="sr-only"
                   onChange={handleAvatarChange}
                   aria-label="Upload profile photo"
