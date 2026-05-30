@@ -11,6 +11,7 @@ export { request, getBaseUrl } from "./client";
 export type { RequestMethod, RequestOptions } from "./client";
 export { ServiceError } from "./errors";
 export { authService } from "./auth.service";
+export { getSmsNotificationService, SmsNotificationService } from "./sms-notification.service";
 export { catalogService } from "./catalog.service";
 export { vendorService } from "./vendor.service";
 

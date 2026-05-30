@@ -86,6 +86,16 @@ export const PATCH = withApiHandler(async (request: NextRequest, context?: Route
   if (action === "accept") {
     const r = await vendorAcceptOrder(sellerId, orderId);
     if (!r.ok) return mapActionFailure(r.error);
+    const { prisma } = await import("@/lib/prisma");
+    const seller = await prisma.seller.findUnique({
+      where: { id: sellerId },
+      select: { businessName: true },
+    });
+    const { getSmsNotificationService } = await import("@/services/sms-notification.service");
+    getSmsNotificationService().onVendorOrderAccept({
+      orderId,
+      vendorName: seller?.businessName ?? "Vendor",
+    });
     const detail = await getVendorOrderDetailForSeller(sellerId, orderId);
     return apiSuccess(detail ?? { updated: true });
   }

@@ -45,9 +45,9 @@ import {
   OTP_EXPIRY_MS,
   isSixDigitOtp,
   isDevConsoleOtpAllowed,
-  formatCustomerOtpQuickSms,
 } from "@/lib/auth/otp.service";
-import { sendSMS, isSmsProviderConfigured } from "@/lib/sendSMS";
+import { isSmsProviderConfigured } from "@/lib/sendSMS";
+import { deliverCustomerLoginOtp } from "@/sms/otp-delivery";
 import {
   sendOtp as msg91SendOtp,
   verifyOtp as msg91VerifyOtp,
@@ -149,10 +149,9 @@ export async function handleSendCustomerOtp(
         );
       }
 
-      const message = formatCustomerOtpQuickSms(plainOtp);
       let sms: { success: boolean; error?: string };
       try {
-        sms = await sendSMS(phoneNorm, message);
+        sms = await deliverCustomerLoginOtp(phoneNorm, plainOtp);
       } catch (e) {
         console.error("[phone-otp] Unexpected error while sending Quick SMS", e);
         await invalidatePendingOtps(phoneNorm);

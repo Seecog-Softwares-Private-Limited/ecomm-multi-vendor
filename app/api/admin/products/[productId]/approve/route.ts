@@ -8,7 +8,7 @@ import {
 import { prisma } from "@/lib/prisma";
 import { requireAdminPermission } from "@/lib/admin-rbac";
 import { SELLER_PRODUCT_APPROVED_NOTIFICATION_TITLE } from "@/lib/notifications/product-moderation";
-import { notifyProductApprovedSms } from "@/lib/sms/vendor-notification-sms";
+import { getSmsNotificationService } from "@/services/sms-notification.service";
 
 /**
  * POST /api/admin/products/[productId]/approve — set product status to ACTIVE (admin only).
@@ -59,7 +59,10 @@ export const POST = withApiHandler(
 
     // SMS only when product moves pending → live (not if already ACTIVE).
     if (wasPendingApproval) {
-      notifyProductApprovedSms(product.seller?.phone, nameTrim);
+      getSmsNotificationService().onProductApproval({
+        phone: product.seller?.phone,
+        productName: nameTrim,
+      });
     }
 
     return apiSuccess({ productId, status: "ACTIVE", productName: nameTrim });
