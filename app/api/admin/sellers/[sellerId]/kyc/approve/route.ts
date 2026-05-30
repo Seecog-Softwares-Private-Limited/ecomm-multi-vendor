@@ -7,7 +7,7 @@ import {
 } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { requireAdminPermission } from "@/lib/admin-rbac";
-import { notifyVendorApprovedSms } from "@/lib/sms/vendor-notification-sms";
+import { getSmsNotificationService } from "@/services/sms-notification.service";
 
 /**
  * POST /api/admin/sellers/[sellerId]/kyc/approve — approve KYC for seller (admin only).
@@ -48,7 +48,10 @@ export const POST = withApiHandler(
 
     // SMS only on first approval (pending → APPROVED), not on repeat approve clicks.
     if (!wasAlreadyApproved) {
-      notifyVendorApprovedSms(seller.phone);
+      getSmsNotificationService().onVendorApproval({
+        phone: seller.phone,
+        name: seller.businessName ?? seller.ownerName ?? "Vendor",
+      });
     }
 
     return apiSuccess({ approved: true, sellerId });

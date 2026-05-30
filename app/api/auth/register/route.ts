@@ -118,5 +118,11 @@ export const POST = withApiHandler(async (request: NextRequest) => {
     payload.verificationLink = verificationLink;
   }
 
+  const { getSmsNotificationService } = await import("@/services/sms-notification.service");
+  getSmsNotificationService().onCustomerRegistration({
+    name: [firstName, lastName].filter(Boolean).join(" ") || email,
+    phone: phoneNorm ?? undefined,
+  });
+
   return apiSuccess(payload, Status.CREATED);
 });

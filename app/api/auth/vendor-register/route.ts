@@ -103,5 +103,8 @@ export const POST = withApiHandler(async (request: NextRequest) => {
     payload.verificationLink = verificationLink;
   }
 
+  const { getSmsNotificationService } = await import("@/services/sms-notification.service");
+  getSmsNotificationService().onVendorRegistration({ businessName: seller.businessName });
+
   return apiSuccess(payload);
 });

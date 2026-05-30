@@ -235,6 +235,12 @@ export const POST = withApiHandler(async (request: NextRequest) => {
 
   const requiresRazorpay = paymentMode === "CARD" || paymentMode === "UPI";
 
+  const { getSmsNotificationService } = await import("@/services/sms-notification.service");
+  getSmsNotificationService().onCustomerOrder({
+    orderId: order.id,
+    amount: Number(order.totalAmount),
+  });
+
   return apiSuccess({
     orderId: order.id,
     totalAmount: Number(order.totalAmount),
