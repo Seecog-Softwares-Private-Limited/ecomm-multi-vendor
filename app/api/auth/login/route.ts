@@ -79,6 +79,7 @@ export const POST = withApiHandler(async (request: NextRequest) => {
       phone: user.phone,
       role: "CUSTOMER",
     },
+    token,
   });
 
   setAuthCookie(response, token);

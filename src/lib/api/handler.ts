@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { VENDOR_KYC_LOCKED_ERROR } from "@/lib/data/vendor-profile";
 import { apiError, apiInternalError } from "./response";
+import { applyApiCors, apiCorsPreflight } from "./cors";
 import { Status, type StatusCode } from "./status";
 
 /** Context passed to route handlers (e.g. dynamic params). Next.js 15 requires params. */
@@ -45,10 +46,15 @@ export function withApiHandler(handler: AnyRouteHandler): ExportedRouteHandler<u
     request: NextRequest,
     context: ApiRouteContext
   ): Promise<NextResponse<unknown>> => {
+    if (request.method === "OPTIONS") {
+      return apiCorsPreflight(request);
+    }
+
     try {
-      return await handler(request, context);
+      const response = await handler(request, context);
+      return applyApiCors(response, request);
     } catch (err) {
-      return handleRouteError(err);
+      return applyApiCors(handleRouteError(err), request);
     }
   };
 }

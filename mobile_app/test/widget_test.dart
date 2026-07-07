@@ -1,9 +1,5 @@
-import 'package:flutter_test/flutter_test.dart';
-import 'package:mobile_app/main.dart';
+import 'widget/app_bootstrap_test.dart' as app_bootstrap_test;
 
 void main() {
-  testWidgets('renders app title', (WidgetTester tester) async {
-    await tester.pumpWidget(const MobileApp());
-    expect(find.text('Ecomm Multi Vendor'), findsOneWidget);
-  });
+  app_bootstrap_test.main();
 }
