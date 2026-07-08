@@ -14,7 +14,11 @@ import { ApiRouteError, Status } from "@/lib/api";
  * if (session.role !== "ADMIN") return apiForbidden();
  */
 export async function getSession(request: NextRequest): Promise<JwtPayload | null> {
-  const token = getTokenFromCookie(request.headers.get("cookie"));
+  const cookieToken = getTokenFromCookie(request.headers.get("cookie"));
+  const authHeader = request.headers.get("authorization");
+  const bearerToken =
+    authHeader?.startsWith("Bearer ") ? authHeader.slice("Bearer ".length).trim() : null;
+  const token = cookieToken || bearerToken;
   if (!token) return null;
   return verifyToken(token);
 }

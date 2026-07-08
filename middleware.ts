@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { applyApiCors, apiCorsPreflight } from "@/lib/api/cors";
 import { getVerifiedSession } from "@/lib/auth/middleware-auth";
 import {
   isAuthPage,
@@ -22,6 +23,14 @@ const LOGIN_PATH = "/login";
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // CORS for Flutter/mobile clients calling /api/* from another origin (e.g. Flutter web).
+  if (pathname.startsWith("/api/")) {
+    if (request.method === "OPTIONS") {
+      return apiCorsPreflight(request);
+    }
+    return applyApiCors(NextResponse.next(), request);
+  }
 
   // Fix typo: /login/admin/login → /admin/login
   if (pathname === "/login/admin/login") {
@@ -107,6 +116,7 @@ function redirectToLogin(
  */
 export const config = {
   matcher: [
+    "/api/:path*",
     "/((?!_next/|favicon\\.ico|uploads/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|woff2?|ttf|eot|pdf)$|api/).*)",
   ],
 };
