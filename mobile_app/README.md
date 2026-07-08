@@ -1,6 +1,6 @@
-# mobile_app
+# indovyapar_customer
 
-A new Flutter project.
+Indovyapar customer shopping app
 
 ## Getting Started
 

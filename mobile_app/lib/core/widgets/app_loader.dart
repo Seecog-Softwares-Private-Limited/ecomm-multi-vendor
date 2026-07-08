@@ -1,0 +1,34 @@
+import 'package:flutter/material.dart';
+
+import '../theme/app_colors.dart';
+
+/// Standard centered loading indicator with an optional caption.
+class AppLoader extends StatelessWidget {
+  const AppLoader({this.message, this.size = 32, super.key});
+
+  final String? message;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: size,
+            height: size,
+            child: const CircularProgressIndicator(strokeWidth: 3, color: AppColors.primary),
+          ),
+          if (message != null) ...[
+            const SizedBox(height: 12),
+            Text(
+              message!,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}

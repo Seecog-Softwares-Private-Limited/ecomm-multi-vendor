@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../app/navigation/app_routes.dart';
-import '../../../../core/design_system/tokens/app_colors.dart';
-import '../../../../core/design_system/tokens/app_spacing.dart';
-import '../../../../core/design_system/widgets/app_button.dart';
-import '../../../../core/design_system/widgets/app_text_field.dart';
-import '../../../../core/design_system/widgets/auth_form_shell.dart';
-import '../providers/auth_controller.dart';
+import '../../../../core/error/failure.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/utils/validators.dart';
+import '../../../../core/widgets/app_button.dart';
+import '../../../../core/widgets/app_snackbar.dart';
+import '../../../../core/widgets/app_text_field.dart';
+import '../auth_controller.dart';
+import '../widgets/auth_header.dart';
 
 class RegisterPage extends ConsumerStatefulWidget {
   const RegisterPage({super.key});
@@ -18,87 +21,164 @@ class RegisterPage extends ConsumerStatefulWidget {
 }
 
 class _RegisterPageState extends ConsumerState<RegisterPage> {
-  final _nameController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+  final _firstName = TextEditingController();
+  final _lastName = TextEditingController();
+  final _email = TextEditingController();
+  final _phone = TextEditingController();
+  final _password = TextEditingController();
+  final _confirm = TextEditingController();
+
+  bool _submitting = false;
 
   @override
   void dispose() {
-    _nameController.dispose();
-    _emailController.dispose();
-    _passwordController.dispose();
+    _firstName.dispose();
+    _lastName.dispose();
+    _email.dispose();
+    _phone.dispose();
+    _password.dispose();
+    _confirm.dispose();
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final authState = ref.watch(authControllerProvider);
-    return AuthFormShell(
-      title: 'Create account',
-      subtitle: 'Join Indovyapar to start shopping from trusted vendors',
-      child: Form(
-        key: _formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (authState.errorMessage != null) ...[
-              Text(
-                authState.errorMessage!,
-                style: const TextStyle(color: AppColors.error),
-              ),
-              const SizedBox(height: AppSpacing.md),
-            ],
-            AppTextField(
-              label: 'Full name',
-              controller: _nameController,
-              validator: _requiredValidator,
-            ),
-            const SizedBox(height: AppSpacing.md),
-            AppTextField(
-              label: 'Email address',
-              controller: _emailController,
-              keyboardType: TextInputType.emailAddress,
-              validator: _requiredValidator,
-            ),
-            const SizedBox(height: AppSpacing.md),
-            AppTextField(
-              label: 'Password',
-              controller: _passwordController,
-              obscureText: true,
-              validator: _requiredValidator,
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            AppButton(
-              label: 'Create account',
-              expanded: true,
-              isLoading: authState.isSubmitting,
-              onPressed: () async {
-                if (!_formKey.currentState!.validate()) {
-                  return;
-                }
-                await ref.read(authControllerProvider.notifier).register(
-                      name: _nameController.text.trim(),
-                      email: _emailController.text.trim(),
-                      password: _passwordController.text,
-                    );
-              },
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            TextButton(
-              onPressed: () => context.go(AppRoutes.login),
-              child: const Text('Already have an account? Sign in'),
-            ),
-          ],
-        ),
+  Future<void> _submit() async {
+    FocusScope.of(context).unfocus();
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _submitting = true);
+    try {
+      final result = await ref.read(authRepositoryProvider).register(
+            email: _email.text.trim(),
+            password: _password.text,
+            firstName: _firstName.text.trim(),
+            lastName: _lastName.text.trim(),
+            phone: _phone.text.trim(),
+          );
+      if (!mounted) return;
+      _showVerifyDialog(result.message);
+    } catch (error) {
+      if (!mounted) return;
+      context.showSnack(Failure.from(error).message, isError: true);
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  void _showVerifyDialog(String message) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        icon: const Icon(Icons.mark_email_read_outlined, color: AppColors.primary, size: 40),
+        title: const Text('Verify your email'),
+        content: Text(message),
+        actions: [
+          AppButton(
+            label: 'Back to sign in',
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              context.go('/login');
+            },
+          ),
+        ],
       ),
     );
   }
 
-  String? _requiredValidator(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return 'This field is required';
-    }
-    return null;
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Create account')),
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(AppSpacing.xxl),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const AuthHeader(
+                      title: 'Join IndoVyapar',
+                      subtitle: 'Create your account in a few seconds.',
+                    ),
+                    const SizedBox(height: AppSpacing.xxxl),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: AppTextField(
+                            controller: _firstName,
+                            label: 'First name',
+                            textInputAction: TextInputAction.next,
+                            validator: (v) => Validators.required(v, field: 'First name'),
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.md),
+                        Expanded(
+                          child: AppTextField(
+                            controller: _lastName,
+                            label: 'Last name',
+                            textInputAction: TextInputAction.next,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    AppTextField(
+                      controller: _email,
+                      label: 'Email',
+                      prefixIcon: Icons.mail_outline,
+                      keyboardType: TextInputType.emailAddress,
+                      textInputAction: TextInputAction.next,
+                      validator: Validators.email,
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    AppTextField(
+                      controller: _phone,
+                      label: 'Mobile number',
+                      prefixIcon: Icons.phone_outlined,
+                      keyboardType: TextInputType.phone,
+                      textInputAction: TextInputAction.next,
+                      maxLength: 10,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      validator: (v) => Validators.phone(v),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    AppTextField(
+                      controller: _password,
+                      label: 'Password',
+                      prefixIcon: Icons.lock_outline,
+                      obscureText: true,
+                      enableObscureToggle: true,
+                      textInputAction: TextInputAction.next,
+                      validator: Validators.password,
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    AppTextField(
+                      controller: _confirm,
+                      label: 'Confirm password',
+                      prefixIcon: Icons.lock_outline,
+                      obscureText: true,
+                      enableObscureToggle: true,
+                      textInputAction: TextInputAction.done,
+                      validator: (v) => Validators.confirmPassword(v, _password.text),
+                      onSubmitted: (_) => _submit(),
+                    ),
+                    const SizedBox(height: AppSpacing.xl),
+                    AppButton(
+                      label: 'Create account',
+                      isLoading: _submitting,
+                      onPressed: _submit,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
