@@ -7,22 +7,11 @@ import {
   OAUTH_STATE_COOKIE,
   getOAuthAppBaseUrl,
   isOAuthClientConfigured,
+  resolveOAuthBaseUrlFromRequest,
   type OAuthProvider,
 } from "@/lib/auth/oauth";
 
 const SUPPORTED_PROVIDERS: OAuthProvider[] = ["google", "facebook"];
-
-function resolveOAuthBaseUrl(request: NextRequest): string {
-  const fromEnv = process.env.NEXT_PUBLIC_APP_URL?.trim() || process.env.APP_URL?.trim();
-  if (fromEnv) return fromEnv.replace(/\/$/, "");
-
-  const host =
-    request.headers.get("x-forwarded-host") ??
-    request.headers.get("host") ??
-    request.nextUrl.host;
-  const proto = request.headers.get("x-forwarded-proto") ?? request.nextUrl.protocol.replace(":", "");
-  return `${proto === "https" ? "https" : "http"}://${host}`;
-}
 
 /**
  * GET /api/auth/oauth/[provider]?returnUrl=/...
@@ -45,7 +34,7 @@ export async function GET(request: NextRequest, context: ApiRouteContext) {
     const msg =
       provider === "google"
         ? "Google sign-in is not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in your environment."
-        : "Facebook sign-in is not configured. Set FACEBOOK_APP_ID and FACEBOOK_APP_SECRET in your environment.";
+        : "Facebook sign-in is not configured. Set FACEBOOK_APP_ID and FACEBOOK_APP_SECRET (or FACEBOOK_CLIENT_ID and FACEBOOK_CLIENT_SECRET) in your environment.";
     login.searchParams.set("error", msg);
     return NextResponse.redirect(login.toString());
   }
@@ -56,7 +45,7 @@ export async function GET(request: NextRequest, context: ApiRouteContext) {
   const stateObj = generateOAuthState(returnUrl);
   const stateStr = encodeOAuthState(stateObj);
 
-  const oauthBaseUrl = resolveOAuthBaseUrl(request);
+  const oauthBaseUrl = resolveOAuthBaseUrlFromRequest(request);
   const authUrl = buildOAuthAuthUrl(provider, stateStr, oauthBaseUrl);
 
   const response = NextResponse.redirect(authUrl);

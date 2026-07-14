@@ -18,6 +18,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { getGuestCart, clearGuestCart } from "@/lib/guest-cart";
 import { IndovyaparLogo } from "@/components/IndovyaparLogo";
 import { dispatchCartUpdated } from "@/contexts/CartDrawerContext";
+import { startOAuthLogin } from "@/lib/auth/start-oauth";
 
 const inputClass =
   "block w-full rounded-xl border border-slate-200 bg-slate-50/50 py-3 text-slate-900 placeholder:text-slate-400 transition focus:border-[#FF6A00] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6A00]/20";
@@ -79,6 +80,8 @@ function RegisterBrandPanel() {
 export function RegisterPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const returnUrl =
+    searchParams?.get("returnUrl") ?? searchParams?.get("callbackUrl") ?? "/";
   const [showPassword, setShowPassword] = React.useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = React.useState(false);
   const [fullName, setFullName] = React.useState("");
@@ -512,6 +515,7 @@ export function RegisterPage() {
               <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
+                  onClick={() => startOAuthLogin("google", returnUrl)}
                   className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-3 text-sm font-semibold text-slate-800 transition hover:border-[#FF6A00]/30 hover:bg-slate-50/80"
                 >
                   <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24" aria-hidden>
@@ -536,6 +540,7 @@ export function RegisterPage() {
                 </button>
                 <button
                   type="button"
+                  onClick={() => startOAuthLogin("facebook", returnUrl)}
                   className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-3 text-sm font-semibold text-slate-800 transition hover:border-[#FF6A00]/30 hover:bg-slate-50/80"
                 >
                   <svg className="h-5 w-5 shrink-0" fill="#1877F2" viewBox="0 0 24 24" aria-hidden>

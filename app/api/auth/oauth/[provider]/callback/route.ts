@@ -5,24 +5,13 @@ import {
   decodeOAuthState,
   OAUTH_STATE_COOKIE,
   getOAuthAppBaseUrl,
+  resolveOAuthBaseUrlFromRequest,
   type OAuthProvider,
 } from "@/lib/auth/oauth";
 import { signToken, setAuthCookie } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 const SUPPORTED_PROVIDERS: OAuthProvider[] = ["google", "facebook"];
-
-function resolveOAuthBaseUrl(request: NextRequest): string {
-  const fromEnv = process.env.NEXT_PUBLIC_APP_URL?.trim() || process.env.APP_URL?.trim();
-  if (fromEnv) return fromEnv.replace(/\/$/, "");
-
-  const host =
-    request.headers.get("x-forwarded-host") ??
-    request.headers.get("host") ??
-    request.nextUrl.host;
-  const proto = request.headers.get("x-forwarded-proto") ?? request.nextUrl.protocol.replace(":", "");
-  return `${proto === "https" ? "https" : "http"}://${host}`;
-}
 
 function errorRedirect(baseUrl: string, message: string): NextResponse {
   const url = new URL("/login", baseUrl);
@@ -46,7 +35,7 @@ export async function GET(request: NextRequest, context: ApiRouteContext) {
     | OAuthProvider
     | undefined;
 
-  const requestBase = resolveOAuthBaseUrl(request);
+  const requestBase = resolveOAuthBaseUrlFromRequest(request);
   const appBase = requestBase || getOAuthAppBaseUrl();
 
   if (!provider || !SUPPORTED_PROVIDERS.includes(provider)) {

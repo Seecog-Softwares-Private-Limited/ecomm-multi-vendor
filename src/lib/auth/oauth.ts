@@ -1,15 +1,35 @@
 /**
  * OAuth 2.0 utilities for Google and Facebook social login.
  *
- * Environment variables required:
- *   GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
- *   FACEBOOK_APP_ID, FACEBOOK_APP_SECRET
- *   APP_URL  (used to build the redirect_uri)
+ * Environment variables:
+ *   Google:   GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
+ *   Facebook: FACEBOOK_APP_ID + FACEBOOK_APP_SECRET
+ *             (aliases: FACEBOOK_CLIENT_ID + FACEBOOK_CLIENT_SECRET)
+ *   APP_URL / NEXT_PUBLIC_APP_URL — used to build redirect_uri
  */
 
 import { randomBytes } from "crypto";
+import type { NextRequest } from "next/server";
 
 export type OAuthProvider = "google" | "facebook";
+
+/** Meta App ID — supports FACEBOOK_APP_ID or FACEBOOK_CLIENT_ID. */
+export function getFacebookAppId(): string {
+  return (
+    process.env.FACEBOOK_APP_ID?.trim() ||
+    process.env.FACEBOOK_CLIENT_ID?.trim() ||
+    ""
+  );
+}
+
+/** Meta App Secret — supports FACEBOOK_APP_SECRET or FACEBOOK_CLIENT_SECRET. */
+export function getFacebookAppSecret(): string {
+  return (
+    process.env.FACEBOOK_APP_SECRET?.trim() ||
+    process.env.FACEBOOK_CLIENT_SECRET?.trim() ||
+    ""
+  );
+}
 
 export interface OAuthUserInfo {
   providerId: string;
@@ -40,6 +60,49 @@ export function getOAuthAppBaseUrl(): string {
   return appUrl();
 }
 
+/**
+ * Origin used for OAuth redirect_uri and callback redirects.
+ * Must match the browser tab that started sign-in or the oauth_state cookie
+ * will not be sent back (causing "Missing OAuth state").
+ */
+export function resolveOAuthBaseUrlFromRequest(request: NextRequest): string {
+  const host =
+    request.headers.get("x-forwarded-host")?.split(",")[0]?.trim() ??
+    request.headers.get("host") ??
+    request.nextUrl.host;
+  const proto =
+    request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() ??
+    (request.nextUrl.protocol.replace(":", "") || "http");
+  const requestOrigin = `${proto === "https" ? "https" : "http"}://${host}`.replace(
+    /\/$/,
+    ""
+  );
+
+  const isLocalRequest =
+    /^localhost(:\d+)?$/i.test(host) ||
+    /^127\.0\.0\.1(:\d+)?$/i.test(host) ||
+    /^10\.0\.2\.2(:\d+)?$/i.test(host);
+
+  // Local dev: always use the tab origin (e.g. http://localhost:3005), not APP_URL production URL.
+  if (isLocalRequest) {
+    return requestOrigin;
+  }
+
+  const configured = appUrl();
+  if (configured) {
+    try {
+      const configuredHost = new URL(configured).host;
+      if (configuredHost === host) {
+        return configured.replace(/\/$/, "");
+      }
+    } catch {
+      return configured.replace(/\/$/, "");
+    }
+  }
+
+  return requestOrigin;
+}
+
 export function oauthRedirectUri(provider: OAuthProvider, baseUrl?: string): string {
   const origin = (baseUrl?.trim() || appUrl()).replace(/\/$/, "");
   return `${origin}/api/auth/oauth/${provider}/callback`;
@@ -52,9 +115,7 @@ export function isOAuthClientConfigured(provider: OAuthProvider): boolean {
     );
   }
   if (provider === "facebook") {
-    return Boolean(
-      process.env.FACEBOOK_APP_ID?.trim() && process.env.FACEBOOK_APP_SECRET?.trim()
-    );
+    return Boolean(getFacebookAppId() && getFacebookAppSecret());
   }
   return false;
 }
@@ -157,19 +218,19 @@ export async function exchangeGoogleCode(code: string, baseUrl?: string): Promis
 
 export function facebookAuthUrl(stateStr: string, baseUrl?: string): string {
   const params = new URLSearchParams({
-    client_id: process.env.FACEBOOK_APP_ID ?? "",
+    client_id: getFacebookAppId(),
     redirect_uri: oauthRedirectUri("facebook", baseUrl),
     state: stateStr,
     scope: "email,public_profile",
     response_type: "code",
   });
-  return `https://www.facebook.com/v19.0/dialog/oauth?${params.toString()}`;
+  return `https://www.facebook.com/v21.0/dialog/oauth?${params.toString()}`;
 }
 
 export async function exchangeFacebookCode(code: string, baseUrl?: string): Promise<OAuthUserInfo> {
-  const tokenUrl = new URL("https://graph.facebook.com/v19.0/oauth/access_token");
-  tokenUrl.searchParams.set("client_id", process.env.FACEBOOK_APP_ID ?? "");
-  tokenUrl.searchParams.set("client_secret", process.env.FACEBOOK_APP_SECRET ?? "");
+  const tokenUrl = new URL("https://graph.facebook.com/v21.0/oauth/access_token");
+  tokenUrl.searchParams.set("client_id", getFacebookAppId());
+  tokenUrl.searchParams.set("client_secret", getFacebookAppSecret());
   tokenUrl.searchParams.set("redirect_uri", oauthRedirectUri("facebook", baseUrl));
   tokenUrl.searchParams.set("code", code);
 
