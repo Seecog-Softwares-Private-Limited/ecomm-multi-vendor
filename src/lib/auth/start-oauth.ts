@@ -2,6 +2,9 @@ import { hasNativeBridge, postToNative } from "@/lib/native-bridge";
 
 export type SocialOAuthProvider = "google" | "facebook";
 
+/** Set to true when Facebook OAuth is ready to ship. */
+export const FACEBOOK_SIGN_IN_ENABLED = false;
+
 export function buildOAuthStartPath(
   provider: SocialOAuthProvider,
   returnUrl = "/"

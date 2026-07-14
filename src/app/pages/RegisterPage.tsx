@@ -512,7 +512,7 @@ export function RegisterPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="oauth-social-grid grid grid-cols-1 gap-3">
                 <button
                   type="button"
                   onClick={() => startOAuthLogin("google", returnUrl)}
@@ -538,6 +538,8 @@ export function RegisterPage() {
                   </svg>
                   Google
                 </button>
+
+                {/* Facebook sign-in — temporarily hidden; restore when Meta OAuth is ready
                 <button
                   type="button"
                   onClick={() => startOAuthLogin("facebook", returnUrl)}
@@ -548,6 +550,7 @@ export function RegisterPage() {
                   </svg>
                   Facebook
                 </button>
+                */}
               </div>
             </form>
 

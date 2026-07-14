@@ -55,3 +55,12 @@ body {
     overflow-x: auto;
   }
 }
+
+/* TEMP: Hide Facebook sign-in until Meta OAuth is ready (works even with cached old JS bundles). */
+.oauth-social-grid {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+.oauth-social-grid > :nth-child(2) {
+  display: none !important;
+}
