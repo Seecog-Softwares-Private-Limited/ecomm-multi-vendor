@@ -548,7 +548,7 @@ export function LoginPage() {
                 </p>
               ) : null}
 
-              <div className="mt-4 grid grid-cols-2 gap-3">
+              <div className="oauth-social-grid mt-4 grid grid-cols-1 gap-3">
                 {/* Google */}
                 <button
                   type="button"
@@ -582,13 +582,12 @@ export function LoginPage() {
                   Google
                 </button>
 
-                {/* Facebook */}
+                {/* Facebook sign-in — temporarily hidden; restore when Meta OAuth is ready
                 <button
                   type="button"
                   onClick={() => startOAuthLogin("facebook", returnUrl)}
                   className="flex items-center justify-center gap-2.5 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#FF6A00]/25"
                 >
-                  {/* Facebook "f" logo SVG */}
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     viewBox="0 0 24 24"
@@ -602,6 +601,7 @@ export function LoginPage() {
                   </svg>
                   Facebook
                 </button>
+                */}
               </div>
             </div>
 
