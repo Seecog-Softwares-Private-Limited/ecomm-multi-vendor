@@ -20,7 +20,7 @@ import { getGuestCart, clearGuestCart } from "@/lib/guest-cart";
 import { normalizeIndianPhone, INDIAN_MOBILE_HINT } from "@/lib/auth/phone";
 import { syncCustomerDefaultAddressToDeliveryLocation } from "@/lib/delivery-location";
 import { dispatchCartUpdated } from "@/contexts/CartDrawerContext";
-import { postToNative } from "@/lib/native-bridge";
+import { startOAuthLogin } from "@/lib/auth/start-oauth";
 
 type LoginMode = "email" | "phone";
 type PhoneStep = "number" | "otp";
@@ -71,21 +71,6 @@ export function LoginPage() {
     setIsEmbeddedWebView(embedded);
   }, []);
 
-  const openSocialLogin = (provider: "google" | "facebook") => {
-    // if (isEmbeddedWebView) {
-    //   setError(
-    //     "Google/Facebook login is blocked inside in-app browsers. Please open this page in your phone browser (Chrome/Safari) and try again."
-    //   );
-    //   return;
-    // }
-    console.log("xxxx", "=> isEmbeddedWebView:", returnUrl, isEmbeddedWebView);
-    postToNative({
-      type : "custom",
-      name: "OPEN_EXTERNAL_BROWSER",
-      payload: `/api/auth/oauth/${provider}?returnUrl=${encodeURIComponent(returnUrl)}`
-    })
-  };
-  
   const mergeGuestCartAndGoHome = React.useCallback(async () => {
     const guestItems = getGuestCart();
     if (guestItems.length > 0) {
@@ -567,7 +552,7 @@ export function LoginPage() {
                 {/* Google */}
                 <button
                   type="button"
-                  onClick={() => openSocialLogin("google")}
+                  onClick={() => startOAuthLogin("google", returnUrl)}
                   className="flex items-center justify-center gap-2.5 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#FF6A00]/25"
                 >
                   {/* Google "G" logo SVG */}
@@ -600,7 +585,7 @@ export function LoginPage() {
                 {/* Facebook */}
                 <button
                   type="button"
-                  onClick={() => openSocialLogin("facebook")}
+                  onClick={() => startOAuthLogin("facebook", returnUrl)}
                   className="flex items-center justify-center gap-2.5 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#FF6A00]/25"
                 >
                   {/* Facebook "f" logo SVG */}
