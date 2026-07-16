@@ -4,3 +4,8 @@ export { sendVendorVerificationEmail } from "./vendor-verification";
 export { sendCustomerVerificationEmail } from "./customer-verification";
 export { sendVendorPasswordResetEmail } from "./vendor-password-reset";
 export { sendCustomerPasswordResetEmail } from "./customer-password-reset";
+export {
+  sendGoogleOAuthWelcomeEmail,
+  queueGoogleOAuthWelcomeEmail,
+  type GoogleOAuthWelcomeEmailParams,
+} from "./oauth-google-welcome";

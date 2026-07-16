@@ -9,6 +9,7 @@ import {
   type OAuthProvider,
 } from "@/lib/auth/oauth";
 import { signToken, setAuthCookie } from "@/lib/auth";
+import { queueGoogleOAuthWelcomeEmail } from "@/lib/email/oauth-google-welcome";
 import { prisma } from "@/lib/prisma";
 
 const SUPPORTED_PROVIDERS: OAuthProvider[] = ["google", "facebook"];
@@ -86,6 +87,8 @@ export async function GET(request: NextRequest, context: ApiRouteContext) {
   }
 
   // ── Find or create user ──────────────────────────────────────────────────
+  let isNewUser = false;
+
   let user = await prisma.user.findFirst({
     where: { email: oauthUser.email, deletedAt: null },
     select: { id: true, email: true, firstName: true, lastName: true, emailVerified: true },
@@ -105,6 +108,7 @@ export async function GET(request: NextRequest, context: ApiRouteContext) {
       },
     });
   } else {
+    isNewUser = true;
     // Create new user — no password (OAuth-only)
     user = await prisma.user.create({
       data: {
@@ -118,6 +122,16 @@ export async function GET(request: NextRequest, context: ApiRouteContext) {
         avatarUrl: oauthUser.avatarUrl,
       },
       select: { id: true, email: true, firstName: true, lastName: true, emailVerified: true },
+    });
+  }
+
+  // ── Welcome email (Google OAuth, new users only — async, non-blocking) ───
+  if (provider === "google" && isNewUser) {
+    queueGoogleOAuthWelcomeEmail({
+      to: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      userId: user.id,
     });
   }
 
