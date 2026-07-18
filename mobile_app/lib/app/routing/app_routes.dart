@@ -9,6 +9,7 @@ abstract final class AppRoutes {
   static const String register = '/register';
   static const String otpLogin = '/otp';
   static const String forgotPassword = '/forgot-password';
+  static const String completeProfile = '/complete-profile';
 
   // Shell tabs
   static const String home = '/home';
@@ -43,4 +44,7 @@ abstract final class AppRoutes {
   static String productPath(String id) => '$product/$id';
   static String orderPath(String id) => '$orders/$id';
   static String legalPath(String slug) => '$legal/$slug';
+
+  static String afterAuth({required bool needsProfileCompletion}) =>
+      needsProfileCompletion ? completeProfile : home;
 }

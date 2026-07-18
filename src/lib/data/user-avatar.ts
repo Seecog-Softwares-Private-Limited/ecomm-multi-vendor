@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { resolveImageUrl } from "@/lib/utils/resolve-image-url";
 
 /**
  * Reads `users.avatar_url` when the column exists.
@@ -12,7 +13,7 @@ export async function getUserAvatarUrlSafe(userId: string): Promise<string | nul
     const rows = await prisma.$queryRaw<{ avatar_url: string | null }[]>(
       Prisma.sql`SELECT avatar_url FROM users WHERE id = ${userId} LIMIT 1`
     );
-    return rows[0]?.avatar_url ?? null;
+    return resolveImageUrl(rows[0]?.avatar_url ?? null);
   } catch {
     return null;
   }

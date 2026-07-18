@@ -91,7 +91,10 @@ export function LoginPage() {
     }
     await syncCustomerDefaultAddressToDeliveryLocation();
     await new Promise((r) => setTimeout(r, 50));
-    router.push(returnUrl);
+    const meRes = await fetch("/api/auth/me", { credentials: "include" });
+    const meData = meRes.ok ? await meRes.json().catch(() => null) : null;
+    const needsProfile = meData?.data?.user?.needsProfileCompletion === true;
+    router.push(needsProfile ? "/complete-profile" : returnUrl);
   }, [router, returnUrl]);
 
   React.useEffect(() => {

@@ -87,7 +87,9 @@ class _OtpLoginPageState extends ConsumerState<OtpLoginPage> {
     setState(() => _busy = false);
 
     if (failure == null) {
-      context.go(AppRoutes.home);
+      final needsProfile =
+          ref.read(authControllerProvider).value?.user?.needsProfileCompletion ?? false;
+      context.go(AppRoutes.afterAuth(needsProfileCompletion: needsProfile));
     } else {
       context.showSnack(failure.message, isError: true);
     }

@@ -11,6 +11,7 @@ import {
 import { signToken, setAuthCookie } from "@/lib/auth";
 import { queueGoogleOAuthWelcomeEmail } from "@/lib/email/oauth-google-welcome";
 import { prisma } from "@/lib/prisma";
+import { userNeedsProfileCompletion } from "@/lib/profile/needs-completion";
 
 const SUPPORTED_PROVIDERS: OAuthProvider[] = ["google", "facebook"];
 
@@ -91,7 +92,15 @@ export async function GET(request: NextRequest, context: ApiRouteContext) {
 
   let user = await prisma.user.findFirst({
     where: { email: oauthUser.email, deletedAt: null },
-    select: { id: true, email: true, firstName: true, lastName: true, emailVerified: true },
+    select: {
+      id: true,
+      email: true,
+      firstName: true,
+      lastName: true,
+      emailVerified: true,
+      phone: true,
+      profileCompleted: true,
+    },
   });
 
   if (user) {
@@ -105,6 +114,18 @@ export async function GET(request: NextRequest, context: ApiRouteContext) {
         avatarUrl: oauthUser.avatarUrl ?? undefined,
         firstName: user.firstName ?? oauthUser.firstName ?? undefined,
         lastName: user.lastName ?? oauthUser.lastName ?? undefined,
+      },
+    });
+    user = await prisma.user.findFirst({
+      where: { id: user.id },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        emailVerified: true,
+        phone: true,
+        profileCompleted: true,
       },
     });
   } else {
@@ -121,8 +142,20 @@ export async function GET(request: NextRequest, context: ApiRouteContext) {
         oauthProviderId: oauthUser.providerId,
         avatarUrl: oauthUser.avatarUrl,
       },
-      select: { id: true, email: true, firstName: true, lastName: true, emailVerified: true },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        emailVerified: true,
+        phone: true,
+        profileCompleted: true,
+      },
     });
+  }
+
+  if (!user) {
+    return errorRedirect(appBase, "Could not create your account. Please try again.");
   }
 
   // ── Welcome email (Google OAuth, new users only — async, non-blocking) ───
@@ -142,7 +175,14 @@ export async function GET(request: NextRequest, context: ApiRouteContext) {
     role: "CUSTOMER",
   });
 
-  const response = NextResponse.redirect(new URL(returnUrl, appBase).toString());
+  const destination = userNeedsProfileCompletion({
+    phone: user.phone,
+    profileCompleted: user.profileCompleted,
+  })
+    ? "/complete-profile"
+    : returnUrl;
+
+  const response = NextResponse.redirect(new URL(destination, appBase).toString());
   setAuthCookie(response, token);
 
   // Clear the state cookie

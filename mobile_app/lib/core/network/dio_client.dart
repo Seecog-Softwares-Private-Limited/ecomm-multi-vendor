@@ -55,6 +55,9 @@ class DioClient {
   Future<dynamic> put(String path, {Object? data}) =>
       _request(() => _dio.put(path, data: data));
 
+  Future<dynamic> postMultipart(String path, FormData data) =>
+      _request(() => _dio.post(path, data: data));
+
   Future<dynamic> delete(String path, {Object? data}) =>
       _request(() => _dio.delete(path, data: data));
 

@@ -14,6 +14,8 @@ _AppUser _$AppUserFromJson(Map<String, dynamic> json) => _AppUser(
   phone: json['phone'] as String?,
   role: json['role'] as String? ?? 'CUSTOMER',
   avatarUrl: json['avatarUrl'] as String?,
+  profileCompleted: json['profileCompleted'] as bool? ?? false,
+  needsProfileCompletion: json['needsProfileCompletion'] as bool? ?? false,
 );
 
 Map<String, dynamic> _$AppUserToJson(_AppUser instance) => <String, dynamic>{
@@ -24,6 +26,8 @@ Map<String, dynamic> _$AppUserToJson(_AppUser instance) => <String, dynamic>{
   'phone': instance.phone,
   'role': instance.role,
   'avatarUrl': instance.avatarUrl,
+  'profileCompleted': instance.profileCompleted,
+  'needsProfileCompletion': instance.needsProfileCompletion,
 };
 
 _ProfileStats _$ProfileStatsFromJson(Map<String, dynamic> json) =>

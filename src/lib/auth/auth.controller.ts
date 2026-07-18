@@ -54,6 +54,7 @@ import {
   isMsg91OtpConfigured,
   PHONE_OTP_MSG91_MARKER,
 } from "@/lib/sms/msg91-otp";
+import { userNeedsProfileCompletion } from "@/lib/profile/needs-completion";
 
 export type SendOtpBody = { phone: string };
 export type VerifyOtpBody = { phone: string; otp?: string; code?: string };
@@ -295,6 +296,7 @@ export async function handleVerifyCustomerOtp(
       lastName: true,
       phone: true,
       emailVerified: true,
+      profileCompleted: true,
     },
   });
 
@@ -307,6 +309,7 @@ export async function handleVerifyCustomerOtp(
         passwordHash,
         phone: phoneNorm,
         emailVerified: true,
+        profileCompleted: true,
       },
       select: {
         id: true,
@@ -315,6 +318,7 @@ export async function handleVerifyCustomerOtp(
         lastName: true,
         phone: true,
         emailVerified: true,
+        profileCompleted: true,
       },
     });
   } else if (!user.emailVerified) {
@@ -344,6 +348,11 @@ export async function handleVerifyCustomerOtp(
       lastName: user.lastName,
       phone: user.phone,
       role: "CUSTOMER",
+      profileCompleted: user.profileCompleted,
+      needsProfileCompletion: userNeedsProfileCompletion({
+        phone: user.phone,
+        profileCompleted: user.profileCompleted,
+      }),
     },
   };
 
