@@ -18,6 +18,8 @@ abstract class AppUser with _$AppUser {
     String? phone,
     @Default('CUSTOMER') String role,
     String? avatarUrl,
+    @Default(false) bool profileCompleted,
+    @Default(false) bool needsProfileCompletion,
   }) = _AppUser;
 
   factory AppUser.fromJson(Map<String, dynamic> json) => _$AppUserFromJson(json);

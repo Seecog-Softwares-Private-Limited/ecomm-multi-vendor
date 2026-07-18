@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$AppUser {
 
- String get id; String get email; String? get firstName; String? get lastName; String? get phone; String get role; String? get avatarUrl;
+ String get id; String get email; String? get firstName; String? get lastName; String? get phone; String get role; String? get avatarUrl; bool get profileCompleted; bool get needsProfileCompletion;
 /// Create a copy of AppUser
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +28,16 @@ $AppUserCopyWith<AppUser> get copyWith => _$AppUserCopyWithImpl<AppUser>(this as
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is AppUser&&(identical(other.id, id) || other.id == id)&&(identical(other.email, email) || other.email == email)&&(identical(other.firstName, firstName) || other.firstName == firstName)&&(identical(other.lastName, lastName) || other.lastName == lastName)&&(identical(other.phone, phone) || other.phone == phone)&&(identical(other.role, role) || other.role == role)&&(identical(other.avatarUrl, avatarUrl) || other.avatarUrl == avatarUrl));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AppUser&&(identical(other.id, id) || other.id == id)&&(identical(other.email, email) || other.email == email)&&(identical(other.firstName, firstName) || other.firstName == firstName)&&(identical(other.lastName, lastName) || other.lastName == lastName)&&(identical(other.phone, phone) || other.phone == phone)&&(identical(other.role, role) || other.role == role)&&(identical(other.avatarUrl, avatarUrl) || other.avatarUrl == avatarUrl)&&(identical(other.profileCompleted, profileCompleted) || other.profileCompleted == profileCompleted)&&(identical(other.needsProfileCompletion, needsProfileCompletion) || other.needsProfileCompletion == needsProfileCompletion));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,email,firstName,lastName,phone,role,avatarUrl);
+int get hashCode => Object.hash(runtimeType,id,email,firstName,lastName,phone,role,avatarUrl,profileCompleted,needsProfileCompletion);
 
 @override
 String toString() {
-  return 'AppUser(id: $id, email: $email, firstName: $firstName, lastName: $lastName, phone: $phone, role: $role, avatarUrl: $avatarUrl)';
+  return 'AppUser(id: $id, email: $email, firstName: $firstName, lastName: $lastName, phone: $phone, role: $role, avatarUrl: $avatarUrl, profileCompleted: $profileCompleted, needsProfileCompletion: $needsProfileCompletion)';
 }
 
 
@@ -48,7 +48,7 @@ abstract mixin class $AppUserCopyWith<$Res>  {
   factory $AppUserCopyWith(AppUser value, $Res Function(AppUser) _then) = _$AppUserCopyWithImpl;
 @useResult
 $Res call({
- String id, String email, String? firstName, String? lastName, String? phone, String role, String? avatarUrl
+ String id, String email, String? firstName, String? lastName, String? phone, String role, String? avatarUrl, bool profileCompleted, bool needsProfileCompletion
 });
 
 
@@ -65,7 +65,7 @@ class _$AppUserCopyWithImpl<$Res>
 
 /// Create a copy of AppUser
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? email = null,Object? firstName = freezed,Object? lastName = freezed,Object? phone = freezed,Object? role = null,Object? avatarUrl = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? email = null,Object? firstName = freezed,Object? lastName = freezed,Object? phone = freezed,Object? role = null,Object? avatarUrl = freezed,Object? profileCompleted = null,Object? needsProfileCompletion = null,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,email: null == email ? _self.email : email // ignore: cast_nullable_to_non_nullable
@@ -74,7 +74,9 @@ as String?,lastName: freezed == lastName ? _self.lastName : lastName // ignore: 
 as String?,phone: freezed == phone ? _self.phone : phone // ignore: cast_nullable_to_non_nullable
 as String?,role: null == role ? _self.role : role // ignore: cast_nullable_to_non_nullable
 as String,avatarUrl: freezed == avatarUrl ? _self.avatarUrl : avatarUrl // ignore: cast_nullable_to_non_nullable
-as String?,
+as String?,profileCompleted: null == profileCompleted ? _self.profileCompleted : profileCompleted // ignore: cast_nullable_to_non_nullable
+as bool,needsProfileCompletion: null == needsProfileCompletion ? _self.needsProfileCompletion : needsProfileCompletion // ignore: cast_nullable_to_non_nullable
+as bool,
   ));
 }
 
@@ -159,10 +161,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String email,  String? firstName,  String? lastName,  String? phone,  String role,  String? avatarUrl)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String email,  String? firstName,  String? lastName,  String? phone,  String role,  String? avatarUrl,  bool profileCompleted,  bool needsProfileCompletion)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _AppUser() when $default != null:
-return $default(_that.id,_that.email,_that.firstName,_that.lastName,_that.phone,_that.role,_that.avatarUrl);case _:
+return $default(_that.id,_that.email,_that.firstName,_that.lastName,_that.phone,_that.role,_that.avatarUrl,_that.profileCompleted,_that.needsProfileCompletion);case _:
   return orElse();
 
 }
@@ -180,10 +182,10 @@ return $default(_that.id,_that.email,_that.firstName,_that.lastName,_that.phone,
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String email,  String? firstName,  String? lastName,  String? phone,  String role,  String? avatarUrl)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String email,  String? firstName,  String? lastName,  String? phone,  String role,  String? avatarUrl,  bool profileCompleted,  bool needsProfileCompletion)  $default,) {final _that = this;
 switch (_that) {
 case _AppUser():
-return $default(_that.id,_that.email,_that.firstName,_that.lastName,_that.phone,_that.role,_that.avatarUrl);case _:
+return $default(_that.id,_that.email,_that.firstName,_that.lastName,_that.phone,_that.role,_that.avatarUrl,_that.profileCompleted,_that.needsProfileCompletion);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -200,10 +202,10 @@ return $default(_that.id,_that.email,_that.firstName,_that.lastName,_that.phone,
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String email,  String? firstName,  String? lastName,  String? phone,  String role,  String? avatarUrl)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String email,  String? firstName,  String? lastName,  String? phone,  String role,  String? avatarUrl,  bool profileCompleted,  bool needsProfileCompletion)?  $default,) {final _that = this;
 switch (_that) {
 case _AppUser() when $default != null:
-return $default(_that.id,_that.email,_that.firstName,_that.lastName,_that.phone,_that.role,_that.avatarUrl);case _:
+return $default(_that.id,_that.email,_that.firstName,_that.lastName,_that.phone,_that.role,_that.avatarUrl,_that.profileCompleted,_that.needsProfileCompletion);case _:
   return null;
 
 }
@@ -215,7 +217,7 @@ return $default(_that.id,_that.email,_that.firstName,_that.lastName,_that.phone,
 @JsonSerializable()
 
 class _AppUser extends AppUser {
-  const _AppUser({required this.id, required this.email, this.firstName, this.lastName, this.phone, this.role = 'CUSTOMER', this.avatarUrl}): super._();
+  const _AppUser({required this.id, required this.email, this.firstName, this.lastName, this.phone, this.role = 'CUSTOMER', this.avatarUrl, this.profileCompleted = false, this.needsProfileCompletion = false}): super._();
   factory _AppUser.fromJson(Map<String, dynamic> json) => _$AppUserFromJson(json);
 
 @override final  String id;
@@ -225,6 +227,8 @@ class _AppUser extends AppUser {
 @override final  String? phone;
 @override@JsonKey() final  String role;
 @override final  String? avatarUrl;
+@override@JsonKey() final  bool profileCompleted;
+@override@JsonKey() final  bool needsProfileCompletion;
 
 /// Create a copy of AppUser
 /// with the given fields replaced by the non-null parameter values.
@@ -239,16 +243,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _AppUser&&(identical(other.id, id) || other.id == id)&&(identical(other.email, email) || other.email == email)&&(identical(other.firstName, firstName) || other.firstName == firstName)&&(identical(other.lastName, lastName) || other.lastName == lastName)&&(identical(other.phone, phone) || other.phone == phone)&&(identical(other.role, role) || other.role == role)&&(identical(other.avatarUrl, avatarUrl) || other.avatarUrl == avatarUrl));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _AppUser&&(identical(other.id, id) || other.id == id)&&(identical(other.email, email) || other.email == email)&&(identical(other.firstName, firstName) || other.firstName == firstName)&&(identical(other.lastName, lastName) || other.lastName == lastName)&&(identical(other.phone, phone) || other.phone == phone)&&(identical(other.role, role) || other.role == role)&&(identical(other.avatarUrl, avatarUrl) || other.avatarUrl == avatarUrl)&&(identical(other.profileCompleted, profileCompleted) || other.profileCompleted == profileCompleted)&&(identical(other.needsProfileCompletion, needsProfileCompletion) || other.needsProfileCompletion == needsProfileCompletion));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,email,firstName,lastName,phone,role,avatarUrl);
+int get hashCode => Object.hash(runtimeType,id,email,firstName,lastName,phone,role,avatarUrl,profileCompleted,needsProfileCompletion);
 
 @override
 String toString() {
-  return 'AppUser(id: $id, email: $email, firstName: $firstName, lastName: $lastName, phone: $phone, role: $role, avatarUrl: $avatarUrl)';
+  return 'AppUser(id: $id, email: $email, firstName: $firstName, lastName: $lastName, phone: $phone, role: $role, avatarUrl: $avatarUrl, profileCompleted: $profileCompleted, needsProfileCompletion: $needsProfileCompletion)';
 }
 
 
@@ -259,7 +263,7 @@ abstract mixin class _$AppUserCopyWith<$Res> implements $AppUserCopyWith<$Res> {
   factory _$AppUserCopyWith(_AppUser value, $Res Function(_AppUser) _then) = __$AppUserCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String email, String? firstName, String? lastName, String? phone, String role, String? avatarUrl
+ String id, String email, String? firstName, String? lastName, String? phone, String role, String? avatarUrl, bool profileCompleted, bool needsProfileCompletion
 });
 
 
@@ -276,7 +280,7 @@ class __$AppUserCopyWithImpl<$Res>
 
 /// Create a copy of AppUser
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? email = null,Object? firstName = freezed,Object? lastName = freezed,Object? phone = freezed,Object? role = null,Object? avatarUrl = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? email = null,Object? firstName = freezed,Object? lastName = freezed,Object? phone = freezed,Object? role = null,Object? avatarUrl = freezed,Object? profileCompleted = null,Object? needsProfileCompletion = null,}) {
   return _then(_AppUser(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,email: null == email ? _self.email : email // ignore: cast_nullable_to_non_nullable
@@ -285,7 +289,9 @@ as String?,lastName: freezed == lastName ? _self.lastName : lastName // ignore: 
 as String?,phone: freezed == phone ? _self.phone : phone // ignore: cast_nullable_to_non_nullable
 as String?,role: null == role ? _self.role : role // ignore: cast_nullable_to_non_nullable
 as String,avatarUrl: freezed == avatarUrl ? _self.avatarUrl : avatarUrl // ignore: cast_nullable_to_non_nullable
-as String?,
+as String?,profileCompleted: null == profileCompleted ? _self.profileCompleted : profileCompleted // ignore: cast_nullable_to_non_nullable
+as bool,needsProfileCompletion: null == needsProfileCompletion ? _self.needsProfileCompletion : needsProfileCompletion // ignore: cast_nullable_to_non_nullable
+as bool,
   ));
 }
 

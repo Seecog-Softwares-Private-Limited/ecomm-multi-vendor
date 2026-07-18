@@ -28,6 +28,7 @@ import '../../features/orders/presentation/pages/orders_page.dart';
 import '../../features/search/presentation/pages/search_page.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
 import '../../features/support/presentation/pages/support_page.dart';
+import '../../features/profile/presentation/pages/complete_profile_page.dart';
 import '../../features/wishlist/presentation/pages/wishlist_page.dart';
 import 'app_routes.dart';
 
@@ -62,11 +63,21 @@ class _AuthRouterNotifier extends ChangeNotifier {
     }
 
     final authenticated = auth.value?.isAuthenticated ?? false;
+    final needsProfile = auth.value?.user?.needsProfileCompletion ?? false;
     final onboardingDone = _ref.read(preferencesProvider).onboardingComplete;
 
     if (location == AppRoutes.splash) {
-      if (authenticated) return AppRoutes.home;
+      if (authenticated) {
+        return needsProfile ? AppRoutes.completeProfile : AppRoutes.home;
+      }
       return onboardingDone ? AppRoutes.login : AppRoutes.onboarding;
+    }
+
+    if (authenticated && needsProfile && location != AppRoutes.completeProfile) {
+      return AppRoutes.completeProfile;
+    }
+    if (authenticated && !needsProfile && location == AppRoutes.completeProfile) {
+      return AppRoutes.home;
     }
 
     final isPublic = _publicRoutes.contains(location);
@@ -97,6 +108,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: AppRoutes.register, builder: (_, _) => const RegisterPage()),
       GoRoute(path: AppRoutes.otpLogin, builder: (_, _) => const OtpLoginPage()),
       GoRoute(path: AppRoutes.forgotPassword, builder: (_, _) => const ForgotPasswordPage()),
+      GoRoute(path: AppRoutes.completeProfile, builder: (_, _) => const CompleteProfilePage()),
 
       // Primary tabbed shell.
       StatefulShellRoute.indexedStack(

@@ -14,6 +14,7 @@ import {
   signToken,
   setAuthCookie,
 } from "@/lib/auth";
+import { userNeedsProfileCompletion } from "@/lib/profile/needs-completion";
 
 export const POST = withApiHandler(async (request: NextRequest) => {
   let body: unknown;
@@ -40,6 +41,7 @@ export const POST = withApiHandler(async (request: NextRequest) => {
       lastName: true,
       phone: true,
       emailVerified: true,
+      profileCompleted: true,
     },
   });
 
@@ -78,6 +80,11 @@ export const POST = withApiHandler(async (request: NextRequest) => {
       lastName: user.lastName,
       phone: user.phone,
       role: "CUSTOMER",
+      profileCompleted: user.profileCompleted,
+      needsProfileCompletion: userNeedsProfileCompletion({
+        phone: user.phone,
+        profileCompleted: user.profileCompleted,
+      }),
     },
     token,
   });

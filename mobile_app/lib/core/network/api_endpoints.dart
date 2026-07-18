@@ -11,7 +11,9 @@ abstract final class ApiEndpoints {
   static const String sendOtp = '/api/auth/send-otp';
   static const String verifyOtp = '/api/auth/verify-otp';
 
-  // Catalog
+  // Profile
+  static const String completeProfileDetails = '/api/profile/complete-details';
+  static const String avatarUpload = '/api/auth/me/avatar';
   static const String products = '/api/products';
   static String productById(String id) => '/api/products/$id';
   static String productBySlug(String slug) => '/api/products/slug/$slug';

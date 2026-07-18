@@ -12,6 +12,7 @@ import { hardDeleteCustomerAccount } from "@/lib/auth/delete-customer-account";
 import { normalizeIndianPhone, INDIAN_MOBILE_HINT } from "@/lib/auth/phone";
 import { prisma } from "@/lib/prisma";
 import { getUserAvatarUrlSafe } from "@/lib/data/user-avatar";
+import { userNeedsProfileCompletion } from "@/lib/profile/needs-completion";
 
 const DELETE_CONFIRM_PHRASE = "DELETE";
 
@@ -37,6 +38,8 @@ export const GET = withApiHandler(async (request: NextRequest) => {
       phone: true,
       deletedAt: true,
       passwordHash: true,
+      profileCompleted: true,
+      oauthProvider: true,
     },
   });
 
@@ -49,6 +52,11 @@ export const GET = withApiHandler(async (request: NextRequest) => {
   const safeUser = {
     ...rest,
     avatarUrl,
+    profileCompleted: user.profileCompleted,
+    needsProfileCompletion: userNeedsProfileCompletion({
+      phone: user.phone,
+      profileCompleted: user.profileCompleted,
+    }),
     ...(session.role === "CUSTOMER" ? { hasPassword: Boolean(passwordHash) } : {}),
   };
   const payload: { user: typeof safeUser & { role: string }; stats?: { orderCount: number; wishlistCount: number; addressCount: number } } = {
