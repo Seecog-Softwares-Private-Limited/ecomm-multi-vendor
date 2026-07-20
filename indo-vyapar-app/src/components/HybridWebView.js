@@ -24,20 +24,15 @@ import {
   shouldOpenOAuthExternally
 } from "../native/oauth";
 import { NativeLoader } from "./NativeLoader";
-import { AppleSignInOverlay } from "./AppleSignInOverlay";
 import { COLORS } from "../constants/theme";
 
 const MAX_AUTO_RETRIES = 2;
 
-function isLikelyAuthUrl(url) {
-  if (!url) return false;
-  try {
-    const path = new URL(url).pathname;
-    return /\/(login|sign-in|signin|register|auth|account\/login)(\/|$)/i.test(path);
-  } catch {
-    return false;
-  }
-}
+/** Safari-like UA so the site serves the same styles/assets as mobile Safari. */
+const WEBVIEW_USER_AGENT =
+  Platform.OS === "ios"
+    ? "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
+    : "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36";
 
 export const HybridWebView = forwardRef(function HybridWebView(
   {
@@ -158,7 +153,7 @@ export const HybridWebView = forwardRef(function HybridWebView(
       onAuthPendingChange?.(true);
       onAuthError?.("");
       try {
-        const result = await openOAuthInSystemBrowser(url, redirectUri);
+        const result = await openOAuthInSystemBrowser(url, redirectUri, webBaseUrl);
         if (result.type === "success" && result.url) {
           const params = parseAuthCallbackUrl(result.url);
           if (params) applyAuthResult(params);
@@ -174,7 +169,7 @@ export const HybridWebView = forwardRef(function HybridWebView(
         onAuthPendingChange?.(false);
       }
     },
-    [applyAuthResult, onAuthError, onAuthPendingChange, redirectUri]
+    [applyAuthResult, onAuthError, onAuthPendingChange, redirectUri, webBaseUrl]
   );
 
   const bridgeRouter = useMemo(
@@ -203,12 +198,20 @@ export const HybridWebView = forwardRef(function HybridWebView(
     (event) => {
       try {
         const payload = JSON.parse(event.nativeEvent.data || "{}");
+        if (
+          payload.type === "custom" &&
+          payload.name === "OPEN_EXTERNAL_BROWSER" &&
+          typeof payload.payload === "string"
+        ) {
+          openOAuth(payload.payload);
+          return;
+        }
         bridgeRouter.routeWebMessage(payload);
       } catch {
         /* ignore malformed */
       }
     },
-    [bridgeRouter]
+    [bridgeRouter, openOAuth]
   );
 
   const handleShouldStartRequest = useCallback(
@@ -241,9 +244,6 @@ export const HybridWebView = forwardRef(function HybridWebView(
     []
   );
 
-  const showAppleOverlay =
-    Platform.OS === "ios" && isLikelyAuthUrl(navUrl || currentWebUrl);
-
   if (!visible) {
     return <View style={styles.hidden} pointerEvents="none" />;
   }
@@ -263,6 +263,7 @@ export const HybridWebView = forwardRef(function HybridWebView(
         key={`${currentWebUrl}-${reloadKey}`}
         source={{ uri: currentWebUrl }}
         style={styles.webview}
+        userAgent={WEBVIEW_USER_AGENT}
         javaScriptEnabled
         domStorageEnabled
         startInLoadingState
@@ -282,23 +283,10 @@ export const HybridWebView = forwardRef(function HybridWebView(
         contentMode={Platform.OS === "ios" ? "mobile" : undefined}
         sharedCookiesEnabled
         thirdPartyCookiesEnabled={Platform.OS === "android"}
-        {...(Platform.OS === "android" ? { mixedContentMode: "always" } : {})}
+        {...(Platform.OS === "android" ? { mixedContentMode: "always", forceDarkOn: false } : {})}
         allowsInlineMediaPlayback
         mediaPlaybackRequiresUserAction={false}
         onContentProcessDidTerminate={() => innerRef.current?.reload()}
-      />
-
-      <AppleSignInOverlay
-        visible={showAppleOverlay && isConnected}
-        webBaseUrl={webBaseUrl}
-        webViewRef={innerRef}
-        onAuthenticated={(tokens) => {
-          if (tokens && typeof tokens === "object") {
-            persistAuthInWebView(tokens);
-          }
-          triggerReload(false);
-        }}
-        onErrorMessage={onAuthError}
       />
     </View>
   );

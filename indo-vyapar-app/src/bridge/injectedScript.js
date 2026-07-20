@@ -14,6 +14,79 @@ export const INJECTED_APP_SCRIPT = `
   window.__INDO_VYAPAR_MOBILE__ = true;
   window.__INDO_VYAPAR_BRIDGE_VERSION__ = 2;
 
+  /* --- App-only UI: light scheme, hide footer & in-WebView OAuth buttons --- */
+  function hideNode(node) {
+    if (!node || !node.style || node.getAttribute("data-iv-hidden") === "1") return;
+    node.style.setProperty("display", "none", "important");
+    node.setAttribute("data-iv-hidden", "1");
+  }
+
+  function ensureLightColorScheme() {
+    var head = document.head || document.getElementsByTagName("head")[0];
+    if (!head) return;
+    var meta = document.querySelector('meta[name="color-scheme"]');
+    if (!meta) {
+      meta = document.createElement("meta");
+      meta.setAttribute("name", "color-scheme");
+      head.appendChild(meta);
+    }
+    meta.setAttribute("content", "light");
+    var theme = document.querySelector('meta[name="theme-color"]');
+    if (!theme) {
+      theme = document.createElement("meta");
+      theme.setAttribute("name", "theme-color");
+      head.appendChild(theme);
+    }
+    theme.setAttribute("content", "#ffffff");
+    if (!document.querySelector("style[data-indo-vyapar-ui]")) {
+      var uiStyle = document.createElement("style");
+      uiStyle.setAttribute("data-indo-vyapar-ui", "color-scheme");
+      uiStyle.textContent =
+        ":root{color-scheme:light !important;}" +
+        "html{color-scheme:light !important;}" +
+        "footer,[role='contentinfo'],.footer,#footer{display:none !important;}";
+      head.appendChild(uiStyle);
+    }
+  }
+
+  function hideOAuthButtons() {
+    document
+      .querySelectorAll(
+        'a[href*="/oauth/apple"], a[href*="appleid.apple.com"],' +
+          'a[href*="/oauth/google"], a[href*="accounts.google.com"],' +
+          'a[href*="/oauth/facebook"], a[href*="facebook.com"]'
+      )
+      .forEach(hideNode);
+    document.querySelectorAll("button,a,[role='button']").forEach(function (node) {
+      var label = String(node.getAttribute("aria-label") || "").toLowerCase();
+      var href = String(node.getAttribute("href") || "").toLowerCase();
+      var text = String(node.innerText || "").trim().toLowerCase();
+      if (text.length > 120) return;
+      if (/oauth\\/(apple|google|facebook)|appleid\\.apple|accounts\\.google|facebook\\.com/.test(href)) {
+        hideNode(node);
+        return;
+      }
+      if (/sign in with (apple|google|facebook)|continue with (apple|google|facebook)/.test(label + " " + text)) {
+        hideNode(node);
+      }
+    });
+  }
+
+  function applyAppOnlyUi() {
+    try {
+      ensureLightColorScheme();
+      document.querySelectorAll("footer,[role='contentinfo'],.footer,#footer").forEach(hideNode);
+      hideOAuthButtons();
+    } catch (_) {}
+  }
+
+  applyAppOnlyUi();
+  document.addEventListener("DOMContentLoaded", applyAppOnlyUi);
+  var uiObs = new MutationObserver(applyAppOnlyUi);
+  if (document.documentElement) {
+    uiObs.observe(document.documentElement, { childList: true, subtree: true });
+  }
+
   /* --- Chunk / module load guard --- */
   function isChunkError(message) {
     return /Loading chunk|ChunkLoadError|Failed to fetch dynamically imported module/i.test(message || "");

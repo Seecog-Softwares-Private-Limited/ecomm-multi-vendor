@@ -10,7 +10,6 @@ import { HybridWebView } from "../components/HybridWebView";
 import { NativeHeader } from "../components/NativeHeader";
 import { NativeBottomNav } from "../components/NativeBottomNav";
 import { MoreMenuSheet } from "../components/MoreMenuSheet";
-import { NativeChromeBar } from "../components/NativeChromeBar";
 import { LegalInfoScreen } from "../screens/native/LegalInfoScreen";
 import { ContactScreen } from "../screens/native/ContactScreen";
 import { DeleteAccountScreen } from "../screens/native/DeleteAccountScreen";
@@ -30,7 +29,7 @@ import { COLORS } from "../constants/theme";
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
 const SCREEN_TITLES = {
-  [NATIVE_SCREEN_IDS.WEB]: "Indo Vyapar",
+  [NATIVE_SCREEN_IDS.WEB]: "Indo Vyapar Vendor",
   [NATIVE_SCREEN_IDS.PRIVACY]: "Privacy Policy",
   [NATIVE_SCREEN_IDS.TERMS]: "Terms & Conditions",
   [NATIVE_SCREEN_IDS.CONTACT]: "Contact Us",
@@ -165,7 +164,7 @@ function AppShellContent() {
     return (
       <View style={styles.root}>
         <StatusBar style="dark" />
-        <NativeHeader title="Indo Vyapar" showBack={false} />
+        <NativeHeader title="Indo Vyapar Vendor" showBack={false} />
         <FatalErrorScreen onRetry={() => setHasFatalError(false)} />
       </View>
     );
@@ -204,7 +203,7 @@ function AppShellContent() {
 
       <NativeHeader
         title={headerTitle}
-        subtitle={isWeb ? "B2B Marketplace" : undefined}
+        subtitle={isWeb ? "Vendor portal" : undefined}
         showBack={!isWeb}
         onBack={goBackToWeb}
         rightAction={isWeb ? handleChromeRefresh : undefined}
@@ -220,16 +219,6 @@ function AppShellContent() {
         <View style={styles.bannerError}>
           <Text style={styles.bannerErrorText}>{authError}</Text>
         </View>
-      ) : null}
-
-      {isWeb ? (
-        <NativeChromeBar
-          pageTitle={navMeta.title}
-          pageUrl={navMeta.url}
-          onRefresh={handleChromeRefresh}
-          refreshing={chromeRefreshing}
-          showCompact={false}
-        />
       ) : null}
 
       <View style={styles.body}>

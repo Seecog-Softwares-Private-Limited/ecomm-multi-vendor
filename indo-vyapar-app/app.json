@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Indo Vyapar",
+    "name": "Indo Vyapar Vendor",
     "owner": "blablabla0978",
     "slug": "indo-vyapar-app",
     "scheme": "indovyapar",
@@ -96,8 +96,8 @@
       "bundler": "metro"
     },
     "extra": {
-      "webUrlProd": "https://indovyapar.com",
-      "webUrlDev": "http://localhost:3005",
+      "webUrlProd": "https://indovyapar.com/vendor/login",
+      "webUrlDev": "http://localhost:3005/vendor/login",
       "minAppVersion": null,
       "storeUrlIos": "https://apps.apple.com/app/id000000000",
       "storeUrlAndroid": "https://play.google.com/store/apps/details?id=com.seecog.indovyapar",

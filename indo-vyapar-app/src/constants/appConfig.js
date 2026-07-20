@@ -1,11 +1,12 @@
+import { Platform } from "react-native";
 import Constants from "expo-constants";
 
 export const APP_SCHEME = "indovyapar";
-export const APP_REDIRECT_PATH = "login-success";
+export const APP_REDIRECT_PATH = "oauth/callback";
 
-export const OAUTH_PATH_REGEX = /\/api\/auth\/oauth\/(google|facebook)(\/|$)/i;
+export const OAUTH_PATH_REGEX = /\/api\/auth\/oauth\/(google|facebook|apple)(\/|$)/i;
 export const OAUTH_PROVIDER_HOST_REGEX =
-  /(accounts\.google\.com|facebook\.com|m\.facebook\.com)/i;
+  /(accounts\.google\.com|facebook\.com|m\.facebook\.com|appleid\.apple\.com)/i;
 
 export const NATIVE_SCREEN_IDS = {
   WEB: "web",
@@ -28,9 +29,13 @@ function stripTrailingSlash(value) {
 
 export function getWebBaseUrl() {
   const extra = Constants.expoConfig?.extra || {};
-  const devUrl = extra.webUrlDev || "http://localhost:3005";
-  const prodUrl = extra.webUrlProd || "https://indovyapar.com";
-  return stripTrailingSlash(__DEV__ ? devUrl : prodUrl);
+  const devUrl = extra.webUrlDev || "http://localhost:3005/vendor/login";
+  const prodUrl = extra.webUrlProd || "https://indovyapar.com/vendor/login";
+  const shouldUseProdInDev =
+    __DEV__ &&
+    Platform.OS !== "web" &&
+    /^(https?:\/\/)?(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/i.test(devUrl);
+  return stripTrailingSlash(shouldUseProdInDev ? prodUrl : __DEV__ ? devUrl : prodUrl);
 }
 
 export function buildAppWebUrl(baseUrl, reloadKey = 0) {

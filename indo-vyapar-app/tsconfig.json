@@ -9,8 +9,7 @@
     "checkJs": false,
     "noEmit": true,
     "strict": false,
-    "skipLibCheck": true,
-    "baseUrl": "."
+    "skipLibCheck": true
   },
   "include": ["**/*.ts", "**/*.tsx", "**/*.js"]
 }

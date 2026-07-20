@@ -1,33 +1,47 @@
-# Indo Vyapar App
+# Indo Vyapar Vendor App
 
-React Native app (Expo) that loads the Indo Vyapar website in a WebView for both Android and iOS.
+Expo / React Native WebView shell for **vendors and sellers** on Indo Vyapar. Loads the vendor portal from the main website with native bridge support (camera, location, biometrics, push, etc.).
 
-## URL loaded
+> **Customer app:** see [`../mobile_app/`](../mobile_app/) (Flutter, `com.indovyapar.indovyapar_customer`).
 
-`http://13.127.37.238:3004`
+| App | Folder | Audience | Package |
+|-----|--------|----------|---------|
+| Vendor | `indo-vyapar-app/` | Sellers / vendors | `com.seecog.indovyapar` |
+| Customer | `mobile_app/` | Shoppers | `com.indovyapar.indovyapar_customer` |
+
+## URLs
+
+Configured in `app.json` → `expo.extra`:
+
+| Environment | URL |
+|-------------|-----|
+| Production | `https://indovyapar.com/vendor/login` |
+| Development | `http://localhost:3005/vendor/login` (falls back to prod on physical devices when localhost is unreachable) |
 
 ## Run locally
 
-1. Install dependencies:
+1. Start the Next.js backend (`npm run dev` in the repo root).
+2. Install dependencies:
 
    ```bash
    npm install
    ```
 
-2. Start development server:
+3. Start Expo:
 
    ```bash
    npm run start
    ```
 
-3. Run on Android:
+4. Run on Android or iOS:
 
    ```bash
    npm run android
-   ```
-
-4. Run on iOS:
-
-   ```bash
    npm run ios
    ```
+
+## Build (EAS)
+
+```bash
+npx eas build --platform android --profile production
+```

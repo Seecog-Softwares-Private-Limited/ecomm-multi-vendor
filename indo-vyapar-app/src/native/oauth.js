@@ -1,6 +1,11 @@
 import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
-import { APP_REDIRECT_PATH, APP_SCHEME, OAUTH_PATH_REGEX, OAUTH_PROVIDER_HOST_REGEX } from "../constants/appConfig";
+import {
+  APP_REDIRECT_PATH,
+  APP_SCHEME,
+  OAUTH_PATH_REGEX,
+  OAUTH_PROVIDER_HOST_REGEX
+} from "../constants/appConfig";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -21,10 +26,14 @@ export function shouldOpenOAuthExternally(url) {
   }
 }
 
-export async function openOAuthInSystemBrowser(url, redirectUri) {
-  const oauthUrl = new URL(url);
+export async function openOAuthInSystemBrowser(url, redirectUri, webBaseUrl) {
+  const absoluteUrl = /^https?:\/\//i.test(url)
+    ? url
+    : `${webBaseUrl.replace(/\/$/, "")}/${url.replace(/^\//, "")}`;
+  const oauthUrl = new URL(absoluteUrl);
   oauthUrl.searchParams.set("mobile", "1");
-  oauthUrl.searchParams.set("platform", "expo-native");
+  oauthUrl.searchParams.set("platform", "expo-webview");
+  oauthUrl.searchParams.set("redirect_uri", redirectUri);
 
   return WebBrowser.openAuthSessionAsync(oauthUrl.toString(), redirectUri, {
     showInRecents: true,
