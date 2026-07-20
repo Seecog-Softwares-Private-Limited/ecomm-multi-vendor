@@ -1,0 +1,409 @@
+2026-07-10 09:58:56 +0000 [MT] Initial pipeline context: <IDEDistributionProcessingPipelineContext: 0x8deb47600; archive(resolved)="<IDEArchive: 0x8e09f00e0>", distributionTask(resolved)="2", distributionDestination(resolved)="1", distributionMethod(resolved)="<IDEDistributionMethodiOSAppStoreDistribution: 0x8de86ffb0>", team(resolved)="<IDEProvisioningBasicTeam: 0x8de19e060; teamID='9M33DMS8S8', teamName='(null)'>">
+	Chain (15, self inclusive):
+	<IDEDistributionProcessingPipelineContext: 0x8deb47600; archive = "<IDEArchive: 0x8e09f00e0>", distributionMethod="<IDEDistributionMethodiOSAppStoreDistribution: 0x8de86ffb0>", team="<IDEProvisioningBasicTeam: 0x8de19e060; teamID='9M33DMS8S8', teamName='(null)'>">
+	<IDEDistributionProcessingPipelineContext: 0x8deb47c00; archive = "<IDEArchive: 0x8e09f00e0>", distributionMethod="<IDEDistributionMethodiOSAppStoreDistribution: 0x8de86ffb0>", team="<IDEProvisioningBasicTeam: 0x8de19e060; teamID='9M33DMS8S8', teamName='(null)'>">
+	<IDEDistributionContext: 0x8de0a1900; archive = "<IDEArchive: 0x8e09f00e0>", distributionMethod="<IDEDistributionMethodiOSAppStoreDistribution: 0x8de86ffb0>", team="<IDEProvisioningBasicTeam: 0x8de19e060; teamID='9M33DMS8S8', teamName='(null)'>">
+	<IDEDistributionContext: 0x8de0a2a80; archive = "<IDEArchive: 0x8e09f00e0>", distributionMethod="<IDEDistributionMethodiOSAppStoreDistribution: 0x8de86ffb0>", team="<IDEProvisioningBasicTeam: 0x8de19e060; teamID='9M33DMS8S8', teamName='(null)'>">
+	<IDEDistributionContext: 0x8de0a2800; archive = "<IDEArchive: 0x8e09f00e0>", distributionMethod="<IDEDistributionMethodiOSAppStoreDistribution: 0x8de86ffb0>", team="<IDEProvisioningBasicTeam: 0x8de19e060; teamID='9M33DMS8S8', teamName='(null)'>">
+	<IDEDistributionContext: 0x8de0a2580; archive = "<IDEArchive: 0x8e09f00e0>", distributionMethod="<IDEDistributionMethodiOSAppStoreDistribution: 0x8de86ffb0>", team="<IDEProvisioningBasicTeam: 0x8de19e060; teamID='9M33DMS8S8', teamName='(null)'>">
+	<IDEDistributionContext: 0x8de0a2300; archive = "<IDEArchive: 0x8e09f00e0>", distributionMethod="<IDEDistributionMethodiOSAppStoreDistribution: 0x8de86ffb0>", team="<IDEProvisioningBasicTeam: 0x8de19e060; teamID='9M33DMS8S8', teamName='(null)'>">
+	<IDEDistributionContext: 0x8de0a2080; archive = "<IDEArchive: 0x8e09f00e0>", distributionMethod="<IDEDistributionMethodiOSAppStoreDistribution: 0x8de86ffb0>", team="<IDEProvisioningBasicTeam: 0x8de19e060; teamID='9M33DMS8S8', teamName='(null)'>">
+	<IDEDistributionContext: 0x8de0a1e00; archive = "<IDEArchive: 0x8e09f00e0>", distributionMethod="<IDEDistributionMethodiOSAppStoreDistribution: 0x8de86ffb0>", team="<IDEProvisioningBasicTeam: 0x8de19e060; teamID='9M33DMS8S8', teamName='(null)'>">
+	<IDEDistributionContext: 0x8de0a1400; archive = "<IDEArchive: 0x8e09f00e0>", distributionMethod="<IDEDistributionMethodiOSAppStoreDistribution: 0x8de86ffb0>", team="<IDEProvisioningBasicTeam: 0x8de19e060; teamID='9M33DMS8S8', teamName='(null)'>">
+	<IDEDistributionContext: 0x8de0a1180; archive = "<IDEArchive: 0x8e09f00e0>", distributionMethod="<IDEDistributionMethodiOSAppStoreDistribution: 0x8de86ffb0>", team="<IDEProvisioningBasicTeam: 0x8de19e060; teamID='9M33DMS8S8', teamName='(null)'>">
+	<IDEDistributionContext: 0x8de0a0a00; archive = "<IDEArchive: 0x8e09f00e0>", distributionMethod="<IDEDistributionMethodiOSAppStoreDistribution: 0x8de86ffb0>", team="<IDEProvisioningBasicTeam: 0x8de19e060; teamID='9M33DMS8S8', teamName='(null)'>">
+	<IDEDistributionContext: 0x8de0a0780; archive = "<IDEArchive: 0x8e09f00e0>", distributionMethod="<IDEDistributionMethodiOSAppStoreDistribution: 0x8de86ffb0>", team="(null)">
+	<IDEDistributionContext: 0x8de0a0000; archive = "<IDEArchive: 0x8e09f00e0>", distributionMethod="<IDEDistributionMethodiOSAppStoreDistribution: 0x8de86ffb0>", team="(null)">
+	<IDEDistributionContext: 0x1057a9860; archive = "<IDEArchive: 0x8e09f00e0>", distributionMethod="(null)", team="(null)">
+</IDEDistributionProcessingPipelineContext: 0x8deb47600>
+2026-07-10 09:58:56 +0000 [MT] Processing step: IDEDistributionCreateDestRootStep
+2026-07-10 09:58:56 +0000 [MT] Processing step: IDEDistributionCopyItemStep
+2026-07-10 09:58:56 +0000 [MT] Running /usr/bin/ditto '-V' '/Users/vinikdhariwal/Downloads/SeeCog/ecomm-multi-vendor/vendor-app/build/vendorapp.xcarchive/Products/Applications/vendorapp.app' '/var/folders/3h/gjkfnhqs1l99m_p89xzjjlj00000gn/T/XcodeDistPipeline.~~~m1JBZv/Root/Payload/vendorapp.app'
+2026-07-10 09:58:56 +0000  >>> Copying /Users/vinikdhariwal/Downloads/SeeCog/ecomm-multi-vendor/vendor-app/build/vendorapp.xcarchive/Products/Applications/vendorapp.app 
+2026-07-10 09:58:56 +0000  copying file ./_CodeSignature/CodeResources ... 
+2026-07-10 09:58:56 +0000  12895 bytes for ./_CodeSignature/CodeResources
+2026-07-10 09:58:56 +0000  copying file ./SplashScreen.storyboardc/EXPO-VIEWCONTROLLER-1-view-EXPO-ContainerView.nib ... 
+2026-07-10 09:58:56 +0000  2024 bytes for ./SplashScreen.storyboardc/EXPO-VIEWCONTROLLER-1-view-EXPO-ContainerView.nib
+2026-07-10 09:58:56 +0000  copying file ./SplashScreen.storyboardc/SplashScreenViewController.nib ... 
+2026-07-10 09:58:56 +0000  1004 bytes for ./SplashScreen.storyboardc/SplashScreenViewController.nib
+2026-07-10 09:58:56 +0000  copying file ./SplashScreen.storyboardc/Info.plist ... 
+2026-07-10 09:58:56 +0000  225 bytes for ./SplashScreen.storyboardc/Info.plist
+2026-07-10 09:58:56 +0000  copying file ./ExpoSystemUI_privacy.bundle/PrivacyInfo.xcprivacy ... 
+2026-07-10 09:58:56 +0000  607 bytes for ./ExpoSystemUI_privacy.bundle/PrivacyInfo.xcprivacy
+2026-07-10 09:58:56 +0000  copying file ./ExpoSystemUI_privacy.bundle/Info.plist ... 
+2026-07-10 09:58:56 +0000  788 bytes for ./ExpoSystemUI_privacy.bundle/Info.plist
+2026-07-10 09:58:56 +0000  copying file ./AppIcon60x60@2x.png ... 
+2026-07-10 09:58:56 +0000  15970 bytes for ./AppIcon60x60@2x.png
+2026-07-10 09:58:56 +0000  copying file ./ExpoConstants_privacy.bundle/PrivacyInfo.xcprivacy ... 
+2026-07-10 09:58:56 +0000  607 bytes for ./ExpoConstants_privacy.bundle/PrivacyInfo.xcprivacy
+2026-07-10 09:58:56 +0000  copying file ./ExpoConstants_privacy.bundle/Info.plist ... 
+2026-07-10 09:58:56 +0000  792 bytes for ./ExpoConstants_privacy.bundle/Info.plist
+2026-07-10 09:58:56 +0000  copying file ./vendorapp ... 
+2026-07-10 09:58:56 +0000  5815184 bytes for ./vendorapp
+2026-07-10 09:58:56 +0000  copying file ./React-cxxreact_privacy.bundle/PrivacyInfo.xcprivacy ... 
+2026-07-10 09:58:56 +0000  552 bytes for ./React-cxxreact_privacy.bundle/PrivacyInfo.xcprivacy
+2026-07-10 09:58:56 +0000  copying file ./React-cxxreact_privacy.bundle/Info.plist ... 
+2026-07-10 09:58:56 +0000  793 bytes for ./React-cxxreact_privacy.bundle/Info.plist
+2026-07-10 09:58:56 +0000  copying file ./Assets.car ... 
+2026-07-10 09:58:56 +0000  1322104 bytes for ./Assets.car
+2026-07-10 09:58:56 +0000  copying file ./AppIcon76x76@2x~ipad.png ... 
+2026-07-10 09:58:56 +0000  23229 bytes for ./AppIcon76x76@2x~ipad.png
+2026-07-10 09:58:56 +0000  copying file ./main.jsbundle ... 
+2026-07-10 09:58:56 +0000  1763658 bytes for ./main.jsbundle
+2026-07-10 09:58:56 +0000  copying file ./EXConstants.bundle/app.config ... 
+2026-07-10 09:58:56 +0000  1111 bytes for ./EXConstants.bundle/app.config
+2026-07-10 09:58:56 +0000  copying file ./EXConstants.bundle/Info.plist ... 
+2026-07-10 09:58:56 +0000  770 bytes for ./EXConstants.bundle/Info.plist
+2026-07-10 09:58:56 +0000  copying file ./SDWebImage.bundle/PrivacyInfo.xcprivacy ... 
+2026-07-10 09:58:56 +0000  599 bytes for ./SDWebImage.bundle/PrivacyInfo.xcprivacy
+2026-07-10 09:58:56 +0000  copying file ./SDWebImage.bundle/Info.plist ... 
+2026-07-10 09:58:56 +0000  766 bytes for ./SDWebImage.bundle/Info.plist
+2026-07-10 09:58:56 +0000  copying file ./PrivacyInfo.xcprivacy ... 
+2026-07-10 09:58:56 +0000  1283 bytes for ./PrivacyInfo.xcprivacy
+2026-07-10 09:58:56 +0000  copying file ./ExpoFileSystem_privacy.bundle/PrivacyInfo.xcprivacy ... 
+2026-07-10 09:58:56 +0000  877 bytes for ./ExpoFileSystem_privacy.bundle/PrivacyInfo.xcprivacy
+2026-07-10 09:58:56 +0000  copying file ./ExpoFileSystem_privacy.bundle/Info.plist ... 
+2026-07-10 09:58:56 +0000  794 bytes for ./ExpoFileSystem_privacy.bundle/Info.plist
+2026-07-10 09:58:56 +0000  copying file ./Frameworks/React.framework/_CodeSignature/CodeResources ... 
+2026-07-10 09:58:56 +0000  1798 bytes for ./Frameworks/React.framework/_CodeSignature/CodeResources
+2026-07-10 09:58:56 +0000  copying file ./Frameworks/React.framework/React ... 
+2026-07-10 09:58:56 +0000  11306560 bytes for ./Frameworks/React.framework/React
+2026-07-10 09:58:56 +0000  copying file ./Frameworks/React.framework/Info.plist ... 
+749 bytes for ./Frameworks/React.framework/Info.plist
+2026-07-10 09:58:56 +0000  copying file ./Frameworks/ReactNativeDependencies.framework/_CodeSignature/CodeResources ... 
+2026-07-10 09:58:56 +0000  3548 bytes for ./Frameworks/ReactNativeDependencies.framework/_CodeSignature/CodeResources
+2026-07-10 09:58:56 +0000  copying file ./Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/PrivacyInfo.xcprivacy ... 
+2026-07-10 09:58:56 +0000  552 bytes for ./Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/PrivacyInfo.xcprivacy
+2026-07-10 09:58:56 +0000  copying file ./Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/Info.plist ... 
+2026-07-10 09:58:56 +0000  690 bytes for ./Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/Info.plist
+2026-07-10 09:58:56 +0000  copying file ./Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies ... 
+2026-07-10 09:58:56 +0000  1279888 bytes for ./Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies
+2026-07-10 09:58:56 +0000  copying file ./Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/PrivacyInfo.xcprivacy ... 
+2026-07-10 09:58:56 +0000  552 bytes for ./Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/PrivacyInfo.xcprivacy
+2026-07-10 09:58:56 +0000  copying file ./Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/Info.plist ... 
+2026-07-10 09:58:56 +0000  688 bytes for ./Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/Info.plist
+2026-07-10 09:58:56 +0000  copying file ./Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/PrivacyInfo.xcprivacy ... 
+2026-07-10 09:58:56 +0000  776 bytes for ./Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/PrivacyInfo.xcprivacy
+2026-07-10 09:58:56 +0000  copying file ./Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/Info.plist ... 
+2026-07-10 09:58:56 +0000  690 bytes for ./Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/Info.plist
+2026-07-10 09:58:56 +0000  copying file ./Frameworks/ReactNativeDependencies.framework/Info.plist ... 
+2026-07-10 09:58:56 +0000  782 bytes for ./Frameworks/ReactNativeDependencies.framework/Info.plist
+2026-07-10 09:58:56 +0000  copying file ./Frameworks/hermes.framework/_CodeSignature/CodeResources ... 
+2026-07-10 09:58:56 +0000  1798 bytes for ./Frameworks/hermes.framework/_CodeSignature/CodeResources
+2026-07-10 09:58:56 +0000  copying file ./Frameworks/hermes.framework/hermes ... 
+2026-07-10 09:58:56 +0000  4728064 bytes for ./Frameworks/hermes.framework/hermes
+2026-07-10 09:58:56 +0000  copying file ./Frameworks/hermes.framework/Info.plist ... 
+859 bytes for ./Frameworks/hermes.framework/Info.plist
+2026-07-10 09:58:56 +0000  copying file ./embedded.mobileprovision ... 
+2026-07-10 09:58:56 +0000  12205 bytes for ./embedded.mobileprovision
+2026-07-10 09:58:56 +0000  copying file ./Info.plist ... 
+2026-07-10 09:58:56 +0000  1779 bytes for ./Info.plist
+2026-07-10 09:58:56 +0000  copying file ./Expo.plist ... 
+2026-07-10 09:58:56 +0000  132 bytes for ./Expo.plist
+2026-07-10 09:58:56 +0000  copying file ./PkgInfo ... 
+2026-07-10 09:58:56 +0000  8 bytes for ./PkgInfo
+2026-07-10 09:58:56 +0000  copying file ./React-Core_privacy.bundle/PrivacyInfo.xcprivacy ... 
+2026-07-10 09:58:56 +0000  768 bytes for ./React-Core_privacy.bundle/PrivacyInfo.xcprivacy
+2026-07-10 09:58:56 +0000  copying file ./React-Core_privacy.bundle/Info.plist ... 
+2026-07-10 09:58:56 +0000  785 bytes for ./React-Core_privacy.bundle/Info.plist
+2026-07-10 09:58:56 +0000 [MT] /usr/bin/ditto exited with 0
+2026-07-10 09:58:56 +0000 [MT] Processing step: IDEDistributionEmbedProfileStep
+2026-07-10 09:58:56 +0000 [MT] Skipping profile for item: <IDEDistributionItem: 0x8de0ceb20; bundleID='react-native.React', path='<DVTFilePath:0x8de0cc060:'/Users/vinikdhariwal/Downloads/SeeCog/ecomm-multi-vendor/vendor-app/build/vendorapp.xcarchive/Products/Applications/vendorapp.app/Frameworks/React.framework'>', codeSigningInfo='<_DVTCodeSigningInformation_Path: 0x8de0ceb80; isSigned='1', isAdHocSigned='0', signingCertificate='<DVTSigningCertificate: 0x8de0a49c0; name='Apple Development: Pankaj Agarwal (TSFN7YYH3Z)', hash='902A42362BEE1EAE31B6A57D93C2706F6E557BC6', serialNumber='3975D348D7CFB327ABCC2BB9D9322111', certificateKinds='(
+    "1.2.840.113635.100.6.1.12",
+    "1.2.840.113635.100.6.1.2"
+), issueDate='2026-07-08 05:05:01 +0000''>', entitlements='(null)', teamID='9M33DMS8S8', identifier='react-native.React', executablePath='<DVTFilePath:0x8de0cc300:'/Users/vinikdhariwal/Downloads/SeeCog/ecomm-multi-vendor/vendor-app/build/vendorapp.xcarchive/Products/Applications/vendorapp.app/Frameworks/React.framework/React'>', hardenedRuntime='0'>'>
+2026-07-10 09:58:56 +0000 [MT] Skipping profile for item: <IDEDistributionItem: 0x8de0cebe0; bundleID='third-party.ReactNativeDependencies', path='<DVTFilePath:0x8e0a5f080:'/Users/vinikdhariwal/Downloads/SeeCog/ecomm-multi-vendor/vendor-app/build/vendorapp.xcarchive/Products/Applications/vendorapp.app/Frameworks/ReactNativeDependencies.framework'>', codeSigningInfo='<_DVTCodeSigningInformation_Path: 0x8de0ce8e0; isSigned='1', isAdHocSigned='0', signingCertificate='<DVTSigningCertificate: 0x8de0a49c0; name='Apple Development: Pankaj Agarwal (TSFN7YYH3Z)', hash='902A42362BEE1EAE31B6A57D93C2706F6E557BC6', serialNumber='3975D348D7CFB327ABCC2BB9D9322111', certificateKinds='(
+    "1.2.840.113635.100.6.1.12",
+    "1.2.840.113635.100.6.1.2"
+), issueDate='2026-07-08 05:05:01 +0000''>', entitlements='(null)', teamID='9M33DMS8S8', identifier='third-party.ReactNativeDependencies', executablePath='<DVTFilePath:0x8e09f3100:'/Users/vinikdhariwal/Downloads/SeeCog/ecomm-multi-vendor/vendor-app/build/vendorapp.xcarchive/Products/Applications/vendorapp.app/Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies'>', hardenedRuntime='0'>'>
+2026-07-10 09:58:56 +0000 [MT] Skipping profile for item: <IDEDistributionItem: 0x8de0ce3a0; bundleID='dev.hermesengine.iphoneos', path='<DVTFilePath:0x8e09f3410:'/Users/vinikdhariwal/Downloads/SeeCog/ecomm-multi-vendor/vendor-app/build/vendorapp.xcarchive/Products/Applications/vendorapp.app/Frameworks/hermes.framework'>', codeSigningInfo='<_DVTCodeSigningInformation_Path: 0x8de0cdfe0; isSigned='1', isAdHocSigned='0', signingCertificate='<DVTSigningCertificate: 0x8de0a49c0; name='Apple Development: Pankaj Agarwal (TSFN7YYH3Z)', hash='902A42362BEE1EAE31B6A57D93C2706F6E557BC6', serialNumber='3975D348D7CFB327ABCC2BB9D9322111', certificateKinds='(
+    "1.2.840.113635.100.6.1.12",
+    "1.2.840.113635.100.6.1.2"
+), issueDate='2026-07-08 05:05:01 +0000''>', entitlements='(null)', teamID='9M33DMS8S8', identifier='dev.hermesengine.iphoneos', executablePath='<DVTFilePath:0x8de0cd080:'/Users/vinikdhariwal/Downloads/SeeCog/ecomm-multi-vendor/vendor-app/build/vendorapp.xcarchive/Products/Applications/vendorapp.app/Frameworks/hermes.framework/hermes'>', hardenedRuntime='0'>'>
+2026-07-10 09:58:56 +0000 [MT] Processing step: IDEDistributionInfoPlistStep
+2026-07-10 09:58:56 +0000 [MT] Skipping Info.plist step because item: <IDEDistributionItem: 0x8de0ceb20; bundleID='react-native.React', path='<DVTFilePath:0x8de0cc060:'/Users/vinikdhariwal/Downloads/SeeCog/ecomm-multi-vendor/vendor-app/build/vendorapp.xcarchive/Products/Applications/vendorapp.app/Frameworks/React.framework'>', codeSigningInfo='<_DVTCodeSigningInformation_Path: 0x8de0ceb80; isSigned='1', isAdHocSigned='0', signingCertificate='<DVTSigningCertificate: 0x8de0a49c0; name='Apple Development: Pankaj Agarwal (TSFN7YYH3Z)', hash='902A42362BEE1EAE31B6A57D93C2706F6E557BC6', serialNumber='3975D348D7CFB327ABCC2BB9D9322111', certificateKinds='(
+    "1.2.840.113635.100.6.1.12",
+    "1.2.840.113635.100.6.1.2"
+), issueDate='2026-07-08 05:05:01 +0000''>', entitlements='(null)', teamID='9M33DMS8S8', identifier='react-native.React', executablePath='<DVTFilePath:0x8de0cc300:'/Users/vinikdhariwal/Downloads/SeeCog/ecomm-multi-vendor/vendor-app/build/vendorapp.xcarchive/Products/Applications/vendorapp.app/Frameworks/React.framework/React'>', hardenedRuntime='0'>'> is a framework or embedded in a framework.
+2026-07-10 09:58:56 +0000 [MT] Skipping Info.plist step because item: <IDEDistributionItem: 0x8de0cebe0; bundleID='third-party.ReactNativeDependencies', path='<DVTFilePath:0x8e0a5f080:'/Users/vinikdhariwal/Downloads/SeeCog/ecomm-multi-vendor/vendor-app/build/vendorapp.xcarchive/Products/Applications/vendorapp.app/Frameworks/ReactNativeDependencies.framework'>', codeSigningInfo='<_DVTCodeSigningInformation_Path: 0x8de0ce8e0; isSigned='1', isAdHocSigned='0', signingCertificate='<DVTSigningCertificate: 0x8de0a49c0; name='Apple Development: Pankaj Agarwal (TSFN7YYH3Z)', hash='902A42362BEE1EAE31B6A57D93C2706F6E557BC6', serialNumber='3975D348D7CFB327ABCC2BB9D9322111', certificateKinds='(
+    "1.2.840.113635.100.6.1.12",
+    "1.2.840.113635.100.6.1.2"
+), issueDate='2026-07-08 05:05:01 +0000''>', entitlements='(null)', teamID='9M33DMS8S8', identifier='third-party.ReactNativeDependencies', executablePath='<DVTFilePath:0x8e09f3100:'/Users/vinikdhariwal/Downloads/SeeCog/ecomm-multi-vendor/vendor-app/build/vendorapp.xcarchive/Products/Applications/vendorapp.app/Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies'>', hardenedRuntime='0'>'> is a framework or embedded in a framework.
+2026-07-10 09:58:56 +0000 [MT] Skipping Info.plist step because item: <IDEDistributionItem: 0x8de0ce3a0; bundleID='dev.hermesengine.iphoneos', path='<DVTFilePath:0x8e09f3410:'/Users/vinikdhariwal/Downloads/SeeCog/ecomm-multi-vendor/vendor-app/build/vendorapp.xcarchive/Products/Applications/vendorapp.app/Frameworks/hermes.framework'>', codeSigningInfo='<_DVTCodeSigningInformation_Path: 0x8de0cdfe0; isSigned='1', isAdHocSigned='0', signingCertificate='<DVTSigningCertificate: 0x8de0a49c0; name='Apple Development: Pankaj Agarwal (TSFN7YYH3Z)', hash='902A42362BEE1EAE31B6A57D93C2706F6E557BC6', serialNumber='3975D348D7CFB327ABCC2BB9D9322111', certificateKinds='(
+    "1.2.840.113635.100.6.1.12",
+    "1.2.840.113635.100.6.1.2"
+), issueDate='2026-07-08 05:05:01 +0000''>', entitlements='(null)', teamID='9M33DMS8S8', identifier='dev.hermesengine.iphoneos', executablePath='<DVTFilePath:0x8de0cd080:'/Users/vinikdhariwal/Downloads/SeeCog/ecomm-multi-vendor/vendor-app/build/vendorapp.xcarchive/Products/Applications/vendorapp.app/Frameworks/hermes.framework/hermes'>', hardenedRuntime='0'>'> is a framework or embedded in a framework.
+2026-07-10 09:58:56 +0000 [MT] Skipping setting DTXcodeBuildDistribution because toolsBuildVersionName was nil.
+2026-07-10 09:58:56 +0000 [MT] Processing step: IDEDistributionItemRemovalStep
+2026-07-10 09:58:56 +0000 [MT] Processing step: IDEDistributionAppThinningPlistStep
+2026-07-10 09:58:56 +0000 [MT] Skipping step: IDEDistributionAppThinningPlistStep because it said so
+2026-07-10 09:58:56 +0000 [MT] Processing step: IDEDistributionSymbolsStep
+2026-07-10 09:58:56 +0000 [MT] Writing /var/folders/3h/gjkfnhqs1l99m_p89xzjjlj00000gn/T/XcodeDistPipeline.~~~m1JBZv/Symbols/860E23FF-C795-31A8-BC21-71E094ED2113.symbols
+2026-07-10 09:58:56 +0000 [MT] Upload Symbols Failed
+2026-07-10 09:58:56 +0000 [MT] Upload Symbols Failed
+2026-07-10 09:58:56 +0000 [MT] Upload Symbols Failed
+2026-07-10 09:58:56 +0000 [MT] Processing step: IDEDistributionCopyAppleProvidedContentStep
+2026-07-10 09:58:56 +0000 [MT] Processing step: IDEDistributionAppThinningStep
+2026-07-10 09:58:56 +0000 [MT] Skipping step: IDEDistributionAppThinningStep because it said so
+2026-07-10 09:58:56 +0000 [MT] Processing step: IDEDistributionArchThinningStep
+2026-07-10 09:58:56 +0000 [MT] Archs to thin for item /Users/vinikdhariwal/Downloads/SeeCog/ecomm-multi-vendor/vendor-app/build/vendorapp.xcarchive/Products/Applications/vendorapp.app/Frameworks/React.framework are []
+2026-07-10 09:58:56 +0000 [MT] Archs to thin for item /Users/vinikdhariwal/Downloads/SeeCog/ecomm-multi-vendor/vendor-app/build/vendorapp.xcarchive/Products/Applications/vendorapp.app/Frameworks/ReactNativeDependencies.framework are []
+2026-07-10 09:58:56 +0000 [MT] Archs to thin for item /Users/vinikdhariwal/Downloads/SeeCog/ecomm-multi-vendor/vendor-app/build/vendorapp.xcarchive/Products/Applications/vendorapp.app/Frameworks/hermes.framework are []
+2026-07-10 09:58:56 +0000 [MT] Archs to thin for item /Users/vinikdhariwal/Downloads/SeeCog/ecomm-multi-vendor/vendor-app/build/vendorapp.xcarchive/Products/Applications/vendorapp.app are []
+2026-07-10 09:58:56 +0000 [MT] Processing step: IDEDistributionODRStep
+2026-07-10 09:58:56 +0000 [MT] Processing step: IDEDistributionStripXattrsStep
+2026-07-10 09:58:56 +0000 [MT] Skipping stripping extended attributes because the codesign step will strip them.
+2026-07-10 09:58:56 +0000 [MT] Skipping stripping extended attributes because the codesign step will strip them.
+2026-07-10 09:58:56 +0000 [MT] Skipping stripping extended attributes because the codesign step will strip them.
+2026-07-10 09:58:56 +0000 [MT] Skipping stripping extended attributes because the codesign step will strip them.
+2026-07-10 09:58:56 +0000 [MT] Processing step: IDEDistributionCodesignStep
+2026-07-10 09:58:56 +0000 [MT] Entitlements for <IDEDistributionItem: 0x8de0ceb20; bundleID='react-native.React', path='<DVTFilePath:0x8de0cc060:'/Users/vinikdhariwal/Downloads/SeeCog/ecomm-multi-vendor/vendor-app/build/vendorapp.xcarchive/Products/Applications/vendorapp.app/Frameworks/React.framework'>', codeSigningInfo='<_DVTCodeSigningInformation_Path: 0x8de0ceb80; isSigned='1', isAdHocSigned='0', signingCertificate='<DVTSigningCertificate: 0x8de0a49c0; name='Apple Development: Pankaj Agarwal (TSFN7YYH3Z)', hash='902A42362BEE1EAE31B6A57D93C2706F6E557BC6', serialNumber='3975D348D7CFB327ABCC2BB9D9322111', certificateKinds='(
+    "1.2.840.113635.100.6.1.12",
+    "1.2.840.113635.100.6.1.2"
+), issueDate='2026-07-08 05:05:01 +0000''>', entitlements='(null)', teamID='9M33DMS8S8', identifier='react-native.React', executablePath='<DVTFilePath:0x8de0cc300:'/Users/vinikdhariwal/Downloads/SeeCog/ecomm-multi-vendor/vendor-app/build/vendorapp.xcarchive/Products/Applications/vendorapp.app/Frameworks/React.framework/React'>', hardenedRuntime='0'>'>: {
+}
+2026-07-10 09:58:56 +0000 [MT] Associated App Clip Identifiers Filter: Skipping because "com.apple.developer.associated-appclip-app-identifiers" is not present
+2026-07-10 09:58:56 +0000 [MT] Entitlements for <IDEDistributionItem: 0x8de0ceb20; bundleID='react-native.React', path='<DVTFilePath:0x8de0cc060:'/Users/vinikdhariwal/Downloads/SeeCog/ecomm-multi-vendor/vendor-app/build/vendorapp.xcarchive/Products/Applications/vendorapp.app/Frameworks/React.framework'>', codeSigningInfo='<_DVTCodeSigningInformation_Path: 0x8de0ceb80; isSigned='1', isAdHocSigned='0', signingCertificate='<DVTSigningCertificate: 0x8de0a4b40; name='Apple Development: Pankaj Agarwal (TSFN7YYH3Z)', hash='902A42362BEE1EAE31B6A57D93C2706F6E557BC6', serialNumber='3975D348D7CFB327ABCC2BB9D9322111', certificateKinds='(
+    "1.2.840.113635.100.6.1.12",
+    "1.2.840.113635.100.6.1.2"
+), issueDate='2026-07-08 05:05:01 +0000''>', entitlements='(null)', teamID='9M33DMS8S8', identifier='react-native.React', executablePath='<DVTFilePath:0x8de0cc300:'/Users/vinikdhariwal/Downloads/SeeCog/ecomm-multi-vendor/vendor-app/build/vendorapp.xcarchive/Products/Applications/vendorapp.app/Frameworks/React.framework/React'>', hardenedRuntime='0'>'> are: {
+}
+2026-07-10 09:58:56 +0000 [MT] Writing entitlements for <IDEDistributionItem: 0x8de0ceb20; bundleID='react-native.React', path='<DVTFilePath:0x8de0cc060:'/Users/vinikdhariwal/Downloads/SeeCog/ecomm-multi-vendor/vendor-app/build/vendorapp.xcarchive/Products/Applications/vendorapp.app/Frameworks/React.framework'>', codeSigningInfo='<_DVTCodeSigningInformation_Path: 0x8de0ceb80; isSigned='1', isAdHocSigned='0', signingCertificate='<DVTSigningCertificate: 0x8de0a4b40; name='Apple Development: Pankaj Agarwal (TSFN7YYH3Z)', hash='902A42362BEE1EAE31B6A57D93C2706F6E557BC6', serialNumber='3975D348D7CFB327ABCC2BB9D9322111', certificateKinds='(
+    "1.2.840.113635.100.6.1.12",
+    "1.2.840.113635.100.6.1.2"
+), issueDate='2026-07-08 05:05:01 +0000''>', entitlements='(null)', teamID='9M33DMS8S8', identifier='react-native.React', executablePath='<DVTFilePath:0x8de0cc300:'/Users/vinikdhariwal/Downloads/SeeCog/ecomm-multi-vendor/vendor-app/build/vendorapp.xcarchive/Products/Applications/vendorapp.app/Frameworks/React.framework/React'>', hardenedRuntime='0'>'> to: /var/folders/3h/gjkfnhqs1l99m_p89xzjjlj00000gn/T/XcodeDistPipeline.~~~m1JBZv/entitlements~~~ASI2Cf
+2026-07-10 09:58:56 +0000 [MT] invoking codesign: <NSConcreteTask: 0x8e0ebf930; launchPath='/usr/bin/codesign', arguments='(
+    "-f",
+    "-s",
+    EEFD9D7849932ECF1BF7D9A6ECAFD6FCDA1CC5AD,
+    "--entitlements",
+    "/var/folders/3h/gjkfnhqs1l99m_p89xzjjlj00000gn/T/XcodeDistPipeline.~~~m1JBZv/entitlements~~~ASI2Cf",
+    "--preserve-metadata=identifier,flags,runtime,launch-constraints,library-constraints",
+    "--generate-entitlement-der",
+    "--strip-disallowed-xattrs",
+    "-vvv",
+    "/var/folders/3h/gjkfnhqs1l99m_p89xzjjlj00000gn/T/XcodeDistPipeline.~~~m1JBZv/Root/Payload/vendorapp.app/Frameworks/React.framework"
+)'>
+2026-07-10 09:58:56 +0000 [MT] codesign output: /var/folders/3h/gjkfnhqs1l99m_p89xzjjlj00000gn/T/XcodeDistPipeline.~~~m1JBZv/Root/Payload/vendorapp.app/Frameworks/React.framework: replacing existing signature
+/var/folders/3h/gjkfnhqs1l99m_p89xzjjlj00000gn/T/XcodeDistPipeline.~~~m1JBZv/Root/Payload/vendorapp.app/Frameworks/React.framework: signed bundle with Mach-O thin (arm64) [react-native.React]
+2026-07-10 09:58:56 +0000 [MT] Entitlements for <IDEDistributionItem: 0x8de0cebe0; bundleID='third-party.ReactNativeDependencies', path='<DVTFilePath:0x8e0a5f080:'/Users/vinikdhariwal/Downloads/SeeCog/ecomm-multi-vendor/vendor-app/build/vendorapp.xcarchive/Products/Applications/vendorapp.app/Frameworks/ReactNativeDependencies.framework'>', codeSigningInfo='<_DVTCodeSigningInformation_Path: 0x8de0ce8e0; isSigned='1', isAdHocSigned='0', signingCertificate='<DVTSigningCertificate: 0x8de0a49c0; name='Apple Development: Pankaj Agarwal (TSFN7YYH3Z)', hash='902A42362BEE1EAE31B6A57D93C2706F6E557BC6', serialNumber='3975D348D7CFB327ABCC2BB9D9322111', certificateKinds='(
+    "1.2.840.113635.100.6.1.12",
+    "1.2.840.113635.100.6.1.2"
+), issueDate='2026-07-08 05:05:01 +0000''>', entitlements='(null)', teamID='9M33DMS8S8', identifier='third-party.ReactNativeDependencies', executablePath='<DVTFilePath:0x8e09f3100:'/Users/vinikdhariwal/Downloads/SeeCog/ecomm-multi-vendor/vendor-app/build/vendorapp.xcarchive/Products/Applications/vendorapp.app/Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies'>', hardenedRuntime='0'>'>: {
+}
+2026-07-10 09:58:56 +0000 [MT] Associated App Clip Identifiers Filter: Skipping because "com.apple.developer.associated-appclip-app-identifiers" is not present
+2026-07-10 09:58:56 +0000 [MT] Entitlements for <IDEDistributionItem: 0x8de0cebe0; bundleID='third-party.ReactNativeDependencies', path='<DVTFilePath:0x8e0a5f080:'/Users/vinikdhariwal/Downloads/SeeCog/ecomm-multi-vendor/vendor-app/build/vendorapp.xcarchive/Products/Applications/vendorapp.app/Frameworks/ReactNativeDependencies.framework'>', codeSigningInfo='<_DVTCodeSigningInformation_Path: 0x8de0ce8e0; isSigned='1', isAdHocSigned='0', signingCertificate='<DVTSigningCertificate: 0x8de0a4b40; name='Apple Development: Pankaj Agarwal (TSFN7YYH3Z)', hash='902A42362BEE1EAE31B6A57D93C2706F6E557BC6', serialNumber='3975D348D7CFB327ABCC2BB9D9322111', certificateKinds='(
+    "1.2.840.113635.100.6.1.12",
+    "1.2.840.113635.100.6.1.2"
+), issueDate='2026-07-08 05:05:01 +0000''>', entitlements='(null)', teamID='9M33DMS8S8', identifier='third-party.ReactNativeDependencies', executablePath='<DVTFilePath:0x8e09f3100:'/Users/vinikdhariwal/Downloads/SeeCog/ecomm-multi-vendor/vendor-app/build/vendorapp.xcarchive/Products/Applications/vendorapp.app/Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies'>', hardenedRuntime='0'>'> are: {
+}
+2026-07-10 09:58:56 +0000 [MT] Writing entitlements for <IDEDistributionItem: 0x8de0cebe0; bundleID='third-party.ReactNativeDependencies', path='<DVTFilePath:0x8e0a5f080:'/Users/vinikdhariwal/Downloads/SeeCog/ecomm-multi-vendor/vendor-app/build/vendorapp.xcarchive/Products/Applications/vendorapp.app/Frameworks/ReactNativeDependencies.framework'>', codeSigningInfo='<_DVTCodeSigningInformation_Path: 0x8de0ce8e0; isSigned='1', isAdHocSigned='0', signingCertificate='<DVTSigningCertificate: 0x8de0a4b40; name='Apple Development: Pankaj Agarwal (TSFN7YYH3Z)', hash='902A42362BEE1EAE31B6A57D93C2706F6E557BC6', serialNumber='3975D348D7CFB327ABCC2BB9D9322111', certificateKinds='(
+    "1.2.840.113635.100.6.1.12",
+    "1.2.840.113635.100.6.1.2"
+), issueDate='2026-07-08 05:05:01 +0000''>', entitlements='(null)', teamID='9M33DMS8S8', identifier='third-party.ReactNativeDependencies', executablePath='<DVTFilePath:0x8e09f3100:'/Users/vinikdhariwal/Downloads/SeeCog/ecomm-multi-vendor/vendor-app/build/vendorapp.xcarchive/Products/Applications/vendorapp.app/Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies'>', hardenedRuntime='0'>'> to: /var/folders/3h/gjkfnhqs1l99m_p89xzjjlj00000gn/T/XcodeDistPipeline.~~~m1JBZv/entitlements~~~YysQsa
+2026-07-10 09:58:56 +0000 [MT] invoking codesign: <NSConcreteTask: 0x8e0ebfa70; launchPath='/usr/bin/codesign', arguments='(
+    "-f",
+    "-s",
+    EEFD9D7849932ECF1BF7D9A6ECAFD6FCDA1CC5AD,
+    "--entitlements",
+    "/var/folders/3h/gjkfnhqs1l99m_p89xzjjlj00000gn/T/XcodeDistPipeline.~~~m1JBZv/entitlements~~~YysQsa",
+    "--preserve-metadata=identifier,flags,runtime,launch-constraints,library-constraints",
+    "--generate-entitlement-der",
+    "--strip-disallowed-xattrs",
+    "-vvv",
+    "/var/folders/3h/gjkfnhqs1l99m_p89xzjjlj00000gn/T/XcodeDistPipeline.~~~m1JBZv/Root/Payload/vendorapp.app/Frameworks/ReactNativeDependencies.framework"
+)'>
+2026-07-10 09:58:56 +0000 [MT] codesign output: /var/folders/3h/gjkfnhqs1l99m_p89xzjjlj00000gn/T/XcodeDistPipeline.~~~m1JBZv/Root/Payload/vendorapp.app/Frameworks/ReactNativeDependencies.framework: replacing existing signature
+/var/folders/3h/gjkfnhqs1l99m_p89xzjjlj00000gn/T/XcodeDistPipeline.~~~m1JBZv/Root/Payload/vendorapp.app/Frameworks/ReactNativeDependencies.framework: signed bundle with Mach-O thin (arm64) [third-party.ReactNativeDependencies]
+2026-07-10 09:58:56 +0000 [MT] Entitlements for <IDEDistributionItem: 0x8de0ce3a0; bundleID='dev.hermesengine.iphoneos', path='<DVTFilePath:0x8e09f3410:'/Users/vinikdhariwal/Downloads/SeeCog/ecomm-multi-vendor/vendor-app/build/vendorapp.xcarchive/Products/Applications/vendorapp.app/Frameworks/hermes.framework'>', codeSigningInfo='<_DVTCodeSigningInformation_Path: 0x8de0cdfe0; isSigned='1', isAdHocSigned='0', signingCertificate='<DVTSigningCertificate: 0x8de0a49c0; name='Apple Development: Pankaj Agarwal (TSFN7YYH3Z)', hash='902A42362BEE1EAE31B6A57D93C2706F6E557BC6', serialNumber='3975D348D7CFB327ABCC2BB9D9322111', certificateKinds='(
+    "1.2.840.113635.100.6.1.12",
+    "1.2.840.113635.100.6.1.2"
+), issueDate='2026-07-08 05:05:01 +0000''>', entitlements='(null)', teamID='9M33DMS8S8', identifier='dev.hermesengine.iphoneos', executablePath='<DVTFilePath:0x8de0cd080:'/Users/vinikdhariwal/Downloads/SeeCog/ecomm-multi-vendor/vendor-app/build/vendorapp.xcarchive/Products/Applications/vendorapp.app/Frameworks/hermes.framework/hermes'>', hardenedRuntime='0'>'>: {
+}
+2026-07-10 09:58:56 +0000 [MT] Associated App Clip Identifiers Filter: Skipping because "com.apple.developer.associated-appclip-app-identifiers" is not present
+2026-07-10 09:58:56 +0000 [MT] Entitlements for <IDEDistributionItem: 0x8de0ce3a0; bundleID='dev.hermesengine.iphoneos', path='<DVTFilePath:0x8e09f3410:'/Users/vinikdhariwal/Downloads/SeeCog/ecomm-multi-vendor/vendor-app/build/vendorapp.xcarchive/Products/Applications/vendorapp.app/Frameworks/hermes.framework'>', codeSigningInfo='<_DVTCodeSigningInformation_Path: 0x8de0cdfe0; isSigned='1', isAdHocSigned='0', signingCertificate='<DVTSigningCertificate: 0x8de0a4b40; name='Apple Development: Pankaj Agarwal (TSFN7YYH3Z)', hash='902A42362BEE1EAE31B6A57D93C2706F6E557BC6', serialNumber='3975D348D7CFB327ABCC2BB9D9322111', certificateKinds='(
+    "1.2.840.113635.100.6.1.12",
+    "1.2.840.113635.100.6.1.2"
+), issueDate='2026-07-08 05:05:01 +0000''>', entitlements='(null)', teamID='9M33DMS8S8', identifier='dev.hermesengine.iphoneos', executablePath='<DVTFilePath:0x8de0cd080:'/Users/vinikdhariwal/Downloads/SeeCog/ecomm-multi-vendor/vendor-app/build/vendorapp.xcarchive/Products/Applications/vendorapp.app/Frameworks/hermes.framework/hermes'>', hardenedRuntime='0'>'> are: {
+}
+2026-07-10 09:58:56 +0000 [MT] Writing entitlements for <IDEDistributionItem: 0x8de0ce3a0; bundleID='dev.hermesengine.iphoneos', path='<DVTFilePath:0x8e09f3410:'/Users/vinikdhariwal/Downloads/SeeCog/ecomm-multi-vendor/vendor-app/build/vendorapp.xcarchive/Products/Applications/vendorapp.app/Frameworks/hermes.framework'>', codeSigningInfo='<_DVTCodeSigningInformation_Path: 0x8de0cdfe0; isSigned='1', isAdHocSigned='0', signingCertificate='<DVTSigningCertificate: 0x8de0a4b40; name='Apple Development: Pankaj Agarwal (TSFN7YYH3Z)', hash='902A42362BEE1EAE31B6A57D93C2706F6E557BC6', serialNumber='3975D348D7CFB327ABCC2BB9D9322111', certificateKinds='(
+    "1.2.840.113635.100.6.1.12",
+    "1.2.840.113635.100.6.1.2"
+), issueDate='2026-07-08 05:05:01 +0000''>', entitlements='(null)', teamID='9M33DMS8S8', identifier='dev.hermesengine.iphoneos', executablePath='<DVTFilePath:0x8de0cd080:'/Users/vinikdhariwal/Downloads/SeeCog/ecomm-multi-vendor/vendor-app/build/vendorapp.xcarchive/Products/Applications/vendorapp.app/Frameworks/hermes.framework/hermes'>', hardenedRuntime='0'>'> to: /var/folders/3h/gjkfnhqs1l99m_p89xzjjlj00000gn/T/XcodeDistPipeline.~~~m1JBZv/entitlements~~~X09WFR
+2026-07-10 09:58:56 +0000 [MT] invoking codesign: <NSConcreteTask: 0x8e0ebfa70; launchPath='/usr/bin/codesign', arguments='(
+    "-f",
+    "-s",
+    EEFD9D7849932ECF1BF7D9A6ECAFD6FCDA1CC5AD,
+    "--entitlements",
+    "/var/folders/3h/gjkfnhqs1l99m_p89xzjjlj00000gn/T/XcodeDistPipeline.~~~m1JBZv/entitlements~~~X09WFR",
+    "--preserve-metadata=identifier,flags,runtime,launch-constraints,library-constraints",
+    "--generate-entitlement-der",
+    "--strip-disallowed-xattrs",
+    "-vvv",
+    "/var/folders/3h/gjkfnhqs1l99m_p89xzjjlj00000gn/T/XcodeDistPipeline.~~~m1JBZv/Root/Payload/vendorapp.app/Frameworks/hermes.framework"
+)'>
+2026-07-10 09:58:56 +0000 [MT] codesign output: /var/folders/3h/gjkfnhqs1l99m_p89xzjjlj00000gn/T/XcodeDistPipeline.~~~m1JBZv/Root/Payload/vendorapp.app/Frameworks/hermes.framework: replacing existing signature
+/var/folders/3h/gjkfnhqs1l99m_p89xzjjlj00000gn/T/XcodeDistPipeline.~~~m1JBZv/Root/Payload/vendorapp.app/Frameworks/hermes.framework: signed bundle with Mach-O thin (arm64) [dev.hermesengine.iphoneos]
+2026-07-10 09:58:56 +0000 [MT] Entitlements for <IDEDistributionItem: 0x8de0ceac0; bundleID='com.blablabla0978.vendorapp', path='<DVTFilePath:0x8debb1860:'/Users/vinikdhariwal/Downloads/SeeCog/ecomm-multi-vendor/vendor-app/build/vendorapp.xcarchive/Products/Applications/vendorapp.app'>', codeSigningInfo='<_DVTCodeSigningInformation_Path: 0x8de0cea60; isSigned='1', isAdHocSigned='0', signingCertificate='<DVTSigningCertificate: 0x8de0a49c0; name='Apple Development: Pankaj Agarwal (TSFN7YYH3Z)', hash='902A42362BEE1EAE31B6A57D93C2706F6E557BC6', serialNumber='3975D348D7CFB327ABCC2BB9D9322111', certificateKinds='(
+    "1.2.840.113635.100.6.1.12",
+    "1.2.840.113635.100.6.1.2"
+), issueDate='2026-07-08 05:05:01 +0000''>', entitlements='{
+    "application-identifier" = "9M33DMS8S8.com.blablabla0978.vendorapp";
+    "com.apple.developer.team-identifier" = 9M33DMS8S8;
+    "get-task-allow" = 1;
+}', teamID='9M33DMS8S8', identifier='com.blablabla0978.vendorapp', executablePath='<DVTFilePath:0x8debb34e0:'/Users/vinikdhariwal/Downloads/SeeCog/ecomm-multi-vendor/vendor-app/build/vendorapp.xcarchive/Products/Applications/vendorapp.app/vendorapp'>', hardenedRuntime='0'>'>: {
+    "application-identifier" = "9M33DMS8S8.com.blablabla0978.vendorapp";
+    "beta-reports-active" = 1;
+    "com.apple.developer.team-identifier" = 9M33DMS8S8;
+    "get-task-allow" = 0;
+}
+2026-07-10 09:58:56 +0000 [MT] Associated App Clip Identifiers Filter: Skipping because "com.apple.developer.associated-appclip-app-identifiers" is not present
+2026-07-10 09:58:56 +0000 [MT] Entitlements for <IDEDistributionItem: 0x8de0ceac0; bundleID='com.blablabla0978.vendorapp', path='<DVTFilePath:0x8debb1860:'/Users/vinikdhariwal/Downloads/SeeCog/ecomm-multi-vendor/vendor-app/build/vendorapp.xcarchive/Products/Applications/vendorapp.app'>', codeSigningInfo='<_DVTCodeSigningInformation_Path: 0x8de0cea60; isSigned='1', isAdHocSigned='0', signingCertificate='<DVTSigningCertificate: 0x8de0a4b40; name='Apple Development: Pankaj Agarwal (TSFN7YYH3Z)', hash='902A42362BEE1EAE31B6A57D93C2706F6E557BC6', serialNumber='3975D348D7CFB327ABCC2BB9D9322111', certificateKinds='(
+    "1.2.840.113635.100.6.1.12",
+    "1.2.840.113635.100.6.1.2"
+), issueDate='2026-07-08 05:05:01 +0000''>', entitlements='{
+    "application-identifier" = "9M33DMS8S8.com.blablabla0978.vendorapp";
+    "com.apple.developer.team-identifier" = 9M33DMS8S8;
+    "get-task-allow" = 1;
+}', teamID='9M33DMS8S8', identifier='com.blablabla0978.vendorapp', executablePath='<DVTFilePath:0x8debb34e0:'/Users/vinikdhariwal/Downloads/SeeCog/ecomm-multi-vendor/vendor-app/build/vendorapp.xcarchive/Products/Applications/vendorapp.app/vendorapp'>', hardenedRuntime='0'>'> are: {
+    "application-identifier" = "9M33DMS8S8.com.blablabla0978.vendorapp";
+    "beta-reports-active" = 1;
+    "com.apple.developer.team-identifier" = 9M33DMS8S8;
+    "get-task-allow" = 0;
+}
+2026-07-10 09:58:56 +0000 [MT] Writing entitlements for <IDEDistributionItem: 0x8de0ceac0; bundleID='com.blablabla0978.vendorapp', path='<DVTFilePath:0x8debb1860:'/Users/vinikdhariwal/Downloads/SeeCog/ecomm-multi-vendor/vendor-app/build/vendorapp.xcarchive/Products/Applications/vendorapp.app'>', codeSigningInfo='<_DVTCodeSigningInformation_Path: 0x8de0cea60; isSigned='1', isAdHocSigned='0', signingCertificate='<DVTSigningCertificate: 0x8de0a4b40; name='Apple Development: Pankaj Agarwal (TSFN7YYH3Z)', hash='902A42362BEE1EAE31B6A57D93C2706F6E557BC6', serialNumber='3975D348D7CFB327ABCC2BB9D9322111', certificateKinds='(
+    "1.2.840.113635.100.6.1.12",
+    "1.2.840.113635.100.6.1.2"
+), issueDate='2026-07-08 05:05:01 +0000''>', entitlements='{
+    "application-identifier" = "9M33DMS8S8.com.blablabla0978.vendorapp";
+    "com.apple.developer.team-identifier" = 9M33DMS8S8;
+    "get-task-allow" = 1;
+}', teamID='9M33DMS8S8', identifier='com.blablabla0978.vendorapp', executablePath='<DVTFilePath:0x8debb34e0:'/Users/vinikdhariwal/Downloads/SeeCog/ecomm-multi-vendor/vendor-app/build/vendorapp.xcarchive/Products/Applications/vendorapp.app/vendorapp'>', hardenedRuntime='0'>'> to: /var/folders/3h/gjkfnhqs1l99m_p89xzjjlj00000gn/T/XcodeDistPipeline.~~~m1JBZv/entitlements~~~OVKyQU
+2026-07-10 09:58:56 +0000 [MT] invoking codesign: <NSConcreteTask: 0x8e0ebfa70; launchPath='/usr/bin/codesign', arguments='(
+    "-f",
+    "-s",
+    EEFD9D7849932ECF1BF7D9A6ECAFD6FCDA1CC5AD,
+    "--entitlements",
+    "/var/folders/3h/gjkfnhqs1l99m_p89xzjjlj00000gn/T/XcodeDistPipeline.~~~m1JBZv/entitlements~~~OVKyQU",
+    "--preserve-metadata=identifier,flags,runtime,launch-constraints,library-constraints",
+    "--generate-entitlement-der",
+    "--strip-disallowed-xattrs",
+    "-vvv",
+    "/var/folders/3h/gjkfnhqs1l99m_p89xzjjlj00000gn/T/XcodeDistPipeline.~~~m1JBZv/Root/Payload/vendorapp.app"
+)'>
+2026-07-10 09:58:57 +0000 [MT] codesign output: /var/folders/3h/gjkfnhqs1l99m_p89xzjjlj00000gn/T/XcodeDistPipeline.~~~m1JBZv/Root/Payload/vendorapp.app: replacing existing signature
+/var/folders/3h/gjkfnhqs1l99m_p89xzjjlj00000gn/T/XcodeDistPipeline.~~~m1JBZv/Root/Payload/vendorapp.app: signed app bundle with Mach-O thin (arm64) [com.blablabla0978.vendorapp]
+2026-07-10 09:58:57 +0000 [MT] Processing step: IDEDistributionZipODRItemStep
+2026-07-10 09:58:57 +0000 [MT] Skipping step: IDEDistributionZipODRItemStep because it said so
+2026-07-10 09:58:57 +0000 [MT] Skipping step: IDEDistributionZipODRItemStep because it said so
+2026-07-10 09:58:57 +0000 [MT] Skipping step: IDEDistributionZipODRItemStep because it said so
+2026-07-10 09:58:57 +0000 [MT] Skipping step: IDEDistributionZipODRItemStep because it said so
+2026-07-10 09:58:57 +0000 [MT] Processing step: IDEDistributionCreateIPAStep
+2026-07-10 09:58:57 +0000 [MT] Running /usr/bin/rsync '-8aPhhE' '/var/folders/3h/gjkfnhqs1l99m_p89xzjjlj00000gn/T/XcodeDistPipeline.~~~m1JBZv/Symbols' '--link-dest' '/var/folders/3h/gjkfnhqs1l99m_p89xzjjlj00000gn/T/XcodeDistPipeline.~~~m1JBZv' '/var/folders/3h/gjkfnhqs1l99m_p89xzjjlj00000gn/T/XcodeDistPipeline.~~~m1JBZv/Root'
+2026-07-10 09:58:57 +0000  Symbols/
+._Symbols
+            163 170%    2.94MB/s   00:00:00 (xfer#1, to-check=0/4)
+2026-07-10 09:58:57 +0000  Symbols/860E23FF-C795-31A8-BC21-71E094ED2113.symbols
+Symbols/._860E23FF-C795-31A8-BC21-71E094ED2113.symbols
+            163   0%  284.83KB/s   00:00:00 (xfer#2, to-check=2/4)
+2026-07-10 09:58:57 +0000 [MT] /usr/bin/rsync exited with 0
+2026-07-10 09:58:57 +0000 [MT] Running /usr/bin/ditto '-V' '-c' '-k' '--norsrc' '/var/folders/3h/gjkfnhqs1l99m_p89xzjjlj00000gn/T/XcodeDistPipeline.~~~m1JBZv/Root' '/var/folders/3h/gjkfnhqs1l99m_p89xzjjlj00000gn/T/XcodeDistPipeline.~~~m1JBZv/Packages/vendorapp.ipa'
+2026-07-10 09:58:57 +0000  >>> Copying /var/folders/3h/gjkfnhqs1l99m_p89xzjjlj00000gn/T/XcodeDistPipeline.~~~m1JBZv/Root 
+2026-07-10 09:58:57 +0000  copying file ./Payload/vendorapp.app/_CodeSignature/CodeResources ... 
+2026-07-10 09:58:57 +0000  12895 bytes for ./Payload/vendorapp.app/_CodeSignature/CodeResources
+2026-07-10 09:58:57 +0000  copying file ./Payload/vendorapp.app/SplashScreen.storyboardc/EXPO-VIEWCONTROLLER-1-view-EXPO-ContainerView.nib ... 
+2026-07-10 09:58:57 +0000  2024 bytes for ./Payload/vendorapp.app/SplashScreen.storyboardc/EXPO-VIEWCONTROLLER-1-view-EXPO-ContainerView.nib
+2026-07-10 09:58:57 +0000  copying file ./Payload/vendorapp.app/SplashScreen.storyboardc/SplashScreenViewController.nib ... 
+2026-07-10 09:58:57 +0000  1004 bytes for ./Payload/vendorapp.app/SplashScreen.storyboardc/SplashScreenViewController.nib
+2026-07-10 09:58:57 +0000  copying file ./Payload/vendorapp.app/SplashScreen.storyboardc/Info.plist ... 
+2026-07-10 09:58:57 +0000  225 bytes for ./Payload/vendorapp.app/SplashScreen.storyboardc/Info.plist
+2026-07-10 09:58:57 +0000  copying file ./Payload/vendorapp.app/ExpoSystemUI_privacy.bundle/PrivacyInfo.xcprivacy ... 
+2026-07-10 09:58:57 +0000  607 bytes for ./Payload/vendorapp.app/ExpoSystemUI_privacy.bundle/PrivacyInfo.xcprivacy
+2026-07-10 09:58:57 +0000  copying file ./Payload/vendorapp.app/ExpoSystemUI_privacy.bundle/Info.plist ... 
+2026-07-10 09:58:57 +0000  788 bytes for ./Payload/vendorapp.app/ExpoSystemUI_privacy.bundle/Info.plist
+2026-07-10 09:58:57 +0000  copying file ./Payload/vendorapp.app/AppIcon60x60@2x.png ... 
+2026-07-10 09:58:57 +0000  15970 bytes for ./Payload/vendorapp.app/AppIcon60x60@2x.png
+2026-07-10 09:58:57 +0000  copying file ./Payload/vendorapp.app/ExpoConstants_privacy.bundle/PrivacyInfo.xcprivacy ... 
+2026-07-10 09:58:57 +0000  607 bytes for ./Payload/vendorapp.app/ExpoConstants_privacy.bundle/PrivacyInfo.xcprivacy
+2026-07-10 09:58:57 +0000  copying file ./Payload/vendorapp.app/ExpoConstants_privacy.bundle/Info.plist ... 
+2026-07-10 09:58:57 +0000  792 bytes for ./Payload/vendorapp.app/ExpoConstants_privacy.bundle/Info.plist
+2026-07-10 09:58:57 +0000  copying file ./Payload/vendorapp.app/vendorapp ... 
+2026-07-10 09:58:57 +0000  5815248 bytes for ./Payload/vendorapp.app/vendorapp
+2026-07-10 09:58:57 +0000  copying file ./Payload/vendorapp.app/React-cxxreact_privacy.bundle/PrivacyInfo.xcprivacy ... 
+2026-07-10 09:58:57 +0000  552 bytes for ./Payload/vendorapp.app/React-cxxreact_privacy.bundle/PrivacyInfo.xcprivacy
+2026-07-10 09:58:57 +0000  copying file ./Payload/vendorapp.app/React-cxxreact_privacy.bundle/Info.plist ... 
+2026-07-10 09:58:57 +0000  793 bytes for ./Payload/vendorapp.app/React-cxxreact_privacy.bundle/Info.plist
+2026-07-10 09:58:57 +0000  copying file ./Payload/vendorapp.app/Assets.car ... 
+2026-07-10 09:58:57 +0000  1322104 bytes for ./Payload/vendorapp.app/Assets.car
+2026-07-10 09:58:57 +0000  copying file ./Payload/vendorapp.app/AppIcon76x76@2x~ipad.png ... 
+2026-07-10 09:58:57 +0000  23229 bytes for ./Payload/vendorapp.app/AppIcon76x76@2x~ipad.png
+2026-07-10 09:58:57 +0000  copying file ./Payload/vendorapp.app/main.jsbundle ... 
+2026-07-10 09:58:57 +0000  1763658 bytes for ./Payload/vendorapp.app/main.jsbundle
+2026-07-10 09:58:57 +0000  copying file ./Payload/vendorapp.app/EXConstants.bundle/app.config ... 
+1111 bytes for ./Payload/vendorapp.app/EXConstants.bundle/app.config
+copying file ./Payload/vendorapp.app/EXConstants.bundle/Info.plist ... 
+770 bytes for ./Payload/vendorapp.app/EXConstants.bundle/Info.plist
+copying file ./Payload/vendorapp.app/SDWebImage.bundle/PrivacyInfo.xcprivacy ... 
+2026-07-10 09:58:57 +0000  599 bytes for ./Payload/vendorapp.app/SDWebImage.bundle/PrivacyInfo.xcprivacy
+copying file ./Payload/vendorapp.app/SDWebImage.bundle/Info.plist ... 
+2026-07-10 09:58:57 +0000  766 bytes for ./Payload/vendorapp.app/SDWebImage.bundle/Info.plist
+2026-07-10 09:58:57 +0000  copying file ./Payload/vendorapp.app/PrivacyInfo.xcprivacy ... 
+1283 bytes for ./Payload/vendorapp.app/PrivacyInfo.xcprivacy
+2026-07-10 09:58:57 +0000  copying file ./Payload/vendorapp.app/ExpoFileSystem_privacy.bundle/PrivacyInfo.xcprivacy ... 
+2026-07-10 09:58:57 +0000  877 bytes for ./Payload/vendorapp.app/ExpoFileSystem_privacy.bundle/PrivacyInfo.xcprivacy
+2026-07-10 09:58:57 +0000  copying file ./Payload/vendorapp.app/ExpoFileSystem_privacy.bundle/Info.plist ... 
+794 bytes for ./Payload/vendorapp.app/ExpoFileSystem_privacy.bundle/Info.plist
+2026-07-10 09:58:57 +0000  copying file ./Payload/vendorapp.app/Frameworks/React.framework/_CodeSignature/CodeResources ... 
+2026-07-10 09:58:57 +0000  1798 bytes for ./Payload/vendorapp.app/Frameworks/React.framework/_CodeSignature/CodeResources
+2026-07-10 09:58:57 +0000  copying file ./Payload/vendorapp.app/Frameworks/React.framework/React ... 
+2026-07-10 09:58:57 +0000  11306560 bytes for ./Payload/vendorapp.app/Frameworks/React.framework/React
+2026-07-10 09:58:57 +0000  copying file ./Payload/vendorapp.app/Frameworks/React.framework/Info.plist ... 
+749 bytes for ./Payload/vendorapp.app/Frameworks/React.framework/Info.plist
+copying file ./Payload/vendorapp.app/Frameworks/ReactNativeDependencies.framework/_CodeSignature/CodeResources ... 
+3548 bytes for ./Payload/vendorapp.app/Frameworks/ReactNativeDependencies.framework/_CodeSignature/CodeResources
+copying file ./Payload/vendorapp.app/Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/PrivacyInfo.xcprivacy ... 
+2026-07-10 09:58:57 +0000  552 bytes for ./Payload/vendorapp.app/Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/PrivacyInfo.xcprivacy
+copying file ./Payload/vendorapp.app/Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/Info.plist ... 
+690 bytes for ./Payload/vendorapp.app/Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/Info.plist
+2026-07-10 09:58:57 +0000  copying file ./Payload/vendorapp.app/Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies ... 
+2026-07-10 09:58:57 +0000  1279888 bytes for ./Payload/vendorapp.app/Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies
+2026-07-10 09:58:57 +0000  copying file ./Payload/vendorapp.app/Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/PrivacyInfo.xcprivacy ... 
+2026-07-10 09:58:57 +0000  552 bytes for ./Payload/vendorapp.app/Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/PrivacyInfo.xcprivacy
+2026-07-10 09:58:57 +0000  copying file ./Payload/vendorapp.app/Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/Info.plist ... 
+688 bytes for ./Payload/vendorapp.app/Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/Info.plist
+2026-07-10 09:58:57 +0000  copying file ./Payload/vendorapp.app/Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/PrivacyInfo.xcprivacy ... 
+2026-07-10 09:58:57 +0000  776 bytes for ./Payload/vendorapp.app/Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/PrivacyInfo.xcprivacy
+copying file ./Payload/vendorapp.app/Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/Info.plist ... 
+2026-07-10 09:58:57 +0000  690 bytes for ./Payload/vendorapp.app/Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/Info.plist
+2026-07-10 09:58:57 +0000  copying file ./Payload/vendorapp.app/Frameworks/ReactNativeDependencies.framework/Info.plist ... 
+2026-07-10 09:58:57 +0000  782 bytes for ./Payload/vendorapp.app/Frameworks/ReactNativeDependencies.framework/Info.plist
+2026-07-10 09:58:57 +0000  copying file ./Payload/vendorapp.app/Frameworks/hermes.framework/_CodeSignature/CodeResources ... 
+2026-07-10 09:58:57 +0000  1798 bytes for ./Payload/vendorapp.app/Frameworks/hermes.framework/_CodeSignature/CodeResources
+2026-07-10 09:58:57 +0000  copying file ./Payload/vendorapp.app/Frameworks/hermes.framework/hermes ... 
+2026-07-10 09:58:57 +0000  4728064 bytes for ./Payload/vendorapp.app/Frameworks/hermes.framework/hermes
+2026-07-10 09:58:57 +0000  copying file ./Payload/vendorapp.app/Frameworks/hermes.framework/Info.plist ... 
+859 bytes for ./Payload/vendorapp.app/Frameworks/hermes.framework/Info.plist
+copying file ./Payload/vendorapp.app/embedded.mobileprovision ... 
+2026-07-10 09:58:57 +0000  18408 bytes for ./Payload/vendorapp.app/embedded.mobileprovision
+2026-07-10 09:58:57 +0000  copying file ./Payload/vendorapp.app/Info.plist ... 
+2026-07-10 09:58:57 +0000  1779 bytes for ./Payload/vendorapp.app/Info.plist
+2026-07-10 09:58:57 +0000  copying file ./Payload/vendorapp.app/Expo.plist ... 
+132 bytes for ./Payload/vendorapp.app/Expo.plist
+2026-07-10 09:58:57 +0000  copying file ./Payload/vendorapp.app/PkgInfo ... 
+8 bytes for ./Payload/vendorapp.app/PkgInfo
+2026-07-10 09:58:57 +0000  copying file ./Payload/vendorapp.app/React-Core_privacy.bundle/PrivacyInfo.xcprivacy ... 
+2026-07-10 09:58:57 +0000  768 bytes for ./Payload/vendorapp.app/React-Core_privacy.bundle/PrivacyInfo.xcprivacy
+copying file ./Payload/vendorapp.app/React-Core_privacy.bundle/Info.plist ... 
+2026-07-10 09:58:57 +0000  785 bytes for ./Payload/vendorapp.app/React-Core_privacy.bundle/Info.plist
+2026-07-10 09:58:57 +0000  copying file ./Symbols/860E23FF-C795-31A8-BC21-71E094ED2113.symbols ... 
+2026-07-10 09:58:58 +0000  19948412 bytes for ./Symbols/860E23FF-C795-31A8-BC21-71E094ED2113.symbols
+2026-07-10 09:58:58 +0000 [MT] /usr/bin/ditto exited with 0
+2026-07-10 09:58:58 +0000 [MT] Processing step: IDEDistributionAppStoreInformationStep
+2026-07-10 09:58:58 +0000 [MT] Skipping step: IDEDistributionAppStoreInformationStep because it said so
+2026-07-10 09:58:58 +0000 [MT] Processing step: IDEDistributionGenerateProcessedDistributionItems
+2026-07-10 09:58:58 +0000 [MT] IDEDistributionItem init <DVTFilePath:0x8de3a0000:'/var/folders/3h/gjkfnhqs1l99m_p89xzjjlj00000gn/T/XcodeDistPipeline.~~~m1JBZv/Root/Payload/vendorapp.app/Frameworks/React.framework'>
+2026-07-10 09:58:58 +0000 [MT] IDEDistributionItem init <DVTFilePath:0x8e0f3d3b0:'/var/folders/3h/gjkfnhqs1l99m_p89xzjjlj00000gn/T/XcodeDistPipeline.~~~m1JBZv/Root/Payload/vendorapp.app/Frameworks/hermes.framework'>
+2026-07-10 09:58:58 +0000 [MT] IDEDistributionItem init <DVTFilePath:0x8e141f880:'/var/folders/3h/gjkfnhqs1l99m_p89xzjjlj00000gn/T/XcodeDistPipeline.~~~m1JBZv/Root/Payload/vendorapp.app/Frameworks/ReactNativeDependencies.framework'>
+2026-07-10 09:58:58 +0000 [MT] IDEDistributionItem init <DVTFilePath:0x8de3a0780:'/var/folders/3h/gjkfnhqs1l99m_p89xzjjlj00000gn/T/XcodeDistPipeline.~~~m1JBZv/Root/Payload/vendorapp.app'>
+2026-07-10 09:58:58 +0000 [MT] Processing step: IDEDistributionCreateManifestStep
+2026-07-10 09:58:58 +0000 [MT] Skipping step: IDEDistributionCreateManifestStep because it said so
