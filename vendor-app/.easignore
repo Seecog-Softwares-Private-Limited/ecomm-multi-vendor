@@ -1,0 +1,4 @@
+# Local build outputs (not needed for EAS cloud builds)
+/build/
+/android/
+/ios/
