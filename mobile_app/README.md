@@ -1,6 +1,8 @@
-# indovyapar_customer
+# Indo Vyapar Customer App
 
-Indovyapar customer shopping app
+Flutter native app for **customers** shopping on Indo Vyapar (`com.indovyapar.indovyapar_customer`).
+
+> **Vendor app:** see [`../indo-vyapar-app/`](../indo-vyapar-app/) (Expo WebView shell, `com.seecog.indovyapar`).
 
 ## Getting Started
 
