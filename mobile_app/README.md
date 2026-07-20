@@ -2,7 +2,7 @@
 
 Flutter native app for **customers** shopping on Indo Vyapar (`com.indovyapar.indovyapar_customer`).
 
-> **Vendor app:** see [`../indo-vyapar-app/`](../indo-vyapar-app/) (Expo WebView shell, `com.seecog.indovyapar`).
+> **Vendor app:** see [`../vendor-app/`](../vendor-app/) (Expo, `com.blablabla0978.vendorapp`).
 
 ## Getting Started
 
