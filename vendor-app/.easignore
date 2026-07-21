@@ -1,4 +1,38 @@
-# Local build outputs (not needed for EAS cloud builds)
-/build/
-/android/
-/ios/
+# Dependencies — EAS runs npm ci on the server
+node_modules/
+node_modules
+
+# Local / cloud build outputs (not needed in upload)
+build/
+build
+**/build/**
+
+# Generated native projects — EAS prebuilds these
+android/
+ios/
+android
+ios
+
+# Expo artifacts
+.expo/
+dist/
+web-build/
+
+# Large mobile binaries & archives
+*.apk
+*.ipa
+*.aab
+*.xcarchive
+*.zip
+
+# Logs & OS junk
+*.log
+.DS_Store
+Thumbs.db
+
+# Unused Expo Router scaffold (app uses App.js entry)
+app/(tabs)/
+app-example/
+
+# Git metadata
+.git/

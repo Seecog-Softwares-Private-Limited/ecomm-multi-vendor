@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Link } from "../../components/Link";
 import { Mail, Lock, ArrowRight, Eye, EyeOff, Store, Package, TrendingUp } from "lucide-react";
@@ -22,6 +22,28 @@ export function VendorLoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/vendor/me", { credentials: "include" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json) => {
+        if (cancelled) return;
+        if (json?.success && json.data) {
+          router.replace(callbackUrl);
+        }
+      })
+      .catch(() => {
+        /* stay on login */
+      })
+      .finally(() => {
+        if (!cancelled) setCheckingSession(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [callbackUrl, router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -37,6 +59,14 @@ export function VendorLoginPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  if (checkingSession) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#F9FAFB]">
+        <div className="h-10 w-10 animate-spin rounded-full border-2 border-[#FF6A00] border-t-transparent" />
+      </div>
+    );
   }
 
   return (
