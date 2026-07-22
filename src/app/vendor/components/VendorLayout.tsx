@@ -252,25 +252,32 @@ export function VendorLayout({
       ) : null}
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 w-[min(16rem,100vw-2rem)] max-w-[16rem] border-r border-[#E2E8F0] bg-white shadow-xl transition-transform duration-200 ease-out lg:static lg:z-auto lg:w-64 lg:max-w-none lg:translate-x-0 lg:shadow-none ${
+        className={`fixed inset-y-0 left-0 z-40 flex w-[min(16rem,100vw-2rem)] max-w-[16rem] flex-col border-r border-[#E2E8F0] bg-white shadow-xl transition-transform duration-200 ease-out lg:static lg:z-auto lg:w-64 lg:max-w-none lg:translate-x-0 lg:shadow-none ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         }`}
       >
-        {/* Logo */}
-        <div className="h-16 flex items-center justify-between px-6 border-b border-[#E2E8F0]">
-          <Link href="/vendor" className="text-xl font-bold text-[#1E293B]">
-            Indovypar
-          </Link>
-          <button
-            onClick={() => setSidebarOpen(false)}
-            className="lg:hidden text-[#64748B] hover:text-[#1E293B]"
-          >
-            <X className="w-6 h-6" />
-          </button>
+        {/* Logo + mobile business name */}
+        <div className="shrink-0 border-b border-[#E2E8F0]">
+          <div className="flex h-16 items-center justify-between px-6">
+            <Link href="/vendor" className="text-xl font-bold text-[#1E293B]">
+              Indovypar
+            </Link>
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="lg:hidden text-[#64748B] hover:text-[#1E293B]"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+          {businessName ? (
+            <p className="truncate px-6 pb-3 text-sm font-semibold text-[#475569] lg:hidden">
+              {businessName}
+            </p>
+          ) : null}
         </div>
 
         {/* Navigation */}
-        <nav className="p-4 space-y-1 overflow-y-auto h-[calc(100vh-4rem)]">
+        <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto p-4">
           {navigation.map((item) => (
             <VendorSidebarItem
               key={item.name}
@@ -297,11 +304,12 @@ export function VendorLayout({
             >
               <Menu className="h-6 w-6" />
             </button>
-            <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
-              <h2 className="min-w-0 flex-1 break-words text-base font-bold leading-snug text-[#1E293B] sm:text-lg sm:leading-normal lg:truncate">
+            {/* Business name: desktop header only — mobile shows it in the drawer to avoid cramped wrapping in WebView */}
+            <div className="flex min-w-0 flex-1 items-center justify-center lg:justify-start">
+              <h2 className="hidden min-w-0 max-w-[min(100%,20rem)] truncate text-lg font-bold text-[#1E293B] lg:block">
                 {businessName ?? "Vendor"}
               </h2>
-              <span className="shrink-0 scale-90 sm:scale-100">{getStatusBadge()}</span>
+              <span className="shrink-0 scale-90 sm:scale-100 lg:ml-3">{getStatusBadge()}</span>
             </div>
           </div>
 

@@ -2,14 +2,12 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   BackHandler,
+  Linking,
   Platform,
-  RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
-  useWindowDimensions,
 } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import { WebView } from 'react-native-webview';
@@ -17,16 +15,13 @@ import { StatusBar } from 'expo-status-bar';
 import {
   SafeAreaProvider,
   SafeAreaView,
-  useSafeAreaInsets,
 } from 'react-native-safe-area-context';
 
 /**
- * Vendor flow: requesting `/vendor` redirects to `/vendor/login?callbackUrl=/vendor`.
- * Load vendor login explicitly so navigation targets the seller auth route.
- * Swap the host with https://yourdomain.com when you use your domain.
+ * Vendor home — middleware sends unauthenticated users to /vendor/login;
+ * keeps returning vendors on the dashboard when the session cookie is still valid.
  */
-const VENDOR_DASHBOARD_URI =
-  'https://indovyapar.com/vendor/login?callbackUrl=%2Fvendor';
+const VENDOR_DASHBOARD_URI = 'https://indovyapar.com/vendor';
 
 /**
  * Desktop Chrome UA — avoids some sites routing in-app browsers to consumer flows.
@@ -37,13 +32,8 @@ const WEBVIEW_USER_AGENT =
 
 function VendorScreen() {
   const webRef = useRef(null);
-  const { width, height: windowHeight } = useWindowDimensions();
-  const insets = useSafeAreaInsets();
-
-  const viewportHeight = windowHeight - insets.top - insets.bottom;
 
   const [canGoBack, setCanGoBack] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
   const [splash, setSplash] = useState(true);
   const [errorKey, setErrorKey] = useState(0);
 
@@ -108,26 +98,6 @@ function VendorScreen() {
     return () => unsubscribe();
   }, []);
 
-  const onPullToRefresh = useCallback(() => {
-    if (isOffline) {
-      NetInfo.fetch().then((state) => {
-        const offline =
-          state.isConnected === false ||
-          state.isInternetReachable === false;
-        if (offline) {
-          setLoadErrorMessage('No internet connection.');
-        } else {
-          setIsOffline(false);
-          setRefreshing(true);
-          webRef.current?.reload();
-        }
-      });
-      return;
-    }
-    setRefreshing(true);
-    webRef.current?.reload();
-  }, [isOffline]);
-
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       if (canGoBack && webRef.current) {
@@ -150,7 +120,6 @@ function VendorScreen() {
 
   const onLoadEnd = useCallback(() => {
     setSplash(false);
-    setRefreshing(false);
     if (
       !httpRejectedRef.current &&
       !webViewFailedRef.current &&
@@ -166,7 +135,6 @@ function VendorScreen() {
     webViewFailedRef.current = true;
     const desc = syn?.nativeEvent?.description ?? 'Could not load the page.';
     setSplash(false);
-    setRefreshing(false);
     setLoadErrorMessage(desc);
   }, []);
 
@@ -175,15 +143,27 @@ function VendorScreen() {
     if (code != null && code >= 400) {
       httpRejectedRef.current = true;
       setSplash(false);
-      setRefreshing(false);
       setLoadErrorMessage(`Unable to load (HTTP ${code}).`);
     }
   }, []);
 
-  const webStyles =
-    Platform.OS === 'android'
-      ? [{ width }, { height: Math.max(viewportHeight, 1) }]
-      : [styles.flexWeb];
+  const onWebViewMessage = useCallback((event) => {
+    try {
+      const msg = JSON.parse(event.nativeEvent.data);
+      if (
+        msg?.type === 'custom' &&
+        msg?.name === 'OPEN_EXTERNAL_BROWSER' &&
+        typeof msg.payload === 'string' &&
+        msg.payload.startsWith('http')
+      ) {
+        Linking.openURL(msg.payload).catch(() => {
+          setLoadErrorMessage('Could not open the sign-in browser.');
+        });
+      }
+    } catch {
+      /* ignore non-JSON bridge messages */
+    }
+  }, []);
 
   // react-native-webview has no web implementation. Rather than embed the site
   // in an iframe (which breaks auth via third-party cookie blocking), web does a
@@ -198,7 +178,7 @@ function VendorScreen() {
       key={`vendor-${errorKey}`}
       ref={webRef}
       source={{ uri: VENDOR_DASHBOARD_URI }}
-      style={webStyles}
+      style={styles.flexWeb}
       javaScriptEnabled
       domStorageEnabled
       cacheEnabled
@@ -208,22 +188,24 @@ function VendorScreen() {
       allowsInlineMediaPlayback
       thirdPartyCookiesEnabled
       mixedContentMode="compatibility"
-      nestedScrollEnabled
+      incognito={false}
       userAgent={WEBVIEW_USER_AGENT}
       originWhitelist={['*']}
+      bounces={false}
       onNavigationStateChange={onNavigationStateChange}
       onLoadStart={onLoadStart}
       onLoadEnd={onLoadEnd}
       onError={onError}
       onHttpError={onHttpError}
+      onMessage={onWebViewMessage}
       {...Platform.select({
         ios: {
-          pullToRefreshEnabled: true,
+          pullToRefreshEnabled: false,
           automaticallyAdjustContentInsets: true,
         },
         android: {
-          domStorageEnabled: true,
-          javaScriptEnabled: true,
+          overScrollMode: 'never',
+          nestedScrollEnabled: true,
         },
       })}
     />
@@ -231,27 +213,7 @@ function VendorScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'right', 'bottom', 'left']}>
-      {Platform.OS === 'android' ? (
-        <ScrollView
-          style={styles.flex}
-          contentContainerStyle={styles.scrollContent}
-          nestedScrollEnabled
-          keyboardShouldPersistTaps="handled"
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onPullToRefresh}
-              tintColor="#1a73e8"
-              colors={['#1a73e8']}
-              enabled={!splash}
-            />
-          }
-        >
-          {webViewEl}
-        </ScrollView>
-      ) : (
-        webViewEl
-      )}
+      {webViewEl}
 
       {splash && !loadErrorMessage ? (
         <View style={styles.overlay} pointerEvents="none">
@@ -286,9 +248,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#ffffff',
   },
-  flex: {
-    flex: 1,
-  },
   flexWeb: {
     flex: 1,
   },
@@ -296,9 +255,6 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontSize: 15,
     color: '#444',
-  },
-  scrollContent: {
-    flexGrow: 1,
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,

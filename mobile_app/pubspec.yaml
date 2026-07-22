@@ -2,7 +2,12 @@ name: indovyapar_customer
 description: "Indovyapar customer shopping app"
 publish_to: 'none'
 
-version: 1.0.0+1
+# Play Store version — SINGLE SOURCE OF TRUTH for Android & iOS.
+# Format: versionName+versionCode  (e.g. 1.0.3+7 → name 1.0.3, code 7)
+# Android reads these via flutter.versionName / flutter.versionCode in build.gradle.kts.
+# iOS reads FLUTTER_BUILD_NAME / FLUTTER_BUILD_NUMBER from Info.plist.
+# Increment versionCode on EVERY Play upload (must be higher than the live Play Store release).
+version: 1.0.3+7
 
 environment:
   sdk: ^3.12.2
