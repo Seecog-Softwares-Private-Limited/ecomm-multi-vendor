@@ -1,4 +1,4 @@
-package com.indovyapar.indovyapar_customer
+package com.seecogg.indovyapar
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -13,6 +13,8 @@ import type { NextRequest } from "next/server";
 
 export type OAuthProvider = "google" | "facebook";
 
+export type OAuthFlow = "customer" | "vendor";
+
 /** Meta App ID — supports FACEBOOK_APP_ID or FACEBOOK_CLIENT_ID. */
 export function getFacebookAppId(): string {
   return (
@@ -103,9 +105,14 @@ export function resolveOAuthBaseUrlFromRequest(request: NextRequest): string {
   return requestOrigin;
 }
 
-export function oauthRedirectUri(provider: OAuthProvider, baseUrl?: string): string {
+export function oauthRedirectUri(
+  provider: OAuthProvider,
+  baseUrl?: string,
+  flow: OAuthFlow = "customer"
+): string {
   const origin = (baseUrl?.trim() || appUrl()).replace(/\/$/, "");
-  return `${origin}/api/auth/oauth/${provider}/callback`;
+  const prefix = flow === "vendor" ? "/api/auth/vendor-oauth" : "/api/auth/oauth";
+  return `${origin}${prefix}/${provider}/callback`;
 }
 
 export function isOAuthClientConfigured(provider: OAuthProvider): boolean {
@@ -123,6 +130,7 @@ export function isOAuthClientConfigured(provider: OAuthProvider): boolean {
 // ─── State cookie (CSRF protection) ──────────────────────────────────────────
 
 export const OAUTH_STATE_COOKIE = "oauth_state";
+export const VENDOR_OAUTH_STATE_COOKIE = "vendor_oauth_state";
 
 export interface OAuthState {
   state: string;
@@ -153,10 +161,14 @@ export function decodeOAuthState(raw: string): OAuthState | null {
 
 // ─── Google ───────────────────────────────────────────────────────────────────
 
-export function googleAuthUrl(stateStr: string, baseUrl?: string): string {
+export function googleAuthUrl(
+  stateStr: string,
+  baseUrl?: string,
+  flow: OAuthFlow = "customer"
+): string {
   const params = new URLSearchParams({
     client_id: process.env.GOOGLE_CLIENT_ID ?? "",
-    redirect_uri: oauthRedirectUri("google", baseUrl),
+    redirect_uri: oauthRedirectUri("google", baseUrl, flow),
     response_type: "code",
     scope: "openid email profile",
     state: stateStr,
@@ -166,7 +178,11 @@ export function googleAuthUrl(stateStr: string, baseUrl?: string): string {
   return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
 }
 
-export async function exchangeGoogleCode(code: string, baseUrl?: string): Promise<OAuthUserInfo> {
+export async function exchangeGoogleCode(
+  code: string,
+  baseUrl?: string,
+  flow: OAuthFlow = "customer"
+): Promise<OAuthUserInfo> {
   const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -174,7 +190,7 @@ export async function exchangeGoogleCode(code: string, baseUrl?: string): Promis
       code,
       client_id: process.env.GOOGLE_CLIENT_ID ?? "",
       client_secret: process.env.GOOGLE_CLIENT_SECRET ?? "",
-      redirect_uri: oauthRedirectUri("google", baseUrl),
+      redirect_uri: oauthRedirectUri("google", baseUrl, flow),
       grant_type: "authorization_code",
     }).toString(),
   });
@@ -276,9 +292,10 @@ export async function exchangeFacebookCode(code: string, baseUrl?: string): Prom
 export function buildOAuthAuthUrl(
   provider: OAuthProvider,
   stateStr: string,
-  baseUrl?: string
+  baseUrl?: string,
+  flow: OAuthFlow = "customer"
 ): string {
-  if (provider === "google") return googleAuthUrl(stateStr, baseUrl);
+  if (provider === "google") return googleAuthUrl(stateStr, baseUrl, flow);
   if (provider === "facebook") return facebookAuthUrl(stateStr, baseUrl);
   throw new Error(`Unsupported provider: ${provider}`);
 }
@@ -286,9 +303,10 @@ export function buildOAuthAuthUrl(
 export async function exchangeOAuthCode(
   provider: OAuthProvider,
   code: string,
-  baseUrl?: string
+  baseUrl?: string,
+  flow: OAuthFlow = "customer"
 ): Promise<OAuthUserInfo> {
-  if (provider === "google") return exchangeGoogleCode(code, baseUrl);
+  if (provider === "google") return exchangeGoogleCode(code, baseUrl, flow);
   if (provider === "facebook") return exchangeFacebookCode(code, baseUrl);
   throw new Error(`Unsupported provider: ${provider}`);
 }

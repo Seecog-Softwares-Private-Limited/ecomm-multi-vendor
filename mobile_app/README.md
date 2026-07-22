@@ -1,19 +1,18 @@
 # Indo Vyapar Customer App
 
-Flutter native app for **customers** shopping on Indo Vyapar (`com.indovyapar.indovyapar_customer`).
+Flutter native app for **customers** shopping on Indo Vyapar (`com.seecogg.indovyapar`).
 
-> **Vendor app:** see [`../vendor-app/`](../vendor-app/) (Expo, `com.blablabla0978.vendorapp`).
+> **Vendor app:** see [`../vendor-app/`](../vendor-app/) (Expo, `com.seecog.indovyapar`).
 
-## Getting Started
+## Play Store release
 
-This project is a starting point for a Flutter application.
+See **[PLAYSTORE-UPLOAD.md](./PLAYSTORE-UPLOAD.md)** for upload steps and the AAB output path.
 
-A few resources to get you started if this is your first Flutter project:
+Build a signed AAB locally:
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+```powershell
+cd mobile_app
+flutter build appbundle --release --dart-define=APP_FLAVOR=prod
+```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Signing uses `android/key.properties` + `android/app/upload-keystore.jks` (both gitignored — back them up).

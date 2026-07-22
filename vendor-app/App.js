@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   BackHandler,
+  Linking,
   Platform,
   StyleSheet,
   Text,
@@ -146,6 +147,24 @@ function VendorScreen() {
     }
   }, []);
 
+  const onWebViewMessage = useCallback((event) => {
+    try {
+      const msg = JSON.parse(event.nativeEvent.data);
+      if (
+        msg?.type === 'custom' &&
+        msg?.name === 'OPEN_EXTERNAL_BROWSER' &&
+        typeof msg.payload === 'string' &&
+        msg.payload.startsWith('http')
+      ) {
+        Linking.openURL(msg.payload).catch(() => {
+          setLoadErrorMessage('Could not open the sign-in browser.');
+        });
+      }
+    } catch {
+      /* ignore non-JSON bridge messages */
+    }
+  }, []);
+
   // react-native-webview has no web implementation. Rather than embed the site
   // in an iframe (which breaks auth via third-party cookie blocking), web does a
   // top-level redirect (see effect above) and shows a brief loading screen here.
@@ -178,6 +197,7 @@ function VendorScreen() {
       onLoadEnd={onLoadEnd}
       onError={onError}
       onHttpError={onHttpError}
+      onMessage={onWebViewMessage}
       {...Platform.select({
         ios: {
           pullToRefreshEnabled: false,

@@ -1,0 +1,10 @@
+# Copy to android/key.properties and fill in after creating the upload keystore.
+# NEVER commit key.properties or *.jks to git.
+#
+# Create keystore (run once from repo root):
+#   keytool -genkeypair -v -keystore mobile_app/android/app/upload-keystore.jks -storetype PKCS12 -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+#
+storePassword=YOUR_STORE_PASSWORD
+keyPassword=YOUR_KEY_PASSWORD
+keyAlias=upload
+storeFile=app/upload-keystore.jks

@@ -134,6 +134,8 @@ model Seller {
   primaryCategoryId          String?                    @map("primary_category_id") @db.Char(36)
   passwordResetToken         String?                    @map("password_reset_token") @db.VarChar(255)
   passwordResetExpires       DateTime?                  @map("password_reset_expires")
+  oauthProvider              String?                    @map("oauth_provider") @db.VarChar(50)
+  oauthProviderId            String?                    @map("oauth_provider_id") @db.VarChar(255)
   /// When false, catalog treats seller as pan-India (PIN list is stored but ignored). When true, use serviceablePincodes rules.
   restrictDeliveryToPincodes Boolean                    @default(false) @map("restrict_delivery_to_pincodes")
   emailOtpCode               String?                    @map("email_otp_code") @db.VarChar(100)
@@ -158,6 +160,7 @@ model Seller {
   @@index([email])
   @@index([status])
   @@index([deletedAt])
+  @@index([oauthProvider, oauthProviderId])
   @@index([primaryCategoryId])
   @@map("sellers")
 }
