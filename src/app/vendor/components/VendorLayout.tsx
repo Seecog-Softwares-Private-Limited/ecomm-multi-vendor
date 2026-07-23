@@ -269,11 +269,6 @@ export function VendorLayout({
               <X className="w-6 h-6" />
             </button>
           </div>
-          {businessName ? (
-            <p className="truncate px-6 pb-3 text-sm font-semibold text-[#475569] lg:hidden">
-              {businessName}
-            </p>
-          ) : null}
         </div>
 
         {/* Navigation */}
@@ -304,12 +299,12 @@ export function VendorLayout({
             >
               <Menu className="h-6 w-6" />
             </button>
-            {/* Business name: desktop header only — mobile shows it in the drawer to avoid cramped wrapping in WebView */}
-            <div className="flex min-w-0 flex-1 items-center justify-center lg:justify-start">
-              <h2 className="hidden min-w-0 max-w-[min(100%,20rem)] truncate text-lg font-bold text-[#1E293B] lg:block">
+            {/* Business name + status — visible on mobile WebView (truncate long names) */}
+            <div className="flex min-w-0 flex-1 items-center gap-2">
+              <h2 className="min-w-0 flex-1 truncate text-base font-bold leading-snug text-[#1E293B] sm:text-lg">
                 {businessName ?? "Vendor"}
               </h2>
-              <span className="shrink-0 scale-90 sm:scale-100 lg:ml-3">{getStatusBadge()}</span>
+              <span className="shrink-0 scale-90 sm:scale-100">{getStatusBadge()}</span>
             </div>
           </div>
 
