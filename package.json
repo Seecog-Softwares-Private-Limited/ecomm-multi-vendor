@@ -17,7 +17,8 @@
     "ensure-superadmin": "tsx scripts/ensure-superadmin.ts",
     "backfill:slugs": "tsx scripts/backfill-product-slugs.ts",
     "backfill:product-images": "tsx scripts/backfill-product-images.ts",
-    "delete-customers-by-email": "tsx scripts/delete-customers-by-email.ts"
+    "delete-customers-by-email": "tsx scripts/delete-customers-by-email.ts",
+    "db:categories": "tsx scripts/upsert-marketplace-categories.ts"
   },
   "dependencies": {
     "@prisma/client": "5.22.0",

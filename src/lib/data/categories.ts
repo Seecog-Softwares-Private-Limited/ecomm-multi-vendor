@@ -5,10 +5,25 @@ import type { CategoryItem, CategoryTreeItem } from "@/types/catalog";
 const CATEGORY_DISPLAY: Record<string, { icon: string; color: string }> = {
   electronics: { icon: "📱", color: "from-blue-500 to-indigo-600" },
   fashion: { icon: "👗", color: "from-pink-500 to-rose-600" },
+  footwear: { icon: "👟", color: "from-orange-500 to-amber-600" },
+  home: { icon: "🏠", color: "from-green-500 to-emerald-600" },
   "home-living": { icon: "🏠", color: "from-green-500 to-emerald-600" },
+  appliances: { icon: "🔌", color: "from-slate-500 to-zinc-600" },
+  furniture: { icon: "🛋️", color: "from-amber-600 to-orange-700" },
+  grocery: { icon: "🛒", color: "from-lime-500 to-green-600" },
+  health: { icon: "💊", color: "from-teal-500 to-emerald-600" },
   beauty: { icon: "💄", color: "from-purple-500 to-violet-600" },
   sports: { icon: "⚽", color: "from-orange-500 to-amber-600" },
+  toys: { icon: "🧸", color: "from-sky-500 to-blue-600" },
   books: { icon: "📚", color: "from-teal-500 to-cyan-600" },
+  automotive: { icon: "🚗", color: "from-gray-600 to-slate-700" },
+  watches: { icon: "⌚", color: "from-indigo-500 to-violet-600" },
+  jewelry: { icon: "💍", color: "from-yellow-500 to-amber-600" },
+  bags: { icon: "👜", color: "from-rose-500 to-pink-600" },
+  office: { icon: "📝", color: "from-blue-400 to-indigo-500" },
+  "pet-supplies": { icon: "🐾", color: "from-amber-500 to-yellow-600" },
+  garden: { icon: "🌿", color: "from-green-600 to-lime-600" },
+  industrial: { icon: "🔧", color: "from-zinc-500 to-stone-600" },
 };
 
 function toCategoryItem(c: { id: string; slug: string; name: string }): CategoryItem {

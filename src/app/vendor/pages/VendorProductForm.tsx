@@ -134,14 +134,30 @@ export function VendorProductForm({ productId = "", onBack, onSave }: VendorProd
     () => allCategories.filter((c) => allowedCategoryIds.includes(c.id)),
     [allCategories, allowedCategoryIds]
   );
+  const allowedSlugSet = React.useMemo(
+    () => new Set(allowedCategories.map((c) => c.slug)),
+    [allowedCategories]
+  );
   const categoryOptions = React.useMemo(() => {
-    const base = allowedCategories.map((c) => ({ value: c.slug, label: c.name }));
-    if (isEdit && formData.category && !allowedCategories.some((c) => c.slug === formData.category)) {
+    const selectable = allowedCategories.map((c) => ({ value: c.slug, label: c.name }));
+    const locked = allCategories
+      .filter((c) => !allowedSlugSet.has(c.slug))
+      .map((c) => ({ value: c.slug, label: `${c.name} — add in Profile & KYC`, disabled: true }));
+
+    if (isEdit && formData.category && !allowedSlugSet.has(formData.category)) {
       const current = allCategories.find((c) => c.slug === formData.category);
-      if (current) base.push({ value: current.slug, label: `${current.name} (select a new category if needed)` });
+      if (current && !selectable.some((o) => o.value === current.slug)) {
+        selectable.push({ value: current.slug, label: `${current.name} (select a new category if needed)` });
+      }
     }
-    return [{ value: "", label: "Select Category" }, ...base];
-  }, [allowedCategories, allCategories, isEdit, formData.category]);
+
+    return [
+      { value: "", label: "Select Category" },
+      ...selectable,
+      ...(locked.length > 0 ? [{ value: "__locked_header__", label: "— More categories (enable in Profile) —", disabled: true }] : []),
+      ...locked,
+    ];
+  }, [allowedCategories, allCategories, allowedSlugSet, isEdit, formData.category]);
   const subCategoryOptions = formData.category
     ? [
         { value: "", label: "Select Sub Category" },
@@ -373,17 +389,25 @@ export function VendorProductForm({ productId = "", onBack, onSave }: VendorProd
             <Select
               label="Category"
               value={formData.category}
-              onChange={(e) => setFormData({ ...formData, category: e.target.value, subCategory: "" })}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (!value || value === "__locked_header__" || !allowedSlugSet.has(value)) return;
+                setFormData({ ...formData, category: value, subCategory: "" });
+              }}
               options={categoryOptions}
-              disabled={noCategoriesSelected}
               required
+              helperText={
+                allowedCategories.length > 0
+                  ? `${allowedCategories.length} enabled · ${allCategories.length} total — enable more in Profile & KYC`
+                  : "Enable categories in Profile & KYC → Business Info first"
+              }
             />
             <Select
               label="Sub Category"
               value={formData.subCategory}
               onChange={(e) => setFormData({ ...formData, subCategory: e.target.value })}
               options={subCategoryOptions}
-              disabled={!formData.category || noCategoriesSelected}
+              disabled={!formData.category || !allowedSlugSet.has(formData.category)}
               required
             />
           </div>

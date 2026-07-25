@@ -22,12 +22,18 @@ export function VendorLoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
 
   useEffect(() => {
     const oauthErr = searchParams.get("error")?.trim();
     if (oauthErr) setError(oauthErr);
+    if (searchParams.get("deactivated") === "1") {
+      setSuccessMessage(
+        "Your vendor account has been deactivated. Contact support to reactivate."
+      );
+    }
   }, [searchParams]);
 
   useEffect(() => {
@@ -147,6 +153,15 @@ export function VendorLoginPage() {
             </div>
 
             <form className="space-y-5" onSubmit={handleSubmit}>
+              {successMessage && (
+                <div
+                  className="rounded-xl bg-green-50 px-4 py-3 text-sm text-green-800 ring-1 ring-green-200/80"
+                  role="status"
+                >
+                  {successMessage}
+                </div>
+              )}
+
               {error && (
                 <div
                   className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 ring-1 ring-red-200/80"

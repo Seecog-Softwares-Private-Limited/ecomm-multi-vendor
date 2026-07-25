@@ -14,7 +14,7 @@ export const GET = withApiHandler(async (request: NextRequest) => {
 
   const list = await prisma.category.findMany({
     where: { deletedAt: null },
-    orderBy: { name: "asc" },
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
     select: { id: true, name: true, slug: true },
   });
 

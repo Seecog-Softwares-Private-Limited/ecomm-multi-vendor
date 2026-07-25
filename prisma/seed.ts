@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { getAllCmsFooterSeeds } from "../src/lib/cms-footer-pages";
+import { MARKETPLACE_CATEGORIES } from "../src/lib/constants/marketplace-categories";
 
 const prisma = new PrismaClient();
 
@@ -23,14 +24,12 @@ const CUSTOMER_PASSWORD = "Customer@123";
 
 const BCRYPT_ROUNDS = 12;
 
-const CATEGORIES: { slug: string; name: string; subCategories: { slug: string; name: string }[] }[] = [
-  { slug: "electronics", name: "Electronics", subCategories: [{ slug: "mobiles", name: "Mobile Phones" }, { slug: "laptops", name: "Laptops" }, { slug: "accessories", name: "Accessories" }] },
-  { slug: "fashion", name: "Fashion", subCategories: [{ slug: "mens", name: "Men's Clothing" }, { slug: "womens", name: "Women's Clothing" }, { slug: "kids", name: "Kids Wear" }] },
-  { slug: "home", name: "Home & Kitchen", subCategories: [{ slug: "kitchen", name: "Kitchen" }, { slug: "furniture", name: "Furniture" }, { slug: "decor", name: "Home Decor" }] },
-  { slug: "books", name: "Books", subCategories: [{ slug: "fiction", name: "Fiction" }, { slug: "nonfiction", name: "Non-Fiction" }, { slug: "education", name: "Educational" }] },
-  { slug: "sports", name: "Sports", subCategories: [{ slug: "fitness", name: "Fitness" }, { slug: "outdoor", name: "Outdoor" }, { slug: "team-sports", name: "Team Sports" }, { slug: "footwear", name: "Sports Footwear" }] },
-  { slug: "beauty", name: "Beauty", subCategories: [{ slug: "skincare", name: "Skincare" }, { slug: "makeup", name: "Makeup" }, { slug: "haircare", name: "Haircare" }] },
-];
+const CATEGORIES = MARKETPLACE_CATEGORIES.map((cat) => ({
+  slug: cat.slug,
+  name: cat.name,
+  sortOrder: cat.sortOrder,
+  subCategories: cat.subCategories.map((sub) => ({ slug: sub.slug, name: sub.name })),
+}));
 
 /** Reusable smartphone image URLs (Unsplash) for seed products. */
 const PHONE_IMAGES = [
@@ -553,8 +552,8 @@ async function main() {
   for (const cat of CATEGORIES) {
     const category = await prisma.category.upsert({
       where: { slug: cat.slug },
-      update: {},
-      create: { slug: cat.slug, name: cat.name, sortOrder: 0 },
+      update: { name: cat.name, sortOrder: cat.sortOrder, deletedAt: null },
+      create: { slug: cat.slug, name: cat.name, sortOrder: cat.sortOrder },
     });
     if (cat.slug === "electronics") electronicsId = category.id;
     if (cat.slug === "books") booksId = category.id;
@@ -565,7 +564,7 @@ async function main() {
     for (const sub of cat.subCategories) {
       const subCat = await prisma.subCategory.upsert({
         where: { categoryId_slug: { categoryId: category.id, slug: sub.slug } },
-        update: {},
+        update: { name: sub.name, deletedAt: null },
         create: { categoryId: category.id, slug: sub.slug, name: sub.name, sortOrder: 0 },
       });
       if (cat.slug === "electronics" && sub.slug === "mobiles") mobilesSubId = subCat.id;

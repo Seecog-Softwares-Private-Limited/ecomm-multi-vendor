@@ -1,5 +1,18 @@
 import { prisma } from "@/lib/prisma";
 import { SellerStatus } from "@prisma/client";
+import {
+  getBankAccountFormatError,
+  getGstinFormatError,
+  getGstinPanMismatchError,
+  getIfscFormatError,
+  getPanFormatError,
+  hasVendorFinancialFieldErrors,
+  normalizeBankAccountNumber,
+  normalizeGstin,
+  normalizeIfsc,
+  normalizePan,
+  validateVendorFinancialFields,
+} from "@/lib/utils/vendorValidation";
 
 /** Throw from KYC document mutations when seller is already approved. */
 export const VENDOR_KYC_LOCKED_ERROR = "VENDOR_KYC_LOCKED";
@@ -67,11 +80,14 @@ export interface VendorProfileData {
   primaryCategoryId?: string | null;
   /** Category IDs the vendor is allowed to sell in. If empty, falls back to [primaryCategoryId]. */
   allowedCategoryIds: string[];
+  /** Products not covered by selected categories. */
+  otherProductsDescription?: string;
   business: VendorProfileBusiness;
   owner: VendorProfileOwner;
   bank: VendorProfileBank | null;
   documents: VendorProfileDocument[];
   vendorDocuments: VendorProfileDocumentDynamic[];
+  hasPendingStorefront?: boolean;
 }
 
 /** Storefront-only edits for approved sellers; applied to live columns after admin approval. */
@@ -100,6 +116,8 @@ interface ProfileExtras {
   storeDescription?: string;
   /** Category IDs the vendor can add products to. */
   allowedCategoryIds?: string[];
+  /** Free-text products outside selected categories. */
+  otherProductsDescription?: string;
   pendingStorefront?: PendingStorefrontProfile;
 }
 
@@ -150,6 +168,14 @@ export function formatBusinessAddressFromProfileExtras(extras: {
   const parts = [line1, line2, tailWithPin].filter((p) => p && p.length > 0);
   const s = parts.join(" · ").trim();
   return s.length > 0 ? s : undefined;
+}
+
+function hasPendingStorefrontChanges(extras: ProfileExtras): boolean {
+  const pending = extras.pendingStorefront;
+  if (!pending || typeof pending !== "object") return false;
+  return Object.values(pending).some(
+    (v) => v !== undefined && v !== null && String(v).trim() !== ""
+  );
 }
 
 function mergeStorefrontForVendorView(
@@ -305,10 +331,11 @@ export async function getVendorProfile(sellerId: string): Promise<VendorProfileD
     statusReason: seller.statusReason ?? null,
     primaryCategoryId: seller.primaryCategoryId ?? null,
     allowedCategoryIds,
+    otherProductsDescription: extras.otherProductsDescription ?? "",
     business: {
       displayName: storefront.displayName,
       legalName: extras.legalName ?? "",
-      businessType: extras.businessType ?? "Proprietorship",
+      businessType: extras.businessType ?? "Other",
       pan: extras.pan ?? "",
       gstin: extras.gstin ?? "",
       gstNotApplicable: !!extras.gstNotApplicable,
@@ -344,6 +371,7 @@ export async function getVendorProfile(sellerId: string): Promise<VendorProfileD
       { documentType: "ADDRESS_PROOF", fileUrl: (docByType.get("ADDRESS_PROOF") as { fileUrl: string | null } | undefined)?.fileUrl ?? null, status: (docByType.get("ADDRESS_PROOF") as { status: string } | undefined)?.status ?? "PENDING" },
     ],
     vendorDocuments: seller.vendorDocuments ?? [],
+    hasPendingStorefront: hasPendingStorefrontChanges(extras),
   };
 }
 
@@ -387,6 +415,7 @@ export interface UpdateVendorProfilePayload {
   primaryCategoryId?: string | null;
   /** Category IDs the vendor can sell in. Products can only be in these categories. */
   allowedCategoryIds?: string[];
+  otherProductsDescription?: string;
 }
 
 /** Business fields vendors may change after admin KYC approval (storefront / pickup only). */
@@ -426,6 +455,68 @@ export async function updateVendorProfile(
   }
 
   const extras = parseProfileExtras(seller.profileExtras);
+
+  if (!kycApproved) {
+    const gstNotApplicable =
+      effectivePayload.business?.gstNotApplicable ?? extras.gstNotApplicable ?? false;
+    const financialErrors = validateVendorFinancialFields(
+      {
+        pan: effectivePayload.business?.pan ?? extras.pan ?? "",
+        gstin: effectivePayload.business?.gstin ?? extras.gstin ?? "",
+        ifsc: effectivePayload.bank?.ifsc ?? "",
+        accountNumber: effectivePayload.bank?.accountNumber ?? "",
+      },
+      {
+        requireFilled: false,
+        gstNotApplicable,
+      }
+    );
+    if (hasVendorFinancialFieldErrors(financialErrors)) {
+      const first =
+        financialErrors.pan ??
+        financialErrors.gstin ??
+        financialErrors.ifsc ??
+        financialErrors.accountNumber ??
+        "Invalid financial details";
+      throw new Error(first);
+    }
+  }
+
+  if (effectivePayload.business?.pan !== undefined) {
+    effectivePayload.business.pan = normalizePan(effectivePayload.business.pan);
+    const panErr = getPanFormatError(effectivePayload.business.pan);
+    if (panErr) throw new Error(panErr);
+  }
+  if (effectivePayload.business?.gstin !== undefined) {
+    const gstNotApplicable =
+      effectivePayload.business.gstNotApplicable ?? extras.gstNotApplicable ?? false;
+    effectivePayload.business.gstin = normalizeGstin(effectivePayload.business.gstin);
+    if (!gstNotApplicable && effectivePayload.business.gstin) {
+      const gstErr = getGstinFormatError(effectivePayload.business.gstin);
+      if (gstErr) throw new Error(gstErr);
+      const panForMatch = normalizePan(
+        effectivePayload.business.pan ?? extras.pan ?? ""
+      );
+      const panMismatchErr = getGstinPanMismatchError(
+        effectivePayload.business.gstin,
+        panForMatch
+      );
+      if (panMismatchErr) throw new Error(panMismatchErr);
+    }
+  }
+  if (effectivePayload.bank?.ifsc !== undefined) {
+    effectivePayload.bank.ifsc = normalizeIfsc(effectivePayload.bank.ifsc);
+    const ifscErr = getIfscFormatError(effectivePayload.bank.ifsc);
+    if (ifscErr) throw new Error(ifscErr);
+  }
+  if (effectivePayload.bank?.accountNumber !== undefined) {
+    const raw = effectivePayload.bank.accountNumber;
+    if (raw && !looksLikeMaskedAccountNumber(raw.trim())) {
+      effectivePayload.bank.accountNumber = normalizeBankAccountNumber(raw);
+      const acctErr = getBankAccountFormatError(effectivePayload.bank.accountNumber);
+      if (acctErr) throw new Error(acctErr);
+    }
+  }
 
   const sellerUpdate: {
     businessName?: string;
@@ -496,6 +587,17 @@ export async function updateVendorProfile(
     if (ids.length > 0 && !sellerUpdate.primaryCategoryId) {
       sellerUpdate.primaryCategoryId = ids[0];
     }
+  }
+
+  if (effectivePayload.otherProductsDescription !== undefined) {
+    const base = sellerUpdate.profileExtras ? parseProfileExtras(sellerUpdate.profileExtras) : extras;
+    const desc = String(effectivePayload.otherProductsDescription).trim();
+    const newExtras: ProfileExtras = {
+      ...base,
+      otherProductsDescription: desc,
+      businessType: desc || base.businessType || "Other",
+    };
+    sellerUpdate.profileExtras = JSON.stringify(newExtras);
   }
 
   if (Object.keys(sellerUpdate).length > 0) {

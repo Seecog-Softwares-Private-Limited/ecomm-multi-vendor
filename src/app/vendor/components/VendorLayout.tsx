@@ -20,8 +20,8 @@ import {
   Info,
   DollarSign,
   AlertCircle,
-  Check,
   ArrowRight,
+  ArrowLeft,
   type LucideIcon,
 } from "lucide-react";
 import * as React from "react";
@@ -65,6 +65,21 @@ function relativeTime(iso: string): string {
   } catch { return ""; }
 }
 
+function formatFullDateTime(iso: string): string {
+  try {
+    return new Date(iso).toLocaleString("en-IN", {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  } catch {
+    return "";
+  }
+}
+
 // ─── component ───────────────────────────────────────────────────────────────
 
 export function VendorLayout({
@@ -80,22 +95,107 @@ export function VendorLayout({
   const [notifications, setNotifications] = React.useState<VendorNotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = React.useState(0);
   const [notifLoading, setNotifLoading] = React.useState(false);
-  const notifRef = React.useRef<HTMLDivElement>(null);
+  const [selectedNotif, setSelectedNotif] = React.useState<VendorNotificationItem | null>(null);
+  const profileMenuRef = React.useRef<HTMLDivElement>(null);
+  const profileHistRef = React.useRef(false);
+  const notifHistDepthRef = React.useRef(0);
+  const skipPopRef = React.useRef(false);
 
   const isActive = (path: string) => activePath === path;
   const approved = isVendorApproved(vendorStatus);
 
-  // Close dropdown on outside click
+  const pushVendorHistory = React.useCallback((marker: string) => {
+    window.history.pushState({ vendorUi: marker }, "");
+  }, []);
+
+  const goBackVendorHistory = React.useCallback((depth: number) => {
+    if (depth <= 0) return;
+    skipPopRef.current = true;
+    window.history.go(-depth);
+  }, []);
+
+  const closeProfileMenu = React.useCallback((opts?: { fromPop?: boolean }) => {
+    setProfileMenuOpen(false);
+    if (!opts?.fromPop && profileHistRef.current) {
+      profileHistRef.current = false;
+      goBackVendorHistory(1);
+    } else {
+      profileHistRef.current = false;
+    }
+  }, [goBackVendorHistory]);
+
+  const closeNotifications = React.useCallback((opts?: { fromPop?: boolean }) => {
+    const depth = notifHistDepthRef.current;
+    setNotifOpen(false);
+    setSelectedNotif(null);
+    notifHistDepthRef.current = 0;
+    if (!opts?.fromPop && depth > 0) {
+      goBackVendorHistory(depth);
+    }
+  }, [goBackVendorHistory]);
+
+  const backFromNotifDetail = React.useCallback((opts?: { fromPop?: boolean }) => {
+    setSelectedNotif(null);
+    if (!opts?.fromPop && notifHistDepthRef.current >= 2) {
+      notifHistDepthRef.current = 1;
+      goBackVendorHistory(1);
+    } else {
+      notifHistDepthRef.current = Math.max(0, notifHistDepthRef.current - 1);
+    }
+  }, [goBackVendorHistory]);
+
+  /** Android / browser Back closes overlays before leaving the dashboard. */
   React.useEffect(() => {
-    if (!notifOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
-        setNotifOpen(false);
+    const onPopState = () => {
+      if (skipPopRef.current) {
+        skipPopRef.current = false;
+        return;
+      }
+      if (selectedNotif) {
+        backFromNotifDetail({ fromPop: true });
+        return;
+      }
+      if (notifOpen) {
+        closeNotifications({ fromPop: true });
+        return;
+      }
+      if (profileMenuOpen || profileHistRef.current) {
+        closeProfileMenu({ fromPop: true });
       }
     };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [notifOpen]);
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [
+    backFromNotifDetail,
+    closeNotifications,
+    closeProfileMenu,
+    notifOpen,
+    profileMenuOpen,
+    selectedNotif,
+  ]);
+
+  React.useEffect(() => {
+    if (profileMenuOpen && !profileHistRef.current) {
+      pushVendorHistory("profile-menu");
+      profileHistRef.current = true;
+    }
+  }, [profileMenuOpen, pushVendorHistory]);
+
+  React.useEffect(() => {
+    if (notifOpen && notifHistDepthRef.current === 0) {
+      pushVendorHistory("notif-list");
+      notifHistDepthRef.current = 1;
+    } else if (!notifOpen) {
+      notifHistDepthRef.current = 0;
+    }
+  }, [notifOpen, pushVendorHistory]);
+
+  React.useEffect(() => {
+    if (notifOpen && selectedNotif && notifHistDepthRef.current === 1) {
+      pushVendorHistory("notif-detail");
+      notifHistDepthRef.current = 2;
+    }
+  }, [notifOpen, selectedNotif, pushVendorHistory]);
 
   // Fetch unread count on mount (quiet — no loading state shown in header)
   React.useEffect(() => {
@@ -145,8 +245,13 @@ export function VendorLayout({
   }, [approved]);
 
   const openNotifDropdown = async () => {
-    setNotifOpen((prev) => !prev);
-    if (notifOpen) return; // already open — just close
+    closeProfileMenu();
+    if (notifOpen) {
+      closeNotifications();
+      return;
+    }
+    setNotifOpen(true);
+    setSelectedNotif(null);
     setNotifLoading(true);
     try {
       const res = await vendorService.getNotifications({ limit: 10 });
@@ -159,12 +264,13 @@ export function VendorLayout({
     }
   };
 
-  const handleMarkOneRead = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const openNotifDetail = async (n: VendorNotificationItem) => {
+    setSelectedNotif(n);
+    if (n.read) return;
     try {
-      await vendorService.markNotificationRead(id);
+      await vendorService.markNotificationRead(n.id);
       setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+        prev.map((item) => (item.id === n.id ? { ...item, read: true } : item))
       );
       setUnreadCount((c) => Math.max(0, c - 1));
     } catch { /* silent */ }
@@ -197,7 +303,7 @@ export function VendorLayout({
     { name: "Earnings", path: "/vendor/earnings", icon: Wallet },
     { name: "Payouts", path: "/vendor/payouts", icon: CreditCard },
     { name: "Reports", path: "/vendor/reports", icon: FileText },
-    { name: "Profile & KYC", path: "/vendor/profile", icon: User },
+    { name: "Profile & KYC", path: "/vendor/profile?tab=business_info", icon: User },
     { name: "Support", path: "/vendor/support", icon: HelpCircle },
   ] as const;
 
@@ -211,7 +317,7 @@ export function VendorLayout({
   ];
   const bottomNavOnboarding: { name: string; path: string; icon: LucideIcon }[] = [
     { name: "Home", path: "/vendor", icon: LayoutDashboard },
-    { name: "Profile", path: "/vendor/profile", icon: User },
+    { name: "Profile", path: "/vendor/profile?tab=business_info", icon: User },
     { name: "Support", path: "/vendor/support", icon: HelpCircle },
   ];
   const bottomNavItems = approved ? bottomNavApproved : bottomNavOnboarding;
@@ -242,6 +348,169 @@ export function VendorLayout({
 
   return (
     <div className="relative flex h-[100dvh] overflow-hidden bg-[#F8FAFC]">
+      {profileMenuOpen ? (
+        <button
+          type="button"
+          aria-label="Close menu"
+          className="fixed inset-0 z-[100] cursor-default bg-black/40 backdrop-blur-[1px]"
+          onClick={closeProfileMenu}
+        />
+      ) : null}
+      {notifOpen ? (
+        <div
+          className="fixed inset-0 z-[120] flex flex-col bg-white pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]"
+          role="dialog"
+          aria-modal="true"
+          aria-label={selectedNotif ? "Notification details" : "Notifications"}
+        >
+          {selectedNotif ? (
+            <>
+              <div className="flex shrink-0 items-center gap-2 border-b border-[#E2E8F0] px-3 py-3 sm:px-4">
+                <button
+                  type="button"
+                  onClick={() => backFromNotifDetail()}
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-[#64748B] transition-colors hover:bg-[#F8FAFC] hover:text-[#1E293B]"
+                  aria-label="Back to notifications"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                </button>
+                <h3 className="min-w-0 flex-1 truncate text-sm font-bold text-[#1E293B] sm:text-base">
+                  Message
+                </h3>
+                <button
+                  type="button"
+                  onClick={closeNotifications}
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-[#64748B] transition-colors hover:bg-[#F8FAFC] hover:text-[#1E293B]"
+                  aria-label="Close"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-6 sm:py-6">
+                {(() => {
+                  const { icon: Icon, color } = notifIconAndColor(selectedNotif.type);
+                  return (
+                    <div className="mx-auto w-full max-w-lg space-y-4">
+                      <div className="flex items-start gap-3">
+                        <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${color}`}>
+                          <Icon className="h-5 w-5" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-base font-bold leading-snug text-[#1E293B]">
+                            {selectedNotif.title}
+                          </p>
+                          <p className="mt-1 text-xs text-[#94A3B8]">
+                            {formatFullDateTime(selectedNotif.createdAt)}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-4">
+                        <p className="whitespace-pre-wrap text-sm leading-relaxed text-[#334155]">
+                          {selectedNotif.message}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex shrink-0 items-center justify-between gap-2 border-b border-[#E2E8F0] px-4 py-3">
+                <div className="flex min-w-0 items-center gap-2">
+                  <Bell className="h-4 w-4 shrink-0 text-[#1E293B]" />
+                  <span className="truncate text-sm font-bold text-[#1E293B] sm:text-base">Notifications</span>
+                  {unreadCount > 0 && (
+                    <span className="rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                      {unreadCount}
+                    </span>
+                  )}
+                </div>
+                <div className="flex shrink-0 items-center gap-1">
+                  {unreadCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleMarkAllRead}
+                      className="rounded-lg px-2 py-1.5 text-xs font-semibold text-[#3B82F6] transition-colors hover:bg-blue-50 hover:text-[#2563EB]"
+                    >
+                      Mark all read
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={closeNotifications}
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-[#64748B] transition-colors hover:bg-[#F8FAFC] hover:text-[#1E293B]"
+                    aria-label="Close"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                {notifLoading ? (
+                  <div className="space-y-0">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="flex animate-pulse items-start gap-3 border-b border-[#F1F5F9] px-4 py-3">
+                        <div className="h-10 w-10 shrink-0 rounded-full bg-slate-200" />
+                        <div className="flex-1 space-y-2 pt-0.5">
+                          <div className="h-3 w-1/2 rounded bg-slate-200" />
+                          <div className="h-2.5 w-full rounded bg-slate-100" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : notifications.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center px-6 py-14 text-center">
+                    <Bell className="mb-3 h-10 w-10 text-[#CBD5E1]" />
+                    <p className="text-sm font-semibold text-[#475569]">No notifications yet</p>
+                    <p className="mt-0.5 text-xs text-[#94A3B8]">We&apos;ll let you know when something happens.</p>
+                  </div>
+                ) : (
+                  notifications.map((n) => {
+                    const { icon: Icon, color } = notifIconAndColor(n.type);
+                    return (
+                      <button
+                        key={n.id}
+                        type="button"
+                        onClick={() => void openNotifDetail(n)}
+                        className={`flex w-full items-start gap-3 border-b border-[#F1F5F9] px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-[#F8FAFC] active:bg-[#F1F5F9] ${
+                          n.read ? "bg-white" : "bg-blue-50/40"
+                        }`}
+                      >
+                        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${color}`}>
+                          <Icon className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-start justify-between gap-2">
+                            <p className={`truncate text-sm font-semibold leading-snug ${n.read ? "text-[#64748B]" : "text-[#1E293B]"}`}>
+                              {n.title}
+                            </p>
+                            {!n.read && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-blue-500" />}
+                          </div>
+                          <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-[#64748B]">{n.message}</p>
+                          <span className="mt-1 block text-[10px] text-[#94A3B8]">{relativeTime(n.createdAt)}</span>
+                        </div>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+
+              <div className="shrink-0 border-t border-[#E2E8F0] px-4 py-2.5">
+                <Link
+                  href="/vendor/notifications"
+                  onClick={closeNotifications}
+                  className="flex items-center justify-center gap-1.5 text-xs font-semibold text-[#3B82F6] transition-colors hover:text-[#2563EB]"
+                >
+                  View all notifications
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+              </div>
+            </>
+          )}
+        </div>
+      ) : null}
       {sidebarOpen ? (
         <button
           type="button"
@@ -289,7 +558,11 @@ export function VendorLayout({
       {/* Main Content */}
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         {/* Top Bar */}
-        <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between gap-2 border-b border-[#E2E8F0] bg-white/95 px-3 backdrop-blur-md supports-[backdrop-filter]:bg-white/80 sm:h-16 sm:gap-4 sm:px-6">
+        <header
+          className={`sticky top-0 flex h-14 shrink-0 items-center justify-between gap-2 border-b border-[#E2E8F0] bg-white/95 px-3 backdrop-blur-md supports-[backdrop-filter]:bg-white/80 sm:h-16 sm:gap-4 sm:px-6 ${
+            profileMenuOpen ? "z-[110]" : "z-30"
+          }`}
+        >
           <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-4">
             <button
               type="button"
@@ -299,22 +572,26 @@ export function VendorLayout({
             >
               <Menu className="h-6 w-6" />
             </button>
-            {/* Business name + status — visible on mobile WebView (truncate long names) */}
+            {/* Business name + status (hide "Approved" on main screen — see Profile & KYC) */}
             <div className="flex min-w-0 flex-1 items-center gap-2">
               <h2 className="min-w-0 flex-1 truncate text-base font-bold leading-snug text-[#1E293B] sm:text-lg">
                 {businessName ?? "Vendor"}
               </h2>
-              <span className="shrink-0 scale-90 sm:scale-100">{getStatusBadge()}</span>
+              {!approved && (
+                <span className="shrink-0 scale-90 sm:scale-100">{getStatusBadge()}</span>
+              )}
             </div>
           </div>
 
           <div className="flex shrink-0 items-center gap-1 sm:gap-4">
             {/* ── Notification bell ── */}
-            <div className="relative" ref={notifRef}>
+            <div className="relative">
               <button
-                onClick={openNotifDropdown}
+                type="button"
+                onClick={() => void openNotifDropdown()}
                 className="relative inline-flex h-11 w-11 items-center justify-center rounded-xl text-[#64748B] transition-colors hover:bg-[#F8FAFC] hover:text-[#1E293B]"
                 aria-label="Notifications"
+                aria-expanded={notifOpen}
               >
                 <Bell className="w-5 h-5" />
                 {unreadCount > 0 && (
@@ -323,110 +600,20 @@ export function VendorLayout({
                   </span>
                 )}
               </button>
-
-              {/* Dropdown */}
-              {notifOpen && (
-                <div className="absolute right-0 z-[200] mt-2 flex max-h-[min(480px,80vh)] w-[min(360px,calc(100vw-1.5rem))] max-w-[360px] flex-col overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white shadow-2xl">
-                  {/* Header */}
-                  <div className="flex items-center justify-between px-4 py-3 border-b border-[#E2E8F0] shrink-0">
-                    <div className="flex items-center gap-2">
-                      <Bell className="w-4 h-4 text-[#1E293B]" />
-                      <span className="font-bold text-[#1E293B] text-sm">Notifications</span>
-                      {unreadCount > 0 && (
-                        <span className="rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                          {unreadCount}
-                        </span>
-                      )}
-                    </div>
-                    {unreadCount > 0 && (
-                      <button
-                        onClick={handleMarkAllRead}
-                        className="flex items-center gap-1 text-xs font-semibold text-[#3B82F6] hover:text-[#2563EB] transition-colors"
-                      >
-                        <Check className="w-3 h-3" />
-                        Mark all read
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Body */}
-                  <div className="flex-1 overflow-y-auto">
-                    {notifLoading ? (
-                      <div className="space-y-0">
-                        {[1, 2, 3].map((i) => (
-                          <div key={i} className="flex items-start gap-3 px-4 py-3 animate-pulse border-b border-[#F1F5F9]">
-                            <div className="w-9 h-9 rounded-full bg-slate-200 shrink-0" />
-                            <div className="flex-1 space-y-2 pt-0.5">
-                              <div className="h-3 w-1/2 rounded bg-slate-200" />
-                              <div className="h-2.5 w-full rounded bg-slate-100" />
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : notifications.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center py-12 text-center">
-                        <Bell className="w-10 h-10 text-[#CBD5E1] mb-3" />
-                        <p className="text-sm font-semibold text-[#475569]">No notifications yet</p>
-                        <p className="text-xs text-[#94A3B8] mt-0.5">We'll let you know when something happens.</p>
-                      </div>
-                    ) : (
-                      notifications.map((n) => {
-                        const { icon: Icon, color } = notifIconAndColor(n.type);
-                        return (
-                          <div
-                            key={n.id}
-                            className={`flex items-start gap-3 px-4 py-3 border-b border-[#F1F5F9] last:border-b-0 transition-colors ${
-                              n.read ? "bg-white" : "bg-blue-50/40"
-                            }`}
-                          >
-                            <div className={`w-9 h-9 ${color} rounded-full flex items-center justify-center shrink-0`}>
-                              <Icon className="w-4 h-4" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-start justify-between gap-1">
-                                <p className={`text-xs font-semibold leading-snug ${n.read ? "text-[#64748B]" : "text-[#1E293B]"}`}>
-                                  {n.title}
-                                </p>
-                                {!n.read && <span className="mt-1 w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />}
-                              </div>
-                              <p className="text-xs text-[#64748B] mt-0.5 leading-relaxed line-clamp-2">{n.message}</p>
-                              <div className="flex items-center justify-between mt-1 gap-2">
-                                <span className="text-[10px] text-[#94A3B8]">{relativeTime(n.createdAt)}</span>
-                                {!n.read && (
-                                  <button
-                                    onClick={(e) => handleMarkOneRead(n.id, e)}
-                                    className="text-[10px] font-semibold text-[#3B82F6] hover:text-[#2563EB] transition-colors"
-                                  >
-                                    Mark read
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-
-                  {/* Footer */}
-                  <div className="border-t border-[#E2E8F0] px-4 py-2.5 shrink-0">
-                    <Link
-                      href="/vendor/notifications"
-                      onClick={() => setNotifOpen(false)}
-                      className="flex items-center justify-center gap-1.5 text-xs font-semibold text-[#3B82F6] hover:text-[#2563EB] transition-colors"
-                    >
-                      View all notifications
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </Link>
-                  </div>
-                </div>
-              )}
             </div>
 
             {/* Profile Menu */}
-            <div className="relative">
+            <div className="relative" ref={profileMenuRef}>
               <button
-                onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+                type="button"
+                onClick={() => {
+                  if (profileMenuOpen) {
+                    closeProfileMenu();
+                    return;
+                  }
+                  closeNotifications();
+                  setProfileMenuOpen(true);
+                }}
                 className="flex items-center gap-2 rounded-xl px-2 py-1.5 transition-colors hover:bg-[#F8FAFC] sm:gap-3 sm:px-3 sm:py-2"
                 aria-haspopup="menu"
                 aria-expanded={profileMenuOpen}
@@ -438,9 +625,10 @@ export function VendorLayout({
               </button>
 
               {profileMenuOpen && (
-                <div className="absolute right-0 mt-2 w-56 bg-white border border-[#E2E8F0] rounded-xl shadow-xl py-2 z-50">
+                <div className="absolute right-0 z-[120] mt-2 w-56 rounded-xl border border-[#E2E8F0] bg-white py-2 shadow-xl">
                   <Link
-                    href="/vendor/profile"
+                    href="/vendor/profile?tab=business_info"
+                    onClick={() => closeProfileMenu()}
                     className="flex items-center gap-3 px-4 py-3 text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#1E293B] transition-colors"
                   >
                     <User className="w-4 h-4" />
@@ -448,6 +636,7 @@ export function VendorLayout({
                   </Link>
                   <Link
                     href="/vendor/settings"
+                    onClick={() => closeProfileMenu()}
                     className="flex items-center gap-3 px-4 py-3 text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#1E293B] transition-colors"
                   >
                     <Settings className="w-4 h-4" />

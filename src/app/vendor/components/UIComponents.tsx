@@ -1,5 +1,5 @@
 import * as React from "react";
-import { X, AlertCircle, CheckCircle, Info, AlertTriangle, Loader } from "lucide-react";
+import { X, AlertCircle, CheckCircle, Info, AlertTriangle, Loader, Eye } from "lucide-react";
 
 // Button Components
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -112,7 +112,7 @@ interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   label?: string;
   error?: string;
   helperText?: string;
-  options: { value: string; label: string }[];
+  options: { value: string; label: string; disabled?: boolean }[];
 }
 
 export function Select({ label, error, helperText, options, className = "", children: _omitChildren, ...props }: SelectProps) {
@@ -126,7 +126,7 @@ export function Select({ label, error, helperText, options, className = "", chil
         {...props}
       >
         {options.map((option) => (
-          <option key={option.value} value={option.value}>
+          <option key={`${option.value}-${option.label}`} value={option.value} disabled={option.disabled}>
             {option.label}
           </option>
         ))}
@@ -378,13 +378,28 @@ interface FileUploadProps {
   disabled?: boolean;
   /** When true, shows upload progress bar and "Uploading..." state. */
   uploading?: boolean;
+  /** Opens in-app document viewer (recommended on mobile WebView). */
+  onPreview?: (url: string, title: string) => void;
+  previewTitle?: string;
 }
 
 function isImageUrl(url: string): boolean {
   return /\.(jpe?g|png|gif|webp)(\?|$)/i.test(url) || /\/uploads\/.*\.(jpe?g|png|gif|webp)/i.test(url);
 }
 
-export function FileUpload({ label, accept, onChange, helperText, error, preview, uploadedUrl, disabled, uploading }: FileUploadProps) {
+export function FileUpload({
+  label,
+  accept,
+  onChange,
+  helperText,
+  error,
+  preview,
+  uploadedUrl,
+  disabled,
+  uploading,
+  onPreview,
+  previewTitle,
+}: FileUploadProps) {
   const inputRef = React.useRef<HTMLInputElement>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -393,21 +408,29 @@ export function FileUpload({ label, accept, onChange, helperText, error, preview
     if (inputRef.current) inputRef.current.value = "";
   };
 
-  const showUploaded = (uploadedUrl && uploadedUrl.length > 0) || preview;
-  const showImagePreview = showUploaded && (preview ? true : isImageUrl(uploadedUrl ?? ""));
+  const fileUrl = uploadedUrl || preview || "";
+  const showUploaded = fileUrl.length > 0;
+  const showImagePreview = showUploaded && (preview ? true : isImageUrl(fileUrl));
+  const canReplace = !disabled && !uploading;
+  const viewTitle = previewTitle ?? label ?? "Document";
+
+  const openPreview = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (fileUrl && onPreview) onPreview(fileUrl, viewTitle);
+  };
 
   return (
     <div className="space-y-2">
       {label && <label className="block text-sm font-semibold text-[#1E293B]">{label}</label>}
       <div
-        onClick={() => !disabled && inputRef.current?.click()}
+        onClick={() => canReplace && inputRef.current?.click()}
         className={`border-2 border-dashed ${
           error ? "border-[#DC2626]" : "border-[#E2E8F0]"
         } rounded-xl p-6 text-center transition-colors bg-[#F8FAFC] ${
-          disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:border-[#3B82F6]"
+          canReplace ? "cursor-pointer hover:border-[#3B82F6]" : showUploaded && onPreview ? "cursor-default" : "cursor-not-allowed opacity-80"
         }`}
       >
-        <input ref={inputRef} type="file" accept={accept} onChange={handleChange} className="hidden" disabled={disabled} />
+        <input ref={inputRef} type="file" accept={accept} onChange={handleChange} className="hidden" disabled={disabled || uploading} />
         {uploading ? (
           <div className="flex flex-col items-center justify-center gap-3">
             <Loader className="w-10 h-10 text-[#3B82F6] animate-spin" />
@@ -417,28 +440,59 @@ export function FileUpload({ label, accept, onChange, helperText, error, preview
             </div>
           </div>
         ) : showImagePreview ? (
-          <div className="flex flex-col items-center justify-center gap-2">
-            <img src={preview || uploadedUrl || ""} alt="Preview" className="max-h-32 rounded-lg" />
-            <p className="text-sm text-green-600 font-medium">Uploaded. Click to replace.</p>
+          <div className="flex flex-col items-center justify-center gap-3">
+            <button
+              type="button"
+              onClick={openPreview}
+              className="rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+              aria-label={`Preview ${viewTitle}`}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={fileUrl} alt={viewTitle} className="max-h-32 rounded-lg" />
+            </button>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              {onPreview && (
+                <button
+                  type="button"
+                  onClick={openPreview}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+                >
+                  <Eye className="h-4 w-4" />
+                  Preview
+                </button>
+              )}
+              {canReplace && <p className="text-sm text-green-600 font-medium">Tap image or area to replace</p>}
+            </div>
           </div>
         ) : showUploaded ? (
-          <div className="flex flex-col items-center justify-center gap-2">
+          <div className="flex flex-col items-center justify-center gap-3">
             <CheckCircle className="w-10 h-10 text-green-600" />
             <p className="text-sm font-medium text-[#1E293B]">Document uploaded</p>
-            <a
-              href={uploadedUrl || preview || "#"}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm text-[#3B82F6] hover:underline"
-              onClick={(e) => e.stopPropagation()}
-            >
-              View uploaded file
-            </a>
-            <p className="text-xs text-[#94A3B8]">Click area to replace</p>
+            {onPreview ? (
+              <button
+                type="button"
+                onClick={openPreview}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+              >
+                <Eye className="h-4 w-4" />
+                Preview
+              </button>
+            ) : (
+              <a
+                href={fileUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-[#3B82F6] hover:underline"
+                onClick={(e) => e.stopPropagation()}
+              >
+                View uploaded file
+              </a>
+            )}
+            {canReplace && <p className="text-xs text-[#94A3B8]">Click area to replace</p>}
           </div>
         ) : (
           <div>
-            <p className="mb-2 text-slate-600">Click to upload or drag and drop</p>
+            <p className="mb-2 text-slate-600">{canReplace ? "Click to upload or drag and drop" : "No document uploaded"}</p>
             <p className="text-sm text-slate-500">{helperText || "PDF, PNG, JPG (max 5MB)"}</p>
           </div>
         )}
