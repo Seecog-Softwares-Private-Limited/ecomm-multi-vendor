@@ -10,6 +10,7 @@ import { requireSession } from "@/lib/auth";
 import {
   getVendorProfile,
   updateVendorProfile,
+  VENDOR_KYC_LOCKED_ERROR,
   type UpdateVendorProfilePayload,
 } from "@/lib/data/vendor-profile";
 
@@ -49,7 +50,18 @@ export const PUT = withApiHandler(async (request: NextRequest) => {
   }
 
   const payload = body as UpdateVendorProfilePayload;
-  await updateVendorProfile(sellerId, payload);
+  try {
+    await updateVendorProfile(sellerId, payload);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Profile update failed";
+    if (
+      /PAN must|IFSC must|Account number must|Invalid financial details/i.test(msg) ||
+      msg === VENDOR_KYC_LOCKED_ERROR
+    ) {
+      return apiBadRequest(msg === VENDOR_KYC_LOCKED_ERROR ? "KYC is locked after approval" : msg);
+    }
+    throw e;
+  }
   const profile = await getVendorProfile(sellerId);
   return apiSuccess(profile ?? {});
 });

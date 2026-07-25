@@ -9,7 +9,7 @@ import {
   type OnboardingStepInput,
 } from "@/lib/vendor-onboarding";
 
-const PROFILE_KYC_PATH = "/vendor/profile";
+const PROFILE_KYC_PATH = "/vendor/profile?tab=business_info";
 
 export type OnboardingCardProps = OnboardingStepInput;
 

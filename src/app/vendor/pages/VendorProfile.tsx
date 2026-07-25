@@ -16,10 +16,12 @@ import {
   X,
   ExternalLink,
 } from "lucide-react";
-import { Button, Input, Select, Toggle, FileUpload, Card, Alert } from "../components/UIComponents";
+import { Button, Input, Select, Toggle, FileUpload, Card, Alert, Textarea } from "../components/UIComponents";
+import { DocumentPreviewOverlay, type DocumentPreviewState } from "../components/DocumentPreviewOverlay";
 import { DataState } from "../../components/DataState";
 import { useApi } from "@/lib/hooks/useApi";
 import { vendorService } from "@/services/vendor.service";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   isProfileComplete,
   isTabComplete,
@@ -28,11 +30,17 @@ import {
   isKycDetailsComplete,
   isBankDetailsComplete,
   profileToValidationShape,
+  normalizePan,
+  normalizeGstin,
+  normalizeIfsc,
+  normalizeBankAccountNumber,
+  validateVendorFinancialFields,
+  hasVendorFinancialFieldErrors,
   type TabName,
+  type VendorFinancialFieldErrors,
 } from "@/lib/utils/vendorValidation";
 import * as React from "react";
 import {
-  VENDOR_BUSINESS_TYPE_OPTIONS,
   parseStoredVendorBusinessType,
   resolveVendorBusinessTypeForApi,
 } from "@/lib/constants/vendor-business-type";
@@ -209,8 +217,10 @@ function OtpVerifyField({
 const defaultFormData = {
   displayName: "",
   legalName: "",
-  businessType: "proprietorship",
+  businessType: "other",
   businessTypeCustom: "",
+  sellOtherProducts: false,
+  otherProductsDescription: "",
   gstin: "",
   gstNotApplicable: false,
   pan: "",
@@ -243,9 +253,20 @@ const TABS: { id: TabName; label: string; icon: React.ComponentType<{ className?
   { id: "bank_details", label: "Bank Details", icon: CreditCard },
 ];
 
+const VALID_TABS = new Set<TabName>(["business_info", "kyc_details", "bank_details"]);
+
+function parseProfileTab(value: string | null): TabName {
+  if (value && VALID_TABS.has(value as TabName)) return value as TabName;
+  return "business_info";
+}
+
 export function VendorProfile() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [formData, setFormData] = React.useState(defaultFormData);
   const [activeTab, setActiveTab] = React.useState<TabName>("business_info");
+  const tabsNavRef = React.useRef<HTMLDivElement>(null);
+  const [docPreview, setDocPreview] = React.useState<DocumentPreviewState>(null);
   const [saving, setSaving] = React.useState(false);
   const [uploadingDoc, setUploadingDoc] = React.useState<string | null>(null);
   const [uploadingVendorDoc, setUploadingVendorDoc] = React.useState<string | null>(null);
@@ -255,6 +276,7 @@ export function VendorProfile() {
   const [categories, setCategories] = React.useState<{ id: string; name: string }[]>([]);
   const [successMessage, setSuccessMessage] = React.useState<string | null>(null);
   const [submitError, setSubmitError] = React.useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = React.useState<VendorFinancialFieldErrors>({});
   const [uploadSuccess, setUploadSuccess] = React.useState<string | null>(null);
   const [uploadErrorByType, setUploadErrorByType] = React.useState<Record<string, string | null>>({});
   const [categoriesDropdownOpen, setCategoriesDropdownOpen] = React.useState(false);
@@ -266,7 +288,29 @@ export function VendorProfile() {
   const [newDocFile, setNewDocFile] = React.useState<File | null>(null);
   const [newDocError, setNewDocError] = React.useState<string | null>(null);
   const [uploadingExtraDoc, setUploadingExtraDoc] = React.useState(false);
+  const [uploadingStoreLogo, setUploadingStoreLogo] = React.useState(false);
   const [deletingDocId, setDeletingDocId] = React.useState<string | null>(null);
+
+  const openDocumentPreview = React.useCallback((url: string, title: string) => {
+    setDocPreview({ url, title });
+  }, []);
+
+  const handleTabChange = React.useCallback(
+    (tab: TabName) => {
+      setActiveTab(tab);
+      router.replace(`/vendor/profile?tab=${tab}`, { scroll: false });
+    },
+    [router]
+  );
+
+  React.useEffect(() => {
+    const tab = parseProfileTab(searchParams.get("tab"));
+    setActiveTab(tab);
+    if (!searchParams.get("tab")) {
+      router.replace("/vendor/profile?tab=business_info", { scroll: false });
+    }
+    tabsNavRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [searchParams, router]);
 
   React.useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -305,9 +349,9 @@ export function VendorProfile() {
       legalName: profile.business.legalName,
       businessType: bt.value,
       businessTypeCustom: bt.custom,
-      gstin: profile.business.gstin,
+      gstin: normalizeGstin(profile.business.gstin),
       gstNotApplicable: profile.business.gstNotApplicable,
-      pan: profile.business.pan,
+      pan: normalizePan(profile.business.pan),
       websiteUrl: profile.business.websiteUrl ?? "",
       addressLine1: profile.business.addressLine1,
       addressLine2: profile.business.addressLine2,
@@ -328,6 +372,8 @@ export function VendorProfile() {
       storeDescription: profile.business.storeDescription ?? "",
       primaryCategoryId: profile.primaryCategoryId ?? "",
       allowedCategoryIds: profile.allowedCategoryIds ?? (profile.primaryCategoryId ? [profile.primaryCategoryId] : []),
+      sellOtherProducts: Boolean(profile.otherProductsDescription?.trim()),
+      otherProductsDescription: profile.otherProductsDescription ?? bt.custom ?? "",
     };
     });
   }, [profile]);
@@ -394,10 +440,25 @@ export function VendorProfile() {
   const businessComplete = isBusinessInfoComplete(vendorProfile, formData.gstNotApplicable);
   const kycComplete = isKycDetailsComplete(vendorProfile, formData.gstNotApplicable);
   const bankComplete = isBankDetailsComplete(vendorProfile);
+
+  const validateCategorySelection = (): string | null => {
+    const hasCategories = (formData.allowedCategoryIds || []).length > 0;
+    const hasOther = formData.sellOtherProducts && formData.otherProductsDescription.trim().length > 0;
+    if (!hasCategories && !hasOther) {
+      return "Select at least one category, or choose Other and describe your products.";
+    }
+    if (formData.sellOtherProducts && !formData.otherProductsDescription.trim()) {
+      return "Please describe the other products you sell.";
+    }
+    return null;
+  };
+
   const missingForSubmit: string[] = [];
   if (!businessComplete) missingForSubmit.push("Business Info");
   if (!kycComplete) missingForSubmit.push("KYC Details (PAN & GST certificate)");
   if (!bankComplete) missingForSubmit.push("Bank Details");
+  const categorySelectionErr = validateCategorySelection();
+  if (categorySelectionErr) missingForSubmit.push("Product categories (select categories or Other)");
   if (!categoryDocsComplete && requiredCategoryDocNames.length > 0) {
     const missing = requiredCategoryDocNames.filter(
       (name) =>
@@ -412,20 +473,43 @@ export function VendorProfile() {
     }
   }
 
-  const validateBusinessType = (): string | null => {
-    if (formData.businessType === "other" && !formData.businessTypeCustom.trim()) {
-      return 'Please enter your business type when "Others" is selected.';
+  const validateFinancialFields = (): boolean => {
+    if (kycLocked) {
+      setFieldErrors({});
+      return true;
     }
-    return null;
+    const errors = validateVendorFinancialFields(
+      {
+        pan: formData.pan,
+        gstin: formData.gstin,
+        ifsc: formData.ifsc,
+        accountNumber: formData.accountNumber,
+      },
+      { requireFilled: false, gstNotApplicable: formData.gstNotApplicable }
+    );
+    setFieldErrors(errors);
+    if (hasVendorFinancialFieldErrors(errors)) {
+      if (errors.pan || errors.gstin) handleTabChange("business_info");
+      else if (errors.ifsc || errors.accountNumber) handleTabChange("bank_details");
+      setSubmitError(
+        errors.pan ?? errors.gstin ?? errors.ifsc ?? errors.accountNumber ?? "Please fix the highlighted fields."
+      );
+      return false;
+    }
+    return true;
   };
 
   const handleSaveDraft = async () => {
     setSaving(true);
     setSuccessMessage(null);
     setSubmitError(null);
-    const btErr = kycLocked ? null : validateBusinessType();
-    if (btErr) {
-      setSubmitError(btErr);
+    const catErr = kycLocked ? null : validateCategorySelection();
+    if (catErr) {
+      setSubmitError(catErr);
+      setSaving(false);
+      return;
+    }
+    if (!kycLocked && !validateFinancialFields()) {
       setSaving(false);
       return;
     }
@@ -446,8 +530,8 @@ export function VendorProfile() {
                 displayName: formData.displayName,
                 legalName: formData.legalName,
                 businessType: resolveVendorBusinessTypeForApi(
-                  formData.businessType,
-                  formData.businessTypeCustom
+                  "other",
+                  formData.sellOtherProducts ? formData.otherProductsDescription : formData.businessTypeCustom
                 ),
                 pan: formData.pan,
                 gstin: formData.gstin,
@@ -477,11 +561,18 @@ export function VendorProfile() {
                 ? formData.allowedCategoryIds[0]
                 : formData.primaryCategoryId || null,
               allowedCategoryIds: formData.allowedCategoryIds,
+              otherProductsDescription: formData.sellOtherProducts
+                ? formData.otherProductsDescription.trim()
+                : "",
               status: "draft",
             }
       );
       await refetch();
-      setSuccessMessage("Draft saved successfully.");
+      setSuccessMessage(
+        kycLocked
+          ? "Storefront changes saved. They will go live after admin approval."
+          : "Draft saved successfully."
+      );
       setTimeout(() => setSuccessMessage(null), 5000);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Failed to save draft";
@@ -500,9 +591,13 @@ export function VendorProfile() {
     setSaving(true);
     setSuccessMessage(null);
     setSubmitError(null);
-    const btErr = validateBusinessType();
-    if (btErr) {
-      setSubmitError(btErr);
+    const catErr = validateCategorySelection();
+    if (catErr) {
+      setSubmitError(catErr);
+      setSaving(false);
+      return;
+    }
+    if (!validateFinancialFields()) {
       setSaving(false);
       return;
     }
@@ -513,8 +608,8 @@ export function VendorProfile() {
           displayName: formData.displayName,
           legalName: formData.legalName,
           businessType: resolveVendorBusinessTypeForApi(
-            formData.businessType,
-            formData.businessTypeCustom
+            "other",
+            formData.sellOtherProducts ? formData.otherProductsDescription : formData.businessTypeCustom
           ),
           pan: formData.pan,
           gstin: formData.gstin,
@@ -542,6 +637,9 @@ export function VendorProfile() {
         },
         primaryCategoryId: formData.allowedCategoryIds?.length ? formData.allowedCategoryIds[0] : formData.primaryCategoryId || null,
         allowedCategoryIds: formData.allowedCategoryIds,
+        otherProductsDescription: formData.sellOtherProducts
+          ? formData.otherProductsDescription.trim()
+          : "",
         status: "draft",
       });
       await vendorService.submitForApproval();
@@ -585,6 +683,22 @@ export function VendorProfile() {
     },
     [refetch, kycLocked]
   );
+
+  const handleStoreLogoUpload = React.useCallback(async (file: File | null) => {
+    if (!file) return;
+    setUploadingStoreLogo(true);
+    setSubmitError(null);
+    try {
+      const { url } = await vendorService.uploadImage(file);
+      setFormData((prev) => ({ ...prev, storeLogo: url }));
+      setUploadSuccess("Store logo uploaded.");
+      setTimeout(() => setUploadSuccess(null), 4000);
+    } catch (e) {
+      setSubmitError(e instanceof Error ? e.message : "Failed to upload store logo.");
+    } finally {
+      setUploadingStoreLogo(false);
+    }
+  }, []);
 
   const panUrl = profile?.documents?.find((d) => d.documentType === "PAN")?.fileUrl ?? null;
   const gstUrl =
@@ -651,29 +765,19 @@ export function VendorProfile() {
     }
   }, [refetch]);
 
-  const handleAllowedCategoriesChange = React.useCallback(
-    async (categoryId: string, checked: boolean) => {
-      if (kycLocked) return;
+  const handleAllowedCategoriesChange = (categoryId: string, checked: boolean) => {
+    if (kycLocked) return;
+    setFormData((prev) => {
       const next = checked
-        ? [...(formData.allowedCategoryIds || []), categoryId]
-        : (formData.allowedCategoryIds || []).filter((id) => id !== categoryId);
-      setFormData((prev) => ({
+        ? [...(prev.allowedCategoryIds || []), categoryId]
+        : (prev.allowedCategoryIds || []).filter((id) => id !== categoryId);
+      return {
         ...prev,
         allowedCategoryIds: next,
         primaryCategoryId: next.length ? next[0] : prev.primaryCategoryId,
-      }));
-      try {
-        await vendorService.updateProfile({
-          allowedCategoryIds: next,
-          primaryCategoryId: next.length ? next[0] : null,
-        });
-        await refetch();
-      } catch {
-        setFormData((prev) => ({ ...prev, allowedCategoryIds: formData.allowedCategoryIds || [] }));
-      }
-    },
-    [formData.allowedCategoryIds, refetch, kycLocked]
-  );
+      };
+    });
+  };
 
   const statusLabel =
     status === "approved"
@@ -744,7 +848,14 @@ export function VendorProfile() {
           <Alert
             type="info"
             title="Profile approved"
-            message="Your KYC, documents, bank details, and categories are locked. Use Update Profile to save changes to your storefront display name, website, logo, description, and pickup pincode only."
+            message="KYC, documents, bank details, and categories are locked. You can still edit storefront fields below; changes are saved as pending and go live after admin approval."
+          />
+        )}
+        {status === "approved" && profile?.hasPendingStorefront && (
+          <Alert
+            type="warning"
+            title="Storefront changes pending"
+            message="You have storefront updates waiting for admin approval. Your current live storefront is unchanged until approved."
           />
         )}
         {status === "rejected" && !showReason && (
@@ -782,7 +893,10 @@ export function VendorProfile() {
         )}
 
         {/* Tab navigation — full-width stack on mobile, row on sm+ */}
-        <div className="flex flex-col gap-2 rounded-2xl border border-slate-200/80 bg-slate-50/60 p-1.5 shadow-sm sm:flex-row sm:flex-wrap sm:gap-1">
+        <div
+          ref={tabsNavRef}
+          className="flex flex-col gap-2 rounded-2xl border border-slate-200/80 bg-slate-50/60 p-1.5 shadow-sm sm:flex-row sm:flex-wrap sm:gap-1"
+        >
           {TABS.map((tab) => {
             const Icon = tab.icon;
             const tabComplete = isTabComplete(tab.id, vendorProfile, formData.gstNotApplicable);
@@ -795,7 +909,7 @@ export function VendorProfile() {
               <button
                 key={tab.id}
                 type="button"
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => handleTabChange(tab.id)}
                 className={`flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-center text-sm font-semibold leading-tight transition-all duration-200 sm:min-h-0 sm:w-auto sm:flex-1 sm:justify-start sm:px-5 sm:py-3 ${
                   isActive
                     ? "bg-white text-slate-900 shadow-md ring-1 ring-slate-200/80"
@@ -822,7 +936,11 @@ export function VendorProfile() {
                   label="Business Name"
                   value={formData.displayName}
                   onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
-                  helperText="Display name shown to customers"
+                  helperText={
+                    kycLocked
+                      ? "Public store name — saved as pending until admin approval"
+                      : "Display name shown to customers"
+                  }
                   required
                 />
                 <Input
@@ -837,17 +955,34 @@ export function VendorProfile() {
                 <Input
                   label="PAN Number"
                   value={formData.pan}
-                  onChange={(e) => setFormData({ ...formData, pan: e.target.value })}
-                  helperText="10-character PAN"
+                  onChange={(e) => {
+                    const pan = normalizePan(e.target.value);
+                    setFormData({ ...formData, pan });
+                    if (fieldErrors.pan) {
+                      setFieldErrors((prev) => ({ ...prev, pan: undefined }));
+                    }
+                  }}
+                  onBlur={() => {
+                    const panErr = validateVendorFinancialFields({ pan: formData.pan }).pan;
+                    if (panErr) setFieldErrors((prev) => ({ ...prev, pan: panErr }));
+                  }}
+                  helperText="Format: ABCDE1234F"
+                  error={fieldErrors.pan}
                   required
                   disabled={kycLocked}
+                  maxLength={10}
+                  autoCapitalize="characters"
+                  spellCheck={false}
                 />
                 <div>
                   <Toggle
                     checked={formData.gstNotApplicable}
-                    onChange={(checked) =>
-                      setFormData({ ...formData, gstNotApplicable: checked })
-                    }
+                    onChange={(checked) => {
+                      setFormData({ ...formData, gstNotApplicable: checked });
+                      if (checked) {
+                        setFieldErrors((prev) => ({ ...prev, gstin: undefined }));
+                      }
+                    }}
                     label="GST not applicable"
                     disabled={kycLocked}
                   />
@@ -855,56 +990,37 @@ export function VendorProfile() {
                     <Input
                       label="GST Number"
                       value={formData.gstin}
-                      onChange={(e) => setFormData({ ...formData, gstin: e.target.value })}
-                      helperText="15-character GSTIN"
+                      onChange={(e) => {
+                        const gstin = normalizeGstin(e.target.value);
+                        setFormData({ ...formData, gstin });
+                        if (fieldErrors.gstin) {
+                          setFieldErrors((prev) => ({ ...prev, gstin: undefined }));
+                        }
+                      }}
+                      onBlur={() => {
+                        const gstErr = validateVendorFinancialFields(
+                          { pan: formData.pan, gstin: formData.gstin },
+                          { gstNotApplicable: false }
+                        ).gstin;
+                        if (gstErr) setFieldErrors((prev) => ({ ...prev, gstin: gstErr }));
+                      }}
+                      helperText="Format: 27ABCDE1234F1Z0 (15-character GSTIN)"
+                      error={fieldErrors.gstin}
                       required
                       disabled={kycLocked}
+                      maxLength={15}
+                      autoCapitalize="characters"
+                      spellCheck={false}
                     />
                   )}
                 </div>
               </div>
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-slate-700">Business Type</label>
-                <select
-                  className={`w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 shadow-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 ${
-                    kycLocked ? "cursor-not-allowed bg-slate-50 text-slate-500" : "cursor-pointer"
-                  }`}
-                  value={formData.businessType}
-                  disabled={kycLocked}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    setFormData((fd) => ({
-                      ...fd,
-                      businessType: v,
-                      businessTypeCustom: v === "other" ? fd.businessTypeCustom : "",
-                    }));
-                  }}
-                >
-                  {VENDOR_BUSINESS_TYPE_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              {formData.businessType === "other" && (
-                <Input
-                  label="Specify business type"
-                  value={formData.businessTypeCustom}
-                  onChange={(e) =>
-                    setFormData({ ...formData, businessTypeCustom: e.target.value })
-                  }
-                  helperText="Enter your business structure if it is not listed above"
-                  required
-                  disabled={kycLocked}
-                />
-              )}
               <div className="relative" ref={categoriesDropdownRef}>
                 <label className="mb-2 block text-sm font-medium text-slate-700">
-                  Categories you sell in
+                  Business / product categories
                 </label>
                 <p className="mb-3 text-xs text-slate-500">
-                  Select all categories in which you will add products. You can add products only in these categories.
+                  Select all categories you sell in. You can choose multiple. Changes are saved when you tap Save Draft or Submit.
                 </p>
                 <button
                   type="button"
@@ -931,7 +1047,7 @@ export function VendorProfile() {
                   />
                 </button>
                 {categoriesDropdownOpen && (
-                  <div className="absolute z-10 mt-1 w-full rounded-xl border border-slate-200 bg-white py-1 shadow-lg max-h-60 overflow-y-auto">
+                  <div className="absolute z-10 mt-1 w-full rounded-xl border border-slate-200 bg-white py-1 shadow-lg max-h-72 overflow-y-auto">
                     {categories.map((c) => {
                       const checked = (formData.allowedCategoryIds || []).includes(c.id);
                       return (
@@ -950,6 +1066,38 @@ export function VendorProfile() {
                         </label>
                       );
                     })}
+                    <div className="border-t border-slate-100 mt-1 pt-1">
+                      <label className="flex cursor-pointer items-center gap-2 px-4 py-2.5 hover:bg-slate-50 text-sm text-slate-800">
+                        <input
+                          type="checkbox"
+                          checked={formData.sellOtherProducts}
+                          disabled={kycLocked}
+                          onChange={(e) =>
+                            setFormData((prev) => ({
+                              ...prev,
+                              sellOtherProducts: e.target.checked,
+                              otherProductsDescription: e.target.checked ? prev.otherProductsDescription : "",
+                            }))
+                          }
+                          className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500/30"
+                        />
+                        <span className="font-medium">Other — products not listed above</span>
+                      </label>
+                    </div>
+                  </div>
+                )}
+                {formData.sellOtherProducts && (
+                  <div className="mt-3">
+                    <Input
+                      label="Describe other products"
+                      value={formData.otherProductsDescription}
+                      onChange={(e) =>
+                        setFormData({ ...formData, otherProductsDescription: e.target.value })
+                      }
+                      helperText="Tell us what you sell if it does not fit the categories above"
+                      required
+                      disabled={kycLocked}
+                    />
                   </div>
                 )}
                 {((formData.allowedCategoryIds || []).length > 0) && (
@@ -964,8 +1112,53 @@ export function VendorProfile() {
                 value={formData.websiteUrl}
                 onChange={(e) => setFormData({ ...formData, websiteUrl: e.target.value })}
                 placeholder="https://www.example.com"
-                helperText="Link to your store or company website (optional)"
+                helperText={
+                  kycLocked
+                    ? "Saved as pending — goes live after admin approval"
+                    : "Link to your store or company website (optional)"
+                }
               />
+              <div className="border-t border-slate-200 pt-8">
+                <h3 className="mb-1 text-lg font-semibold text-slate-900">Storefront</h3>
+                <p className="mb-4 text-sm text-slate-500">
+                  {kycLocked
+                    ? "These fields can be updated anytime. Changes are reviewed and published after admin approval."
+                    : "How your store appears to customers on the marketplace."}
+                </p>
+                <div className="space-y-6">
+                  <Textarea
+                    label="Store description"
+                    value={formData.storeDescription}
+                    onChange={(e) => setFormData({ ...formData, storeDescription: e.target.value })}
+                    placeholder="Tell customers about your store, products, and policies"
+                    helperText="Shown on your public vendor storefront"
+                    rows={4}
+                  />
+                  <Input
+                    label="Pickup pincode"
+                    value={formData.pickupPincode}
+                    onChange={(e) =>
+                      setFormData({ ...formData, pickupPincode: e.target.value.replace(/\D/g, "").slice(0, 6) })
+                    }
+                    placeholder="e.g. 560001"
+                    helperText="Pincode where orders are packed / picked up from"
+                    maxLength={6}
+                    inputMode="numeric"
+                  />
+                  <FileUpload
+                    label="Store logo"
+                    accept=".jpg,.jpeg,.png,.webp"
+                    onChange={handleStoreLogoUpload}
+                    helperText="Square logo, PNG or JPG (max 5MB)"
+                    uploading={uploadingStoreLogo}
+                    uploadedUrl={formData.storeLogo || null}
+                    preview={formData.storeLogo || undefined}
+                    previewTitle="Store logo"
+                    onPreview={openDocumentPreview}
+                    disabled={uploadingStoreLogo}
+                  />
+                </div>
+              </div>
               <div className="border-t border-slate-200 pt-8">
                 <h3 className="mb-4 text-lg font-semibold text-slate-900">Address</h3>
                 <div className="space-y-4">
@@ -1091,6 +1284,8 @@ export function VendorProfile() {
                 disabled={kycLocked || uploadingDoc === "PAN"}
                 uploading={uploadingDoc === "PAN"}
                 uploadedUrl={panUrl}
+                previewTitle="PAN Card"
+                onPreview={openDocumentPreview}
                 error={uploadErrorByType.PAN ?? undefined}
               />
               <FileUpload
@@ -1101,6 +1296,8 @@ export function VendorProfile() {
                 disabled={kycLocked || uploadingDoc === "GST_CERTIFICATE"}
                 uploading={uploadingDoc === "GST_CERTIFICATE"}
                 uploadedUrl={gstUrl}
+                previewTitle="GST Certificate"
+                onPreview={openDocumentPreview}
                 error={uploadErrorByType.GST_CERTIFICATE ?? undefined}
               />
               <div className="border-t border-slate-200 pt-8">
@@ -1128,6 +1325,8 @@ export function VendorProfile() {
                         disabled={kycLocked || uploadingVendorDoc === doc.documentName}
                         uploading={uploadingVendorDoc === doc.documentName}
                         uploadedUrl={profile?.vendorDocuments?.find((d) => d.documentName === doc.documentName)?.documentUrl}
+                        previewTitle={doc.documentName}
+                        onPreview={openDocumentPreview}
                         error={uploadErrorByType[doc.documentName] ?? undefined}
                       />
                     ))}
@@ -1245,14 +1444,13 @@ export function VendorProfile() {
                           <FileText className="w-5 h-5 shrink-0 text-indigo-400" />
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold text-slate-800 truncate">{doc.documentName}</p>
-                            <a
-                              href={doc.documentUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700 hover:underline mt-0.5"
+                            <button
+                              type="button"
+                              onClick={() => openDocumentPreview(doc.documentUrl, doc.documentName)}
+                              className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700 hover:underline mt-0.5"
                             >
-                              View file <ExternalLink className="w-3 h-3" />
-                            </a>
+                              Preview <ExternalLink className="w-3 h-3" />
+                            </button>
                           </div>
                           {!kycLocked && (
                             <button
@@ -1302,21 +1500,49 @@ export function VendorProfile() {
                 <Input
                   label="Account Number"
                   value={formData.accountNumber}
-                  onChange={(e) =>
-                    setFormData({ ...formData, accountNumber: e.target.value })
-                  }
+                  onChange={(e) => {
+                    const accountNumber = normalizeBankAccountNumber(e.target.value);
+                    setFormData({ ...formData, accountNumber });
+                    if (fieldErrors.accountNumber) {
+                      setFieldErrors((prev) => ({ ...prev, accountNumber: undefined }));
+                    }
+                  }}
+                  onBlur={() => {
+                    const acctErr = validateVendorFinancialFields({
+                      accountNumber: formData.accountNumber,
+                    }).accountNumber;
+                    if (acctErr) setFieldErrors((prev) => ({ ...prev, accountNumber: acctErr }));
+                  }}
+                  helperText="9–18 digits"
+                  error={fieldErrors.accountNumber}
                   required
                   disabled={kycLocked}
+                  inputMode="numeric"
+                  maxLength={18}
                 />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Input
                   label="IFSC Code"
                   value={formData.ifsc}
-                  onChange={(e) => setFormData({ ...formData, ifsc: e.target.value })}
-                  helperText="11-character IFSC"
+                  onChange={(e) => {
+                    const ifsc = normalizeIfsc(e.target.value);
+                    setFormData({ ...formData, ifsc });
+                    if (fieldErrors.ifsc) {
+                      setFieldErrors((prev) => ({ ...prev, ifsc: undefined }));
+                    }
+                  }}
+                  onBlur={() => {
+                    const ifscErr = validateVendorFinancialFields({ ifsc: formData.ifsc }).ifsc;
+                    if (ifscErr) setFieldErrors((prev) => ({ ...prev, ifsc: ifscErr }));
+                  }}
+                  helperText="Format: SBIN0001234"
+                  error={fieldErrors.ifsc}
                   required
                   disabled={kycLocked}
+                  maxLength={11}
+                  autoCapitalize="characters"
+                  spellCheck={false}
                 />
                 <Input
                   label="Bank Name"
@@ -1333,6 +1559,8 @@ export function VendorProfile() {
                 disabled={kycLocked || uploadingDoc === "ADDRESS_PROOF"}
                 uploading={uploadingDoc === "ADDRESS_PROOF"}
                 uploadedUrl={addressProofUrl}
+                previewTitle="Bank proof"
+                onPreview={openDocumentPreview}
                 error={uploadErrorByType.ADDRESS_PROOF ?? undefined}
               />
             </div>
@@ -1399,6 +1627,7 @@ export function VendorProfile() {
         </div>
         </div>
       </div>
+      <DocumentPreviewOverlay preview={docPreview} onClose={() => setDocPreview(null)} />
     </DataState>
   );
 }

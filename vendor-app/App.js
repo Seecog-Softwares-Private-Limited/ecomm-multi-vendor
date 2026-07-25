@@ -30,6 +30,26 @@ const VENDOR_DASHBOARD_URI = 'https://indovyapar.com/vendor';
 const WEBVIEW_USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
+/** Disable pinch-zoom inside the WebView (works with viewport meta from the site). */
+const DISABLE_ZOOM_SCRIPT = `
+(function () {
+  try {
+    var meta = document.querySelector('meta[name="viewport"]');
+    if (!meta) {
+      meta = document.createElement('meta');
+      meta.name = 'viewport';
+      (document.head || document.documentElement).appendChild(meta);
+    }
+    meta.setAttribute(
+      'content',
+      'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no'
+    );
+    document.documentElement.style.touchAction = 'manipulation';
+  } catch (e) {}
+})();
+true;
+`;
+
 function VendorScreen() {
   const webRef = useRef(null);
 
@@ -192,6 +212,7 @@ function VendorScreen() {
       userAgent={WEBVIEW_USER_AGENT}
       originWhitelist={['*']}
       bounces={false}
+      injectedJavaScriptBeforeContentLoaded={DISABLE_ZOOM_SCRIPT}
       onNavigationStateChange={onNavigationStateChange}
       onLoadStart={onLoadStart}
       onLoadEnd={onLoadEnd}
@@ -202,10 +223,16 @@ function VendorScreen() {
         ios: {
           pullToRefreshEnabled: false,
           automaticallyAdjustContentInsets: true,
+          minimumZoomScale: 1,
+          maximumZoomScale: 1,
         },
         android: {
           overScrollMode: 'never',
           nestedScrollEnabled: true,
+          scalesPageToFit: false,
+          setBuiltInZoomControls: false,
+          setDisplayZoomControls: false,
+          textZoom: 100,
         },
       })}
     />

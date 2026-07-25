@@ -1,10 +1,18 @@
 "use client";
 
 import { Lock, User, CreditCard, Bell, Save, Eye, EyeOff } from "lucide-react";
-import { Button, Input, Card, Alert, Toggle } from "../components/UIComponents";
+import { Button, Input, Card, Alert, Toggle, Modal } from "../components/UIComponents";
+import { vendorService } from "@/services/vendor.service";
+import { useApi } from "@/lib/hooks/useApi";
+import { ServiceError } from "@/services/errors";
+import { useRouter } from "next/navigation";
 import * as React from "react";
 
+const DEACTIVATE_CONFIRM_PHRASE = "DEACTIVATE";
+
 export function VendorSettings() {
+  const router = useRouter();
+  const { data: me } = useApi(() => vendorService.getMe());
   const [activeTab, setActiveTab] = React.useState("password");
 
   // Password settings
@@ -24,6 +32,15 @@ export function VendorSettings() {
   const [orderNotifications, setOrderNotifications] = React.useState(true);
   const [payoutNotifications, setPayoutNotifications] = React.useState(true);
   const [marketingNotifications, setMarketingNotifications] = React.useState(false);
+
+  const [showDeactivateModal, setShowDeactivateModal] = React.useState(false);
+  const [deactivatePassword, setDeactivatePassword] = React.useState("");
+  const [deactivateConfirm, setDeactivateConfirm] = React.useState("");
+  const [deactivating, setDeactivating] = React.useState(false);
+  const [deactivateError, setDeactivateError] = React.useState<string | null>(null);
+
+  const accountAlreadyInactive =
+    me?.status === "on_hold" || me?.status === "blocked" || me?.rawStatus === "ON_HOLD" || me?.rawStatus === "SUSPENDED";
 
   const tabs = [
     { id: "password", label: "Change Password", icon: Lock },
@@ -56,6 +73,48 @@ export function VendorSettings() {
 
   const handleSaveNotifications = () => {
     alert("Notification preferences saved!");
+  };
+
+  const openDeactivateModal = () => {
+    setDeactivatePassword("");
+    setDeactivateConfirm("");
+    setDeactivateError(null);
+    setShowDeactivateModal(true);
+  };
+
+  const closeDeactivateModal = () => {
+    if (deactivating) return;
+    setShowDeactivateModal(false);
+    setDeactivatePassword("");
+    setDeactivateConfirm("");
+    setDeactivateError(null);
+  };
+
+  const handleDeactivateAccount = async () => {
+    setDeactivateError(null);
+    setDeactivating(true);
+    try {
+      const payload: { password?: string; confirm?: string } = {};
+      if (deactivatePassword.trim()) {
+        payload.password = deactivatePassword;
+      } else {
+        payload.confirm = deactivateConfirm.trim();
+      }
+
+      await vendorService.deactivateAccount(payload);
+      setShowDeactivateModal(false);
+      router.push("/vendor/login?deactivated=1");
+    } catch (err) {
+      const message =
+        err instanceof ServiceError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "Failed to deactivate account. Please try again.";
+      setDeactivateError(message);
+    } finally {
+      setDeactivating(false);
+    }
   };
 
   return (
@@ -206,7 +265,7 @@ export function VendorSettings() {
               message="To update your bank account details, please visit the Profile & KYC section. Bank changes require document verification and admin approval."
             />
             <div className="flex justify-start mt-4">
-              <Button variant="secondary" onClick={() => (window.location.href = "/vendor/profile")}>
+              <Button variant="secondary" onClick={() => (window.location.href = "/vendor/profile?tab=business_info")}>
                 <CreditCard className="w-5 h-5" />
                 Go to Profile & KYC
               </Button>
@@ -313,12 +372,76 @@ export function VendorSettings() {
               Deactivating your account will hide all your products and prevent new orders. You can
               reactivate anytime by contacting support.
             </p>
-            <Button variant="danger" size="sm">
-              Deactivate Account
-            </Button>
+            {accountAlreadyInactive ? (
+              <p className="text-sm font-medium text-red-800">
+                Your account is already deactivated or suspended.
+              </p>
+            ) : (
+              <Button variant="danger" size="sm" onClick={openDeactivateModal}>
+                Deactivate Account
+              </Button>
+            )}
           </div>
         </div>
       </Card>
+
+      <Modal
+        isOpen={showDeactivateModal}
+        onClose={closeDeactivateModal}
+        title="Deactivate Account"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <Alert
+            type="warning"
+            message="This will hide your products from the marketplace and log you out. Existing orders may still need to be fulfilled."
+          />
+
+          <Input
+            label="Password"
+            type="password"
+            placeholder="Enter your account password"
+            value={deactivatePassword}
+            onChange={(e) => setDeactivatePassword(e.target.value)}
+            helperText={`If you sign in with Google only, leave password blank and type ${DEACTIVATE_CONFIRM_PHRASE} below.`}
+          />
+
+          {!deactivatePassword.trim() && (
+            <Input
+              label={`Type ${DEACTIVATE_CONFIRM_PHRASE} to confirm`}
+              placeholder={DEACTIVATE_CONFIRM_PHRASE}
+              value={deactivateConfirm}
+              onChange={(e) => setDeactivateConfirm(e.target.value)}
+            />
+          )}
+
+          {deactivateError && (
+            <Alert type="error" message={deactivateError} />
+          )}
+
+          <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
+            <Button
+              variant="ghost"
+              className="min-h-11 w-full sm:w-auto"
+              onClick={closeDeactivateModal}
+              disabled={deactivating}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              className="min-h-11 w-full sm:w-auto"
+              onClick={handleDeactivateAccount}
+              disabled={
+                deactivating ||
+                (!deactivatePassword.trim() && deactivateConfirm.trim() !== DEACTIVATE_CONFIRM_PHRASE)
+              }
+            >
+              {deactivating ? "Deactivating…" : "Deactivate Account"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

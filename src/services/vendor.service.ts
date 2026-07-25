@@ -311,6 +311,14 @@ export const vendorService = {
     return request(`${VENDOR_BASE}/verify/email/confirm`, { method: "POST", body: { code } });
   },
 
+  /** Deactivate vendor account (sets ON_HOLD, hides products, clears session). */
+  async deactivateAccount(payload: { password?: string; confirm?: string }): Promise<{ message: string }> {
+    return request<{ message: string }>(`${VENDOR_BASE}/deactivate`, {
+      method: "POST",
+      body: payload,
+    });
+  },
+
   /** Upload a product image. Returns the public URL to use in imageUrls. */
   async uploadImage(file: File): Promise<{ url: string }> {
     const formData = new FormData();

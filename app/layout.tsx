@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Manrope, Nunito, Katibeh } from "next/font/google";
 import { Toaster } from "sonner";
@@ -30,6 +30,14 @@ const katibeh = Katibeh({
 export const metadata: Metadata = {
   title: "E-commerce Website Wireframes",
   description: "MarketHub - Multi-Vendor Marketplace",
+};
+
+/** App-like mobile / WebView: disable pinch-zoom (vendor + customer hybrid apps). */
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default function RootLayout({

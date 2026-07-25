@@ -276,11 +276,14 @@ export interface VendorProfileData {
   primaryCategoryId?: string | null;
   /** Category IDs the vendor can add products to. */
   allowedCategoryIds: string[];
+  otherProductsDescription?: string;
   business: VendorProfileBusiness;
   owner: VendorProfileOwner;
   bank: VendorProfileBank | null;
   documents: VendorProfileDocument[];
   vendorDocuments?: { id: string; documentName: string; documentUrl: string }[];
+  /** True when approved vendor has storefront edits waiting for admin to publish. */
+  hasPendingStorefront?: boolean;
 }
 
 export interface UpdateVendorProfilePayload {
@@ -291,6 +294,7 @@ export interface UpdateVendorProfilePayload {
   primaryCategoryId?: string | null;
   /** Category IDs the vendor can sell in. */
   allowedCategoryIds?: string[];
+  otherProductsDescription?: string;
 }
 
 export interface VendorSupportTicketItem {
