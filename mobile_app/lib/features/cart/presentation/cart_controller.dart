@@ -8,8 +8,9 @@ import '../data/cart_repository_impl.dart';
 import '../domain/entities/cart_item.dart';
 import '../domain/repositories/cart_repository.dart';
 
+/** Set to e.g. 50 when re-enabling delivery charges. */
+const double kShippingCost = 0;
 const double kFreeShippingThreshold = 500;
-const double kShippingCost = 50;
 const double kDefaultGstPercent = 18;
 
 final cartRemoteDataSourceProvider = Provider<CartRemoteDataSource>(
@@ -58,7 +59,9 @@ class CartState {
       0,
       (sum, i) => sum + i.lineTotal * ((i.product.gstPercent ?? kDefaultGstPercent) / 100),
     );
-    final shipping = items.isEmpty || subtotal >= kFreeShippingThreshold ? 0.0 : kShippingCost;
+    final shipping = items.isEmpty || kShippingCost <= 0 || subtotal >= kFreeShippingThreshold
+        ? 0.0
+        : kShippingCost;
     return CartSummary(subtotal: subtotal, savings: savings, shipping: shipping, tax: tax);
   }
 

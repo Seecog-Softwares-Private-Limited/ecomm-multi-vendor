@@ -46,12 +46,12 @@ void main() {
       expect(s.total, 0);
     });
 
-    test('charges shipping below the free-shipping threshold', () {
+    test('free shipping while delivery fee is disabled', () {
       final state = CartState(items: [_item(id: '1', price: 100, mrp: 100, gst: 0)]);
       final s = state.summary;
       expect(s.subtotal, 100);
-      expect(s.shipping, kShippingCost);
-      expect(s.total, 150);
+      expect(s.shipping, 0);
+      expect(s.total, 100);
     });
 
     test('waives shipping at or above the threshold', () {

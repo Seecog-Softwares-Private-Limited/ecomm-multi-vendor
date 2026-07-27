@@ -14,6 +14,11 @@ import {
   type GuestCartItem,
 } from "@/lib/guest-cart";
 import { DEFAULT_PRODUCT_IMAGE_URL } from "@/lib/product-image";
+import {
+  calculateShippingAmount,
+  isShippingPromoEnabled,
+  SHIPPING_FREE_THRESHOLD,
+} from "@/lib/constants/shipping";
 
 const CART_UPDATED_EVENT = "indovyapar-cart-updated";
 
@@ -250,8 +255,7 @@ function CartDrawerPanel({ isOpen, onClose }: CartDrawerPanelProps) {
     (sum, i) => sum + i.product.sellingPrice * i.quantity,
     0
   );
-  const freeShippingThreshold = 500;
-  const qualifiesFreeShipping = subtotal >= freeShippingThreshold;
+  const qualifiesFreeShipping = calculateShippingAmount(subtotal) === 0;
 
   const handleCheckout = () => {
     onClose();
@@ -293,11 +297,11 @@ function CartDrawerPanel({ isOpen, onClose }: CartDrawerPanelProps) {
         </div>
 
         {/* Free shipping progress */}
-        {!qualifiesFreeShipping && subtotal > 0 && (
+        {isShippingPromoEnabled() && !qualifiesFreeShipping && subtotal > 0 && (
           <div className="mx-5 mt-4 p-3 rounded-xl flex items-center gap-3 text-white bg-gradient-to-r from-[#FF6A00] to-[#E55F00]">
             <Truck className="w-5 h-5 shrink-0" />
             <p className="text-sm font-semibold">
-              Add <span className="font-bold">{formatPrice(freeShippingThreshold - subtotal)}</span> more for FREE shipping
+              Add <span className="font-bold">{formatPrice(SHIPPING_FREE_THRESHOLD - subtotal)}</span> more for FREE shipping
             </p>
           </div>
         )}

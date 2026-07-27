@@ -11,6 +11,7 @@ import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { resolveSkuRowForCart } from "@/lib/product-sku-variant";
 import { DEFAULT_GST_PERCENT } from "@/lib/constants/gst";
+import { calculateShippingAmount } from "@/lib/constants/shipping";
 
 /**
  * GET /api/orders — list orders for the logged-in customer.
@@ -42,9 +43,6 @@ export const GET = withApiHandler(async (request: NextRequest) => {
 
   return apiSuccess({ orders: list });
 });
-
-const SHIPPING_FREE_THRESHOLD = 500;
-const SHIPPING_COST = 50;
 
 /**
  * POST /api/orders — place order from cart (checkout).
@@ -161,7 +159,7 @@ export const POST = withApiHandler(async (request: NextRequest) => {
   }
 
   const amountAfterDiscount = Math.max(0, subtotal - discountAmount);
-  const shippingAmount = amountAfterDiscount >= SHIPPING_FREE_THRESHOLD ? 0 : SHIPPING_COST;
+  const shippingAmount = calculateShippingAmount(amountAfterDiscount);
   const taxAmount = validItems.reduce((sum, i) => {
     const unitPrice = unitPriceForCartLine(i);
     const gst =

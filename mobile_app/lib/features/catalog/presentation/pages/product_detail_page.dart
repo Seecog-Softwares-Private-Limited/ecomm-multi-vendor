@@ -365,7 +365,7 @@ class _DeliveryInfo extends StatelessWidget {
       ),
       child: Column(
         children: [
-          row(Icons.local_shipping_outlined, 'Free delivery on orders above ₹500'),
+          row(Icons.local_shipping_outlined, 'Free delivery on all orders'),
           row(Icons.verified_outlined, 'Genuine products from verified sellers'),
           row(Icons.replay_outlined, '7-day easy returns on eligible items'),
         ],
