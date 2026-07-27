@@ -71,7 +71,8 @@ flutter build appbundle --release --dart-define=APP_FLAVOR=prod
 
 ## Known limitations (OK for v1 upload, fix later)
 
-- Online payment (Razorpay) UI exists but in-app payment flow not wired — COD works
+- ~~Online payment (Razorpay) UI exists but in-app payment flow not wired — COD works~~
+- **Razorpay (UPI/card)** wired in checkout — requires server `RAZORPAY_*` keys in production `.env`
 - No Google sign-in in app — email/password + OTP work
 - App icon is default Flutter launcher — replace before marketing release
 

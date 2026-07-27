@@ -15,6 +15,10 @@ import '../../../addresses/presentation/pages/addresses_page.dart';
 import '../../../cart/presentation/cart_controller.dart';
 import '../../../cart/presentation/widgets/cart_summary_card.dart';
 import '../../../cart/presentation/widgets/coupon_field.dart';
+import '../../data/orders_repository.dart';
+import '../../data/razorpay_checkout_service.dart';
+import '../../domain/entities/order.dart';
+import '../../domain/entities/razorpay_session.dart';
 import '../orders_providers.dart';
 
 class CheckoutPage extends ConsumerStatefulWidget {
@@ -28,8 +32,21 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   Address? _address;
   String _payment = 'cod';
   bool _placing = false;
+  late final RazorpayCheckoutService _razorpayCheckout;
 
   Address? get _effectiveAddress => _address ?? ref.read(defaultAddressProvider);
+
+  @override
+  void initState() {
+    super.initState();
+    _razorpayCheckout = RazorpayCheckoutService();
+  }
+
+  @override
+  void dispose() {
+    _razorpayCheckout.dispose();
+    super.dispose();
+  }
 
   Future<void> _selectAddress() async {
     await Navigator.of(context).push(
@@ -45,6 +62,95 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     );
   }
 
+  void _goToOrderSuccess({
+    required String orderId,
+    required double total,
+    required bool paymentPending,
+  }) {
+    context.pushReplacement(
+      '${AppRoutes.orderSuccess}?orderId=$orderId&total=$total&pending=$paymentPending',
+    );
+  }
+
+  Future<void> _completeOnlinePayment({
+    required PlaceOrderResult result,
+    required OrdersRepository ordersRepo,
+  }) async {
+    final session = await ordersRepo.createRazorpayOrder(result.orderId);
+
+    if (!session.configured || !session.isReady) {
+      if (!mounted) return;
+      context.showSnack(
+        session.message ?? 'Online payment is not configured. Your order is confirmed.',
+      );
+      ref.read(cartControllerProvider.notifier).clearAfterOrder();
+      ref.invalidate(ordersListProvider);
+      _goToOrderSuccess(
+        orderId: result.orderId,
+        total: result.totalAmount,
+        paymentPending: true,
+      );
+      return;
+    }
+
+    final checkoutResult = await _razorpayCheckout.openCheckout(
+      session,
+      paymentMethod: _payment,
+    );
+
+    if (!mounted) return;
+
+    switch (checkoutResult) {
+      case RazorpayCheckoutSuccess(:final paymentId, :final orderId, :final signature):
+        if (paymentId.isEmpty || orderId.isEmpty || signature.isEmpty) {
+          context.showSnack('Payment response was incomplete.', isError: true);
+          _goToOrderSuccess(
+            orderId: result.orderId,
+            total: result.totalAmount,
+            paymentPending: true,
+          );
+          return;
+        }
+        try {
+          await ordersRepo.verifyRazorpayPayment(
+            orderId: result.orderId,
+            razorpayPaymentId: paymentId,
+            razorpayOrderId: orderId,
+            razorpaySignature: signature,
+          );
+          ref.read(cartControllerProvider.notifier).clearAfterOrder();
+          ref.invalidate(ordersListProvider);
+          if (!mounted) return;
+          context.showSnack('Payment successful!');
+          _goToOrderSuccess(
+            orderId: result.orderId,
+            total: result.totalAmount,
+            paymentPending: false,
+          );
+        } catch (error) {
+          if (!mounted) return;
+          context.showSnack(Failure.from(error).message, isError: true);
+          _goToOrderSuccess(
+            orderId: result.orderId,
+            total: result.totalAmount,
+            paymentPending: true,
+          );
+        }
+      case RazorpayCheckoutFailure(:final message, :final cancelled):
+        context.showSnack(
+          cancelled
+              ? 'Payment cancelled. Your order is saved — you can retry payment from order details.'
+              : message,
+          isError: !cancelled,
+        );
+        _goToOrderSuccess(
+          orderId: result.orderId,
+          total: result.totalAmount,
+          paymentPending: true,
+        );
+    }
+  }
+
   Future<void> _placeOrder() async {
     final address = _effectiveAddress;
     if (address == null) {
@@ -54,17 +160,25 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     setState(() => _placing = true);
     try {
       final cart = ref.read(cartControllerProvider).value;
-      final result = await ref.read(ordersRepositoryProvider).placeOrder(
-            shippingAddressId: address.id,
-            paymentMethod: _payment,
-            couponCode: cart?.couponCode,
-          );
-      ref.read(cartControllerProvider.notifier).clearAfterOrder();
-      ref.invalidate(ordersListProvider);
-      if (!mounted) return;
-      context.pushReplacement(
-        '${AppRoutes.orderSuccess}?orderId=${result.orderId}&total=${result.totalAmount}&pending=${result.requiresRazorpay}',
+      final ordersRepo = ref.read(ordersRepositoryProvider);
+      final result = await ordersRepo.placeOrder(
+        shippingAddressId: address.id,
+        paymentMethod: _payment,
+        couponCode: cart?.couponCode,
       );
+
+      if (result.requiresRazorpay) {
+        await _completeOnlinePayment(result: result, ordersRepo: ordersRepo);
+      } else {
+        ref.read(cartControllerProvider.notifier).clearAfterOrder();
+        ref.invalidate(ordersListProvider);
+        if (!mounted) return;
+        _goToOrderSuccess(
+          orderId: result.orderId,
+          total: result.totalAmount,
+          paymentPending: false,
+        );
+      }
     } catch (error) {
       if (!mounted) return;
       context.showSnack(Failure.from(error).message, isError: true);
@@ -154,7 +268,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                   value: 'upi',
                   groupValue: _payment,
                   title: 'UPI',
-                  subtitle: 'Pay via any UPI app',
+                  subtitle: 'Pay via Razorpay (GPay, PhonePe, etc.)',
                   icon: Icons.account_balance_wallet_outlined,
                   onChanged: (v) => setState(() => _payment = v),
                 ),
@@ -162,7 +276,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                   value: 'card',
                   groupValue: _payment,
                   title: 'Credit / Debit Card',
-                  subtitle: 'Visa, Mastercard, RuPay',
+                  subtitle: 'Visa, Mastercard, RuPay via Razorpay',
                   icon: Icons.credit_card,
                   onChanged: (v) => setState(() => _payment = v),
                 ),
@@ -180,7 +294,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                   Padding(
                     padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                     child: Text(
-                      'Online payment is completed securely after you place the order.',
+                      'Secured by Razorpay. You will complete payment right after placing the order.',
                       style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
                     ),
                   ),
@@ -192,7 +306,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
               child: Padding(
                 padding: const EdgeInsets.all(AppSpacing.md),
                 child: AppButton(
-                  label: 'Place order',
+                  label: _payment == 'cod' ? 'Place order' : 'Place order & pay',
                   isLoading: _placing,
                   onPressed: _placeOrder,
                 ),
@@ -242,36 +356,25 @@ class _PaymentTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final selected = value == groupValue;
-    return Card(
-      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        side: BorderSide(color: selected ? AppColors.primary : Theme.of(context).dividerColor),
-      ),
-      child: InkWell(
-        onTap: () => onChanged(value),
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs),
-          child: Row(
-            children: [
-              Icon(icon, color: selected ? AppColors.primary : AppColors.textSecondary),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title, style: Theme.of(context).textTheme.titleSmall),
-                    Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
-                  ],
-                ),
-              ),
-              Icon(
-                selected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-                color: selected ? AppColors.primary : AppColors.textMuted,
-              ),
-            ],
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: Card(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          side: BorderSide(
+            color: selected ? AppColors.primary : AppColors.border,
+            width: selected ? 2 : 1,
           ),
+        ),
+        child: RadioListTile<String>(
+          value: value,
+          groupValue: groupValue,
+          onChanged: (v) {
+            if (v != null) onChanged(v);
+          },
+          title: Text(title),
+          subtitle: Text(subtitle),
+          secondary: Icon(icon, color: selected ? AppColors.primary : AppColors.textSecondary),
         ),
       ),
     );

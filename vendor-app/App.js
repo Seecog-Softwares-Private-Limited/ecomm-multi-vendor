@@ -17,20 +17,25 @@ import {
   SafeAreaView,
 } from 'react-native-safe-area-context';
 
+/** Bump with each store release — busts CDN/WebView cache for HTML on first load. */
+const APP_RELEASE = '1.0.4';
+
 /**
  * Vendor home — middleware sends unauthenticated users to /vendor/login;
  * keeps returning vendors on the dashboard when the session cookie is still valid.
+ * `app=1` enables hybrid-app chrome hiding on shared layouts; `v` busts stale caches.
  */
-const VENDOR_DASHBOARD_URI = 'https://indovyapar.com/vendor';
+const VENDOR_DASHBOARD_URI = `https://indovyapar.com/vendor?app=1&v=${APP_RELEASE}`;
 
 /**
- * Desktop Chrome UA — avoids some sites routing in-app browsers to consumer flows.
- * If OAuth (Google/Facebook) fails, remove `userAgent={WEBVIEW_USER_AGENT}` from WebView.
+ * Mobile Chrome UA — must match phone Chrome so CDN/server serve the same bundles as the browser.
+ * Desktop UA caused stale/different cached JS in WebView vs Chrome on the same device.
+ * If Google OAuth fails, try removing userAgent from WebView.
  */
 const WEBVIEW_USER_AGENT =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+  'Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36';
 
-/** Disable pinch-zoom inside the WebView (works with viewport meta from the site). */
+/** Disable pinch-zoom + clear stale SW/cache once per app release (post-deploy chunk mismatch). */
 const DISABLE_ZOOM_SCRIPT = `
 (function () {
   try {
@@ -45,6 +50,21 @@ const DISABLE_ZOOM_SCRIPT = `
       'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no'
     );
     document.documentElement.style.touchAction = 'manipulation';
+
+    var cacheKey = 'vendor_wv_cache_cleared_${APP_RELEASE}';
+    if (window.localStorage && window.localStorage.getItem(cacheKey) !== '1') {
+      window.localStorage.setItem(cacheKey, '1');
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function (regs) {
+          regs.forEach(function (r) { r.unregister(); });
+        });
+      }
+      if ('caches' in window) {
+        caches.keys().then(function (keys) {
+          keys.forEach(function (k) { caches.delete(k); });
+        });
+      }
+    }
   } catch (e) {}
 })();
 true;

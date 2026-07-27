@@ -37,6 +37,10 @@ abstract final class ApiEndpoints {
   static const String orders = '/api/orders';
   static String order(String id) => '/api/orders/$id';
 
+  // Payments (Razorpay)
+  static const String razorpayOrder = '/api/payments/razorpay-order';
+  static const String verifyPayment = '/api/payments/verify';
+
   // Support / CMS
   static const String supportTickets = '/api/support-tickets';
   static String footerPage(String slug) => '/api/cms/footer-pages/$slug';
