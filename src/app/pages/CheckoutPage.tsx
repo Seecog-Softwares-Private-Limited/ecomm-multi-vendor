@@ -18,7 +18,7 @@ import {
 import { TopBar } from "@/components/TopBar";
 import { Navbar } from "@/components/Navbar";
 import { DEFAULT_GST_PERCENT } from "@/lib/constants/gst";
-import { storefrontTermsOfServiceHref } from "@/lib/cms-footer-pages";
+import { calculateShippingAmount } from "@/lib/constants/shipping";
 import { DEFAULT_PRODUCT_IMAGE_URL } from "@/lib/product-image";
 
 type AddressApi = {
@@ -54,9 +54,6 @@ type CartItemApi = {
 };
 
 const PLACEHOLDER_IMAGE = DEFAULT_PRODUCT_IMAGE_URL;
-const SHIPPING_FREE_THRESHOLD = 500;
-const SHIPPING_COST = 50;
-
 export function CheckoutPage() {
   const router = useRouter();
   const [addresses, setAddresses] = useState<AddressApi[]>([]);
@@ -127,8 +124,7 @@ export function CheckoutPage() {
   );
   const discount = 0;
   const amountAfterDiscount = Math.max(0, subtotal - discount);
-  const shipping =
-    amountAfterDiscount >= SHIPPING_FREE_THRESHOLD ? 0 : SHIPPING_COST;
+  const shipping = calculateShippingAmount(amountAfterDiscount);
   const tax = cartItems.reduce(
     (sum, it) =>
       sum +

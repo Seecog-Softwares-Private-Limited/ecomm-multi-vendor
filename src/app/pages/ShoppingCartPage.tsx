@@ -19,6 +19,11 @@ import { TopBar } from "@/components/TopBar";
 import { Navbar } from "@/components/Navbar";
 import { DEFAULT_GST_PERCENT } from "@/lib/constants/gst";
 import {
+  calculateShippingAmount,
+  isShippingPromoEnabled,
+  SHIPPING_FREE_THRESHOLD,
+} from "@/lib/constants/shipping";
+import {
   getGuestCart,
   removeFromGuestCart,
   updateGuestCartQuantity,
@@ -112,7 +117,7 @@ export function ShoppingCartPage() {
     0
   );
   const discount = couponApplied ? subtotal * 0.1 : 0;
-  const shipping = subtotal >= 500 ? 0 : 50;
+  const shipping = calculateShippingAmount(subtotal);
   const tax = items.reduce(
     (sum, it) =>
       sum +
@@ -256,14 +261,14 @@ export function ShoppingCartPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Cart items */}
             <div className="lg:col-span-2 space-y-4">
-              {subtotal < 500 && (
+              {isShippingPromoEnabled() && subtotal < SHIPPING_FREE_THRESHOLD && (
                 <div
                   className="rounded-xl p-4 flex items-center gap-3 text-white"
                   style={{ background: "linear-gradient(135deg, #FF6A00 0%, #E55F00 100%)" }}
                 >
                   <Truck className="w-6 h-6 shrink-0" />
                   <p className="font-semibold text-[15px]">
-                    Add <span className="font-bold">₹{(500 - subtotal).toFixed(0)}</span> more to get
+                    Add <span className="font-bold">₹{(SHIPPING_FREE_THRESHOLD - subtotal).toFixed(0)}</span> more to get
                     FREE shipping!
                   </p>
                 </div>
