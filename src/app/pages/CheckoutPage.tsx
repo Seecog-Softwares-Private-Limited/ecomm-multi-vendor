@@ -19,6 +19,7 @@ import { TopBar } from "@/components/TopBar";
 import { Navbar } from "@/components/Navbar";
 import { DEFAULT_GST_PERCENT } from "@/lib/constants/gst";
 import { calculateShippingAmount } from "@/lib/constants/shipping";
+import { storefrontTermsOfServiceHref } from "@/lib/cms-footer-pages";
 import { DEFAULT_PRODUCT_IMAGE_URL } from "@/lib/product-image";
 
 type AddressApi = {
