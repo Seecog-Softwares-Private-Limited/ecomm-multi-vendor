@@ -62,6 +62,11 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
+        // Vendor hybrid app loads live HTML in WebView — never cache HTML (UA-specific stale bundles).
+        source: "/vendor/:path*",
+        headers: [{ key: "Cache-Control", value: "no-store, no-cache, must-revalidate" }],
+      },
+      {
         // Cache static assets (JS, CSS, fonts, images) for 1 year
         source: "/_next/static/:path*",
         headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],

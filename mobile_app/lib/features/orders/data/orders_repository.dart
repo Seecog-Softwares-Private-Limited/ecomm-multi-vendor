@@ -1,6 +1,7 @@
 import '../../../core/network/api_endpoints.dart';
 import '../../../core/network/dio_client.dart';
 import '../domain/entities/order.dart';
+import '../domain/entities/razorpay_session.dart';
 
 abstract interface class OrdersRepository {
   Future<List<OrderSummary>> getOrders();
@@ -9,6 +10,13 @@ abstract interface class OrdersRepository {
     required String shippingAddressId,
     required String paymentMethod,
     String? couponCode,
+  });
+  Future<RazorpaySession> createRazorpayOrder(String orderId);
+  Future<void> verifyRazorpayPayment({
+    required String orderId,
+    required String razorpayPaymentId,
+    required String razorpayOrderId,
+    required String razorpaySignature,
   });
   Future<OrderDetail> cancel(String id, {String? reason});
 }
@@ -53,6 +61,34 @@ class OrdersRepositoryImpl implements OrdersRepository {
       totalAmount: (map['totalAmount'] as num?)?.toDouble() ?? 0,
       requiresRazorpay: map['requiresRazorpay'] == true,
       message: map['message']?.toString() ?? 'Order placed successfully',
+    );
+  }
+
+  @override
+  Future<RazorpaySession> createRazorpayOrder(String orderId) async {
+    final data = await _client.post(
+      ApiEndpoints.razorpayOrder,
+      data: {'orderId': orderId},
+    );
+    final map = Map<String, dynamic>.from(data as Map);
+    return RazorpaySession.fromJson(map);
+  }
+
+  @override
+  Future<void> verifyRazorpayPayment({
+    required String orderId,
+    required String razorpayPaymentId,
+    required String razorpayOrderId,
+    required String razorpaySignature,
+  }) async {
+    await _client.post(
+      ApiEndpoints.verifyPayment,
+      data: {
+        'orderId': orderId,
+        'razorpayPaymentId': razorpayPaymentId,
+        'razorpayOrderId': razorpayOrderId,
+        'razorpaySignature': razorpaySignature,
+      },
     );
   }
 

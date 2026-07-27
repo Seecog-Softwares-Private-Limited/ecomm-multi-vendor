@@ -48,6 +48,9 @@ dependencies:
   lottie: ^3.5.0
   equatable: ^2.1.0
 
+  # Payments
+  razorpay_flutter: ^1.4.5
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
