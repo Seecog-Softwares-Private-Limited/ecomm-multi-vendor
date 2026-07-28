@@ -63,7 +63,6 @@ export function CheckoutPage() {
   const [placing, setPlacing] = useState(false);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [selectedPayment, setSelectedPayment] = useState<"card" | "upi" | "cod">("cod");
-  const [upiId, setUpiId] = useState("");
   const [couponCode, setCouponCode] = useState("");
   const [showAddAddressModal, setShowAddAddressModal] = useState(false);
   const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
@@ -138,8 +137,7 @@ export function CheckoutPage() {
 
   const openRazorpayCheckout = async (
     orderId: string,
-    paymentMethod: "card" | "upi" | "cod",
-    upiIdValue: string
+    paymentMethod: "card" | "upi" | "cod"
   ) => {
     const rzRes = await fetch("/api/payments/razorpay-order", {
       method: "POST",
@@ -209,10 +207,9 @@ export function CheckoutPage() {
     }
     prefill.email = customerEmail;
     prefill.contact = customerPhone;
-    if (paymentMethod === "upi") {
-      prefill.method = "upi";
-      if (upiIdValue.trim()) prefill.vpa = upiIdValue.trim();
-    }
+    // Prefer the method the customer picked; they still enter details in Razorpay Checkout.
+    if (paymentMethod === "upi") prefill.method = "upi";
+    if (paymentMethod === "card") prefill.method = "card";
     const rz = new Razorpay({
       key: keyId,
       amount: rzData.data.amount,
@@ -296,7 +293,7 @@ export function CheckoutPage() {
       const requiresRazorpay = data?.data?.requiresRazorpay === true;
 
       if (requiresRazorpay && (selectedPayment === "card" || selectedPayment === "upi")) {
-        await openRazorpayCheckout(orderId, selectedPayment, upiId);
+        await openRazorpayCheckout(orderId, selectedPayment);
         return;
       }
 
@@ -642,50 +639,11 @@ export function CheckoutPage() {
                   ))}
                 </div>
 
-                {selectedPayment === "card" && (
-                  <div className="p-5 bg-[#F9FAFB] rounded-xl border border-[#E5E7EB] space-y-4">
-                    <input
-                      type="text"
-                      placeholder="Card Number"
-                      className="w-full px-4 py-2.5 border border-[#D1D5DC] rounded-lg focus:border-[#FF6A00] focus:ring-1 focus:ring-[#FF6A00] outline-none text-[15px]"
-                    />
-                    <div className="grid grid-cols-2 gap-4">
-                      <input
-                        type="text"
-                        placeholder="MM / YY"
-                        className="px-4 py-2.5 border border-[#D1D5DC] rounded-lg focus:border-[#FF6A00] outline-none text-[15px]"
-                      />
-                      <input
-                        type="text"
-                        placeholder="CVV"
-                        className="px-4 py-2.5 border border-[#D1D5DC] rounded-lg focus:border-[#FF6A00] outline-none text-[15px]"
-                      />
-                    </div>
-                    <input
-                      type="text"
-                      placeholder="Cardholder Name"
-                      className="w-full px-4 py-2.5 border border-[#D1D5DC] rounded-lg focus:border-[#FF6A00] outline-none text-[15px]"
-                    />
-                    <p className="text-xs text-[#6B7280]">
-                      Secured by Razorpay. You will complete payment after clicking Place Order.
-                    </p>
-                  </div>
-                )}
-
-                {selectedPayment === "upi" && (
-                  <div className="p-5 bg-[#F9FAFB] rounded-xl border border-[#E5E7EB]">
-                    <input
-                      type="text"
-                      value={upiId}
-                      onChange={(e) => setUpiId(e.target.value)}
-                      placeholder="UPI ID (e.g. name@paytm)"
-                      className="w-full px-4 py-2.5 border border-[#D1D5DC] rounded-lg focus:border-[#FF6A00] focus:ring-1 focus:ring-[#FF6A00] outline-none text-[15px]"
-                    />
-                    <p className="text-xs text-[#6B7280] mt-2">
-                      Secured by Razorpay. You will complete payment after clicking Place Order.
-                    </p>
-                    <p className="text-xs text-[#6B7280] mt-1.5">
-                      For testing: use <strong>success@razorpay</strong> for a successful payment; <strong>failure@razorpay</strong> will show a failed payment. Requires Razorpay test keys in .env.
+                {(selectedPayment === "card" || selectedPayment === "upi") && (
+                  <div className="p-4 bg-[#F9FAFB] rounded-xl border border-[#E5E7EB]">
+                    <p className="text-sm text-[#6B7280]">
+                      Secured by Razorpay. After you click Place Order, you&apos;ll enter card or UPI
+                      details on the Razorpay payment screen.
                     </p>
                   </div>
                 )}
