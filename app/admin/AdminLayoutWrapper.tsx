@@ -8,7 +8,13 @@ const ADMIN_LOGIN_PATH = "/admin/login";
 
 function isAdminAuthPage(path: string | null): boolean {
   if (!path) return true;
-  return path === ADMIN_LOGIN_PATH || path.startsWith(ADMIN_LOGIN_PATH + "/");
+  const p = path.length > 1 && path.endsWith("/") ? path.slice(0, -1) : path;
+  return (
+    p === ADMIN_LOGIN_PATH ||
+    p.startsWith(`${ADMIN_LOGIN_PATH}/`) ||
+    p === "/admin/forgot-password" ||
+    p === "/admin/reset-password"
+  );
 }
 
 export function AdminLayoutWrapper({

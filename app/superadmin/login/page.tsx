@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { toast } from "sonner";
 import { superadminApi, setToken, setUser } from "@/lib/superadmin-api";
 import { IndovyaparLogo } from "@/components/IndovyaparLogo";
@@ -165,6 +166,15 @@ export default function SuperAdminLoginPage() {
               {loading ? "Signing in…" : "Sign in"}
             </button>
           </form>
+
+          <p className="mt-6 text-center">
+            <Link
+              href="/superadmin/forgot-password"
+              className="text-sm font-semibold text-[#FF6A00] hover:text-[#E55F00] transition"
+            >
+              Forgot password?
+            </Link>
+          </p>
 
           <div className="mt-6 md:hidden text-center text-xs text-slate-500">
             Default: superadmin@example.com / SuperAdmin@123

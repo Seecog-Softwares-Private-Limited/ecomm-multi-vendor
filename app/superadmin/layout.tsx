@@ -6,7 +6,11 @@ import { SuperAdminLayout } from "@/app/superadmin/SuperAdminLayout";
 function isSuperAdminLoginPath(pathname: string | null): boolean {
   if (!pathname) return false;
   const p = pathname.length > 1 && pathname.endsWith("/") ? pathname.slice(0, -1) : pathname;
-  return p === "/superadmin/login";
+  return (
+    p === "/superadmin/login" ||
+    p === "/superadmin/forgot-password" ||
+    p === "/superadmin/reset-password"
+  );
 }
 
 export default function SuperAdminRootLayout({

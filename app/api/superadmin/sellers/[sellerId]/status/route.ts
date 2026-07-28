@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSuperAdmin, createAuditLog } from "@/lib/superadmin-auth";
+import { getSmsNotificationService } from "@/services/sms-notification.service";
 
 /**
  * PUT /api/superadmin/sellers/[sellerId]/status
@@ -35,21 +36,58 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ sel
     return Response.json({ success: false, message: "Reason is required for this action" }, { status: 400 });
   }
 
-  const seller = await prisma.seller.findFirst({ where: { id: sellerId, deletedAt: null }, select: { id: true, email: true } });
+  const seller = await prisma.seller.findFirst({
+    where: { id: sellerId, deletedAt: null },
+    select: {
+      id: true,
+      email: true,
+      status: true,
+      phone: true,
+      businessName: true,
+      ownerName: true,
+    },
+  });
   if (!seller) {
     return Response.json({ success: false, message: "Seller not found" }, { status: 404 });
   }
 
-  await prisma.seller.update({
-    where: { id: sellerId },
-    data: {
-      status,
-      statusReason: action === "unblock" ? null : reason ?? null,
-    },
-  });
+  const wasAlreadyApproved = seller.status === "APPROVED";
+
+  if (action === "approve" || action === "unblock") {
+    await prisma.$transaction([
+      prisma.kYCDocument.updateMany({
+        where: { sellerId },
+        data: { status: "APPROVED" },
+      }),
+      prisma.seller.update({
+        where: { id: sellerId },
+        data: { status: "APPROVED", statusReason: null },
+      }),
+    ]);
+
+    if (!wasAlreadyApproved) {
+      getSmsNotificationService().onVendorApproval({
+        phone: seller.phone,
+        name: seller.businessName ?? seller.ownerName ?? "Vendor",
+      });
+    }
+  } else {
+    await prisma.seller.update({
+      where: { id: sellerId },
+      data: {
+        status,
+        statusReason: reason ?? null,
+      },
+    });
+  }
 
   await createAuditLog(session.id, session.email, `seller_${action}`, "sellers", { sellerId }, request);
 
-  return Response.json({ success: true, data: { sellerId, status, statusReason: action === "unblock" ? null : reason ?? null } });
-}
+  const updatedStatus = action === "approve" || action === "unblock" ? "APPROVED" : status;
+  const updatedReason = action === "approve" || action === "unblock" ? null : reason ?? null;
 
+  return Response.json({
+    success: true,
+    data: { sellerId, status: updatedStatus, statusReason: updatedReason },
+  });
+}

@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Search, UserCheck, UserX, Ban, ShieldAlert } from "lucide-react";
-import { superadminApi } from "@/lib/superadmin-api";
 
 type VendorRow = {
   id: string;
@@ -147,14 +146,34 @@ export default function SuperAdminVendorsPage() {
                       <div className="text-slate-500">{v.phone}</div>
                     </td>
                     <td className="py-3 px-4">
-                      <span className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-bold ${
-                        v.kyc === "Approved" ? "bg-emerald-100 text-emerald-800" : v.kyc === "Rejected" ? "bg-red-100 text-red-800" : "bg-amber-100 text-amber-800"
-                      }`}>
+                      <span
+                        className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-bold ${
+                          v.kyc === "Approved"
+                            ? "bg-emerald-100 text-emerald-800"
+                            : v.kyc === "Rejected"
+                              ? "bg-red-100 text-red-800"
+                              : v.kyc === "Blocked"
+                                ? "bg-slate-200 text-slate-700"
+                                : "bg-amber-100 text-amber-800"
+                        }`}
+                      >
                         {v.kyc}
                       </span>
                     </td>
                     <td className="py-3 px-4">
-                      <span className="inline-flex px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 text-slate-700">
+                      <span
+                        className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-bold ${
+                          v.status === "APPROVED"
+                            ? "bg-emerald-100 text-emerald-800"
+                            : v.status === "REJECTED"
+                              ? "bg-red-100 text-red-800"
+                              : v.status === "SUSPENDED"
+                                ? "bg-slate-200 text-slate-800"
+                                : v.status === "ON_HOLD"
+                                  ? "bg-amber-100 text-amber-800"
+                                  : "bg-slate-100 text-slate-700"
+                        }`}
+                      >
                         {v.status}
                       </span>
                       {v.statusReason && (
@@ -162,42 +181,64 @@ export default function SuperAdminVendorsPage() {
                       )}
                     </td>
                     <td className="py-3 px-4 text-right">
-                      <button
-                        type="button"
-                        onClick={() => act(v.id, "approve")}
-                        className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700 mr-2"
-                        title="Approve"
-                      >
-                        <UserCheck className="w-4 h-4" />
-                        Approve
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => act(v.id, "reject")}
-                        className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-700 mr-2"
-                        title="Reject"
-                      >
-                        <UserX className="w-4 h-4" />
-                        Reject
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => act(v.id, "block")}
-                        className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 font-semibold hover:bg-slate-50 mr-2"
-                        title="Block"
-                      >
-                        <Ban className="w-4 h-4 text-amber-600" />
-                        Block
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => act(v.id, "hold")}
-                        className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 font-semibold hover:bg-slate-50"
-                        title="Hold"
-                      >
-                        <ShieldAlert className="w-4 h-4 text-slate-500" />
-                        Hold
-                      </button>
+                      {v.status === "SUSPENDED" ? (
+                        <button
+                          type="button"
+                          onClick={() => act(v.id, "unblock")}
+                          className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700"
+                          title="Unblock"
+                        >
+                          <UserCheck className="w-4 h-4" />
+                          Unblock
+                        </button>
+                      ) : (
+                        <>
+                          {v.status !== "APPROVED" && (
+                            <button
+                              type="button"
+                              onClick={() => act(v.id, "approve")}
+                              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700 mr-2"
+                              title="Approve"
+                            >
+                              <UserCheck className="w-4 h-4" />
+                              Approve
+                            </button>
+                          )}
+                          {v.status !== "REJECTED" && (
+                            <button
+                              type="button"
+                              onClick={() => act(v.id, "reject")}
+                              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-700 mr-2"
+                              title="Reject"
+                            >
+                              <UserX className="w-4 h-4" />
+                              Reject
+                            </button>
+                          )}
+                          {v.status !== "SUSPENDED" && (
+                            <button
+                              type="button"
+                              onClick={() => act(v.id, "block")}
+                              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 font-semibold hover:bg-slate-50 mr-2"
+                              title="Block"
+                            >
+                              <Ban className="w-4 h-4 text-amber-600" />
+                              Block
+                            </button>
+                          )}
+                          {v.status !== "ON_HOLD" && v.status !== "APPROVED" && (
+                            <button
+                              type="button"
+                              onClick={() => act(v.id, "hold")}
+                              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 font-semibold hover:bg-slate-50"
+                              title="Hold"
+                            >
+                              <ShieldAlert className="w-4 h-4 text-slate-500" />
+                              Hold
+                            </button>
+                          )}
+                        </>
+                      )}
                     </td>
                   </tr>
                 ))}
