@@ -6,23 +6,9 @@ import {
   apiForbidden,
 } from "@/lib/api";
 import { hashPassword, verifyPassword } from "@/lib/auth";
+import { validateAdminNewPassword } from "@/lib/auth/admin-password";
 import { prisma } from "@/lib/prisma";
 import { requireAdminContext } from "@/lib/admin-rbac";
-
-const NEW_PASSWORD_MIN = 8;
-const NEW_PASSWORD_MAX = 128;
-const HAS_UPPER = /[A-Z]/;
-const HAS_LOWER = /[a-z]/;
-const HAS_NUMBER = /\d/;
-
-function validateNewPassword(p: string): string | null {
-  if (p.length < NEW_PASSWORD_MIN) return "Password must be at least 8 characters";
-  if (p.length > NEW_PASSWORD_MAX) return "Password too long";
-  if (!HAS_UPPER.test(p)) return "Password must contain at least one uppercase letter";
-  if (!HAS_LOWER.test(p)) return "Password must contain at least one lowercase letter";
-  if (!HAS_NUMBER.test(p)) return "Password must contain at least one number";
-  return null;
-}
 
 /**
  * PATCH /api/admin/me/password — change admin password (admin only).
@@ -51,7 +37,7 @@ export const PATCH = withApiHandler(async (request: NextRequest) => {
     return apiBadRequest("Current password is required");
   }
 
-  const newError = validateNewPassword(newPassword);
+  const newError = validateAdminNewPassword(newPassword);
   if (newError) {
     return apiBadRequest(newError);
   }

@@ -5,6 +5,10 @@ export { sendCustomerVerificationEmail } from "./customer-verification";
 export { sendVendorPasswordResetEmail } from "./vendor-password-reset";
 export { sendCustomerPasswordResetEmail } from "./customer-password-reset";
 export {
+  sendAdminPasswordResetEmail,
+  type AdminPasswordResetPortal,
+} from "./admin-password-reset";
+export {
   sendGoogleOAuthWelcomeEmail,
   queueGoogleOAuthWelcomeEmail,
   type GoogleOAuthWelcomeEmailParams,

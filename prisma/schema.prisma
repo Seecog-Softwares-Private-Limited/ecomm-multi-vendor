@@ -84,9 +84,11 @@ model Admin {
   roleId         String?             @map("role_id") @db.Char(36)
   status         AdminStatus         @default(INACTIVE)
   approvalStatus AdminApprovalStatus @default(PENDING) @map("approval_status")
-  isSuperAdmin   Boolean             @default(false) @map("is_super_admin")
-  lastLoginAt    DateTime?           @map("last_login_at")
-  auditLogs      AdminAuditLog[]
+  isSuperAdmin           Boolean             @default(false) @map("is_super_admin")
+  lastLoginAt            DateTime?           @map("last_login_at")
+  passwordResetToken     String?             @map("password_reset_token") @db.VarChar(255)
+  passwordResetExpires   DateTime?           @map("password_reset_expires")
+  auditLogs              AdminAuditLog[]
   role           AdminRole?          @relation(fields: [roleId], references: [id])
   notifications  Notification[]
 

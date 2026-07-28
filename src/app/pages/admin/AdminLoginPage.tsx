@@ -186,7 +186,7 @@ export function AdminLoginPage({ onSuccess }: AdminLoginPageProps) {
                   <span className="text-sm text-slate-600">Remember me</span>
                 </label>
                 <Link
-                  href="#"
+                  href="/admin/forgot-password"
                   className="text-sm font-semibold text-[#FF6A00] hover:text-[#E55F00] transition"
                 >
                   Forgot password?

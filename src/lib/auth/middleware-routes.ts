@@ -106,7 +106,18 @@ export function isVendorLoginPage(pathname: string): boolean {
 }
 
 export function isAdminLoginPage(pathname: string): boolean {
-  return pathname === ADMIN_LOGIN;
+  const p = normalizePath(pathname);
+  return p === ADMIN_LOGIN || isAdminPublicPage(p);
+}
+
+/** Admin auth pages that don't require session (login, forgot/reset password). */
+export function isAdminPublicPage(pathname: string): boolean {
+  const p = normalizePath(pathname);
+  return (
+    p === ADMIN_LOGIN ||
+    p === "/admin/forgot-password" ||
+    p === "/admin/reset-password"
+  );
 }
 
 export function isSuperAdminRoute(pathname: string): boolean {
@@ -118,7 +129,11 @@ export function isSuperAdminRoute(pathname: string): boolean {
 
 export function isSuperAdminLoginPage(pathname: string): boolean {
   const p = normalizePath(pathname);
-  return p === SUPER_ADMIN_LOGIN;
+  return (
+    p === SUPER_ADMIN_LOGIN ||
+    p === "/superadmin/forgot-password" ||
+    p === "/superadmin/reset-password"
+  );
 }
 
 export function isAuthRequiredPath(pathname: string): boolean {

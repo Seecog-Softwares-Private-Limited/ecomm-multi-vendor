@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireSuperAdmin, createAuditLog } from "@/lib/superadmin-auth";
+import { kycLabelFromSellerStatus } from "@/lib/seller-kyc-label";
 
 const PAGE_SIZE = 10;
 const SELLER_STATUS_MAP: Record<string, Prisma.SellerWhereInput["status"]> = {
@@ -53,32 +54,25 @@ export async function GET(request: NextRequest) {
         statusReason: true,
         createdAt: true,
         _count: { select: { products: true, orderItems: true } },
-        kycDocuments: { select: { status: true } },
       },
     }),
     prisma.seller.count({ where }),
   ]);
 
   const totalPages = Math.ceil(total / pageSize);
-  const rows = sellers.map((s) => {
-    const kycDocs = s.kycDocuments ?? [];
-    let kyc = "Pending";
-    if (kycDocs.some((d) => d.status === "REJECTED")) kyc = "Rejected";
-    else if (kycDocs.length > 0 && kycDocs.every((d) => d.status === "APPROVED")) kyc = "Approved";
-    return {
-      id: s.id,
-      name: s.ownerName ?? "—",
-      business: s.businessName,
-      email: s.email,
-      phone: s.phone ?? "—",
-      status: s.status,
-      statusReason: s.statusReason ?? null,
-      kyc,
-      products: s._count.products,
-      orders: s._count.orderItems,
-      createdAt: s.createdAt,
-    };
-  });
+  const rows = sellers.map((s) => ({
+    id: s.id,
+    name: s.ownerName ?? "—",
+    business: s.businessName,
+    email: s.email,
+    phone: s.phone ?? "—",
+    status: s.status,
+    statusReason: s.statusReason ?? null,
+    kyc: kycLabelFromSellerStatus(s.status),
+    products: s._count.products,
+    orders: s._count.orderItems,
+    createdAt: s.createdAt,
+  }));
 
   return Response.json({ success: true, data: rows, meta: { total, page, pageSize, totalPages } });
 }

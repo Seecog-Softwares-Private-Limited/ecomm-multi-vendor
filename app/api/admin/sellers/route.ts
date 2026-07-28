@@ -6,6 +6,7 @@ import {
 } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { requireAdminPermission } from "@/lib/admin-rbac";
+import { kycLabelFromSellerStatus } from "@/lib/seller-kyc-label";
 
 const PAGE_SIZE = 10;
 const SELLER_STATUS_MAP: Record<string, "DRAFT" | "SUBMITTED" | "APPROVED" | "REJECTED" | "SUSPENDED"> = {
@@ -17,23 +18,6 @@ const SELLER_STATUS_MAP: Record<string, "DRAFT" | "SUBMITTED" | "APPROVED" | "RE
   suspended: "SUSPENDED",
 };
 const KYC_STATUS_MAP = ["PENDING", "APPROVED", "REJECTED"] as const;
-
-/**
- * Must match what the seller detail page shows as "KYC Status" (`Seller.status`),
- * not derived only from KYC document rows (those can lag after admin approval).
- */
-function kycLabelFromSellerStatus(status: string): "Pending" | "Approved" | "Rejected" | "Blocked" {
-  switch (status) {
-    case "APPROVED":
-      return "Approved";
-    case "REJECTED":
-      return "Rejected";
-    case "SUSPENDED":
-      return "Blocked";
-    default:
-      return "Pending";
-  }
-}
 
 /**
  * GET /api/admin/sellers — list sellers (admin only).
