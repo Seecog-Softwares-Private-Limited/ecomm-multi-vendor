@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Link } from "../../components/Link";
 import {
   LayoutDashboard,
@@ -32,6 +32,15 @@ import { isVendorApproved } from "@/lib/vendor-onboarding";
 import { VendorSidebarItem } from "./VendorSidebarItem";
 import { vendorService } from "@/services/vendor.service";
 import type { VendorNotificationItem, VendorNotificationType } from "@/services/types/vendor.types";
+import { useVendorAppNav } from "@/contexts/VendorAppNavContext";
+import { postToNative } from "@/lib/native-bridge";
+import {
+  VENDOR_DASHBOARD_PATH,
+  hasVendorHistoryOverlayState,
+  isVendorDashboardPath,
+  isVendorRootTabPath,
+  isVendorStackedRoute,
+} from "@/lib/vendor-app-navigation";
 
 export type VendorLayoutProps = {
   children: React.ReactNode;
@@ -89,6 +98,8 @@ export function VendorLayout({
   activePath = "",
 }: VendorLayoutProps) {
   const router = useRouter();
+  const pathname = usePathname();
+  const { isHybridApp, navigateVendor } = useVendorAppNav();
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = React.useState(false);
   const [notifOpen, setNotifOpen] = React.useState(false);
@@ -123,6 +134,62 @@ export function VendorLayout({
       profileHistRef.current = false;
     }
   }, [goBackVendorHistory]);
+
+  /** Navigate from profile menu — buttons + router.push work reliably in Android WebView (Link taps often fail). */
+  const navigateFromProfileMenu = React.useCallback(
+    (path: string) => {
+      profileHistRef.current = false;
+      setProfileMenuOpen(false);
+      navigateVendor(path);
+    },
+    [navigateVendor],
+  );
+
+  const overlayBlocksBackExit =
+    profileMenuOpen || notifOpen || Boolean(selectedNotif);
+
+  /** Native Android back — mirrors Amazon/Flipkart: stack within flow, dashboard = root, exit at root. */
+  const handleHardwareBack = React.useCallback(() => {
+    if (sidebarOpen) {
+      setSidebarOpen(false);
+      return;
+    }
+
+    if (overlayBlocksBackExit || hasVendorHistoryOverlayState()) {
+      window.history.back();
+      return;
+    }
+
+    const path = pathname ?? VENDOR_DASHBOARD_PATH;
+
+    if (isVendorStackedRoute(path)) {
+      router.back();
+      return;
+    }
+
+    if (isVendorRootTabPath(path) && !isVendorDashboardPath(path)) {
+      router.replace(VENDOR_DASHBOARD_PATH);
+      return;
+    }
+
+    if (isVendorDashboardPath(path)) {
+      postToNative({ type: "custom", name: "VENDOR_NAV_EXIT" });
+      return;
+    }
+
+    router.back();
+  }, [overlayBlocksBackExit, pathname, router, sidebarOpen]);
+
+  React.useEffect(() => {
+    if (!isHybridApp) {
+      delete window.__INDOVYAPAR_VENDOR_HANDLE_BACK__;
+      return;
+    }
+    window.__INDOVYAPAR_VENDOR_HANDLE_BACK__ = handleHardwareBack;
+    return () => {
+      delete window.__INDOVYAPAR_VENDOR_HANDLE_BACK__;
+    };
+  }, [handleHardwareBack, isHybridApp]);
 
   const closeNotifications = React.useCallback((opts?: { fromPop?: boolean }) => {
     const depth = notifHistDepthRef.current;
@@ -349,12 +416,47 @@ export function VendorLayout({
   return (
     <div className="relative flex h-[100dvh] overflow-hidden bg-[#F8FAFC]">
       {profileMenuOpen ? (
-        <button
-          type="button"
-          aria-label="Close menu"
-          className="fixed inset-0 z-[100] cursor-default bg-black/40 backdrop-blur-[1px]"
-          onClick={closeProfileMenu}
-        />
+        <div className="fixed inset-0 z-[150]" role="presentation">
+          <button
+            type="button"
+            aria-label="Close menu"
+            className="absolute inset-0 cursor-default bg-black/40"
+            onClick={() => closeProfileMenu()}
+          />
+          <div
+            role="menu"
+            className="absolute right-3 top-[calc(env(safe-area-inset-top,0px)+3.75rem)] w-56 rounded-xl border border-[#E2E8F0] bg-white py-2 shadow-xl sm:right-4"
+          >
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => navigateFromProfileMenu("/vendor/profile?tab=business_info")}
+              className="flex w-full items-center gap-3 px-4 py-3 text-left text-[#64748B] transition-colors hover:bg-[#F8FAFC] hover:text-[#1E293B] touch-manipulation active:bg-[#F8FAFC]"
+            >
+              <User className="h-4 w-4 shrink-0" />
+              <span className="font-medium">Profile</span>
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => navigateFromProfileMenu("/vendor/settings")}
+              className="flex w-full items-center gap-3 px-4 py-3 text-left text-[#64748B] transition-colors hover:bg-[#F8FAFC] hover:text-[#1E293B] touch-manipulation active:bg-[#F8FAFC]"
+            >
+              <Settings className="h-4 w-4 shrink-0" />
+              <span className="font-medium">Settings</span>
+            </button>
+            <div className="my-2 border-t border-[#E2E8F0]" />
+            <button
+              type="button"
+              role="menuitem"
+              onClick={handleLogout}
+              className="flex w-full items-center gap-3 px-4 py-3 text-left text-[#DC2626] transition-colors hover:bg-red-50 touch-manipulation active:bg-red-50"
+            >
+              <LogOut className="h-4 w-4 shrink-0" />
+              <span className="font-medium">Logout</span>
+            </button>
+          </div>
+        </div>
       ) : null}
       {notifOpen ? (
         <div
@@ -379,7 +481,7 @@ export function VendorLayout({
                 </h3>
                 <button
                   type="button"
-                  onClick={closeNotifications}
+                  onClick={() => closeNotifications()}
                   className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-[#64748B] transition-colors hover:bg-[#F8FAFC] hover:text-[#1E293B]"
                   aria-label="Close"
                 >
@@ -438,7 +540,7 @@ export function VendorLayout({
                   )}
                   <button
                     type="button"
-                    onClick={closeNotifications}
+                    onClick={() => closeNotifications()}
                     className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-[#64748B] transition-colors hover:bg-[#F8FAFC] hover:text-[#1E293B]"
                     aria-label="Close"
                   >
@@ -500,7 +602,7 @@ export function VendorLayout({
               <div className="shrink-0 border-t border-[#E2E8F0] px-4 py-2.5">
                 <Link
                   href="/vendor/notifications"
-                  onClick={closeNotifications}
+                  onClick={() => closeNotifications()}
                   className="flex items-center justify-center gap-1.5 text-xs font-semibold text-[#3B82F6] transition-colors hover:text-[#2563EB]"
                 >
                   View all notifications
@@ -558,11 +660,7 @@ export function VendorLayout({
       {/* Main Content */}
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         {/* Top Bar */}
-        <header
-          className={`sticky top-0 flex h-14 shrink-0 items-center justify-between gap-2 border-b border-[#E2E8F0] bg-white/95 px-3 backdrop-blur-md supports-[backdrop-filter]:bg-white/80 sm:h-16 sm:gap-4 sm:px-6 ${
-            profileMenuOpen ? "z-[110]" : "z-30"
-          }`}
-        >
+        <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between gap-2 border-b border-[#E2E8F0] bg-white/95 px-3 backdrop-blur-md supports-[backdrop-filter]:bg-white/80 sm:h-16 sm:gap-4 sm:px-6">
           <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-4">
             <button
               type="button"
@@ -624,35 +722,6 @@ export function VendorLayout({
                 <ChevronDown className="hidden h-4 w-4 text-[#64748B] sm:block" />
               </button>
 
-              {profileMenuOpen && (
-                <div className="absolute right-0 z-[120] mt-2 w-56 rounded-xl border border-[#E2E8F0] bg-white py-2 shadow-xl">
-                  <Link
-                    href="/vendor/profile?tab=business_info"
-                    onClick={() => closeProfileMenu()}
-                    className="flex items-center gap-3 px-4 py-3 text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#1E293B] transition-colors"
-                  >
-                    <User className="w-4 h-4" />
-                    <span className="font-medium">Profile</span>
-                  </Link>
-                  <Link
-                    href="/vendor/settings"
-                    onClick={() => closeProfileMenu()}
-                    className="flex items-center gap-3 px-4 py-3 text-[#64748B] hover:bg-[#F8FAFC] hover:text-[#1E293B] transition-colors"
-                  >
-                    <Settings className="w-4 h-4" />
-                    <span className="font-medium">Settings</span>
-                  </Link>
-                  <div className="border-t border-[#E2E8F0] my-2" />
-                  <button
-                    type="button"
-                    onClick={handleLogout}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-[#DC2626] hover:bg-red-50 transition-colors text-left"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    <span className="font-medium">Logout</span>
-                  </button>
-                </div>
-              )}
             </div>
           </div>
         </header>
@@ -672,17 +741,20 @@ export function VendorLayout({
               const Icon = item.icon;
               const active = isBottomNavActive(item.path);
               return (
-                <Link
+                <button
                   key={item.path}
-                  href={item.path}
-                  onClick={() => setSidebarOpen(false)}
-                  className={`flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1.5 text-[10px] font-semibold transition-colors sm:text-[11px] ${
+                  type="button"
+                  onClick={() => {
+                    setSidebarOpen(false);
+                    navigateVendor(item.path);
+                  }}
+                  className={`flex min-h-[52px] min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1.5 text-[10px] font-semibold transition-colors touch-manipulation sm:text-[11px] ${
                     active ? "text-indigo-600" : "text-[#64748B] hover:text-[#1E293B]"
                   }`}
                 >
                   <Icon className={`h-5 w-5 shrink-0 ${active ? "text-indigo-600" : "text-[#94A3B8]"}`} />
                   <span className="max-w-full truncate">{item.name}</span>
-                </Link>
+                </button>
               );
             })}
           </div>

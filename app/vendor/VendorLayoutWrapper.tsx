@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { VendorLayout } from "@/app/vendor/components/VendorLayout";
 import { VendorStatusCard } from "@/app/vendor/components/VendorStatusCard";
+import { VendorAppNavProvider } from "@/contexts/VendorAppNavContext";
 import { authService } from "@/services/auth.service";
 import { LogOut } from "lucide-react";
 import type { VendorStatusDisplay } from "@/lib/auth";
@@ -171,14 +172,20 @@ export function VendorLayoutWrapper({
   };
 
   if (isVendorAuthPage(pathname ?? null)) {
-    return <>{children}</>;
+    return (
+      <VendorAppNavProvider enabled={false}>
+        {children}
+      </VendorAppNavProvider>
+    );
   }
 
   if (!authChecked) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#F8FAFC]">
-        <div className="h-10 w-10 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
-      </div>
+      <VendorAppNavProvider enabled={false}>
+        <div className="flex min-h-screen items-center justify-center bg-[#F8FAFC]">
+          <div className="h-10 w-10 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
+        </div>
+      </VendorAppNavProvider>
     );
   }
 
@@ -226,23 +233,27 @@ export function VendorLayoutWrapper({
 
   if (!approved) {
     return (
-      <VendorLayout
-        activePath={pathname ?? "/vendor"}
-        vendorStatus={me?.status ?? "under_review"}
-        businessName={me?.businessName}
-      >
-        {children}
-      </VendorLayout>
+      <VendorAppNavProvider>
+        <VendorLayout
+          activePath={pathname ?? "/vendor"}
+          vendorStatus={me?.status ?? "under_review"}
+          businessName={me?.businessName}
+        >
+          {children}
+        </VendorLayout>
+      </VendorAppNavProvider>
     );
   }
 
   return (
-    <VendorLayout
-      activePath={pathname ?? "/vendor"}
-      vendorStatus="approved"
-      businessName={me?.businessName}
-    >
-      {children}
-    </VendorLayout>
+    <VendorAppNavProvider>
+      <VendorLayout
+        activePath={pathname ?? "/vendor"}
+        vendorStatus="approved"
+        businessName={me?.businessName}
+      >
+        {children}
+      </VendorLayout>
+    </VendorAppNavProvider>
   );
 }

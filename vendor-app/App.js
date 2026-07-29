@@ -18,7 +18,7 @@ import {
 } from 'react-native-safe-area-context';
 
 /** Bump with each store release — busts CDN/WebView cache for HTML on first load. */
-const APP_RELEASE = '1.0.4';
+const APP_RELEASE = '1.0.5';
 
 /**
  * Vendor home — middleware sends unauthenticated users to /vendor/login;
@@ -73,7 +73,6 @@ true;
 function VendorScreen() {
   const webRef = useRef(null);
 
-  const [canGoBack, setCanGoBack] = useState(false);
   const [splash, setSplash] = useState(true);
   const [errorKey, setErrorKey] = useState(0);
 
@@ -140,17 +139,23 @@ function VendorScreen() {
 
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (canGoBack && webRef.current) {
-        webRef.current.goBack();
-        return true;
+      if (webRef.current) {
+        webRef.current.injectJavaScript(`
+          (function () {
+            if (typeof window.__INDOVYAPAR_VENDOR_HANDLE_BACK__ === 'function') {
+              window.__INDOVYAPAR_VENDOR_HANDLE_BACK__();
+            } else if (window.history.length > 1) {
+              window.history.back();
+            } else {
+              window.ReactNativeWebView?.postMessage(JSON.stringify({ type: 'custom', name: 'VENDOR_NAV_EXIT' }));
+            }
+          })();
+          true;
+        `);
       }
-      return false;
+      return true;
     });
     return () => sub.remove();
-  }, [canGoBack]);
-
-  const onNavigationStateChange = useCallback((navState) => {
-    setCanGoBack(navState.canGoBack ?? false);
   }, []);
 
   const onLoadStart = useCallback(() => {
@@ -190,6 +195,10 @@ function VendorScreen() {
   const onWebViewMessage = useCallback((event) => {
     try {
       const msg = JSON.parse(event.nativeEvent.data);
+      if (msg?.type === 'custom' && msg?.name === 'VENDOR_NAV_EXIT') {
+        BackHandler.exitApp();
+        return;
+      }
       if (
         msg?.type === 'custom' &&
         msg?.name === 'OPEN_EXTERNAL_BROWSER' &&
@@ -233,7 +242,7 @@ function VendorScreen() {
       originWhitelist={['*']}
       bounces={false}
       injectedJavaScriptBeforeContentLoaded={DISABLE_ZOOM_SCRIPT}
-      onNavigationStateChange={onNavigationStateChange}
+      onNavigationStateChange={() => {}}
       onLoadStart={onLoadStart}
       onLoadEnd={onLoadEnd}
       onError={onError}

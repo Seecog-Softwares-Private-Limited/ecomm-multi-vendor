@@ -21,8 +21,8 @@ export function AdminLoginPage({ onSuccess }: AdminLoginPageProps) {
   const searchParams = useSearchParams();
   const callbackUrl = getSafeAdminCallback(searchParams.get("callbackUrl"));
 
-  const [email, setEmail] = useState("admin@example.com");
-  const [password, setPassword] = useState("Admin@123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -134,7 +134,7 @@ export function AdminLoginPage({ onSuccess }: AdminLoginPageProps) {
                     id="admin-email"
                     type="email"
                     autoComplete="email"
-                    placeholder="admin@example.com"
+                    placeholder="you@company.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
