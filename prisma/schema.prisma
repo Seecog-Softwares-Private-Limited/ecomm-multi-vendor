@@ -36,6 +36,9 @@ model User {
   reviews                  Review[]
   supportTickets           SupportTicket[]
   wishlistItems            WishlistItem[]
+  checkoutSessions         CheckoutSession[]
+  /// Incremented on every cart mutation; used to detect stale checkout sessions.
+  cartVersion              Int               @default(0) @map("cart_version")
 
   @@index([email])
   @@index([phone])
@@ -321,6 +324,8 @@ model Product {
   subCategory     SubCategory            @relation(fields: [subCategoryId], references: [id])
   reviews         Review[]
   wishlistItems   WishlistItem[]
+  checkoutSessionLines CheckoutSessionLine[]
+  stockReservations    StockReservation[]
 
   @@unique([sellerId, sku])
   @@index([sellerId])
@@ -394,6 +399,7 @@ model ProductVariant {
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
   product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  stockReservations StockReservation[]
 
   @@index([productId])
   @@index([deletedAt])
@@ -436,13 +442,16 @@ model CartItem {
   /// Unit selling price captured when the line was added (shopper-visible; survives vendor edits pending approval).
   listedUnitSellingPrice Decimal?  @map("listed_unit_selling_price") @db.Decimal(12, 2)
   listedUnitMrp          Decimal?  @map("listed_unit_mrp") @db.Decimal(12, 2)
+  savedForLater          Boolean   @default(false) @map("saved_for_later")
   product                Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
   user                   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  checkoutSessionLines   CheckoutSessionLine[]
 
   @@unique([userId, productId, variantKey])
   @@index([userId])
   @@index([productId])
   @@index([deletedAt])
+  @@index([userId, savedForLater])
   @@map("cart_items")
 }
 
@@ -486,6 +495,11 @@ model Order {
   payments          Payment[]
   returns           Return[]
   supportTickets    SupportTicket[]
+  checkoutSession   CheckoutSession? @relation(fields: [checkoutSessionId], references: [id])
+  checkoutSessionId String?          @unique @map("checkout_session_id") @db.Char(36)
+  /// Cart line IDs consumed when this order was placed (CART / REORDER flows).
+  consumedCartItemIds Json?          @map("consumed_cart_item_ids")
+  idempotencyKey    String?          @unique @map("idempotency_key") @db.VarChar(64)
 
   @@index([userId])
   @@index([status])
@@ -545,12 +559,15 @@ model Payment {
   transactionId String?       @map("transaction_id") @db.VarChar(255)
   paidAt        DateTime?     @map("paid_at")
   createdAt     DateTime      @default(now()) @map("created_at")
-  updatedAt     DateTime      @updatedAt @map("updated_at")
-  order         Order         @relation(fields: [orderId], references: [id])
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+  order           Order         @relation(fields: [orderId], references: [id])
+  idempotencyKey  String?       @unique @map("idempotency_key") @db.VarChar(64)
+  razorpayOrderId String?       @map("razorpay_order_id") @db.VarChar(255)
 
   @@index([orderId])
   @@index([status])
   @@index([transactionId])
+  @@index([razorpayOrderId])
   @@map("payments")
 }
 
@@ -817,6 +834,94 @@ model CareerOpening {
   @@map("career_openings")
 }
 
+/// Time-limited checkout intent (cart selection, buy now, or reorder).
+model CheckoutSession {
+  id               String                @id @db.Char(36)
+  userId           String                @map("user_id") @db.Char(36)
+  type             CheckoutSessionType
+  status           CheckoutSessionStatus @default(ACTIVE)
+  cartVersion      Int                   @map("cart_version")
+  expiresAt        DateTime              @map("expires_at")
+  idempotencyKey   String?               @unique @map("idempotency_key") @db.VarChar(64)
+  priceConfirmedAt DateTime?             @map("price_confirmed_at")
+  createdAt        DateTime              @default(now()) @map("created_at")
+  updatedAt        DateTime              @updatedAt @map("updated_at")
+  user             User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  order            Order?
+  lines            CheckoutSessionLine[]
+  stockReservations StockReservation[]
+
+  @@index([userId])
+  @@index([userId, status])
+  @@index([expiresAt])
+  @@index([status])
+  @@map("checkout_sessions")
+}
+
+model CheckoutSessionLine {
+  id                 String          @id @default(uuid()) @db.Char(36)
+  checkoutSessionId  String          @map("checkout_session_id") @db.Char(36)
+  cartItemId         String?         @map("cart_item_id") @db.Char(36)
+  productId          String          @map("product_id") @db.Char(36)
+  sellerId           String          @map("seller_id") @db.Char(36)
+  variantKey         String?         @map("variant_key") @db.VarChar(255)
+  quantity           Int
+  unitSellingPrice   Decimal         @map("unit_selling_price") @db.Decimal(12, 2)
+  unitMrp            Decimal?        @map("unit_mrp") @db.Decimal(12, 2)
+  createdAt          DateTime        @default(now()) @map("created_at")
+  checkoutSession    CheckoutSession @relation(fields: [checkoutSessionId], references: [id], onDelete: Cascade)
+  cartItem           CartItem?       @relation(fields: [cartItemId], references: [id], onDelete: SetNull)
+  product            Product         @relation(fields: [productId], references: [id])
+
+  @@index([checkoutSessionId])
+  @@index([cartItemId])
+  @@index([productId])
+  @@index([sellerId])
+  @@map("checkout_session_lines")
+}
+
+model StockReservation {
+  id                String                  @id @default(uuid()) @db.Char(36)
+  checkoutSessionId String                  @map("checkout_session_id") @db.Char(36)
+  productId         String                  @map("product_id") @db.Char(36)
+  productVariantId  String?                 @map("product_variant_id") @db.Char(36)
+  variantKey        String?                 @map("variant_key") @db.VarChar(255)
+  quantity          Int
+  status            StockReservationStatus  @default(ACTIVE)
+  expiresAt         DateTime                @map("expires_at")
+  createdAt         DateTime                @default(now()) @map("created_at")
+  updatedAt         DateTime                @updatedAt @map("updated_at")
+  checkoutSession   CheckoutSession         @relation(fields: [checkoutSessionId], references: [id], onDelete: Cascade)
+  product           Product                 @relation(fields: [productId], references: [id])
+  productVariant    ProductVariant?         @relation(fields: [productVariantId], references: [id], onDelete: SetNull)
+
+  @@index([checkoutSessionId])
+  @@index([productId])
+  @@index([status, expiresAt])
+  @@map("stock_reservations")
+}
+
+enum CheckoutSessionType {
+  CART
+  BUY_NOW
+  REORDER
+}
+
+enum CheckoutSessionStatus {
+  ACTIVE
+  CHECKING_OUT
+  COMPLETED
+  FAILED
+  EXPIRED
+  CANCELLED
+}
+
+enum StockReservationStatus {
+  ACTIVE
+  RELEASED
+  CONSUMED
+}
+
 enum SellerStatus {
   PENDING_VERIFICATION
   DRAFT
@@ -837,6 +942,7 @@ enum ProductStatus {
 }
 
 enum OrderStatus {
+  PENDING_PAYMENT
   PLACED
   PAYMENT_CONFIRMED
   PROCESSING

@@ -10,6 +10,7 @@ import {
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getRazorpay } from "@/lib/razorpay";
+import { extendPaymentWindowForSession } from "@/lib/commerce/payment-window";
 
 /**
  * POST /api/payments/razorpay-order — create a Razorpay order for an existing order (card/UPI).
@@ -38,6 +39,7 @@ export const POST = withApiHandler(async (request: NextRequest) => {
     include: {
       user: { select: { email: true } },
       shippingAddress: { select: { phone: true } },
+      checkoutSession: { select: { id: true } },
       payments: {
         where: { status: "PENDING" },
         orderBy: { createdAt: "desc" },
@@ -76,6 +78,16 @@ export const POST = withApiHandler(async (request: NextRequest) => {
     console.error("Razorpay order create error:", err);
     return apiBadRequest("Could not create payment session. Please try again.");
   }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.payment.update({
+      where: { id: payment.id },
+      data: { razorpayOrderId: razorpayOrder.id, updatedAt: new Date() },
+    });
+    if (order.checkoutSession?.id) {
+      await extendPaymentWindowForSession(tx, order.checkoutSession.id);
+    }
+  });
 
   return apiSuccess({
     configured: true,

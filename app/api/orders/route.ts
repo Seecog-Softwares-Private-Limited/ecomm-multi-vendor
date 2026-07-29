@@ -1,5 +1,4 @@
 import { NextRequest } from "next/server";
-import { PaymentMode } from "@prisma/client";
 import {
   withApiHandler,
   apiSuccess,
@@ -9,9 +8,10 @@ import {
 } from "@/lib/api";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { resolveSkuRowForCart } from "@/lib/product-sku-variant";
-import { DEFAULT_GST_PERCENT } from "@/lib/constants/gst";
-import { calculateShippingAmount } from "@/lib/constants/shipping";
+import {
+  placeLegacyCartOrder,
+  placeOrderFromCheckoutSession,
+} from "@/lib/commerce/order-placement.service";
 
 /**
  * GET /api/orders — list orders for the logged-in customer.
@@ -45,9 +45,17 @@ export const GET = withApiHandler(async (request: NextRequest) => {
 });
 
 /**
- * POST /api/orders — place order from cart (checkout).
- * Body: { shippingAddressId: string, paymentMethod: "card" | "upi" | "cod", couponCode?: string }
- * Requires customer session.
+ * POST /api/orders — place order from checkout session.
+ * Body: {
+ *   checkoutSessionId?: string,
+ *   shippingAddressId: string,
+ *   paymentMethod: "card" | "upi" | "cod",
+ *   couponCode?: string,
+ *   idempotencyKey?: string,
+ *   confirmPriceChange?: boolean
+ * }
+ *
+ * Backward compatible: if checkoutSessionId is omitted, creates a CART session from all cart items.
  */
 export const POST = withApiHandler(async (request: NextRequest) => {
   const session = await getSession(request);
@@ -62,19 +70,30 @@ export const POST = withApiHandler(async (request: NextRequest) => {
   }
   if (typeof body !== "object" || body === null) return apiBadRequest("Body must be an object.");
 
-  const { shippingAddressId, paymentMethod, couponCode } = body as {
+  const {
+    checkoutSessionId,
+    shippingAddressId,
+    paymentMethod,
+    couponCode,
+    idempotencyKey,
+    confirmPriceChange,
+  } = body as {
+    checkoutSessionId?: unknown;
     shippingAddressId?: unknown;
     paymentMethod?: unknown;
     couponCode?: unknown;
+    idempotencyKey?: unknown;
+    confirmPriceChange?: unknown;
   };
 
   if (typeof shippingAddressId !== "string" || !shippingAddressId.trim()) {
     return apiBadRequest("shippingAddressId is required.");
   }
-  const payment = String(paymentMethod || "cod").toLowerCase();
-  const validPayment: PaymentMode[] = ["CARD", "UPI", "COD", "WALLET", "PREPAID", "OTHER"];
-  const paymentMode: PaymentMode =
-    payment === "card" ? "CARD" : payment === "upi" ? "UPI" : payment === "cod" ? "COD" : "COD";
+
+  const idemKey =
+    typeof idempotencyKey === "string" && idempotencyKey.trim()
+      ? idempotencyKey.trim()
+      : request.headers.get("Idempotency-Key")?.trim() || null;
 
   const user = await prisma.user.findUnique({
     where: { id: session.sub, deletedAt: null },
@@ -82,167 +101,32 @@ export const POST = withApiHandler(async (request: NextRequest) => {
   });
   if (!user) return apiUnauthorized("User not found.");
 
-  const address = await prisma.address.findFirst({
-    where: { id: shippingAddressId, userId: user.id, deletedAt: null },
-  });
-  if (!address) return apiBadRequest("Invalid or missing shipping address.");
-
-  const cartItems = await prisma.cartItem.findMany({
-    where: { userId: user.id, deletedAt: null },
-    include: {
-      product: {
-        select: {
-          id: true,
-          sellerId: true,
-          sku: true,
-          sellingPrice: true,
-          mrp: true,
-          gstPercent: true,
-          status: true,
-          deletedAt: true,
-          stock: true,
-          productVariants: {
-            where: { deletedAt: null },
-            select: { color: true, size: true, price: true, stock: true },
-          },
-        },
-      },
-    },
-    orderBy: { createdAt: "asc" },
-  });
-
-  const validItems = cartItems.filter(
-    (i) => i.product && i.product.deletedAt == null && i.product.status === "ACTIVE"
-  );
-  if (validItems.length === 0) {
-    if (cartItems.length === 0) {
-      return apiBadRequest("Your cart is empty. Please add items before placing an order.");
-    }
-    return apiBadRequest(
-      "Some items in your cart are unavailable (inactive or removed). Please update your cart."
+  let result;
+  if (typeof checkoutSessionId === "string" && checkoutSessionId.trim()) {
+    result = await placeOrderFromCheckoutSession({
+      userId: user.id,
+      checkoutSessionId: checkoutSessionId.trim(),
+      shippingAddressId: shippingAddressId.trim(),
+      paymentMethod: String(paymentMethod || "cod"),
+      couponCode: typeof couponCode === "string" ? couponCode : null,
+      idempotencyKey: idemKey,
+      confirmPriceChange: confirmPriceChange === true,
+    });
+  } else {
+    result = await placeLegacyCartOrder(
+      user.id,
+      shippingAddressId.trim(),
+      String(paymentMethod || "cod"),
+      typeof couponCode === "string" ? couponCode : null,
+      idemKey
     );
   }
 
-  let couponId: string | null = null;
-  let discountAmount = 0;
-
-  function unitPriceForCartLine(lineItem: (typeof validItems)[number]): number {
-    if (lineItem.listedUnitSellingPrice != null) {
-      return Number(lineItem.listedUnitSellingPrice);
-    }
-    const p = lineItem.product!;
-    const pv = p.productVariants ?? [];
-    if (pv.length > 0) {
-      const row = resolveSkuRowForCart(pv, lineItem.variantKey);
-      return row ? Number(row.price) : Number(p.sellingPrice);
-    }
-    return Number(p.sellingPrice);
-  }
-
-  const subtotal = validItems.reduce((sum, i) => sum + unitPriceForCartLine(i) * i.quantity, 0);
-
-  if (typeof couponCode === "string" && couponCode.trim()) {
-    const coupon = await prisma.coupon.findFirst({
-      where: {
-        code: couponCode.trim(),
-        deletedAt: null,
-        validFrom: { lte: new Date() },
-        validTo: { gte: new Date() },
-      },
-    });
-    if (coupon) {
-      couponId = coupon.id;
-      const val = Number(coupon.discountValue);
-      discountAmount =
-        coupon.discountType === "PERCENT" ? (subtotal * val) / 100 : Math.min(val, subtotal);
-    }
-  }
-
-  const amountAfterDiscount = Math.max(0, subtotal - discountAmount);
-  const shippingAmount = calculateShippingAmount(amountAfterDiscount);
-  const taxAmount = validItems.reduce((sum, i) => {
-    const unitPrice = unitPriceForCartLine(i);
-    const gst =
-      i.product?.gstPercent !== null && i.product?.gstPercent !== undefined
-        ? Number(i.product.gstPercent)
-        : DEFAULT_GST_PERCENT;
-    return sum + unitPrice * i.quantity * (gst / 100);
-  }, 0);
-  const totalAmount = amountAfterDiscount + shippingAmount + taxAmount;
-
-  const order = await prisma.$transaction(async (tx) => {
-    const orderCreated = await tx.order.create({
-      data: {
-        userId: user.id,
-        shippingAddressId: address.id,
-        couponId,
-        status: "PLACED",
-        totalAmount,
-        discountAmount,
-        taxAmount,
-        shippingAmount,
-      },
-    });
-
-    await tx.orderStatusEvent.create({
-      data: { orderId: orderCreated.id, status: "PLACED", note: "Order placed" },
-    });
-
-    for (const it of validItems) {
-      const p = it.product!;
-      const unitPrice = unitPriceForCartLine(it);
-      const totalPrice = unitPrice * it.quantity;
-      await tx.orderItem.create({
-        data: {
-          orderId: orderCreated.id,
-          productId: p.id,
-          // Trim for CHAR(36) / legacy padded IDs so vendor queries match.
-          sellerId: String(p.sellerId).trim(),
-          quantity: it.quantity,
-          unitPrice,
-          totalPrice,
-          status: "NEW",
-          variantSnapshot: it.variantKey ? { raw: it.variantKey } : undefined,
-          sku: p.sku,
-        },
-      });
-    }
-
-    await tx.payment.create({
-      data: {
-        orderId: orderCreated.id,
-        mode: paymentMode,
-        status: paymentMode === "COD" ? "PENDING" : "PENDING",
-        amount: totalAmount,
-      },
-    });
-
-    // Clear cart only for COD. For Card/UPI we clear cart after payment is verified (in /api/payments/verify)
-    // so that if the user cancels Razorpay they can retry without losing their cart.
-    if (paymentMode === "COD") {
-      for (const it of validItems) {
-        await tx.cartItem.update({
-          where: { id: it.id },
-          data: { deletedAt: new Date(), updatedAt: new Date() },
-        });
-      }
-    }
-
-    return orderCreated;
-  });
-
-  const requiresRazorpay = paymentMode === "CARD" || paymentMode === "UPI";
-
-  const { getSmsNotificationService } = await import("@/services/sms-notification.service");
-  getSmsNotificationService().onCustomerOrder({
-    orderId: order.id,
-    amount: Number(order.totalAmount),
-  });
-
   return apiSuccess({
-    orderId: order.id,
-    totalAmount: Number(order.totalAmount),
-    message: "Order placed successfully",
-    requiresRazorpay: requiresRazorpay || false,
+    orderId: result.orderId,
+    totalAmount: result.totalAmount,
+    message: result.message,
+    requiresRazorpay: result.requiresRazorpay || false,
+    recovered: result.recovered ?? false,
   });
 });

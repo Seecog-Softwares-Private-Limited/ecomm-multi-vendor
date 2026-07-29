@@ -20,6 +20,7 @@ final orderDetailProvider = FutureProvider.autoDispose.family<OrderDetail, Strin
 
 /// Ordered checkout/fulfilment milestones for the tracking timeline.
 const List<String> kOrderProgress = [
+  'PENDING_PAYMENT',
   'PLACED',
   'PAYMENT_CONFIRMED',
   'PROCESSING',
@@ -30,6 +31,8 @@ const List<String> kOrderProgress = [
 /// UI presentation for an order status code.
 ({String label, Color color, IconData icon}) orderStatusPresentation(String status) {
   switch (status.toUpperCase()) {
+    case 'PENDING_PAYMENT':
+      return (label: 'Awaiting payment', color: AppColors.warning, icon: Icons.hourglass_top_outlined);
     case 'PLACED':
       return (label: 'Order placed', color: AppColors.info, icon: Icons.receipt_long);
     case 'PAYMENT_CONFIRMED':
@@ -50,4 +53,5 @@ const List<String> kOrderProgress = [
 }
 
 bool orderIsCancellable(String status) =>
-    const {'PLACED', 'PAYMENT_CONFIRMED', 'PROCESSING'}.contains(status.toUpperCase());
+    const {'PENDING_PAYMENT', 'PLACED', 'PAYMENT_CONFIRMED', 'PROCESSING'}
+        .contains(status.toUpperCase());

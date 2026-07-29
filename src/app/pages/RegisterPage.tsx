@@ -168,18 +168,18 @@ export function RegisterPage() {
       const returnUrl = searchParams?.get("returnUrl") ?? "/";
       const guestItems = getGuestCart();
       if (guestItems.length > 0) {
-        for (const it of guestItems) {
-          await fetch("/api/cart/items", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify({
+        await fetch("/api/cart/merge", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            items: guestItems.map((it) => ({
               productId: it.productId,
               quantity: it.quantity,
               variantKey: it.variantKey ?? null,
-            }),
-          });
-        }
+            })),
+          }),
+        });
         clearGuestCart();
         dispatchCartUpdated();
       }

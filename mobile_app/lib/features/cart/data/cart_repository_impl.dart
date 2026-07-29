@@ -26,4 +26,17 @@ class CartRepositoryImpl implements CartRepository {
 
   @override
   Future<void> remove(String cartItemId) => _remote.remove(cartItemId);
+
+  @override
+  Future<void> setSavedForLater(String cartItemId, {required bool saved}) =>
+      _remote.setSavedForLater(cartItemId, saved: saved);
+
+  @override
+  Future<List<CartItem>> getSavedItems() async {
+    final raw = await _remote.getSavedItems();
+    return raw
+        .whereType<Map>()
+        .map((e) => CartItem.fromJson(Map<String, dynamic>.from(e)))
+        .toList(growable: false);
+  }
 }

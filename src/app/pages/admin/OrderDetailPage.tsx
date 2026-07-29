@@ -82,6 +82,7 @@ function formatDate(iso: string): string {
 }
 
 const orderStatusStyles: Record<string, string> = {
+  "Awaiting payment": "bg-yellow-50 text-yellow-900 ring-1 ring-yellow-200",
   Placed: "bg-slate-100 text-slate-800 ring-1 ring-slate-200",
   "Payment confirmed": "bg-amber-50 text-amber-800 ring-1 ring-amber-200",
   Processing: "bg-blue-50 text-blue-800 ring-1 ring-blue-200",

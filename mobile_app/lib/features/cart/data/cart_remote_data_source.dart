@@ -27,4 +27,16 @@ class CartRemoteDataSource {
   Future<void> remove(String cartItemId) async {
     await _client.delete(ApiEndpoints.cartItem(cartItemId));
   }
+
+  Future<void> setSavedForLater(String cartItemId, {required bool saved}) async {
+    await _client.patch(ApiEndpoints.cartItem(cartItemId), data: {
+      'action': saved ? 'save_for_later' : 'move_to_cart',
+    });
+  }
+
+  Future<List<dynamic>> getSavedItems() async {
+    final data = await _client.get(ApiEndpoints.cartSaved);
+    final map = Map<String, dynamic>.from(data as Map);
+    return (map['items'] as List?) ?? const [];
+  }
 }

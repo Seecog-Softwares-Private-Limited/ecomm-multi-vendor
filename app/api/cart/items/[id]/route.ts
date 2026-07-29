@@ -9,7 +9,7 @@ import {
   type ApiRouteContext,
 } from "@/lib/api";
 import { getSession } from "@/lib/auth";
-import { updateCartItemQuantity, removeCartItem } from "@/lib/data/cart";
+import { updateCartItemQuantity, removeCartItem, setCartItemSavedForLater } from "@/lib/data/cart";
 import { prisma } from "@/lib/prisma";
 
 function segmentParam(raw: string | string[] | undefined): string | undefined {
@@ -40,6 +40,27 @@ export const PATCH = withApiHandler(async (request: NextRequest, context?: ApiRo
   } catch {
     return apiBadRequest("Invalid JSON body");
   }
+
+  const action =
+    typeof body === "object" && body !== null && "action" in body
+      ? String((body as { action: unknown }).action)
+      : null;
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.sub, deletedAt: null },
+    select: { id: true },
+  });
+  if (!user) return apiUnauthorized("User not found.");
+
+  if (action === "save_for_later" || action === "move_to_cart") {
+    const ok = await setCartItemSavedForLater(user.id, id, action === "save_for_later");
+    if (!ok) return apiNotFound("Cart item not found.");
+    return apiSuccess({
+      savedForLater: action === "save_for_later",
+      message: action === "save_for_later" ? "Saved for later" : "Moved to cart",
+    });
+  }
+
   const quantity =
     typeof body === "object" && body !== null && "quantity" in body
       ? Number((body as { quantity: unknown }).quantity)
@@ -47,12 +68,6 @@ export const PATCH = withApiHandler(async (request: NextRequest, context?: ApiRo
   if (!Number.isInteger(quantity) || quantity < 1 || quantity > 99) {
     return apiBadRequest("quantity must be an integer between 1 and 99");
   }
-
-  const user = await prisma.user.findUnique({
-    where: { id: session.sub, deletedAt: null },
-    select: { id: true },
-  });
-  if (!user) return apiUnauthorized("User not found.");
 
   const result = await updateCartItemQuantity(user.id, id, quantity);
   if (!result.ok) {

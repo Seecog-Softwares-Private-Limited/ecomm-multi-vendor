@@ -12,6 +12,8 @@ import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_loader.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/state_views.dart';
+import '../../../../core/di/providers.dart';
+import '../../../orders/data/checkout_remote_data_source.dart';
 import '../../../cart/presentation/cart_controller.dart';
 import '../../../cart/presentation/commerce_actions.dart';
 import '../../../wishlist/presentation/wishlist_controller.dart';
@@ -77,15 +79,25 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
   Future<void> _buyNow(ProductDetail detail) async {
     if (!await _ensureAddable(detail)) return;
     setState(() => _buyingNow = true);
-    final failure = await ref
-        .read(cartControllerProvider.notifier)
-        .add(detail.id, variantKey: _variantKey(detail));
-    if (!mounted) return;
-    setState(() => _buyingNow = false);
-    if (failure == null) {
-      context.push(AppRoutes.checkout);
-    } else {
-      context.showSnack(failure.message, isError: true);
+    try {
+      final ds = CheckoutRemoteDataSource(ref.read(dioClientProvider));
+      final sessionId = await ds.createBuyNowSession(
+        productId: detail.id,
+        quantity: 1,
+        variantKey: _variantKey(detail),
+      );
+      if (!mounted) return;
+      if (sessionId.isEmpty) {
+        context.showSnack('Could not start checkout.', isError: true);
+        return;
+      }
+      context.push('${AppRoutes.checkout}?session=$sessionId');
+    } catch (e) {
+      if (mounted) {
+        context.showSnack('Could not start checkout.', isError: true);
+      }
+    } finally {
+      if (mounted) setState(() => _buyingNow = false);
     }
   }
 

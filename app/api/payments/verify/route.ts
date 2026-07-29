@@ -8,12 +8,14 @@ import {
   apiNotFound,
 } from "@/lib/api";
 import { getSession } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { completeOrderAfterPayment } from "@/lib/commerce/order-placement.service";
 import { verifyPaymentSignature } from "@/lib/razorpay";
+import { logCommerceEvent } from "@/lib/commerce/logger";
+import { prisma } from "@/lib/prisma";
 
 /**
- * POST /api/payments/verify — verify Razorpay payment and mark order payment as paid.
- * Body: { orderId: string, razorpayPaymentId: string, razorpayOrderId: string, razorpaySignature: string }
+ * POST /api/payments/verify — verify Razorpay payment (idempotent).
+ * Body: { orderId, razorpayPaymentId, razorpayOrderId, razorpaySignature, idempotencyKey? }
  */
 export const POST = withApiHandler(async (request: NextRequest) => {
   const session = await getSession(request);
@@ -30,74 +32,97 @@ export const POST = withApiHandler(async (request: NextRequest) => {
 
   const b = body as Record<string, unknown>;
   const orderId = typeof b.orderId === "string" ? b.orderId.trim() : "";
-  const razorpayPaymentId = typeof b.razorpayPaymentId === "string" ? b.razorpayPaymentId.trim() : "";
-  const razorpayOrderId = typeof b.razorpayOrderId === "string" ? b.razorpayOrderId.trim() : "";
-  const razorpaySignature = typeof b.razorpaySignature === "string" ? b.razorpaySignature.trim() : "";
+  const razorpayPaymentId =
+    typeof b.razorpayPaymentId === "string" ? b.razorpayPaymentId.trim() : "";
+  const razorpayOrderId =
+    typeof b.razorpayOrderId === "string" ? b.razorpayOrderId.trim() : "";
+  const razorpaySignature =
+    typeof b.razorpaySignature === "string" ? b.razorpaySignature.trim() : "";
+  const idempotencyKey =
+    typeof b.idempotencyKey === "string"
+      ? b.idempotencyKey.trim()
+      : request.headers.get("Idempotency-Key")?.trim() || null;
 
   if (!orderId || !razorpayPaymentId || !razorpayOrderId || !razorpaySignature) {
-    return apiBadRequest("orderId, razorpayPaymentId, razorpayOrderId and razorpaySignature are required.");
+    return apiBadRequest(
+      "orderId, razorpayPaymentId, razorpayOrderId and razorpaySignature are required."
+    );
   }
 
   const order = await prisma.order.findFirst({
     where: { id: orderId, userId: session.sub },
+    include: { payments: { orderBy: { createdAt: "desc" }, take: 1 } },
+  });
+  if (!order) return apiNotFound("Order not found.");
+
+  const payment = order.payments[0];
+  if (!payment) return apiBadRequest("No payment record for this order.");
+
+  if (payment.status === "PAID") {
+    return apiSuccess({
+      verified: true,
+      orderId: order.id,
+      recovered: true,
+      message: "Payment already confirmed.",
+    });
+  }
+
+  const isValid = verifyPaymentSignature(razorpayOrderId, razorpayPaymentId, razorpaySignature);
+  if (!isValid) {
+    logCommerceEvent("order_failed", { orderId, userId: session.sub, stage: "verify_signature" });
+    return apiBadRequest("Payment verification failed. Please contact support if amount was deducted.");
+  }
+
+  logCommerceEvent("payment_started", { orderId, userId: session.sub });
+
+  const result = await completeOrderAfterPayment(
+    orderId,
+    session.sub,
+    razorpayPaymentId,
+    razorpayOrderId,
+    idempotencyKey
+  );
+
+  return apiSuccess({
+    verified: result.verified,
+    orderId: result.orderId,
+    recovered: result.recovered,
+    message: result.recovered ? "Payment already confirmed." : "Payment successful",
+  });
+});
+
+/**
+ * GET /api/payments/verify?orderId= — payment recovery (check if order already paid).
+ */
+export const GET = withApiHandler(async (request: NextRequest) => {
+  const session = await getSession(request);
+  if (!session) return apiUnauthorized("Please log in.");
+  if (session.role !== "CUSTOMER") return apiForbidden("Only customers can check payment status.");
+
+  const orderId = request.nextUrl.searchParams.get("orderId")?.trim() ?? "";
+  if (!orderId) return apiBadRequest("orderId query parameter is required.");
+
+  const order = await prisma.order.findFirst({
+    where: { id: orderId, userId: session.sub },
     include: {
-      payments: { where: { status: "PENDING" }, take: 1 },
-      items: { select: { productId: true, quantity: true } },
+      payments: { orderBy: { createdAt: "desc" }, take: 1 },
+      checkoutSession: { select: { id: true, status: true } },
     },
   });
   if (!order) return apiNotFound("Order not found.");
+
   const payment = order.payments[0];
-  if (!payment) return apiBadRequest("No pending payment for this order.");
-
-  const isValid = verifyPaymentSignature(razorpayOrderId, razorpayPaymentId, razorpaySignature);
-  if (!isValid) return apiBadRequest("Payment verification failed.");
-
-  await prisma.$transaction(async (tx) => {
-    await tx.payment.update({
-      where: { id: payment.id },
-      data: {
-        status: "PAID",
-        transactionId: razorpayPaymentId,
-        paidAt: new Date(),
-        updatedAt: new Date(),
-      },
-    });
-    await tx.order.updateMany({
-      where: { id: order.id, status: "PLACED" },
-      data: { status: "PAYMENT_CONFIRMED", updatedAt: new Date() },
-    });
-    await tx.orderStatusEvent.create({
-      data: { orderId: order.id, status: "PAYMENT_CONFIRMED", note: "Payment received via Razorpay" },
-    });
-    // Clear cart items that were part of this order (only after payment confirmed)
-    for (const orderItem of order.items) {
-      let remaining = orderItem.quantity;
-      while (remaining > 0) {
-        const cartRow = await tx.cartItem.findFirst({
-          where: { userId: session.sub, productId: orderItem.productId, deletedAt: null },
-          orderBy: { createdAt: "asc" },
-        });
-        if (!cartRow) break;
-        const toRemove = Math.min(cartRow.quantity, remaining);
-        remaining -= toRemove;
-        if (toRemove >= cartRow.quantity) {
-          await tx.cartItem.update({
-            where: { id: cartRow.id },
-            data: { deletedAt: new Date(), updatedAt: new Date() },
-          });
-        } else {
-          await tx.cartItem.update({
-            where: { id: cartRow.id },
-            data: { quantity: cartRow.quantity - toRemove, updatedAt: new Date() },
-          });
-        }
-      }
-    }
-  });
+  const paid = payment?.status === "PAID";
 
   return apiSuccess({
-    verified: true,
     orderId: order.id,
-    message: "Payment successful",
+    orderStatus: order.status,
+    paymentStatus: payment?.status ?? null,
+    paid,
+    checkoutSessionId: order.checkoutSession?.id ?? null,
+    checkoutSessionStatus: order.checkoutSession?.status ?? null,
+    message: paid
+      ? "Payment confirmed. Your order is complete."
+      : "Payment is still pending for this order.",
   });
 });

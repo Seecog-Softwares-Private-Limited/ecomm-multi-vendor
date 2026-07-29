@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/routing/app_routes.dart';
+import '../../../../core/di/providers.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
@@ -15,6 +16,7 @@ import '../../../addresses/presentation/pages/addresses_page.dart';
 import '../../../cart/presentation/cart_controller.dart';
 import '../../../cart/presentation/widgets/cart_summary_card.dart';
 import '../../../cart/presentation/widgets/coupon_field.dart';
+import '../../data/checkout_remote_data_source.dart';
 import '../../data/orders_repository.dart';
 import '../../data/razorpay_checkout_service.dart';
 import '../../domain/entities/order.dart';
@@ -22,7 +24,10 @@ import '../../domain/entities/razorpay_session.dart';
 import '../orders_providers.dart';
 
 class CheckoutPage extends ConsumerStatefulWidget {
-  const CheckoutPage({super.key});
+  const CheckoutPage({super.key, this.sessionId});
+
+  /// Checkout session from Buy Now or cart proceed flow.
+  final String? sessionId;
 
   @override
   ConsumerState<CheckoutPage> createState() => _CheckoutPageState();
@@ -32,14 +37,102 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   Address? _address;
   String _payment = 'cod';
   bool _placing = false;
+  bool _sessionLoading = true;
+  String? _checkoutSessionId;
+  Map<String, dynamic>? _sessionPreview;
   late final RazorpayCheckoutService _razorpayCheckout;
 
   Address? get _effectiveAddress => _address ?? ref.read(defaultAddressProvider);
+
+  String get _orderIdempotencyKey =>
+      _checkoutSessionId == null ? '' : 'order-session:$_checkoutSessionId';
+
+  CartSummary? get _checkoutSummary {
+    final totals = _sessionPreview?['totals'];
+    if (totals is! Map) return null;
+    final map = Map<String, dynamic>.from(totals);
+    return CartSummary(
+      subtotal: (map['subtotal'] as num?)?.toDouble() ?? 0,
+      savings: (map['discountAmount'] as num?)?.toDouble() ?? 0,
+      shipping: (map['shippingAmount'] as num?)?.toDouble() ?? 0,
+      tax: (map['taxAmount'] as num?)?.toDouble() ?? 0,
+      totalOverride: (map['totalAmount'] as num?)?.toDouble(),
+    );
+  }
+
+  bool get _hasCheckoutContent {
+    if (_checkoutSessionId != null) {
+      final items = _sessionPreview?['items'];
+      if (items is List && items.isNotEmpty) return true;
+    }
+    final cart = ref.read(cartControllerProvider).value;
+    return cart != null && !cart.isEmpty;
+  }
 
   @override
   void initState() {
     super.initState();
     _razorpayCheckout = RazorpayCheckoutService();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _initCheckoutSession());
+  }
+
+  Future<void> _loadSessionPreview({String? sessionId, String? couponCode}) async {
+    final id = sessionId ?? _checkoutSessionId;
+    if (id == null || id.isEmpty) return;
+    final ds = CheckoutRemoteDataSource(ref.read(dioClientProvider));
+    final preview = await ds.getSession(id, couponCode: couponCode);
+    if (!mounted) return;
+    setState(() => _sessionPreview = preview);
+  }
+
+  Future<void> _initCheckoutSession() async {
+    final fromRoute = widget.sessionId ?? GoRouterState.of(context).uri.queryParameters['session'];
+    final ds = CheckoutRemoteDataSource(ref.read(dioClientProvider));
+    try {
+      late final String sessionId;
+      if (fromRoute != null && fromRoute.isNotEmpty) {
+        sessionId = fromRoute;
+      } else {
+        final cart = ref.read(cartControllerProvider).value;
+        if (cart == null || cart.isEmpty) {
+          setState(() => _sessionLoading = false);
+          return;
+        }
+        sessionId = await ds.createCartSession(cart.items.map((e) => e.id).toList());
+      }
+      setState(() => _checkoutSessionId = sessionId);
+      final cart = ref.read(cartControllerProvider).value;
+      await _loadSessionPreview(sessionId: sessionId, couponCode: cart?.couponCode);
+    } catch (error) {
+      if (mounted) {
+        context.showSnack(Failure.from(error).message, isError: true);
+      }
+    } finally {
+      if (mounted) setState(() => _sessionLoading = false);
+    }
+  }
+
+  Future<void> _applyCoupon(String code) async {
+    await ref.read(cartControllerProvider.notifier).applyCoupon(code);
+    final cart = ref.read(cartControllerProvider).value;
+    try {
+      await _loadSessionPreview(couponCode: cart?.couponCode);
+    } catch (error) {
+      if (mounted) {
+        context.showSnack(Failure.from(error).message, isError: true);
+      }
+    }
+  }
+
+  Future<void> _clearCoupon() async {
+    await ref.read(cartControllerProvider.notifier).clearCoupon();
+    try {
+      await _loadSessionPreview();
+    } catch (error) {
+      if (mounted) {
+        context.showSnack(Failure.from(error).message, isError: true);
+      }
+    }
   }
 
   @override
@@ -157,6 +250,10 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       context.showSnack('Please add a delivery address first.', isError: true);
       return;
     }
+    if (_checkoutSessionId == null || _checkoutSessionId!.isEmpty) {
+      context.showSnack('Checkout session is not ready. Please try again.', isError: true);
+      return;
+    }
     setState(() => _placing = true);
     try {
       final cart = ref.read(cartControllerProvider).value;
@@ -165,6 +262,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         shippingAddressId: address.id,
         paymentMethod: _payment,
         couponCode: cart?.couponCode,
+        checkoutSessionId: _checkoutSessionId,
+        idempotencyKey: _orderIdempotencyKey,
       );
 
       if (result.requiresRazorpay) {
@@ -194,10 +293,14 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     ref.watch(addressesControllerProvider);
     final address = _effectiveAddress;
     final cart = cartAsync.value;
+    final summary = _checkoutSummary ?? cart?.summary;
+    final couponCode = cart?.couponCode;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Checkout')),
-      body: cart == null || cart.isEmpty
+      body: _sessionLoading
+          ? const Center(child: CircularProgressIndicator())
+          : !_hasCheckoutContent
           ? const Center(child: Text('Your cart is empty.'))
           : ListView(
               padding: const EdgeInsets.all(AppSpacing.lg),
@@ -249,7 +352,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                     title: const Text('Standard Delivery'),
                     subtitle: const Text('Delivered in 3–5 business days'),
                     trailing: Text(
-                      cart.summary.shipping == 0 ? 'FREE' : '₹${cart.summary.shipping.toStringAsFixed(0)}',
+                      summary != null && summary.shipping == 0
+                          ? 'FREE'
+                          : '₹${(summary?.shipping ?? 0).toStringAsFixed(0)}',
                       style: theme.textTheme.titleSmall?.copyWith(color: AppColors.success),
                     ),
                   ),
@@ -283,12 +388,12 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                 const SizedBox(height: AppSpacing.lg),
                 _SectionTitle('Coupon'),
                 CouponField(
-                  appliedCode: cart.couponCode,
-                  onApply: (code) => ref.read(cartControllerProvider.notifier).applyCoupon(code),
-                  onRemove: () => ref.read(cartControllerProvider.notifier).clearCoupon(),
+                  appliedCode: couponCode,
+                  onApply: _applyCoupon,
+                  onRemove: _clearCoupon,
                 ),
                 const SizedBox(height: AppSpacing.lg),
-                CartSummaryCard(summary: cart.summary),
+                if (summary != null) CartSummaryCard(summary: summary),
                 const SizedBox(height: AppSpacing.md),
                 if (_payment != 'cod')
                   Padding(
@@ -300,7 +405,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                   ),
               ],
             ),
-      bottomNavigationBar: cart == null || cart.isEmpty
+      bottomNavigationBar: _sessionLoading || !_hasCheckoutContent || summary == null
           ? null
           : SafeArea(
               child: Padding(

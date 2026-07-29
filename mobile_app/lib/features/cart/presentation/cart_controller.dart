@@ -28,14 +28,17 @@ class CartSummary {
     required this.savings,
     required this.shipping,
     required this.tax,
+    this.totalOverride,
   });
 
   final double subtotal;
   final double savings;
   final double shipping;
   final double tax;
+  /// When set (e.g. checkout session totals), use server-computed total.
+  final double? totalOverride;
 
-  double get total => subtotal + shipping + tax;
+  double get total => totalOverride ?? (subtotal + shipping + tax);
 }
 
 class CartState {
@@ -139,26 +142,23 @@ class CartController extends AsyncNotifier<CartState> {
   }
 
   Future<void> saveForLater(CartItem item) async {
-    await _repo.remove(item.id);
-    final saved = [..._state.savedForLater, item];
+    await _repo.setSavedForLater(item.id, saved: true);
     state = AsyncData(
       _state.copyWith(
         items: _state.items.where((i) => i.id != item.id).toList(),
-        savedForLater: saved,
+        savedForLater: [..._state.savedForLater, item],
       ),
     );
   }
 
   Future<Failure?> moveToCart(CartItem item) async {
-    final failure = await add(item.productId, quantity: item.quantity, variantKey: item.variantKey);
-    if (failure == null) {
-      state = AsyncData(
-        _state.copyWith(
-          savedForLater: _state.savedForLater.where((i) => i.id != item.id).toList(),
-        ),
-      );
-    }
-    return failure;
+    await _repo.setSavedForLater(item.id, saved: false);
+    state = AsyncData(
+      _state.copyWith(
+        savedForLater: _state.savedForLater.where((i) => i.id != item.id).toList(),
+      ),
+    );
+    return add(item.productId, quantity: item.quantity, variantKey: item.variantKey);
   }
 
   void applyCoupon(String code) => state = AsyncData(_state.copyWith(couponCode: code.trim().toUpperCase()));

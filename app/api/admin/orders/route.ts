@@ -63,6 +63,7 @@ function userMatchesCustomerSearch(searchTerm: string): Prisma.UserWhereInput {
 
 function orderStatusToDisplay(s: OrderStatus): string {
   const map: Record<OrderStatus, string> = {
+    PENDING_PAYMENT: "Awaiting payment",
     PLACED: "Placed",
     PAYMENT_CONFIRMED: "Payment confirmed",
     PROCESSING: "Processing",

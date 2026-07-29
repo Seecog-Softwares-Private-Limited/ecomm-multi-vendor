@@ -498,40 +498,33 @@ export function ProductDetailPage({
         if (storageVariation && selectedStorage) parts.push(`Storage:${selectedStorage}`);
         variantKey = parts.length > 0 ? parts.join("|") : null;
       }
-      const res = await fetch("/api/cart/items", {
+      const res = await fetch("/api/checkout/sessions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
-          productId: product.id,
-          quantity: qty,
-          variantKey,
+          type: "BUY_NOW",
+          lines: [{ productId: product.id, quantity: qty, variantKey }],
         }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const message = data?.error?.message ?? "Could not add to cart. Please try again.";
+        const message = data?.error?.message ?? "Could not start checkout. Please try again.";
         if (res.status === 401 || res.status === 403) {
-          addToGuestCart({
-            productId: product.id,
-            quantity: qty,
-            variantKey,
-            name: product.name,
-            price,
-            imageUrl: activeSkuVariant?.images?.[0] ?? activeSkuVariant?.image ?? product.images?.[0] ?? null,
-            mrp: product.mrp,
-          });
-          toast.success("Added to cart. Sign in to checkout.");
-          router.push("/login?returnUrl=" + encodeURIComponent("/checkout"));
+          toast.error("Please sign in to use Buy Now.");
+          router.push("/login?returnUrl=" + encodeURIComponent(window.location.pathname));
           return;
         }
         toast.error(message);
         setCartError(message);
         return;
       }
-      toast.success("Added to cart");
-      dispatchCartUpdated();
-      router.push("/checkout");
+      const sessionId = data?.data?.sessionId as string | undefined;
+      if (!sessionId) {
+        toast.error("Could not start checkout. Please try again.");
+        return;
+      }
+      router.push(`/checkout?session=${encodeURIComponent(sessionId)}`);
     } catch {
       toast.error("Could not add to cart. Please try again.");
       setCartError("Could not add to cart. Please try again.");

@@ -150,7 +150,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
 
       // Commerce.
-      GoRoute(path: AppRoutes.checkout, parentNavigatorKey: _rootNavigatorKey, builder: (_, _) => const CheckoutPage()),
+      GoRoute(
+        path: AppRoutes.checkout,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, state) => CheckoutPage(sessionId: state.uri.queryParameters['session']),
+      ),
       GoRoute(
         path: AppRoutes.orderSuccess,
         parentNavigatorKey: _rootNavigatorKey,

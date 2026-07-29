@@ -1,4 +1,4 @@
-import { OrderStatus } from "@prisma/client";
+import { ApiRouteError } from "@/lib/api";
 import { NextRequest } from "next/server";
 import {
   withApiHandler,
@@ -12,12 +12,14 @@ import {
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { resolveProductImageUrl } from "@/lib/product-image";
+import {
+  CUSTOMER_CANCELLABLE_ORDER_STATUSES,
+  assertOrderTransition,
+} from "@/lib/commerce/order-state-machine";
+import { transitionCheckoutSession } from "@/lib/commerce/checkout-session-lifecycle";
+import { releaseSessionReservations } from "@/lib/commerce/stock-reservation";
 
-const CUSTOMER_CANCELLABLE_STATUSES: OrderStatus[] = [
-  "PLACED",
-  "PAYMENT_CONFIRMED",
-  "PROCESSING",
-];
+const CUSTOMER_CANCELLABLE_STATUSES = CUSTOMER_CANCELLABLE_ORDER_STATUSES;
 
 async function buildCustomerOrderPayload(orderId: string, userId: string) {
   const order = await prisma.order.findFirst({
@@ -55,6 +57,14 @@ async function buildCustomerOrderPayload(orderId: string, userId: string) {
     quantity: oi.quantity,
     unitPrice: Number(oi.unitPrice),
     totalPrice: Number(oi.totalPrice),
+    variantKey:
+      oi.variantSnapshot &&
+      typeof oi.variantSnapshot === "object" &&
+      oi.variantSnapshot !== null &&
+      "raw" in oi.variantSnapshot &&
+      typeof (oi.variantSnapshot as { raw: unknown }).raw === "string"
+        ? (oi.variantSnapshot as { raw: string }).raw
+        : null,
   }));
 
   const timeline = order.statusEvents.map((e) => ({
@@ -142,7 +152,7 @@ export const PATCH = withApiHandler(async (request: NextRequest, context?: ApiRo
     await prisma.$transaction(async (tx) => {
       const order = await tx.order.findFirst({
         where: { id, userId: session.sub },
-        select: { id: true, status: true },
+        select: { id: true, status: true, checkoutSessionId: true },
       });
       if (!order) {
         throw new Error("NOT_FOUND");
@@ -161,9 +171,11 @@ export const PATCH = withApiHandler(async (request: NextRequest, context?: ApiRo
         throw new Error("NOT_CANCELLABLE");
       }
 
+      assertOrderTransition(order.status, "CANCELLED");
+
       await tx.order.update({
         where: { id },
-        data: { status: "CANCELLED" },
+        data: { status: "CANCELLED", updatedAt: new Date() },
       });
 
       await tx.orderItem.updateMany({
@@ -185,8 +197,16 @@ export const PATCH = withApiHandler(async (request: NextRequest, context?: ApiRo
           note,
         },
       });
+
+      if (order.status === "PENDING_PAYMENT" && order.checkoutSessionId) {
+        await releaseSessionReservations(tx, order.checkoutSessionId, "failed");
+        await transitionCheckoutSession(tx, order.checkoutSessionId, "CANCELLED", "cancelled");
+      }
     });
   } catch (e) {
+    if (e instanceof ApiRouteError && e.code === "INVALID_ORDER_TRANSITION") {
+      return apiBadRequest(e.message);
+    }
     const msg = e instanceof Error ? e.message : "";
     if (msg === "NOT_FOUND") return apiNotFound("Order not found.");
     if (msg === "NOT_CANCELLABLE") {

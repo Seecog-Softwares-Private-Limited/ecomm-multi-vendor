@@ -17,6 +17,7 @@ function formatRupee(n: number): string {
 
 function orderStatusToDisplay(s: string): string {
   const map: Record<string, string> = {
+    PENDING_PAYMENT: "Awaiting payment",
     PLACED: "Placed",
     PAYMENT_CONFIRMED: "Payment confirmed",
     PROCESSING: "Processing",

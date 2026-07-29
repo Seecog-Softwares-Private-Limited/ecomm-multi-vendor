@@ -34,7 +34,11 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
     final cart = ref.read(cartControllerProvider.notifier);
     Failure? failure;
     for (final item in order.items) {
-      failure = await cart.add(item.productId, quantity: item.quantity);
+      failure = await cart.add(
+        item.productId,
+        quantity: item.quantity,
+        variantKey: item.variantKey,
+      );
       if (failure != null) break;
     }
     if (!mounted) return;
