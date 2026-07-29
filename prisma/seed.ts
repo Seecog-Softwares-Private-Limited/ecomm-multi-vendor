@@ -9,20 +9,13 @@ const prisma = new PrismaClient();
 const VENDOR_EMAIL = "vendor@example.com";
 const VENDOR_PASSWORD = "Vendor@123";
 
-/** Test admin credentials: admin@example.com / Admin@123 */
-const ADMIN_EMAIL = "admin@example.com";
-const ADMIN_PASSWORD = "Admin@123";
-
-/** Super Admin (full control): superadmin@example.com / SuperAdmin@123 */
-const SUPER_ADMIN_EMAIL = "superadmin@example.com";
-const SUPER_ADMIN_PASSWORD = "SuperAdmin@123";
-const SUPER_ADMIN_PERMISSIONS = ["seller_management", "catalog", "orders", "finance", "marketing", "support", "settings"];
-
 /** Test customer credentials (for cart, orders): customer@example.com / Customer@123 */
 const CUSTOMER_EMAIL = "customer@example.com";
 const CUSTOMER_PASSWORD = "Customer@123";
 
 const BCRYPT_ROUNDS = 12;
+
+const SUPER_ADMIN_PERMISSIONS = ["seller_management", "catalog", "orders", "finance", "marketing", "support", "settings"];
 
 const CATEGORIES = MARKETPLACE_CATEGORIES.map((cat) => ({
   slug: cat.slug,
@@ -468,7 +461,6 @@ const BEAUTY_PRODUCTS = buildBeautyProducts();
 
 async function main() {
   const vendorPasswordHash = bcrypt.hashSync(VENDOR_PASSWORD, BCRYPT_ROUNDS);
-  const adminPasswordHash = bcrypt.hashSync(ADMIN_PASSWORD, BCRYPT_ROUNDS);
   const customerPasswordHash = bcrypt.hashSync(CUSTOMER_PASSWORD, BCRYPT_ROUNDS);
 
   await prisma.user.upsert({
@@ -482,45 +474,13 @@ async function main() {
     },
   });
 
-  const superAdminRole = await prisma.adminRole.upsert({
+  await prisma.adminRole.upsert({
     where: { name: "Super Admin" },
     update: { permissions: SUPER_ADMIN_PERMISSIONS as unknown as object },
     create: {
       name: "Super Admin",
       permissions: SUPER_ADMIN_PERMISSIONS as unknown as object,
       description: "Full access",
-    },
-  });
-
-  await prisma.admin.upsert({
-    where: { email: ADMIN_EMAIL },
-    update: { passwordHash: adminPasswordHash, name: "Admin Demo" },
-    create: {
-      email: ADMIN_EMAIL,
-      passwordHash: adminPasswordHash,
-      name: "Admin Demo",
-    },
-  });
-
-  const superAdminPasswordHash = bcrypt.hashSync(SUPER_ADMIN_PASSWORD, BCRYPT_ROUNDS);
-  await prisma.admin.upsert({
-    where: { email: SUPER_ADMIN_EMAIL },
-    update: {
-      passwordHash: superAdminPasswordHash,
-      name: "Super Admin",
-      roleId: superAdminRole.id,
-      status: "ACTIVE",
-      approvalStatus: "APPROVED",
-      isSuperAdmin: true,
-    },
-    create: {
-      email: SUPER_ADMIN_EMAIL,
-      passwordHash: superAdminPasswordHash,
-      name: "Super Admin",
-      roleId: superAdminRole.id,
-      status: "ACTIVE",
-      approvalStatus: "APPROVED",
-      isSuperAdmin: true,
     },
   });
 
@@ -940,10 +900,9 @@ async function main() {
   }
 
   console.log("Seed complete.");
-  console.log("  Admin:   ", ADMIN_EMAIL, "/", ADMIN_PASSWORD, "→ /admin/login");
-  console.log("  Super Admin:", SUPER_ADMIN_EMAIL, "/", SUPER_ADMIN_PASSWORD, "→ /superadmin/login");
-  console.log("  Vendor:  ", seller.email, "/ Vendor@123 → /vendor/login");
+  console.log("  Vendor:  ", VENDOR_EMAIL, "/ Vendor@123 → /vendor/login");
   console.log("  Customer:", CUSTOMER_EMAIL, "/", CUSTOMER_PASSWORD, "→ /login (for cart)");
+  console.log("  Admin/Super Admin: not seeded — use scripts/ensure-superadmin.ts with env credentials.");
   console.log("  Categories: electronics, fashion, home, books, sports, beauty (with sub-categories)");
   if (electronicsId && mobilesSubId) {
     console.log("  Mobiles: ", MOBILE_PRODUCTS.length, "products → /category/mobile-phones");

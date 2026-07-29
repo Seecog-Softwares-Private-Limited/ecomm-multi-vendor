@@ -90,9 +90,6 @@ export default function SuperAdminLoginPage() {
               ))}
             </div>
           </div>
-          <p className="text-xs text-white/60">
-            Default: superadmin@example.com / SuperAdmin@123
-          </p>
         </div>
 
         {/* Right form panel */}
@@ -124,7 +121,7 @@ export default function SuperAdminLoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full pl-9 pr-4 py-3 rounded-xl border border-slate-200 bg-slate-50/70 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 focus:bg-white outline-none"
-                  placeholder="superadmin@example.com"
+                  placeholder="you@company.com"
                   autoComplete="email"
                 />
               </div>
@@ -175,10 +172,6 @@ export default function SuperAdminLoginPage() {
               Forgot password?
             </Link>
           </p>
-
-          <div className="mt-6 md:hidden text-center text-xs text-slate-500">
-            Default: superadmin@example.com / SuperAdmin@123
-          </div>
         </div>
       </div>
     </div>

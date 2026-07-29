@@ -1,15 +1,12 @@
 /**
  * Create or reset the Super Admin account on the database pointed to by DATABASE_URL.
- * Use this on production when seed was never run or credentials don't work.
  *
- * Usage (from project root, with .env loaded):
- *   npx tsx scripts/ensure-superadmin.ts
+ * Usage (from project root, with DATABASE_URL loaded):
+ *   SUPERADMIN_EMAIL=you@company.com SUPERADMIN_PASSWORD='your-secure-password' npx tsx scripts/ensure-superadmin.ts
  *
- * Optional env (defaults match prisma/seed.ts):
- *   SUPERADMIN_EMAIL    default: superadmin@example.com
- *   SUPERADMIN_PASSWORD default: SuperAdmin@123
- *
- * Production: set SUPERADMIN_PASSWORD to a strong secret before running once.
+ * Required env:
+ *   SUPERADMIN_EMAIL
+ *   SUPERADMIN_PASSWORD
  */
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
@@ -30,11 +27,13 @@ const SUPER_ADMIN_PERMISSIONS = [
 ];
 
 async function main() {
-  const email = (process.env.SUPERADMIN_EMAIL || "superadmin@example.com").trim().toLowerCase();
-  const password = process.env.SUPERADMIN_PASSWORD || "SuperAdmin@123";
+  const email = (process.env.SUPERADMIN_EMAIL || "").trim().toLowerCase();
+  const password = process.env.SUPERADMIN_PASSWORD || "";
 
   if (!email || !password) {
-    console.error("SUPERADMIN_EMAIL and SUPERADMIN_PASSWORD (or defaults) must be non-empty.");
+    console.error("SUPERADMIN_EMAIL and SUPERADMIN_PASSWORD are required.");
+    console.error("Example:");
+    console.error("  SUPERADMIN_EMAIL=admin@yourcompany.com SUPERADMIN_PASSWORD='...' npx tsx scripts/ensure-superadmin.ts");
     process.exit(1);
   }
 
@@ -75,7 +74,6 @@ async function main() {
   console.log("Super Admin ensured.");
   console.log("  Email:", email);
   console.log("  Login: /superadmin/login");
-  console.log("  (Password was set from SUPERADMIN_PASSWORD env or default — change it in production.)");
 }
 
 main()
