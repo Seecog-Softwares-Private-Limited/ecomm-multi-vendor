@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/utils/formatters.dart';
+import '../../../../core/widgets/app_loader.dart';
 import '../../../../core/widgets/state_views.dart';
 import '../../domain/app_notification.dart';
 import '../notifications_controller.dart';
@@ -20,53 +21,71 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final all = ref.watch(notificationsControllerProvider);
-    final items = _filter == null ? all : all.where((n) => n.type == _filter).toList();
+    final async = ref.watch(notificationsControllerProvider);
     final notifier = ref.read(notificationsControllerProvider.notifier);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Notifications'),
         actions: [
-          if (all.any((n) => !n.read))
-            TextButton(onPressed: notifier.markAllRead, child: const Text('Mark all read')),
-          if (all.isNotEmpty)
-            IconButton(onPressed: notifier.clearAll, icon: const Icon(Icons.delete_sweep_outlined)),
+          async.maybeWhen(
+            data: (all) {
+              if (!all.any((n) => !n.read)) return null;
+              return TextButton(
+                onPressed: () => notifier.markAllRead(),
+                child: const Text('Mark all read'),
+              );
+            },
+            orElse: () => null,
+          ) ?? const SizedBox.shrink(),
         ],
       ),
-      body: Column(
-        children: [
-          SizedBox(
-            height: 52,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.sm),
-              children: [
-                _chip('All', null),
-                _chip('Orders', NotificationType.order),
-                _chip('Offers', NotificationType.offer),
-                _chip('Updates', NotificationType.general),
-              ],
-            ),
-          ),
-          Expanded(
-            child: items.isEmpty
-                ? const EmptyStateView(
-                    title: 'No notifications',
-                    message: 'You are all caught up.',
-                    icon: Icons.notifications_off_outlined,
-                  )
-                : ListView.separated(
-                    padding: const EdgeInsets.all(AppSpacing.lg),
-                    itemCount: items.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
-                    itemBuilder: (context, i) => _NotificationTile(
-                      notification: items[i],
-                      onTap: () => notifier.markRead(items[i].id),
-                    ),
-                  ),
-          ),
-        ],
+      body: async.when(
+        loading: () => const AppLoader(),
+        error: (_, __) => ErrorStateView(
+          message: 'Could not load notifications.',
+          onRetry: () => ref.invalidate(notificationsControllerProvider),
+        ),
+        data: (all) {
+          final items = _filter == null ? all : all.where((n) => n.type == _filter).toList();
+          return Column(
+            children: [
+              SizedBox(
+                height: 52,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.sm),
+                  children: [
+                    _chip('All', null),
+                    _chip('Orders', NotificationType.order),
+                    _chip('Offers', NotificationType.offer),
+                    _chip('Updates', NotificationType.general),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: items.isEmpty
+                    ? const EmptyStateView(
+                        title: 'No notifications',
+                        message: 'You are all caught up.',
+                        icon: Icons.notifications_off_outlined,
+                      )
+                    : RefreshIndicator(
+                        onRefresh: notifier.refresh,
+                        child: ListView.separated(
+                          padding: const EdgeInsets.all(AppSpacing.lg),
+                          itemCount: items.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
+                          itemBuilder: (context, i) => _NotificationTile(
+                            notification: items[i],
+                            onTap: () => notifier.markRead(items[i].id),
+                          ),
+                        ),
+                      ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -114,10 +133,12 @@ class _NotificationTile extends StatelessWidget {
                     Row(
                       children: [
                         Expanded(
-                          child: Text(notification.title,
-                              style: theme.textTheme.titleSmall?.copyWith(
-                                fontWeight: notification.read ? FontWeight.w600 : FontWeight.w800,
-                              )),
+                          child: Text(
+                            notification.title,
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: notification.read ? FontWeight.w600 : FontWeight.w800,
+                            ),
+                          ),
                         ),
                         if (!notification.read)
                           Container(
@@ -130,8 +151,10 @@ class _NotificationTile extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(notification.body, style: theme.textTheme.bodyMedium),
                     const SizedBox(height: 4),
-                    Text(Formatters.dayMonthYear(notification.createdAt),
-                        style: theme.textTheme.labelSmall),
+                    Text(
+                      Formatters.dayMonthYear(notification.createdAt),
+                      style: theme.textTheme.labelSmall,
+                    ),
                   ],
                 ),
               ),

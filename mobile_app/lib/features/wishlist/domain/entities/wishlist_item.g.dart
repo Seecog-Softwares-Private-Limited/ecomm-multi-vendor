@@ -15,6 +15,9 @@ _WishlistProduct _$WishlistProductFromJson(Map<String, dynamic> json) =>
       stock: (json['stock'] as num?)?.toInt() ?? 0,
       status: json['status'] as String? ?? 'ACTIVE',
       avgRating: (json['avgRating'] as num?)?.toDouble(),
+      reviewCount: (json['reviewCount'] as num?)?.toInt() ?? 0,
+      sellerName: json['sellerName'] as String?,
+      discountPercent: (json['discountPercent'] as num?)?.toInt() ?? 0,
       imageUrl: json['imageUrl'] as String?,
       listingPaused: json['listingPaused'] as bool? ?? false,
     );
@@ -28,6 +31,9 @@ Map<String, dynamic> _$WishlistProductToJson(_WishlistProduct instance) =>
       'stock': instance.stock,
       'status': instance.status,
       'avgRating': instance.avgRating,
+      'reviewCount': instance.reviewCount,
+      'sellerName': instance.sellerName,
+      'discountPercent': instance.discountPercent,
       'imageUrl': instance.imageUrl,
       'listingPaused': instance.listingPaused,
     };

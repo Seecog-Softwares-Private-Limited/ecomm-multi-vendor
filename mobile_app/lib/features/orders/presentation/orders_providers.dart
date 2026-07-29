@@ -11,8 +11,65 @@ final ordersRepositoryProvider = Provider<OrdersRepository>(
 );
 
 final ordersListProvider = FutureProvider.autoDispose<List<OrderSummary>>(
-  (ref) => ref.read(ordersRepositoryProvider).getOrders(),
+  (ref) {
+    final search = ref.watch(ordersSearchQueryProvider);
+    return ref.read(ordersRepositoryProvider).getOrders(
+          search: search.trim().isEmpty ? null : search.trim(),
+        );
+  },
 );
+
+final ordersSearchQueryProvider = StateProvider<String>((ref) => '');
+
+final ordersStatusFilterProvider = StateProvider<String>((ref) => 'all');
+
+int countOrdersByStatus(List<OrderSummary> orders, String status) {
+  if (status == 'all') return orders.length;
+  return orders.where((o) => orderStatusCategory(o.status) == status).length;
+}
+
+String orderStatusCategory(String status) {
+  switch (status.toUpperCase()) {
+    case 'PENDING_PAYMENT':
+    case 'PLACED':
+    case 'PAYMENT_CONFIRMED':
+      return 'pending';
+    case 'PROCESSING':
+      return 'processing';
+    case 'SHIPPED':
+    case 'OUT_FOR_DELIVERY':
+      return 'shipped';
+    case 'DELIVERED':
+      return 'delivered';
+    case 'CANCELLED':
+    case 'RETURNED':
+      return 'cancelled';
+    default:
+      return 'pending';
+  }
+}
+
+List<OrderSummary> filterOrdersByStatus(List<OrderSummary> orders, String status) {
+  if (status == 'all') return orders;
+  return orders.where((o) => orderStatusCategory(o.status) == status).toList(growable: false);
+}
+
+Map<String, List<OrderSummary>> groupOrdersByMonth(List<OrderSummary> orders) {
+  final grouped = <String, List<OrderSummary>>{};
+  for (final order in orders) {
+    final key = '${_monthName(order.createdAt.month)} ${order.createdAt.year}';
+    grouped.putIfAbsent(key, () => []).add(order);
+  }
+  return grouped;
+}
+
+String _monthName(int month) {
+  const names = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December',
+  ];
+  return names[month - 1];
+}
 
 final orderDetailProvider = FutureProvider.autoDispose.family<OrderDetail, String>(
   (ref, id) => ref.read(ordersRepositoryProvider).getOrder(id),

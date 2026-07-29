@@ -21,7 +21,6 @@
 
 @import "tw-animate-css";
 @import "../src/styles/theme.css";
-@import "../src/styles/customer.css";
 @import "../src/styles/print.css";
 
 /* Default body font when components don’t set inline fontFamily (next/font sets --font-manrope on <html>) */
@@ -65,36 +64,4 @@ body {
 
 .oauth-social-grid > :nth-child(2) {
   display: none !important;
-}
-
-/* Unified entrance animation (replaces product-card-in, home-section-in, wishlist-card-in) */
-@keyframes iv-enter-up {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes iv-fade-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-/* Reduced motion */
-@media (prefers-reduced-motion: reduce) {
-  .iv-enter,
-  .home-section-enter,
-  .product-card-enter,
-  [style*="product-card-in"],
-  [style*="animation:"] {
-    animation: none !important;
-  }
 }

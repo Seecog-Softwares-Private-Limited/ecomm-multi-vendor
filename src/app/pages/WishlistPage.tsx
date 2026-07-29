@@ -1,84 +1,61 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Heart } from "lucide-react";
+import { Heart, X, Star } from "lucide-react";
 import { AccountLayout } from "@/components/AccountLayout";
-import { WishlistCard } from "@/components/wishlist/WishlistCard";
-import { WishlistSkeleton } from "@/components/wishlist/WishlistSkeleton";
 import { toast } from "sonner";
 import { useCartDrawer, dispatchCartUpdated } from "@/contexts/CartDrawerContext";
-import { CustomerErrorState } from "@/components/ui-customer/CustomerErrorState";
-import {
-  cartItemKey,
-  normalizeWishlistItems,
-  sortWishlistItems,
-  WISHLIST_SORT_OPTIONS,
-  type WishlistItem,
-  type WishlistSort,
-} from "@/lib/wishlist/wishlist-utils";
+import { ProductImage } from "@/components/ProductImage";
 
-const CART_UPDATED_EVENT = "indovyapar-cart-updated";
-const REMOVE_ANIMATION_MS = 280;
+type WishlistProduct = {
+  id: string;
+  name: string;
+  slug: string | null;
+  sellingPrice: number;
+  mrp: number;
+  stock: number;
+  status: string;
+  avgRating: number | null;
+  imageUrl: string | null;
+};
+
+type WishlistItem = {
+  id: string;
+  productId: string;
+  variantKey: string | null;
+  product: WishlistProduct;
+};
+
+function formatRupee(n: number) {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(n);
+}
 
 export function WishlistPage() {
-  const router = useRouter();
   const { openCartDrawer } = useCartDrawer();
   const [items, setItems] = useState<WishlistItem[]>([]);
-  const [cartKeys, setCartKeys] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const [sort, setSort] = useState<WishlistSort>("recent");
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [addingToCartId, setAddingToCartId] = useState<string | null>(null);
-  const [buyNowId, setBuyNowId] = useState<string | null>(null);
 
-  const loadCartKeys = useCallback(async () => {
-    try {
-      const res = await fetch("/api/cart/items", { credentials: "include" });
-      if (!res.ok) return;
-      const data = await res.json();
-      const keys = new Set<string>(
-        (data?.data?.items ?? []).map(
-          (row: { productId: string; variantKey: string | null }) =>
-            cartItemKey(row.productId, row.variantKey)
-        )
-      );
-      setCartKeys(keys);
-    } catch {
-      /* ignore */
-    }
-  }, []);
-
-  const fetchWishlist = useCallback(async () => {
-    setError(false);
-    try {
-      const res = await fetch("/api/wishlist", { credentials: "include" });
-      if (!res.ok) throw new Error("Failed");
-      const data = await res.json();
-      if (data?.data?.items) {
-        setItems(normalizeWishlistItems(data.data.items));
-      }
-    } catch {
-      setError(true);
-    } finally {
-      setLoading(false);
-    }
+  const fetchWishlist = useCallback(() => {
+    fetch("/api/wishlist", { credentials: "include" })
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error("Failed"))))
+      .then((data) => {
+        if (data?.data?.items) setItems(data.data.items);
+      })
+      .catch(() => setError(true))
+      .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
-    void fetchWishlist();
-    void loadCartKeys();
-  }, [fetchWishlist, loadCartKeys]);
-
-  useEffect(() => {
-    const onCartUpdated = () => void loadCartKeys();
-    window.addEventListener(CART_UPDATED_EVENT, onCartUpdated);
-    return () => window.removeEventListener(CART_UPDATED_EVENT, onCartUpdated);
-  }, [loadCartKeys]);
-
-  const sortedItems = useMemo(() => sortWishlistItems(items, sort), [items, sort]);
+    fetchWishlist();
+  }, [fetchWishlist]);
 
   const handleRemove = async (wishlistItemId: string) => {
     setRemovingId(wishlistItemId);
@@ -90,10 +67,8 @@ export function WishlistPage() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         toast.error(data?.error?.message ?? "Failed to remove");
-        setRemovingId(null);
         return;
       }
-      await new Promise((resolve) => setTimeout(resolve, REMOVE_ANIMATION_MS));
       setItems((prev) => prev.filter((i) => i.id !== wishlistItemId));
       toast.success("Removed from wishlist");
     } catch {
@@ -123,18 +98,14 @@ export function WishlistPage() {
     }
   };
 
-  const handleAddToCart = async (item: WishlistItem) => {
-    setAddingToCartId(item.id);
+  const handleAddToCart = async (productId: string) => {
+    setAddingToCartId(productId);
     try {
       const res = await fetch("/api/cart/items", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({
-          productId: item.productId,
-          quantity: 1,
-          variantKey: item.variantKey,
-        }),
+        body: JSON.stringify({ productId, quantity: 1 }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -143,7 +114,6 @@ export function WishlistPage() {
       }
       toast.success("Added to cart");
       dispatchCartUpdated();
-      setCartKeys((prev) => new Set(prev).add(cartItemKey(item.productId, item.variantKey)));
       openCartDrawer();
     } catch {
       toast.error("Could not add to cart");
@@ -152,137 +122,141 @@ export function WishlistPage() {
     }
   };
 
-  const handleBuyNow = async (item: WishlistItem) => {
-    setBuyNowId(item.id);
-    try {
-      const res = await fetch("/api/checkout/sessions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          type: "BUY_NOW",
-          lines: [
-            {
-              productId: item.productId,
-              quantity: 1,
-              variantKey: item.variantKey,
-            },
-          ],
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        const message = data?.error?.message ?? "Could not start checkout.";
-        if (res.status === 401 || res.status === 403) {
-          toast.error("Please sign in to use Buy Now.");
-          router.push("/login?returnUrl=" + encodeURIComponent("/wishlist"));
-          return;
-        }
-        toast.error(message);
-        return;
-      }
-      const sessionId = data?.data?.sessionId as string | undefined;
-      if (!sessionId) {
-        toast.error("Could not start checkout.");
-        return;
-      }
-      router.push(`/checkout?session=${encodeURIComponent(sessionId)}`);
-    } catch {
-      toast.error("Could not start checkout.");
-    } finally {
-      setBuyNowId(null);
-    }
-  };
+  const inStock = (item: WishlistItem) => item.product.stock > 0 && item.product.status === "ACTIVE";
 
   return (
     <AccountLayout>
-      <div className="iv-card p-6 shadow-md sm:p-8">
-        <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
+      <div className="bg-white rounded-2xl shadow-md border border-slate-200/80 p-6 sm:p-8">
+        <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="mb-1 text-2xl font-bold text-slate-900">My Wishlist</h1>
-            <p className="text-slate-600">
-              {loading ? "Loading…" : `${items.length} item${items.length !== 1 ? "s" : ""}`}
-            </p>
+            <h1 className="text-2xl font-bold text-slate-900 mb-1">My Wishlist</h1>
+            <p className="text-slate-600">{items.length} items</p>
           </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            {items.length > 0 && (
-              <>
-                <label htmlFor="wishlist-sort" className="sr-only">
-                  Sort wishlist
-                </label>
-                <select
-                  id="wishlist-sort"
-                  value={sort}
-                  onChange={(event) => setSort(event.target.value as WishlistSort)}
-                  className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 focus:border-[#FF6A00] focus:outline-none focus:ring-2 focus:ring-[#FF6A00]/20"
-                >
-                  {WISHLIST_SORT_OPTIONS.map((option) => (
-                    <option key={option.id} value={option.id}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-
-                <button
-                  type="button"
-                  onClick={() => void handleClearAll()}
-                  className="rounded-xl border-2 border-slate-200 px-5 py-2.5 font-semibold text-slate-700 transition-colors hover:border-red-500 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-red-400/30"
-                >
-                  Clear All
-                </button>
-              </>
-            )}
-          </div>
+          {items.length > 0 && (
+            <button
+              type="button"
+              onClick={handleClearAll}
+              className="px-5 py-2.5 border-2 border-slate-200 text-slate-700 hover:border-red-500 hover:text-red-600 rounded-xl font-semibold transition-colors"
+            >
+              Clear All
+            </button>
+          )}
         </div>
 
-        {loading && <WishlistSkeleton />}
+        {loading && (
+          <div className="py-12 text-center text-slate-500 font-medium">Loading wishlist…</div>
+        )}
 
         {error && (
-          <CustomerErrorState
-            title="Couldn't load wishlist"
-            message="Failed to load wishlist. Please try again."
-            onRetry={() => {
-              setLoading(true);
-              void fetchWishlist();
-            }}
-          />
+          <div className="py-12 text-center text-red-600 font-medium">
+            Failed to load wishlist. Please try again.
+          </div>
         )}
 
         {!loading && !error && items.length === 0 && (
-          <div className="flex flex-col items-center py-16 text-center">
-            <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-red-50">
-              <Heart className="h-10 w-10 fill-red-400 text-red-400" aria-hidden="true" />
-            </div>
-            <h2 className="text-xl font-bold text-slate-900">Your Wishlist is Empty</h2>
-            <p className="mt-2 max-w-sm text-slate-600">
-              Save products you love so you can find them later.
-            </p>
+          <div className="py-12 text-center text-slate-600">
+            <Heart className="w-16 h-16 mx-auto text-slate-300 mb-4" />
+            <p className="font-medium">Your wishlist is empty.</p>
             <Link
               href="/"
-              className="iv-btn-primary mt-6 px-8"
+              className="mt-4 inline-block px-6 py-3 bg-[#FF6A00] text-white rounded-xl font-semibold hover:bg-[#E55F00]"
             >
-              Continue Shopping
+              Browse products
             </Link>
           </div>
         )}
 
-        {!loading && !error && sortedItems.length > 0 && (
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {sortedItems.map((item, index) => (
-              <WishlistCard
+        {!loading && !error && items.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {items.map((item) => (
+              <div
                 key={item.id}
-                item={item}
-                inCart={cartKeys.has(cartItemKey(item.productId, item.variantKey))}
-                isRemoving={removingId === item.id}
-                isAddingToCart={addingToCartId === item.id}
-                isBuyingNow={buyNowId === item.id}
-                onRemove={(id) => void handleRemove(id)}
-                onAddToCart={(row) => void handleAddToCart(row)}
-                onBuyNow={(row) => void handleBuyNow(row)}
-                onGoToCart={() => openCartDrawer()}
-                animationDelayMs={Math.min(index * 60, 360)}
-              />
+                className="bg-white border-2 border-gray-200 rounded-2xl overflow-hidden hover:shadow-xl transition-all group relative"
+              >
+                <button
+                  type="button"
+                  onClick={() => handleRemove(item.id)}
+                  disabled={removingId === item.id}
+                  className="absolute top-4 right-4 z-10 w-10 h-10 bg-white rounded-full flex items-center justify-center hover:bg-[#DC2626] hover:text-white transition-colors shadow-lg disabled:opacity-50"
+                  aria-label="Remove from wishlist"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+
+                {item.product.mrp > item.product.sellingPrice && (
+                  <div className="absolute top-4 left-4 z-10 px-3 py-1 bg-[#DC2626] text-white text-sm font-bold rounded-lg">
+                    Sale
+                  </div>
+                )}
+
+                {!inStock(item) && (
+                  <div className="absolute bottom-40 left-0 right-0 bg-gray-900/90 text-white text-center py-3 font-bold">
+                    Out of Stock
+                  </div>
+                )}
+
+                <Link href={`/product/${item.product.slug ?? item.productId}`} className="block">
+                  <div className="aspect-[4/5] bg-slate-100 flex items-center justify-center group-hover:scale-[1.02] transition-transform duration-300">
+                    <ProductImage
+                      src={item.product.imageUrl}
+                      alt={item.product.name}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                </Link>
+
+                <div className="p-4">
+                  <div className="flex items-center gap-1 mb-2">
+                    {[1, 2, 3, 4, 5].map((i) => (
+                      <Star
+                        key={i}
+                        className={`w-4 h-4 ${
+                          (item.product.avgRating ?? 0) >= i
+                            ? "fill-amber-400 text-amber-400"
+                            : "text-gray-300"
+                        }`}
+                      />
+                    ))}
+                    <span className="text-sm text-gray-600 ml-1">
+                      ({item.product.avgRating?.toFixed(1) ?? "0"})
+                    </span>
+                  </div>
+
+                  <Link href={`/product/${item.product.slug ?? item.productId}`}>
+                    <h3 className="font-semibold text-[#111827] mb-2 hover:text-[#FF6A00] transition-colors line-clamp-2">
+                      {item.product.name}
+                    </h3>
+                  </Link>
+
+                  <div className="flex items-center gap-2 mb-4">
+                    <p className="text-xl font-bold text-[#111827]">
+                      {formatRupee(item.product.sellingPrice)}
+                    </p>
+                    {item.product.mrp > item.product.sellingPrice && (
+                      <span className="text-sm text-gray-400 line-through">
+                        {formatRupee(item.product.mrp)}
+                      </span>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={!inStock(item) || addingToCartId === item.productId}
+                    onClick={() => handleAddToCart(item.productId)}
+                    className={`w-full py-3 rounded-xl font-semibold transition-all ${
+                      inStock(item)
+                        ? "bg-[#FF6A00] text-white hover:bg-[#E55F00] shadow-md hover:shadow-lg"
+                        : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                    } disabled:opacity-70`}
+                  >
+                    {addingToCartId === item.productId
+                      ? "Adding…"
+                      : inStock(item)
+                        ? "Add to Cart"
+                        : "Out of Stock"}
+                  </button>
+                </div>
+              </div>
             ))}
           </div>
         )}

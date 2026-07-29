@@ -113,7 +113,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   }
 
   Future<void> _applyCoupon(String code) async {
-    await ref.read(cartControllerProvider.notifier).applyCoupon(code);
+    ref.read(cartControllerProvider.notifier).applyCoupon(code);
     final cart = ref.read(cartControllerProvider).value;
     try {
       await _loadSessionPreview(couponCode: cart?.couponCode);
@@ -125,7 +125,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   }
 
   Future<void> _clearCoupon() async {
-    await ref.read(cartControllerProvider.notifier).clearCoupon();
+    ref.read(cartControllerProvider.notifier).clearCoupon();
     try {
       await _loadSessionPreview();
     } catch (error) {
