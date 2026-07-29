@@ -1,5 +1,6 @@
 import type { OrderItemStatus, OrderStatus, PaymentStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { assertOrderTransition } from "@/lib/commerce/order-state-machine";
 
 const toNumber = (v: unknown): number =>
   typeof v === "number" ? v : Number(v) ?? 0;
@@ -15,6 +16,8 @@ export type VendorOrderListStatus =
 
 function mapOrderStatus(status: string): VendorOrderListStatus {
   switch (status) {
+    case "PENDING_PAYMENT":
+      return "new";
     case "PLACED":
     case "PAYMENT_CONFIRMED":
       return "new";
@@ -210,6 +213,7 @@ export async function getVendorOrdersBySellerId(
 }
 
 const STATUS_RANK: OrderStatus[] = [
+  "PENDING_PAYMENT",
   "PLACED",
   "PAYMENT_CONFIRMED",
   "PROCESSING",
@@ -447,6 +451,9 @@ export async function vendorAcceptOrder(
       if (order.status === "CANCELLED" || order.status === "RETURNED") {
         return "INVALID_STATE" as const;
       }
+      if (order.status === "PENDING_PAYMENT") {
+        return "INVALID_STATE" as const;
+      }
 
       const updated = await tx.orderItem.updateMany({
         where: { orderId: id, sellerId, status: "NEW" },
@@ -463,6 +470,7 @@ export async function vendorAcceptOrder(
       }
 
       if (order.status === "PLACED" || order.status === "PAYMENT_CONFIRMED") {
+        assertOrderTransition(order.status, "PROCESSING");
         await tx.order.update({
           where: { id },
           data: { status: "PROCESSING" },
@@ -533,6 +541,7 @@ export async function vendorRejectOrder(
         (i) => i.status === "REJECTED" || i.status === "CANCELLED"
       );
       if (allTerminal && allItems.length > 0) {
+        assertOrderTransition(order.status, "CANCELLED");
         await tx.order.update({ where: { id }, data: { status: "CANCELLED" } });
         await tx.orderStatusEvent.create({
           data: {
@@ -597,6 +606,7 @@ export async function vendorShipOrder(
           order.status !== "OUT_FOR_DELIVERY" &&
           order.status !== "DELIVERED"
         ) {
+          assertOrderTransition(order.status, "SHIPPED");
           await tx.order.update({ where: { id }, data: { status: "SHIPPED" } });
           await tx.orderStatusEvent.create({
             data: { orderId: id, status: "SHIPPED", note: shipNote },
@@ -650,6 +660,7 @@ export async function vendorDeliverOrder(
       const allDelivered = allItems.every((i) => i.status === "DELIVERED");
 
       if (allDelivered) {
+        assertOrderTransition(order.status, "DELIVERED");
         await tx.order.update({ where: { id }, data: { status: "DELIVERED" } });
         await tx.orderStatusEvent.create({
           data: {

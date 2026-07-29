@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import {
   Check,
@@ -21,6 +21,14 @@ import { DEFAULT_GST_PERCENT } from "@/lib/constants/gst";
 import { calculateShippingAmount } from "@/lib/constants/shipping";
 import { storefrontTermsOfServiceHref } from "@/lib/cms-footer-pages";
 import { DEFAULT_PRODUCT_IMAGE_URL } from "@/lib/product-image";
+import { dispatchCartUpdated } from "@/contexts/CartDrawerContext";
+import {
+  confirmCheckoutPrices,
+  createCartCheckoutSession,
+  createIdempotencyKey,
+  fetchCheckoutSession,
+  type CheckoutSessionPreview,
+} from "@/lib/commerce/client-checkout";
 
 type AddressApi = {
   id: string;
@@ -57,6 +65,13 @@ type CartItemApi = {
 const PLACEHOLDER_IMAGE = DEFAULT_PRODUCT_IMAGE_URL;
 export function CheckoutPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const checkoutSessionIdParam = searchParams.get("session");
+  const [checkoutSessionId, setCheckoutSessionId] = useState<string | null>(
+    checkoutSessionIdParam
+  );
+  const [sessionPreview, setSessionPreview] = useState<CheckoutSessionPreview | null>(null);
+  const idempotencyKeyRef = useRef(createIdempotencyKey());
   const [addresses, setAddresses] = useState<AddressApi[]>([]);
   const [cartItems, setCartItems] = useState<CartItemApi[]>([]);
   const [loading, setLoading] = useState(true);
@@ -82,50 +97,91 @@ export function CheckoutPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [addrRes, cartRes] = await Promise.all([
-        fetch("/api/addresses", { credentials: "include" }),
-        fetch("/api/cart/items", { credentials: "include" }),
-      ]);
+      const addrRes = await fetch("/api/addresses", { credentials: "include" });
 
-      if (addrRes.status === 401 || cartRes.status === 401) {
+      if (addrRes.status === 401) {
         router.push("/login?returnUrl=" + encodeURIComponent("/checkout"));
         return;
       }
-      if (addrRes.status === 403 || cartRes.status === 403) {
+      if (addrRes.status === 403) {
         router.push("/");
         return;
       }
 
       const addrData = await addrRes.json().catch(() => ({}));
-      const cartData = await cartRes.json().catch(() => ({}));
       const addrList = addrData?.data?.addresses ?? [];
-      const items = cartData?.data?.items ?? [];
-
       setAddresses(addrList);
-      setCartItems(items);
       if (addrList.length > 0) {
         const defaultAddr = addrList.find((a: AddressApi) => a.isDefault) ?? addrList[0];
         setSelectedAddressId(defaultAddr.id);
       }
-    } catch {
-      toast.error("Could not load checkout data.");
+
+      let sessionId = checkoutSessionIdParam;
+      if (!sessionId) {
+        const cartRes = await fetch("/api/cart/items", { credentials: "include" });
+        if (cartRes.status === 401) {
+          router.push("/login?returnUrl=" + encodeURIComponent("/checkout"));
+          return;
+        }
+        const cartData = await cartRes.json().catch(() => ({}));
+        const items = cartData?.data?.items ?? [];
+        if (items.length === 0) {
+          setCartItems([]);
+          setSessionPreview(null);
+          return;
+        }
+        const created = await createCartCheckoutSession(items.map((it: CartItemApi) => it.id));
+        sessionId = created.sessionId;
+        setCheckoutSessionId(sessionId);
+        router.replace(`/checkout?session=${encodeURIComponent(sessionId)}`);
+      } else {
+        setCheckoutSessionId(sessionId);
+      }
+
+      const preview = await fetchCheckoutSession(sessionId);
+      setSessionPreview(preview);
+
+      if (preview.cartStale) {
+        toast.error("Your cart changed. Please return to cart and start checkout again.");
+      }
+
+      setCartItems(
+        preview.items.map((it) => ({
+          id: it.cartItemId ?? it.id,
+          productId: it.productId,
+          quantity: it.quantity,
+          variantKey: it.variantKey,
+          product: {
+            id: it.productId,
+            name: it.productName,
+            sellingPrice: it.unitSellingPrice,
+            mrp: it.unitSellingPrice,
+            stock: 99,
+            status: "ACTIVE",
+            imageUrl: it.imageUrl,
+            gstPercent: null,
+          },
+        }))
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not load checkout data.");
     } finally {
       setLoading(false);
     }
-  }, [router]);
+  }, [router, checkoutSessionIdParam]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  const subtotal = cartItems.reduce(
+  const subtotal = sessionPreview?.totals.subtotal ?? cartItems.reduce(
     (sum, it) => sum + it.product.sellingPrice * it.quantity,
     0
   );
-  const discount = 0;
+  const discount = sessionPreview?.totals.discountAmount ?? 0;
   const amountAfterDiscount = Math.max(0, subtotal - discount);
-  const shipping = calculateShippingAmount(amountAfterDiscount);
-  const tax = cartItems.reduce(
+  const shipping = sessionPreview?.totals.shippingAmount ?? calculateShippingAmount(amountAfterDiscount);
+  const tax = sessionPreview?.totals.taxAmount ?? cartItems.reduce(
     (sum, it) =>
       sum +
       it.product.sellingPrice *
@@ -133,7 +189,7 @@ export function CheckoutPage() {
         ((it.product.gstPercent ?? DEFAULT_GST_PERCENT) / 100),
     0
   );
-  const total = amountAfterDiscount + shipping + tax;
+  const total = sessionPreview?.totals.totalAmount ?? amountAfterDiscount + shipping + tax;
 
   const openRazorpayCheckout = async (
     orderId: string,
@@ -242,6 +298,7 @@ export function CheckoutPage() {
             return;
           }
           toast.success("Payment successful! Order confirmed.");
+          dispatchCartUpdated();
           router.push(`/order-confirmation?orderId=${orderId}`);
         } catch {
           toast.error("Payment verification failed.");
@@ -261,31 +318,69 @@ export function CheckoutPage() {
     rz.open();
   };
 
-  const handlePlaceOrder = async () => {
+  const handlePlaceOrder = async (confirmPriceChange = false) => {
     if (!selectedAddressId) {
       toast.error("Please select a delivery address.");
       return;
     }
-    if (cartItems.length === 0) {
-      toast.error("Your cart is empty.");
+    if (cartItems.length === 0 || !checkoutSessionId) {
+      toast.error("Your checkout is empty.");
       router.push("/cart");
       return;
+    }
+    if (sessionPreview?.cartStale) {
+      toast.error("Your cart changed. Please refresh checkout from the cart page.");
+      return;
+    }
+    if (sessionPreview?.requiresPriceConfirmation && !confirmPriceChange) {
+      const confirmed = window.confirm(
+        sessionPreview.priceChanges
+          .map(
+            (p) =>
+              `${p.productName}: ₹${p.oldUnitPrice.toFixed(2)} → ₹${p.newUnitPrice.toFixed(2)}`
+          )
+          .join("\n") +
+          "\n\nPrices have changed. Continue with updated prices?"
+      );
+      if (!confirmed) return;
+      try {
+        await confirmCheckoutPrices(checkoutSessionId);
+        const preview = await fetchCheckoutSession(checkoutSessionId, couponCode);
+        setSessionPreview(preview);
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Could not confirm prices.");
+        return;
+      }
     }
     setPlacing(true);
     try {
       const res = await fetch("/api/orders", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": idempotencyKeyRef.current,
+        },
         credentials: "include",
         body: JSON.stringify({
+          checkoutSessionId,
           shippingAddressId: selectedAddressId,
           paymentMethod: selectedPayment,
           couponCode: couponCode.trim() || undefined,
+          idempotencyKey: idempotencyKeyRef.current,
+          confirmPriceChange: confirmPriceChange || sessionPreview?.requiresPriceConfirmation === true,
         }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        toast.error(data?.error?.message ?? "Could not place order.");
+        if (data?.error?.code === "PRICE_CHANGED") {
+          toast.error(data?.error?.message ?? "Prices changed. Please review and try again.");
+          if (checkoutSessionId) {
+            const preview = await fetchCheckoutSession(checkoutSessionId, couponCode);
+            setSessionPreview(preview);
+          }
+        } else {
+          toast.error(data?.error?.message ?? "Could not place order.");
+        }
         setPlacing(false);
         return;
       }
@@ -297,6 +392,7 @@ export function CheckoutPage() {
         return;
       }
 
+      dispatchCartUpdated();
       toast.success("Order placed successfully!");
       router.push(orderId ? `/order-confirmation?orderId=${orderId}` : "/order-confirmation");
     } catch {

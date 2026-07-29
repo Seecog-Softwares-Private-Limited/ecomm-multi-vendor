@@ -5,4 +5,6 @@ abstract interface class CartRepository {
   Future<void> add(String productId, {int quantity, String? variantKey});
   Future<void> updateQuantity(String cartItemId, int quantity);
   Future<void> remove(String cartItemId);
+  Future<void> setSavedForLater(String cartItemId, {required bool saved});
+  Future<List<CartItem>> getSavedItems();
 }

@@ -7,6 +7,8 @@ import {
   Camera, ShieldCheck, TrendingUp, MessageCircle, Info
 } from "lucide-react";
 import * as React from "react";
+import { useRouter } from "next/navigation";
+import { createBuyNowSession } from "@/lib/commerce/client-checkout";
 
 const defaultProductImages = ["IMAGE 1", "IMAGE 2", "IMAGE 3", "IMAGE 4", "IMAGE 5"];
 const defaultReviews = [
@@ -45,6 +47,7 @@ export type ProductDetailPageEnhancedProps = {
   productStock?: number;
 };
 
+/** @deprecated Mock/demo PDP only — not used in production routes. Prefer `@/components/ProductDetailPage`. */
 export function ProductDetailPageEnhanced({
   productId = "",
   productImages = defaultProductImages,
@@ -62,6 +65,8 @@ export function ProductDetailPageEnhanced({
   totalReviews: totalReviewsProp = 360,
   productStock = 45,
 }: ProductDetailPageEnhancedProps) {
+  const router = useRouter();
+  const [buyNowLoading, setBuyNowLoading] = React.useState(false);
   const [currentImage, setCurrentImage] = React.useState(0);
   const [isWishlisted, setIsWishlisted] = React.useState(false);
   const [showShareModal, setShowShareModal] = React.useState(false);
@@ -92,6 +97,24 @@ export function ProductDetailPageEnhanced({
   const handleAddToCart = () => {
     setShowToast(true);
     setTimeout(() => setShowToast(false), 3000);
+  };
+
+  const handleBuyNow = async () => {
+    if (!productId.trim()) {
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+      return;
+    }
+    setBuyNowLoading(true);
+    try {
+      const { sessionId } = await createBuyNowSession(productId.trim(), quantity, null);
+      router.push(`/checkout?session=${encodeURIComponent(sessionId)}`);
+    } catch {
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+    } finally {
+      setBuyNowLoading(false);
+    }
   };
 
   const filteredReviews = selectedRatingFilter 
@@ -255,12 +278,15 @@ export function ProductDetailPageEnhanced({
                 >
                   Add to Cart
                 </button>
-                <Link
-                  href="/checkout"
-                  className="flex-1 py-3 bg-white text-gray-900 border-2 border-gray-400 hover:bg-gray-100 font-bold text-center"
+                <button
+                  type="button"
+                  onClick={() => void handleBuyNow()}
+                  disabled={buyNowLoading || !productId.trim()}
+                  title={productId.trim() ? undefined : "Demo PDP — provide productId to enable Buy Now"}
+                  className="flex-1 py-3 bg-white text-gray-900 border-2 border-gray-400 hover:bg-gray-100 font-bold text-center disabled:opacity-60"
                 >
-                  Buy Now
-                </Link>
+                  {buyNowLoading ? "Starting checkout…" : "Buy Now"}
+                </button>
               </div>
             </div>
 

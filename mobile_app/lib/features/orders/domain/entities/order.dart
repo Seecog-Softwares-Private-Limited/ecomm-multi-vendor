@@ -27,6 +27,7 @@ abstract class OrderItemLine with _$OrderItemLine {
     required String productId,
     required String productName,
     String? imageUrl,
+    String? variantKey,
     @Default(1) int quantity,
     @Default(0) double unitPrice,
     @Default(0) double totalPrice,

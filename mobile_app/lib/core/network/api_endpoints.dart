@@ -23,7 +23,13 @@ abstract final class ApiEndpoints {
 
   // Cart
   static const String cartItems = '/api/cart/items';
+  static const String cartMerge = '/api/cart/merge';
+  static const String cartSaved = '/api/cart/saved';
   static String cartItem(String id) => '/api/cart/items/$id';
+
+  // Checkout sessions
+  static const String checkoutSessions = '/api/checkout/sessions';
+  static String checkoutSession(String id) => '/api/checkout/sessions/$id';
 
   // Wishlist
   static const String wishlist = '/api/wishlist';

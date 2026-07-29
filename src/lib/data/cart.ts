@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { resolveProductImageUrl } from "@/lib/product-image";
 import { coalesceVariantImagesFromDb, resolveSkuRowForCart } from "@/lib/product-sku-variant";
+import { incrementCartVersion } from "@/lib/commerce/cart-version";
+import { invalidateCartCache } from "@/lib/commerce/cache";
 
 export type CartItemWithProduct = {
   id: string;
@@ -28,7 +30,7 @@ export type CartItemWithProduct = {
  */
 export async function getCartItems(userId: string): Promise<CartItemWithProduct[]> {
   const items = await prisma.cartItem.findMany({
-    where: { userId, deletedAt: null },
+    where: { userId, deletedAt: null, savedForLater: false },
     include: {
       product: {
         select: {
@@ -127,12 +129,10 @@ export async function addToCart(
       userId,
       productId,
       variantKey: variantKey ?? null,
-      deletedAt: null,
     },
   });
 
   if (existing) {
-    const newQty = Math.min(99, existing.quantity + qty);
     const snapshotPatch =
       listed &&
       existing.listedUnitSellingPrice == null &&
@@ -142,10 +142,31 @@ export async function addToCart(
             listedUnitMrp: listed.unitMrp,
           }
         : {};
+
+    if (existing.deletedAt != null) {
+      const restoredQty = Math.min(99, qty);
+      await prisma.cartItem.update({
+        where: { id: existing.id },
+        data: {
+          quantity: restoredQty,
+          deletedAt: null,
+          savedForLater: false,
+          updatedAt: new Date(),
+          ...snapshotPatch,
+        },
+      });
+      await incrementCartVersion(userId);
+      invalidateCartCache(userId);
+      return { id: existing.id, quantity: restoredQty };
+    }
+
+    const newQty = Math.min(99, existing.quantity + qty);
     await prisma.cartItem.update({
       where: { id: existing.id },
       data: { quantity: newQty, updatedAt: new Date(), ...snapshotPatch },
     });
+    await incrementCartVersion(userId);
+    invalidateCartCache(userId);
     return { id: existing.id, quantity: newQty };
   }
 
@@ -163,6 +184,8 @@ export async function addToCart(
         : {}),
     },
   });
+  await incrementCartVersion(userId);
+  invalidateCartCache(userId);
   return { id: created.id, quantity: created.quantity };
 }
 
@@ -219,6 +242,8 @@ export async function updateCartItemQuantity(
     where: { id: cartItemId },
     data: { quantity: qty, updatedAt: new Date() },
   });
+  await incrementCartVersion(userId);
+  invalidateCartCache(userId);
   return { ok: true, quantity: qty };
 }
 
@@ -234,5 +259,110 @@ export async function removeCartItem(userId: string, cartItemId: string): Promis
     where: { id: cartItemId },
     data: { deletedAt: new Date(), updatedAt: new Date() },
   });
+  await incrementCartVersion(userId);
+  invalidateCartCache(userId);
+  return true;
+}
+
+/**
+ * Get saved-for-later items (same shape as cart items).
+ */
+export async function getSavedForLaterItems(userId: string): Promise<CartItemWithProduct[]> {
+  const items = await prisma.cartItem.findMany({
+    where: { userId, deletedAt: null, savedForLater: true },
+    include: {
+      product: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          sellingPrice: true,
+          mrp: true,
+          gstPercent: true,
+          stock: true,
+          status: true,
+          deletedAt: true,
+          productVariants: {
+            where: { deletedAt: null },
+            select: { color: true, size: true, price: true, stock: true, image: true, images: true },
+          },
+          images: {
+            where: { deletedAt: null },
+            orderBy: { sortOrder: "asc" },
+            take: 1,
+            select: { url: true },
+          },
+        },
+      },
+    },
+    orderBy: { updatedAt: "desc" },
+  });
+
+  return items
+    .filter((i) => i.product != null && i.product.deletedAt == null)
+    .map((i) => {
+      const p = i.product!;
+      const pv = p.productVariants ?? [];
+      const line = pv.length > 0 ? resolveSkuRowForCart(pv, i.variantKey) : null;
+      const snapshotSelling =
+        i.listedUnitSellingPrice != null ? Number(i.listedUnitSellingPrice) : null;
+      const snapshotMrp = i.listedUnitMrp != null ? Number(i.listedUnitMrp) : null;
+      const listingPaused = p.status !== "ACTIVE";
+      let sellingPrice: number;
+      let mrp: number;
+      if (snapshotSelling != null) {
+        sellingPrice = snapshotSelling;
+        mrp = snapshotMrp ?? snapshotSelling;
+      } else if (listingPaused) {
+        sellingPrice = 0;
+        mrp = 0;
+      } else {
+        sellingPrice = line ? Number(line.price) : Number(p.sellingPrice);
+        mrp = Number(p.mrp);
+      }
+      const stockDisplay = line ? line.stock : p.stock;
+      const variantThumb = line
+        ? coalesceVariantImagesFromDb(
+            (line as { images?: unknown }).images,
+            (line as { image?: string | null }).image
+          )[0] ?? null
+        : null;
+      return {
+        id: i.id,
+        productId: i.productId,
+        quantity: i.quantity,
+        variantKey: i.variantKey,
+        product: {
+          id: p.id,
+          name: p.name,
+          slug: p.slug?.trim() ? p.slug : null,
+          sellingPrice,
+          mrp,
+          gstPercent:
+            p.gstPercent !== null && p.gstPercent !== undefined ? Number(p.gstPercent) : null,
+          stock: stockDisplay,
+          status: p.status,
+          imageUrl: resolveProductImageUrl(variantThumb ?? p.images[0]?.url),
+          ...(listingPaused ? { listingPaused: true } : {}),
+        },
+      };
+    });
+}
+
+export async function setCartItemSavedForLater(
+  userId: string,
+  cartItemId: string,
+  saved: boolean
+): Promise<boolean> {
+  const item = await prisma.cartItem.findFirst({
+    where: { id: cartItemId, userId, deletedAt: null },
+  });
+  if (!item) return false;
+  await prisma.cartItem.update({
+    where: { id: cartItemId },
+    data: { savedForLater: saved, updatedAt: new Date() },
+  });
+  await incrementCartVersion(userId);
+  invalidateCartCache(userId);
   return true;
 }

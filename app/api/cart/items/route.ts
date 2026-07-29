@@ -8,6 +8,7 @@ import {
 } from "@/lib/api";
 import { getSession } from "@/lib/auth";
 import { addToCart, getCartItems } from "@/lib/data/cart";
+import { getCartVersion } from "@/lib/commerce/cart-version";
 import { prisma } from "@/lib/prisma";
 import { resolveSkuRowForCart, skuVariantsRequireExplicitKey } from "@/lib/product-sku-variant";
 
@@ -29,7 +30,8 @@ export const GET = withApiHandler(async (request: NextRequest) => {
   });
   if (!user) return apiUnauthorized("User not found.");
   const items = await getCartItems(user.id);
-  return apiSuccess({ items });
+  const cartVersion = await getCartVersion(user.id);
+  return apiSuccess({ items, cartVersion });
 });
 
 /**

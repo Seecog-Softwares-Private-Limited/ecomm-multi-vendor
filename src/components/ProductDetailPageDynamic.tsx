@@ -24,7 +24,7 @@ import { addToGuestCart } from "@/lib/guest-cart";
 import { useCartDrawer, dispatchCartUpdated } from "@/contexts/CartDrawerContext";
 import { useDeliveryLocation } from "@/contexts/DeliveryLocationContext";
 import { addRecentlyViewedId } from "@/lib/recently-viewed";
-import { DEFAULT_PRODUCT_IMAGE_URL } from "@/lib/product-image";
+import { createBuyNowSession } from "@/lib/commerce/client-checkout";
 
 export type ProductDetailPageDynamicProps = {
   product: ProductDetail;
@@ -70,6 +70,7 @@ export function ProductDetailPageDynamic({
   const [wishlistToggling, setWishlistToggling] = useState(false);
   const [qty, setQty] = useState(1);
   const [addingToCart, setAddingToCart] = useState(false);
+  const [buyNowLoading, setBuyNowLoading] = useState(false);
   const [cartError, setCartError] = useState<string | null>(null);
 
   const colorVariation = product.variations.find((v) => v.name.toLowerCase() === "color");
@@ -171,6 +172,30 @@ export function ProductDetailPageDynamic({
       setCartError("Could not add to cart. Please try again.");
     } finally {
       setAddingToCart(false);
+    }
+  };
+
+  const handleBuyNow = async () => {
+    setCartError(null);
+    setBuyNowLoading(true);
+    try {
+      const parts: string[] = [];
+      if (colorVariation && selectedColor) parts.push(`Color:${selectedColor}`);
+      if (storageVariation && selectedStorage) parts.push(`Storage:${selectedStorage}`);
+      const variantKey = parts.length > 0 ? parts.join("|") : null;
+      const { sessionId } = await createBuyNowSession(product.id, qty, variantKey);
+      router.push(`/checkout?session=${encodeURIComponent(sessionId)}`);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Could not start checkout. Please try again.";
+      if (message.toLowerCase().includes("log in") || message.toLowerCase().includes("sign in")) {
+        toast.error("Please sign in to use Buy Now.");
+        router.push("/login?returnUrl=" + encodeURIComponent(pathname));
+        return;
+      }
+      toast.error(message);
+      setCartError(message);
+    } finally {
+      setBuyNowLoading(false);
     }
   };
 
@@ -513,10 +538,11 @@ export function ProductDetailPageDynamic({
             </button>
             <button
               type="button"
-              onClick={() => router.push("/checkout")}
-              className="w-full h-12 bg-white border-2 border-[#FF6A00] text-[#FF6A00] font-bold text-[15px] rounded-xl hover:bg-[#FFF0E0] transition"
+              onClick={() => void handleBuyNow()}
+              disabled={buyNowLoading}
+              className="w-full h-12 bg-white border-2 border-[#FF6A00] text-[#FF6A00] font-bold text-[15px] rounded-xl hover:bg-[#FFF0E0] transition disabled:opacity-70 disabled:cursor-wait"
             >
-              Buy Now
+              {buyNowLoading ? "Starting checkout…" : "Buy Now"}
             </button>
             <button
               type="button"

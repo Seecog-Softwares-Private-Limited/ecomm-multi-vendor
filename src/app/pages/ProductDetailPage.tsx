@@ -4,6 +4,7 @@ import { Link } from "../components/Link";
 import { Search, ShoppingBag, User, Heart, Share2, Star, Plus, Minus, Truck, RefreshCw, Shield, ChevronDown } from "lucide-react";
 import * as React from "react";
 
+/** @deprecated Mock/demo PDP only — production route uses `@/components/ProductDetailPage`. */
 export function ProductDetailPage() {
   const [selectedImage, setSelectedImage] = React.useState(0);
   const [selectedSize, setSelectedSize] = React.useState("M");

@@ -49,9 +49,11 @@ sealed class Failure with _$Failure {
   factory Failure.from(Object error) {
     if (error is UnauthorizedException) return Failure.unauthorized(error.message);
     if (error is ValidationException) {
+      final details = error.details is Map ? Map<String, dynamic>.from(error.details as Map) : null;
+      final detailMessage = _firstValidationDetail(details);
       return Failure.validation(
-        message: error.message,
-        details: error.details is Map<String, dynamic> ? error.details! as Map<String, dynamic> : null,
+        message: detailMessage ?? error.message,
+        details: details,
       );
     }
     if (error is NetworkException) return Failure.network(error.message);
@@ -64,5 +66,14 @@ sealed class Failure with _$Failure {
     }
     if (error is AppException) return Failure.unexpected(error.message);
     return const Failure.unexpected();
+  }
+
+  static String? _firstValidationDetail(Map<String, dynamic>? details) {
+    if (details == null || details.isEmpty) return null;
+    for (final value in details.values) {
+      final text = value?.toString().trim();
+      if (text != null && text.isNotEmpty) return text;
+    }
+    return null;
   }
 }

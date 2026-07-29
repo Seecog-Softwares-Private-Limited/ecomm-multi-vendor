@@ -10,6 +10,9 @@ abstract interface class OrdersRepository {
     required String shippingAddressId,
     required String paymentMethod,
     String? couponCode,
+    String? checkoutSessionId,
+    String? idempotencyKey,
+    bool confirmPriceChange = false,
   });
   Future<RazorpaySession> createRazorpayOrder(String orderId);
   Future<void> verifyRazorpayPayment({
@@ -49,11 +52,17 @@ class OrdersRepositoryImpl implements OrdersRepository {
     required String shippingAddressId,
     required String paymentMethod,
     String? couponCode,
+    String? checkoutSessionId,
+    String? idempotencyKey,
+    bool confirmPriceChange = false,
   }) async {
     final data = await _client.post(ApiEndpoints.orders, data: {
       'shippingAddressId': shippingAddressId,
       'paymentMethod': paymentMethod,
       'couponCode': ?couponCode,
+      'checkoutSessionId': ?checkoutSessionId,
+      'idempotencyKey': ?idempotencyKey,
+      'confirmPriceChange': confirmPriceChange,
     });
     final map = Map<String, dynamic>.from(data as Map);
     return PlaceOrderResult(

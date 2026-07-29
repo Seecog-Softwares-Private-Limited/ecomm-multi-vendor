@@ -18,7 +18,10 @@
     "backfill:slugs": "tsx scripts/backfill-product-slugs.ts",
     "backfill:product-images": "tsx scripts/backfill-product-images.ts",
     "delete-customers-by-email": "tsx scripts/delete-customers-by-email.ts",
-    "db:categories": "tsx scripts/upsert-marketplace-categories.ts"
+    "commerce:cleanup": "tsx scripts/commerce-cleanup.ts",
+    "test:commerce": "tsx scripts/test-commerce-pricing.ts",
+    "smoke:commerce": "tsx scripts/smoke-test-commerce.ts",
+    "stress:stock-reservation": "tsx scripts/stress-test-stock-reservation.ts"
   },
   "dependencies": {
     "@prisma/client": "5.22.0",
@@ -73,6 +76,7 @@
     "swagger-ui-react": "^5.31.2",
     "tailwind-merge": "3.2.0",
     "tw-animate-css": "1.3.8",
+    "ulid": "^3.0.2",
     "vaul": "1.1.2",
     "zod": "^3.23.8"
   },

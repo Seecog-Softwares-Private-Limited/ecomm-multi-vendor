@@ -86,6 +86,8 @@ function handleRouteError(err: unknown): NextResponse {
       message = "This URL slug is already taken. Please choose a different one.";
     } else if (f.includes("code")) {
       message = "This code is already in use. Please use a different one.";
+    } else if (f.includes("cart") || (f.includes("user_id") && f.includes("product_id"))) {
+      message = "This item is already in your cart. Open your cart to change the quantity.";
     } else if (fields.length > 0) {
       message = `A record with this ${fields.join(" / ")} already exists.`;
     } else {
