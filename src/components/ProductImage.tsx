@@ -8,12 +8,13 @@ type ProductImageProps = {
   alt: string;
   className?: string;
   style?: React.CSSProperties;
+  onLoad?: () => void;
 };
 
 /**
  * Renders a product thumbnail; falls back to the local placeholder when the URL is missing or fails to load.
  */
-export function ProductImage({ src, alt, className, style }: ProductImageProps) {
+export function ProductImage({ src, alt, className, style, onLoad }: ProductImageProps) {
   const [failed, setFailed] = useState(false);
   const trimmed = typeof src === "string" ? src.trim() : "";
   const url =
@@ -31,6 +32,7 @@ export function ProductImage({ src, alt, className, style }: ProductImageProps) 
       style={style}
       loading="lazy"
       decoding="async"
+      onLoad={onLoad}
       onError={() => setFailed(true)}
     />
   );

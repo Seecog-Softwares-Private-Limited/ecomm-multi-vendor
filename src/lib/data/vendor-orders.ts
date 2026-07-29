@@ -1,6 +1,10 @@
 import type { OrderItemStatus, OrderStatus, PaymentStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { assertOrderTransition } from "@/lib/commerce/order-state-machine";
+import {
+  notifyOrderDelivered,
+  notifyOrderShipped,
+} from "@/lib/notifications/customer-notifications";
 
 const toNumber = (v: unknown): number =>
   typeof v === "number" ? v : Number(v) ?? 0;
@@ -578,6 +582,8 @@ export async function vendorShipOrder(
     ? `Shipped via ${courier} — ${trackingLink.trim()}`.slice(0, 500)
     : `Shipped via ${courier}`.slice(0, 500);
 
+  let notifyShip = false;
+
   try {
     await prisma.$transaction(async (tx) => {
       const order = await tx.order.findFirst({
@@ -611,6 +617,7 @@ export async function vendorShipOrder(
           await tx.orderStatusEvent.create({
             data: { orderId: id, status: "SHIPPED", note: shipNote },
           });
+          notifyShip = true;
         }
       } else {
         await tx.orderStatusEvent.create({
@@ -622,6 +629,15 @@ export async function vendorShipOrder(
         });
       }
     });
+
+    if (notifyShip) {
+      const order = await prisma.order.findUnique({
+        where: { id },
+        select: { userId: true },
+      });
+      if (order) void notifyOrderShipped(order.userId, id).catch(() => undefined);
+    }
+
     return { ok: true };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "";
@@ -638,6 +654,8 @@ export async function vendorDeliverOrder(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const id = orderId.trim();
   if (!id) return { ok: false, error: "Invalid order" };
+
+  let notifyDeliver = false;
 
   try {
     await prisma.$transaction(async (tx) => {
@@ -669,8 +687,18 @@ export async function vendorDeliverOrder(
             note: "Order delivered (all items)",
           },
         });
+        notifyDeliver = true;
       }
     });
+
+    if (notifyDeliver) {
+      const order = await prisma.order.findUnique({
+        where: { id },
+        select: { userId: true },
+      });
+      if (order) void notifyOrderDelivered(order.userId, id).catch(() => undefined);
+    }
+
     return { ok: true };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "";

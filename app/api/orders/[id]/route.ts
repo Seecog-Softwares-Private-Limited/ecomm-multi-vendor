@@ -18,6 +18,7 @@ import {
 } from "@/lib/commerce/order-state-machine";
 import { transitionCheckoutSession } from "@/lib/commerce/checkout-session-lifecycle";
 import { releaseSessionReservations } from "@/lib/commerce/stock-reservation";
+import { notifyOrderCancelled } from "@/lib/notifications/customer-notifications";
 
 const CUSTOMER_CANCELLABLE_STATUSES = CUSTOMER_CANCELLABLE_ORDER_STATUSES;
 
@@ -216,6 +217,8 @@ export const PATCH = withApiHandler(async (request: NextRequest, context?: ApiRo
     }
     throw e;
   }
+
+  void notifyOrderCancelled(session.sub, id).catch(() => undefined);
 
   const payload = await buildCustomerOrderPayload(id, session.sub);
   if (!payload) return apiNotFound("Order not found.");

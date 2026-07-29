@@ -35,6 +35,9 @@ model User {
   productQuestionsAsked    ProductQuestion[] @relation("ProductQuestionAskedBy")
   reviews                  Review[]
   supportTickets           SupportTicket[]
+  supportTicketMessages    SupportTicketMessage[]
+  reviewHelpfulVotes       ReviewHelpfulVote[]
+  notificationPreference   NotificationPreference?
   wishlistItems            WishlistItem[]
   checkoutSessions         CheckoutSession[]
   /// Incremented on every cart mutation; used to detect stale checkout sessions.
@@ -94,6 +97,7 @@ model Admin {
   auditLogs              AdminAuditLog[]
   role           AdminRole?          @relation(fields: [roleId], references: [id])
   notifications  Notification[]
+  supportTicketMessages SupportTicketMessage[]
 
   @@index([email])
   @@index([deletedAt])
@@ -644,6 +648,7 @@ model SupportTicket {
   adminReply     String?             @map("admin_reply") @db.Text
   order          Order?              @relation(fields: [orderId], references: [id])
   user           User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages       SupportTicketMessage[]
 
   @@index([userId])
   @@index([orderId])
@@ -651,6 +656,23 @@ model SupportTicket {
   @@index([createdAt])
   @@index([deletedAt])
   @@map("support_tickets")
+}
+
+model SupportTicketMessage {
+  id         String                 @id @default(uuid()) @db.Char(36)
+  ticketId   String                 @map("ticket_id") @db.Char(36)
+  authorType SupportMessageAuthor   @map("author_type")
+  body       String                 @db.Text
+  userId     String?                @map("user_id") @db.Char(36)
+  adminId    String?                @map("admin_id") @db.Char(36)
+  createdAt  DateTime               @default(now()) @map("created_at")
+  ticket     SupportTicket          @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  user       User?                  @relation(fields: [userId], references: [id], onDelete: SetNull)
+  admin      Admin?                 @relation(fields: [adminId], references: [id], onDelete: SetNull)
+
+  @@index([ticketId, createdAt])
+  @@index([userId])
+  @@map("support_ticket_messages")
 }
 
 model Review {
@@ -666,6 +688,7 @@ model Review {
   deletedAt    DateTime? @map("deleted_at")
   product      Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
   user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  helpfulVotes ReviewHelpfulVote[]
 
   @@unique([userId, productId])
   @@index([productId])
@@ -673,6 +696,53 @@ model Review {
   @@index([createdAt])
   @@index([deletedAt])
   @@map("reviews")
+}
+
+model ReviewHelpfulVote {
+  id        String   @id @default(uuid()) @db.Char(36)
+  reviewId  String   @map("review_id") @db.Char(36)
+  userId    String   @map("user_id") @db.Char(36)
+  createdAt DateTime @default(now()) @map("created_at")
+  review    Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([reviewId, userId])
+  @@index([reviewId])
+  @@index([userId])
+  @@map("review_helpful_votes")
+}
+
+model Faq {
+  id           String    @id @db.VarChar(80)
+  category     String    @db.VarChar(80)
+  question     String    @db.VarChar(500)
+  answer       String    @db.Text
+  displayOrder Int       @default(0) @map("display_order")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  @@index([category])
+  @@index([displayOrder])
+  @@index([deletedAt])
+  @@map("faqs")
+}
+
+model NotificationPreference {
+  userId       String   @id @map("user_id") @db.Char(36)
+  orderUpdates Boolean  @default(true) @map("order_updates")
+  payments     Boolean  @default(true)
+  offers       Boolean  @default(true)
+  wishlist     Boolean  @default(true)
+  security     Boolean  @default(true)
+  email        Boolean  @default(true)
+  sms          Boolean  @default(true)
+  push         Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notification_preferences")
 }
 
 model ProductQuestion {
@@ -784,6 +854,8 @@ model Notification {
   adminId   String?          @map("admin_id") @db.Char(36)
   read      Boolean          @default(false)
   readAt    DateTime?        @map("read_at")
+  /// Optional deep-link metadata: orderId, productId, actionHref, actionLabel
+  metadata  Json?
   createdAt DateTime         @default(now()) @map("created_at")
   updatedAt DateTime         @updatedAt @map("updated_at")
   deletedAt DateTime?        @map("deleted_at")
@@ -990,6 +1062,11 @@ enum SupportTicketStatus {
   IN_PROGRESS
   RESOLVED
   CLOSED
+}
+
+enum SupportMessageAuthor {
+  CUSTOMER
+  ADMIN
 }
 
 enum ReturnStatus {

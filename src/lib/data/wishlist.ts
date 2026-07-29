@@ -16,6 +16,10 @@ export type WishlistItemWithProduct = {
     status: string;
     imageUrl: string;
     avgRating: number | null;
+    reviewCount: number;
+    sellerName: string;
+    discount: number;
+    discountPercent: number;
     listingPaused?: boolean;
   };
 };
@@ -34,7 +38,9 @@ export async function getWishlistItems(userId: string): Promise<WishlistItemWith
           stock: true,
           status: true,
           avgRating: true,
+          reviewCount: true,
           deletedAt: true,
+          seller: { select: { businessName: true } },
           productVariants: {
             where: { deletedAt: null },
             select: { color: true, size: true, price: true, stock: true },
@@ -74,6 +80,10 @@ export async function getWishlistItems(userId: string): Promise<WishlistItemWith
         sellingPrice = liveSelling;
         mrp = liveMrp;
       }
+      const lineStock = line?.stock ?? p.stock;
+      const discount = Math.max(0, mrp - sellingPrice);
+      const discountPercent =
+        mrp > 0 ? Math.round((discount / mrp) * 100) : 0;
       return {
         id: i.id,
         productId: i.productId,
@@ -84,9 +94,13 @@ export async function getWishlistItems(userId: string): Promise<WishlistItemWith
           slug: p.slug?.trim() ? p.slug : null,
           sellingPrice,
           mrp,
-          stock: p.stock,
+          stock: lineStock,
           status: p.status,
           avgRating: p.avgRating != null ? Number(p.avgRating) : null,
+          reviewCount: p.reviewCount ?? 0,
+          sellerName: p.seller.businessName,
+          discount,
+          discountPercent,
           imageUrl: resolveProductImageUrl(p.images[0]?.url),
           ...(listingPaused ? { listingPaused: true } : {}),
         },

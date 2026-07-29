@@ -57,6 +57,7 @@ export const PATCH = withApiHandler(
       const updated = await setCustomerSupportTicketReply(ticketId, {
         reply: reply.trim(),
         status: newStatus,
+        adminId: ctx.admin.id,
       });
       if (!updated) return apiNotFound("Ticket not found");
       return apiSuccess(updated);

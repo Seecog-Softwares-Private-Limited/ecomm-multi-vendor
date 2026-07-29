@@ -9,9 +9,11 @@ import { isLikelyHtmlContent } from "@/lib/cms-content-render";
 import type { ComponentType } from "react";
 import { AboutIndovyaparPage } from "@/components/AboutIndovyaparPage";
 import { CareersPage, type CareerOpeningCard } from "@/components/CareersPage";
+import { HelpCenterPage } from "@/components/HelpCenterPage";
 
 const STATIC_INFO_PAGES: Record<string, ComponentType> = {
   "about-indovyapar": AboutIndovyaparPage,
+  "help-center": HelpCenterPage,
 };
 
 /** Always load from DB at request time (empty/missing DB rows must not 404 after deploy). */
@@ -37,7 +39,9 @@ export async function generateMetadata({
         ? "Learn who we are, what we offer, and why shoppers and sellers choose Indovyapar."
         : slug === "careers"
           ? "Build your career at Indovyapar — openings, hiring process, and how to apply."
-          : undefined,
+          : slug === "help-center"
+            ? "Get help with orders, returns, payments, and account questions."
+            : undefined,
   };
 }
 

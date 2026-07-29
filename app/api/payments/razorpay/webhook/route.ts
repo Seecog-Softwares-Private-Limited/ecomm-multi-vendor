@@ -3,6 +3,7 @@ import { apiBadRequest, withApiHandler } from "@/lib/api";
 import { confirmRazorpayPayment } from "@/lib/commerce/payment-completion.service";
 import { logCommerceEvent } from "@/lib/commerce/logger";
 import { verifyWebhookSignature } from "@/lib/razorpay";
+import { prisma } from "@/lib/prisma";
 
 type RazorpayWebhookPayload = {
   event?: string;
@@ -49,6 +50,28 @@ export const POST = withApiHandler(async (request: NextRequest) => {
       event,
       reason: "Only payment.captured confirms orders.",
     });
+  }
+
+  if (event === "payment.failed") {
+    const paymentEntity = payload.payload?.payment?.entity;
+    const razorpayOrderId = paymentEntity?.order_id?.trim() ?? "";
+    if (razorpayOrderId) {
+      const { findOrderIdByRazorpayOrderId } = await import(
+        "@/lib/commerce/payment-completion.service"
+      );
+      const { notifyPaymentFailed } = await import(
+        "@/lib/notifications/customer-notifications"
+      );
+      const orderId = await findOrderIdByRazorpayOrderId(razorpayOrderId);
+      if (orderId) {
+        const order = await prisma.order.findUnique({
+          where: { id: orderId },
+          select: { userId: true },
+        });
+        if (order) void notifyPaymentFailed(order.userId, orderId).catch(() => undefined);
+      }
+    }
+    return NextResponse.json({ received: true, event });
   }
 
   if (event !== CONFIRMATION_EVENT) {
