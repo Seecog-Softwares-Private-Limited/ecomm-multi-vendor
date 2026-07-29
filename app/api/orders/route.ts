@@ -7,41 +7,50 @@ import {
   apiForbidden,
 } from "@/lib/api";
 import { getSession } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { listCustomerOrders, type OrderListSort } from "@/lib/data/customer-orders";
 import {
   placeLegacyCartOrder,
   placeOrderFromCheckoutSession,
 } from "@/lib/commerce/order-placement.service";
+import { prisma } from "@/lib/prisma";
+import { notifyOrderPlaced } from "@/lib/notifications/customer-notifications";
+
+const VALID_SORTS: OrderListSort[] = ["newest", "oldest", "amount_asc", "amount_desc"];
 
 /**
  * GET /api/orders — list orders for the logged-in customer.
+ * Optional query: page, limit, status, search, sort (backward compatible when omitted).
  */
 export const GET = withApiHandler(async (request: NextRequest) => {
   const session = await getSession(request);
   if (!session) return apiUnauthorized("Please log in to view orders.");
   if (session.role !== "CUSTOMER") return apiForbidden("Only customers can view their orders.");
 
-  const orders = await prisma.order.findMany({
-    where: { userId: session.sub },
-    orderBy: { createdAt: "desc" },
-    select: {
-      id: true,
-      status: true,
-      totalAmount: true,
-      createdAt: true,
-      _count: { select: { items: true } },
-    },
+  const { searchParams } = new URL(request.url);
+  const pageRaw = searchParams.get("page");
+  const limitRaw = searchParams.get("limit");
+  const status = searchParams.get("status") ?? undefined;
+  const search = searchParams.get("search") ?? searchParams.get("q") ?? undefined;
+  const sortRaw = searchParams.get("sort") ?? undefined;
+
+  const sort =
+    sortRaw && VALID_SORTS.includes(sortRaw as OrderListSort)
+      ? (sortRaw as OrderListSort)
+      : undefined;
+
+  const result = await listCustomerOrders(session.sub, {
+    page: pageRaw ? Number(pageRaw) : undefined,
+    limit: limitRaw ? Number(limitRaw) : undefined,
+    status,
+    search,
+    sort,
   });
 
-  const list = orders.map((o) => ({
-    id: o.id,
-    status: o.status,
-    totalAmount: Number(o.totalAmount),
-    createdAt: o.createdAt.toISOString(),
-    itemCount: o._count.items,
-  }));
+  if (result.pagination) {
+    return apiSuccess({ orders: result.orders, pagination: result.pagination });
+  }
 
-  return apiSuccess({ orders: list });
+  return apiSuccess({ orders: result.orders });
 });
 
 /**
@@ -120,6 +129,10 @@ export const POST = withApiHandler(async (request: NextRequest) => {
       typeof couponCode === "string" ? couponCode : null,
       idemKey
     );
+  }
+
+  if (!result.recovered) {
+    void notifyOrderPlaced(user.id, result.orderId).catch(() => undefined);
   }
 
   return apiSuccess({

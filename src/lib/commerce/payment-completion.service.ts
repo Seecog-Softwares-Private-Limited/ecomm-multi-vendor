@@ -261,7 +261,15 @@ export async function confirmRazorpayPayment(
     source: input.source,
   });
 
+  void notifyCustomerPaymentSuccess(order.id, order.userId).catch(() => undefined);
+
   return { orderId: order.id, verified: true, recovered: false };
+}
+
+/** Notify customer after successful online payment (non-blocking). */
+export async function notifyCustomerPaymentSuccess(orderId: string, userId: string): Promise<void> {
+  const { notifyPaymentSuccess } = await import("@/lib/notifications/customer-notifications");
+  await notifyPaymentSuccess(userId, orderId);
 }
 
 /** Lookup internal order id by Razorpay order id (webhook helper). */

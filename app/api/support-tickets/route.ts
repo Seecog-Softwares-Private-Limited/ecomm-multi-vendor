@@ -10,6 +10,7 @@ import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { SupportTicketStatus } from "@prisma/client";
 import { listCustomerSupportTicketsForUser } from "@/lib/data/support-ticket-customer-read";
+import { appendSupportTicketMessage } from "@/lib/data/support-ticket-messages";
 
 const VALID_STATUSES: SupportTicketStatus[] = ["OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED"];
 
@@ -79,6 +80,13 @@ export const POST = withApiHandler(async (request: NextRequest) => {
       orderId: true,
       createdAt: true,
     },
+  });
+
+  await appendSupportTicketMessage({
+    ticketId: ticket.id,
+    authorType: "CUSTOMER",
+    body: subject,
+    userId: session.sub,
   });
 
   return apiSuccess({

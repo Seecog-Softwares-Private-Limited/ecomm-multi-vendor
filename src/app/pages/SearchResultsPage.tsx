@@ -1,364 +1,483 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { useSearchParams } from "next/navigation";
-import Link from "next/link";
-import { toast } from "sonner";
-import { Star, ShoppingCart, Search, SlidersHorizontal, SearchX } from "lucide-react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { SlidersHorizontal } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
-import { addToGuestCart } from "@/lib/guest-cart";
-import { useCartDrawer, dispatchCartUpdated } from "@/contexts/CartDrawerContext";
 import { useDeliveryLocation } from "@/contexts/DeliveryLocationContext";
 import { MENU_TYPE_SLUGS, type MenuTypeSlug } from "@/lib/catalog-constants";
-import { ProductImage } from "@/components/ProductImage";
+import { ProductCard } from "@/components/product/ProductCard";
+import { ProductCardSkeleton } from "@/components/product/ProductCardSkeleton";
+import { useListingCommerce } from "@/hooks/useListingCommerce";
+import type { ProductListItem } from "@/types/catalog";
+import { SearchBar } from "@/components/search/SearchBar";
+import { SearchFiltersPanel } from "@/components/search/SearchFiltersPanel";
+import {
+  SearchFilterChips,
+  DEFAULT_SEARCH_FILTERS,
+} from "@/components/search/SearchFilterChips";
+import { SearchEmptyState } from "@/components/search/SearchEmptyState";
+import { CustomerErrorState } from "@/components/ui-customer/CustomerErrorState";
+import { addRecentSearch } from "@/lib/search/search-history";
+import {
+  applySearchFilters,
+  applySearchSort,
+  countActiveFilters,
+  deriveBrandsFromProducts,
+  getPersistedSort,
+  mapProductRows,
+  persistSort,
+  SEARCH_SORT_OPTIONS,
+  type SearchFilters,
+  type SearchSort,
+} from "@/lib/search/search-utils";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/app/components/ui/drawer";
 
-type ProductItem = {
-  id: string;
-  slug?: string;
-  name: string;
-  price: number;
-  oldPrice?: number;
-  rating: number;
-  reviews: number;
-  imageUrl?: string | null;
-};
-
-function formatRupee(n: number) {
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    maximumFractionDigits: 0,
-  }).format(n);
-}
+const PAGE_SIZE = 24;
 
 function parseMenuType(raw: string | null): MenuTypeSlug | null {
   if (!raw) return null;
   return (MENU_TYPE_SLUGS as readonly string[]).includes(raw) ? (raw as MenuTypeSlug) : null;
 }
 
+function scopeLabel(
+  menuType: MenuTypeSlug | null,
+  categorySlug: string | null
+): string | null {
+  if (menuType === "deals") return "Deals";
+  if (menuType === "new-arrivals") return "New Arrivals";
+  if (menuType === "best-sellers") return "Best Sellers";
+  if (categorySlug) {
+    return categorySlug
+      .split("-")
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+      .join(" ");
+  }
+  return null;
+}
+
+const ProductGrid = memo(function ProductGrid({
+  products,
+  commerce,
+}: {
+  products: ProductListItem[];
+  commerce: ReturnType<typeof useListingCommerce>;
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+      {products.map((product, index) => (
+        <ProductCard
+          key={product.id}
+          product={product}
+          layout="grid"
+          animationDelayMs={Math.min(index * 40, 320)}
+          showWishlist
+          isWishlisted={commerce.isWishlisted(product.id)}
+          wishlistLoading={commerce.wishlistTogglingId === product.id}
+          onWishlistToggle={() => void commerce.toggleWishlist(product)}
+          cartQuantity={commerce.getCartQuantity(product.id)}
+          cartLoading={commerce.cartActionProductId === product.id}
+          onAddToCart={() => void commerce.addToCart(product)}
+          onIncrementCart={() => commerce.incrementCart(product)}
+          onDecrementCart={() => commerce.decrementCart(product)}
+          onGoToCart={() => commerce.openCartDrawer()}
+        />
+      ))}
+    </div>
+  );
+});
+
 export function SearchResultsPage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const qFromUrl = searchParams.get("q") ?? "";
   const categorySlugFromUrl = searchParams.get("categorySlug")?.trim() || null;
   const menuTypeFromUrl = parseMenuType(searchParams.get("menuType"));
+
   const [query, setQuery] = useState(qFromUrl);
-  const [products, setProducts] = useState<ProductItem[]>([]);
+  const [rawProducts, setRawProducts] = useState<ProductListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(false);
-  /** True when first request used pincode and returned 0, but a retry without pincode found items. */
+  const [hasMore, setHasMore] = useState(true);
+  const [offset, setOffset] = useState(0);
   const [expandedPastPinFilter, setExpandedPastPinFilter] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
-  const [addingToCartId, setAddingToCartId] = useState<string | null>(null);
-  const { openCartDrawer } = useCartDrawer();
+  const [filters, setFilters] = useState<SearchFilters>(DEFAULT_SEARCH_FILTERS);
+  const [sort, setSort] = useState<SearchSort>("relevance");
+  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
+  const [relatedProducts, setRelatedProducts] = useState<ProductListItem[]>([]);
+  const [apiBrands, setApiBrands] = useState<string[]>([]);
+  const [categories, setCategories] = useState<{ id: string; slug: string; name: string }[]>([]);
+
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+  const commerce = useListingCommerce();
   const { location } = useDeliveryLocation();
 
   const searchTerm = qFromUrl.trim();
+  const scopeHint = scopeLabel(menuTypeFromUrl, categorySlugFromUrl);
 
-  const fetchProducts = useCallback(() => {
-    if (!searchTerm) {
-      setProducts([]);
-      setExpandedPastPinFilter(false);
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    setError(false);
-    setExpandedPastPinFilter(false);
+  useEffect(() => {
+    setSort(getPersistedSort());
+    fetch("/api/categories")
+      .then((r) => r.json())
+      .then((j) => {
+        if (Array.isArray(j?.data)) setCategories(j.data);
+      })
+      .catch(() => {});
+  }, []);
 
-    const pin = (location.pincode ?? "").replace(/\D/g, "").slice(0, 6);
-    const hasPin = /^\d{6}$/.test(pin);
+  useEffect(() => {
+    setQuery(qFromUrl);
+  }, [qFromUrl]);
 
-    const buildParams = (includePincode: boolean) => {
-      const params = new URLSearchParams({ q: searchTerm, limit: "48" });
+  const buildParams = useCallback(
+    (includePincode: boolean, nextOffset: number) => {
+      const params = new URLSearchParams({
+        q: searchTerm,
+        limit: String(PAGE_SIZE),
+        offset: String(nextOffset),
+      });
       if (categorySlugFromUrl) params.set("categorySlug", categorySlugFromUrl);
       if (menuTypeFromUrl) params.set("menuType", menuTypeFromUrl);
-      if (includePincode && hasPin) params.set("pincode", pin);
+      const pin = (location.pincode ?? "").replace(/\D/g, "").slice(0, 6);
+      if (includePincode && /^\d{6}$/.test(pin)) params.set("pincode", pin);
       return params;
-    };
+    },
+    [searchTerm, categorySlugFromUrl, menuTypeFromUrl, location.pincode]
+  );
 
-    const mapRows = (data: unknown): ProductItem[] => {
-      const list = Array.isArray((data as { data?: unknown })?.data)
-        ? (data as { data: Record<string, unknown>[] }).data
-        : [];
-      return list.map((p) => ({
-        id: String(p.id),
-        slug: typeof p.slug === "string" ? p.slug : undefined,
-        name: String(p.name),
-        price: Number(p.price),
-        oldPrice: typeof p.oldPrice === "number" ? p.oldPrice : undefined,
-        rating: typeof p.rating === "number" ? p.rating : 0,
-        reviews: typeof p.reviews === "number" ? p.reviews : 0,
-        imageUrl: (p.imageUrl as string | null | undefined) ?? null,
-      }));
-    };
+  const fetchPage = useCallback(
+    async (nextOffset: number, append: boolean) => {
+      if (!searchTerm) {
+        setRawProducts([]);
+        setHasMore(false);
+        setLoading(false);
+        return;
+      }
 
-    fetch(`/api/products?${buildParams(true).toString()}`, { credentials: "include" })
-      .then((res) => (res.ok ? res.json() : Promise.reject(new Error("Failed"))))
-      .then(async (data) => {
-        let rows = mapRows(data);
-        if (rows.length === 0 && hasPin) {
-          const res2 = await fetch(`/api/products?${buildParams(false).toString()}`, {
+      if (append) setLoadingMore(true);
+      else {
+        setLoading(true);
+        setError(false);
+        setExpandedPastPinFilter(false);
+      }
+
+      const pin = (location.pincode ?? "").replace(/\D/g, "").slice(0, 6);
+      const hasPin = /^\d{6}$/.test(pin);
+
+      try {
+        let res = await fetch(`/api/products?${buildParams(true, nextOffset).toString()}`, {
+          credentials: "include",
+        });
+        if (!res.ok) throw new Error("Failed");
+        let data = await res.json();
+        let rows = mapProductRows(data);
+
+        if (rows.length === 0 && hasPin && nextOffset === 0) {
+          const res2 = await fetch(`/api/products?${buildParams(false, nextOffset).toString()}`, {
             credentials: "include",
           });
           if (res2.ok) {
-            const data2 = await res2.json();
-            const retryRows = mapRows(data2);
+            data = await res2.json();
+            const retryRows = mapProductRows(data);
             if (retryRows.length > 0) {
               rows = retryRows;
               setExpandedPastPinFilter(true);
             }
           }
         }
-        setProducts(rows);
+
+        setRawProducts((prev) => (append ? [...prev, ...rows] : rows));
+        setHasMore(rows.length >= PAGE_SIZE);
+        setOffset(nextOffset + rows.length);
+      } catch {
+        setError(true);
+        if (!append) setRawProducts([]);
+      } finally {
+        setLoading(false);
+        setLoadingMore(false);
+      }
+    },
+    [searchTerm, buildParams, location.pincode]
+  );
+
+  useEffect(() => {
+    setOffset(0);
+    void fetchPage(0, false);
+  }, [fetchPage]);
+
+  useEffect(() => {
+    if (!categorySlugFromUrl) {
+      setApiBrands([]);
+      return;
+    }
+    const params = new URLSearchParams({ categorySlug: categorySlugFromUrl });
+    const pin = (location.pincode ?? "").replace(/\D/g, "").slice(0, 6);
+    if (/^\d{6}$/.test(pin)) params.set("pincode", pin);
+    fetch(`/api/products/brands?${params.toString()}`, { credentials: "include" })
+      .then((r) => r.json())
+      .then((j) => {
+        if (Array.isArray(j?.data)) setApiBrands(j.data as string[]);
       })
-      .catch(() => setError(true))
-      .finally(() => setLoading(false));
-  }, [searchTerm, location.pincode, categorySlugFromUrl, menuTypeFromUrl]);
+      .catch(() => setApiBrands([]));
+  }, [categorySlugFromUrl, location.pincode]);
 
   useEffect(() => {
-    setQuery(qFromUrl);
-  }, [qFromUrl]);
+    if (searchTerm && !loading && rawProducts.length === 0 && !error) {
+      fetch("/api/products?menuType=best-sellers&limit=8", { credentials: "include" })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((json) => {
+          if (json) setRelatedProducts(mapProductRows(json));
+        })
+        .catch(() => setRelatedProducts([]));
+    } else {
+      setRelatedProducts([]);
+    }
+  }, [searchTerm, loading, rawProducts.length, error]);
 
   useEffect(() => {
-    fetchProducts();
-  }, [fetchProducts]);
+    const el = loadMoreRef.current;
+    if (!el || !hasMore || loading || loadingMore || !searchTerm) return;
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const term = query.trim();
-    if (!term) return;
-    const params = new URLSearchParams({ q: term });
-    if (categorySlugFromUrl) params.set("categorySlug", categorySlugFromUrl);
-    if (menuTypeFromUrl) params.set("menuType", menuTypeFromUrl);
-    window.location.href = `/search?${params.toString()}`;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) void fetchPage(offset, true);
+      },
+      { rootMargin: "200px" }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasMore, loading, loadingMore, searchTerm, offset, fetchPage]);
+
+  const brands = useMemo(() => {
+    if (apiBrands.length > 0) return apiBrands;
+    return deriveBrandsFromProducts(rawProducts);
+  }, [apiBrands, rawProducts]);
+
+  const filteredProducts = useMemo(() => {
+    const filtered = applySearchFilters(rawProducts, filters);
+    return applySearchSort(filtered, sort);
+  }, [rawProducts, filters, sort]);
+
+  const activeFilterCount = countActiveFilters(filters) + (categorySlugFromUrl ? 1 : 0);
+
+  const navigateSearch = useCallback(
+    (term: string) => {
+      addRecentSearch(term);
+      const params = new URLSearchParams({ q: term });
+      if (categorySlugFromUrl) params.set("categorySlug", categorySlugFromUrl);
+      if (menuTypeFromUrl) params.set("menuType", menuTypeFromUrl);
+      router.push(`/search?${params.toString()}`);
+    },
+    [router, categorySlugFromUrl, menuTypeFromUrl]
+  );
+
+  const clearFilters = () => setFilters(DEFAULT_SEARCH_FILTERS);
+
+  const clearAllFiltersAndScope = () => {
+    clearFilters();
+    if (categorySlugFromUrl || menuTypeFromUrl) {
+      const params = new URLSearchParams({ q: searchTerm });
+      router.push(`/search?${params.toString()}`);
+    }
   };
 
-  const scopeHint =
-    menuTypeFromUrl === "deals"
-      ? "Deals"
-      : menuTypeFromUrl === "new-arrivals"
-        ? "New arrivals"
-        : menuTypeFromUrl === "best-sellers"
-          ? "Best sellers"
-          : categorySlugFromUrl
-            ? categorySlugFromUrl
-                .split("-")
-                .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-                .join(" ")
-            : null;
+  const handleCategoryFilter = (slug: string | null) => {
+    const params = new URLSearchParams({ q: searchTerm });
+    if (slug) params.set("categorySlug", slug);
+    if (menuTypeFromUrl) params.set("menuType", menuTypeFromUrl);
+    router.push(`/search?${params.toString()}`);
+  };
+
+  const handleSortChange = (next: SearchSort) => {
+    setSort(next);
+    persistSort(next);
+  };
 
   return (
-    <div className="min-h-screen bg-[#F9FAFB]">
+    <div className="min-h-screen bg-[#F8FAFC]">
       <Navbar />
-      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-        {/* Search and title */}
-        <div className="mb-6">
-          <form onSubmit={handleSearchSubmit} className="max-w-2xl mb-6">
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                <input
-                  type="text"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search for products, brands and more"
-                  className="w-full pl-10 pr-4 py-3 border-2 border-slate-200 rounded-xl focus:border-[#FF6A00] focus:outline-none bg-white text-slate-900"
-                />
-              </div>
-              <button
-                type="submit"
-                className="px-6 py-3 bg-[#FF6A00] text-white rounded-xl font-semibold hover:bg-[#E55F00] transition-colors flex items-center gap-2"
-              >
-                <Search className="w-5 h-5" />
-                Search
-              </button>
-            </div>
-          </form>
 
-          {searchTerm && (
-            <div className="mb-1">
-              <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">
-                Results for <span className="text-[#FF6A00]">&quot;{searchTerm}&quot;</span>
-                {scopeHint ? (
-                  <span className="block mt-1 text-base font-semibold capitalize text-slate-600 sm:text-lg">
-                    in {scopeHint}
-                  </span>
-                ) : null}
-              </h1>
-              {expandedPastPinFilter ? (
-                <p className="mt-2 max-w-2xl text-sm leading-relaxed text-amber-900/90">
-                  Your saved PIN isn&apos;t in the platform delivery list, so results were widened to the full
-                  catalog. Availability for your address is confirmed at checkout.
-                </p>
-              ) : null}
-            </div>
-          )}
+      <div className="mx-auto max-w-[1400px] px-3 py-5 sm:px-6 lg:px-8 lg:py-8">
+        <div className="mb-6">
+          <SearchBar
+            value={query}
+            onChange={setQuery}
+            onSubmit={navigateSearch}
+            autoFocus={!searchTerm}
+            commerce={commerce}
+            categorySlug={categorySlugFromUrl}
+            menuType={menuTypeFromUrl ?? undefined}
+            pincode={location.pincode ?? ""}
+          />
         </div>
 
         {!searchTerm && (
-          <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
-            <Search className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-            <h2 className="text-xl font-bold text-slate-800 mb-2">Search for products</h2>
-            <p className="text-slate-600 mb-6">Enter a product name or keyword in the search bar above.</p>
-            <Link
-              href="/"
-              className="inline-block px-6 py-3 bg-[#FF6A00] text-white rounded-xl font-semibold hover:bg-[#E55F00]"
-            >
-              Browse home
-            </Link>
-          </div>
-        )}
-
-        {searchTerm && loading && (
-          <div className="py-16 text-center text-slate-500 font-medium">Loading search results…</div>
-        )}
-
-        {searchTerm && error && (
-          <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
-            <p className="text-red-600 font-medium">Failed to load results. Please try again.</p>
-            <button
-              type="button"
-              onClick={() => fetchProducts()}
-              className="mt-4 px-6 py-2 bg-slate-100 text-slate-800 rounded-xl font-semibold hover:bg-slate-200"
-            >
-              Retry
-            </button>
-          </div>
-        )}
-
-        {searchTerm && !loading && !error && products.length === 0 && (
-          <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
-            <SearchX className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-            <h2 className="text-xl font-bold text-slate-800 mb-2">No products found</h2>
-            <p className="text-slate-600 mb-6">
-              We couldn&apos;t find any products matching &quot;{searchTerm}&quot;. Try different keywords.
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center text-slate-600 sm:p-10">
+            <p className="text-sm sm:text-base">
+              Focus the search box above to see recent searches, categories, and suggestions.
             </p>
-            <Link
-              href="/"
-              className="inline-block px-6 py-3 bg-[#FF6A00] text-white rounded-xl font-semibold hover:bg-[#E55F00]"
-            >
-              Browse all products
-            </Link>
           </div>
         )}
 
-        {searchTerm && !loading && !error && products.length > 0 && (
+        {searchTerm && (
           <>
-            <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
-              <p className="text-slate-600 font-medium">
-                {products.length} {products.length === 1 ? "result" : "results"}
-              </p>
-              <button
-                type="button"
-                onClick={() => setShowFilters((s) => !s)}
-                className="lg:hidden flex items-center gap-2 px-4 py-2 border-2 border-slate-200 rounded-xl font-semibold text-slate-700 hover:border-[#FF6A00] hover:text-[#FF6A00]"
-              >
-                <SlidersHorizontal className="w-5 h-5" />
-                Filters
-              </button>
+            <div className="mb-4">
+              <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">
+                Results for <span className="text-[#FF6A00]">&quot;{searchTerm}&quot;</span>
+              </h1>
+              {scopeHint && (
+                <p className="mt-1 text-sm font-medium capitalize text-slate-600">in {scopeHint}</p>
+              )}
+              {expandedPastPinFilter && (
+                <p className="mt-2 max-w-2xl text-sm text-amber-900/90">
+                  Your saved PIN isn&apos;t in the platform delivery list, so results were widened to
+                  the full catalog.
+                </p>
+              )}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {products.map((product) => (
-                <div
-                  key={product.id}
-                  className="bg-white border border-slate-200 rounded-2xl overflow-hidden hover:shadow-lg transition-shadow group"
+            <SearchFilterChips
+              filters={filters}
+              categoryLabel={scopeHint}
+              onRemoveCategory={
+                categorySlugFromUrl
+                  ? () => {
+                      const params = new URLSearchParams({ q: searchTerm });
+                      if (menuTypeFromUrl) params.set("menuType", menuTypeFromUrl);
+                      router.push(`/search?${params.toString()}`);
+                    }
+                  : undefined
+              }
+              onChange={setFilters}
+              onClearAll={clearAllFiltersAndScope}
+            />
+
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm font-medium text-slate-600">
+                {loading
+                  ? "Searching…"
+                  : `${filteredProducts.length} ${filteredProducts.length === 1 ? "result" : "results"}`}
+              </p>
+              <div className="flex items-center gap-2">
+                <label htmlFor="search-sort" className="sr-only">
+                  Sort results
+                </label>
+                <select
+                  id="search-sort"
+                  value={sort}
+                  onChange={(e) => handleSortChange(e.target.value as SearchSort)}
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-800 focus:border-[#FF6A00] focus:outline-none focus:ring-2 focus:ring-[#FF6A00]/20"
                 >
-                  <Link href={`/product/${product.slug ?? product.id}`} className="block">
-                    <div className="aspect-square bg-slate-100 relative overflow-hidden">
-                      <ProductImage
-                        src={product.imageUrl}
-                        alt={product.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                      {product.oldPrice != null && product.oldPrice > product.price && (
-                        <span className="absolute top-3 left-3 px-2 py-1 bg-red-500 text-white text-xs font-bold rounded">
-                          SALE
-                        </span>
-                      )}
-                    </div>
-                  </Link>
-                  <div className="p-4">
-                    <Link href={`/product/${product.slug ?? product.id}`}>
-                      <h3 className="font-semibold text-slate-900 mb-2 line-clamp-2 hover:text-[#FF6A00] transition-colors">
-                        {product.name}
-                      </h3>
-                    </Link>
-                    <div className="flex items-center gap-1 mb-2">
-                      {[1, 2, 3, 4, 5].map((i) => (
-                        <Star
-                          key={i}
-                          className={`w-4 h-4 ${
-                            i <= Math.floor(product.rating) ? "fill-amber-400 text-amber-400" : "text-slate-200"
-                          }`}
-                        />
-                      ))}
-                      <span className="text-sm text-slate-500 ml-1">
-                        {product.rating.toFixed(1)} ({product.reviews})
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 mb-4">
-                      <span className="text-lg font-bold text-slate-900">{formatRupee(product.price)}</span>
-                      {product.oldPrice != null && product.oldPrice > product.price && (
-                        <span className="text-sm text-slate-400 line-through">{formatRupee(product.oldPrice)}</span>
-                      )}
-                    </div>
-                    <button
-                      type="button"
-                      disabled={addingToCartId === product.id}
-                      onClick={async () => {
-                        setAddingToCartId(product.id);
-                        try {
-                          const res = await fetch("/api/cart/items", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            credentials: "include",
-                            body: JSON.stringify({
-                              productId: product.id,
-                              quantity: 1,
-                              variantKey: null,
-                            }),
-                          });
-                          const data = await res.json().catch(() => ({}));
-                          if (!res.ok) {
-                            if (res.status === 401 || res.status === 403) {
-                              addToGuestCart({
-                                productId: product.id,
-                                quantity: 1,
-                                variantKey: null,
-                                name: product.name,
-                                price: product.price,
-                                imageUrl: product.imageUrl ?? null,
-                                mrp: product.oldPrice ?? product.price,
-                              });
-                              toast.success("Added to cart");
-                              openCartDrawer();
-                            } else {
-                              toast.error(data?.error?.message ?? "Could not add to cart.");
-                            }
-                            return;
-                          }
-                          toast.success("Added to cart");
-                          dispatchCartUpdated();
-                          openCartDrawer();
-                        } catch {
-                          toast.error("Could not add to cart.");
-                        } finally {
-                          setAddingToCartId(null);
-                        }
-                      }}
-                      className="flex items-center justify-center gap-2 w-full py-2.5 bg-[#FF6A00] text-white rounded-xl font-semibold hover:bg-[#E55F00] transition-colors disabled:opacity-60"
-                    >
-                      <ShoppingCart className="w-4 h-4" />
-                      {addingToCartId === product.id ? "Adding…" : "Add to Cart"}
-                    </button>
-                  </div>
+                  {SEARCH_SORT_OPTIONS.filter((o) => o.supported).map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => setFilterDrawerOpen(true)}
+                  className="relative flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 lg:hidden"
+                >
+                  <SlidersHorizontal className="h-4 w-4" />
+                  Filters
+                  {activeFilterCount > 0 && (
+                    <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[#FF6A00] px-1 text-[10px] font-bold text-white">
+                      {activeFilterCount}
+                    </span>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <div className="flex gap-6 lg:gap-8">
+              <aside className="hidden w-64 shrink-0 lg:block">
+                <div className="sticky top-24 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <SearchFiltersPanel
+                    filters={filters}
+                    brands={brands}
+                    categories={categories}
+                    selectedCategorySlug={categorySlugFromUrl}
+                    onCategoryChange={handleCategoryFilter}
+                    onChange={setFilters}
+                    onClear={clearFilters}
+                    idPrefix="desktop"
+                  />
                 </div>
-              ))}
+              </aside>
+
+              <div className="min-w-0 flex-1">
+                {loading && <ProductCardSkeleton layout="grid" count={8} />}
+
+                {error && (
+                  <CustomerErrorState
+                    title="Couldn't load results"
+                    message="Failed to load search results. Check your connection and try again."
+                    onRetry={() => void fetchPage(0, false)}
+                  />
+                )}
+
+                {!loading && !error && filteredProducts.length === 0 && (
+                  <SearchEmptyState
+                    query={searchTerm}
+                    relatedProducts={relatedProducts}
+                    commerce={commerce}
+                    hasActiveFilters={activeFilterCount > 0}
+                    onClearFilters={clearAllFiltersAndScope}
+                  />
+                )}
+
+                {!loading && !error && filteredProducts.length > 0 && (
+                  <>
+                    <ProductGrid products={filteredProducts} commerce={commerce} />
+                    {hasMore && (
+                      <div ref={loadMoreRef} className="py-8">
+                        {loadingMore && <ProductCardSkeleton layout="grid" count={4} />}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
           </>
         )}
       </div>
+
+      <Drawer open={filterDrawerOpen} onOpenChange={setFilterDrawerOpen}>
+        <DrawerContent className="max-h-[85vh]">
+          <DrawerHeader>
+            <DrawerTitle>Filters</DrawerTitle>
+          </DrawerHeader>
+          <div className="overflow-y-auto px-4 pb-4">
+            <SearchFiltersPanel
+              filters={filters}
+              brands={brands}
+              categories={categories}
+              selectedCategorySlug={categorySlugFromUrl}
+              onCategoryChange={handleCategoryFilter}
+              onChange={setFilters}
+              onClear={clearFilters}
+              idPrefix="mobile"
+            />
+          </div>
+          <DrawerFooter>
+            <button
+              type="button"
+              onClick={() => setFilterDrawerOpen(false)}
+              className="w-full rounded-xl bg-[#FF6A00] py-3 text-sm font-semibold text-white hover:bg-[#E55F00]"
+            >
+              Show {filteredProducts.length} results
+            </button>
+          </DrawerFooter>
+        </DrawerContent>
+      </Drawer>
     </div>
   );
 }

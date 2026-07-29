@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { User, Package, MapPin, Heart, Headphones } from "lucide-react";
+import { User, Package, MapPin, Heart, Headphones, Bell } from "lucide-react";
 import { Navbar } from "./Navbar";
 
 const SIDEBAR_LINKS = [
@@ -11,6 +11,7 @@ const SIDEBAR_LINKS = [
   { href: "/my-orders", label: "My Orders", icon: Package },
   { href: "/address-management", label: "Addresses", icon: MapPin },
   { href: "/wishlist", label: "Wishlist", icon: Heart },
+  { href: "/notifications", label: "Notifications", icon: Bell },
   { href: "/support-tickets", label: "Support", icon: Headphones },
 ] as const;
 
@@ -45,13 +46,13 @@ export function AccountLayout({
   }, [isCustomer]);
 
   return (
-    <div className="min-h-screen bg-[#F9FAFB]">
+    <div className="min-h-screen bg-[var(--iv-page-bg)]">
       <Navbar />
-      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="iv-page-account py-6 sm:py-8">
         {/* Mobile tabs */}
         <div className="lg:hidden mb-4">
-          <div className="rounded-2xl border border-slate-200/80 bg-white p-2 shadow-sm">
-            <nav className="flex gap-2 overflow-x-auto whitespace-nowrap [&::-webkit-scrollbar]:hidden">
+          <div className="iv-card p-2">
+            <nav className="flex gap-2 overflow-x-auto whitespace-nowrap [&::-webkit-scrollbar]:hidden" aria-label="Account sections">
               {visibleSidebarLinks.map(({ href, label, icon: Icon }) => {
                 const isActive =
                   pathname === href ||
@@ -63,8 +64,8 @@ export function AccountLayout({
                   <Link
                     key={href}
                     href={href}
-                    className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${
-                      isActive ? "bg-[#FF6A00] text-white" : "bg-slate-50 text-slate-700"
+                    className={`inline-flex min-h-[var(--iv-touch-min)] items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--iv-brand-ring)] ${
+                      isActive ? "bg-[var(--iv-brand)] text-white" : "bg-slate-50 text-slate-700"
                     }`}
                   >
                     <Icon className="h-4 w-4 shrink-0" />
@@ -78,7 +79,7 @@ export function AccountLayout({
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           <aside className="hidden lg:block lg:col-span-1">
-            <div className="bg-white rounded-2xl shadow-md border border-slate-200/80 p-5 sticky top-24">
+            <div className="iv-card sticky top-24 p-5">
               <nav className="space-y-1">
                 {visibleSidebarLinks.map(({ href, label, icon: Icon }) => {
                   const isActive =
@@ -89,9 +90,9 @@ export function AccountLayout({
                     <Link
                       key={href}
                       href={href}
-                      className={`flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-colors ${
+                      className={`flex min-h-[var(--iv-touch-min)] items-center gap-3 rounded-xl px-4 py-3 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--iv-brand-ring)] ${
                         isActive
-                          ? "bg-[#FF6A00] text-white"
+                          ? "bg-[var(--iv-brand)] text-white"
                           : "text-slate-700 hover:bg-slate-50"
                       }`}
                     >

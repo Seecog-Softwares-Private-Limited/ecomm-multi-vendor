@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { fetchAdminColumnsForTicketIds } from "@/lib/data/support-ticket-customer-read";
+import { appendSupportTicketMessage } from "@/lib/data/support-ticket-messages";
 
 export interface AdminCustomerTicketItem {
   id: string;
@@ -66,7 +67,7 @@ export async function getAdminCustomerSupportTickets(): Promise<AdminCustomerTic
 /** Admin reply to a customer support ticket; optionally set status. */
 export async function setCustomerSupportTicketReply(
   ticketId: string,
-  data: { reply: string; status?: "OPEN" | "IN_PROGRESS" | "RESOLVED" | "CLOSED" }
+  data: { reply: string; status?: "OPEN" | "IN_PROGRESS" | "RESOLVED" | "CLOSED"; adminId?: string | null }
 ): Promise<AdminCustomerTicketItem | null> {
   const ticket = await prisma.supportTicket.findFirst({
     where: { id: ticketId, deletedAt: null, user: { deletedAt: null } },
@@ -107,6 +108,13 @@ export async function setCustomerSupportTicketReply(
         ticketId
       );
     }
+
+    await appendSupportTicketMessage({
+      ticketId,
+      authorType: "ADMIN",
+      body: reply,
+      adminId: data.adminId ?? null,
+    });
   } catch {
     return null;
   }

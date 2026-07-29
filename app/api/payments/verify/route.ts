@@ -70,6 +70,8 @@ export const POST = withApiHandler(async (request: NextRequest) => {
   const isValid = verifyPaymentSignature(razorpayOrderId, razorpayPaymentId, razorpaySignature);
   if (!isValid) {
     logCommerceEvent("order_failed", { orderId, userId: session.sub, stage: "verify_signature" });
+    const { notifyPaymentFailed } = await import("@/lib/notifications/customer-notifications");
+    void notifyPaymentFailed(session.sub, orderId).catch(() => undefined);
     return apiBadRequest("Payment verification failed. Please contact support if amount was deducted.");
   }
 

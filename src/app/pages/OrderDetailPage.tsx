@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Package, Truck, MapPin, XCircle } from "lucide-react";
 import { AccountLayout } from "@/components/AccountLayout";
+import { OrderProgressTimeline } from "@/components/orders/OrderProgressTimeline";
 import { DEFAULT_PRODUCT_IMAGE_URL } from "@/lib/product-image";
 
 function formatRupee(n: number) {
@@ -54,6 +55,11 @@ type CustomerOrderDetail = {
     quantity: number;
     unitPrice: number;
     totalPrice: number;
+  }[];
+  timeline?: {
+    status: string;
+    note?: string;
+    occurredAt: string;
   }[];
 };
 
@@ -244,7 +250,7 @@ export function OrderDetailPage() {
                 {displayId} · {new Date(order.createdAt).toLocaleDateString("en-IN")}
               </p>
               <p className="mt-2">
-                <span className="inline-flex items-center rounded-lg bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-800">
+                <span className="inline-flex items-center rounded-lg bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-900">
                   {STATUS_LABEL[order.status] ?? order.status}
                 </span>
               </p>
@@ -252,6 +258,8 @@ export function OrderDetailPage() {
                 {formatRupee(order.totalAmount)}
               </p>
             </div>
+
+            <OrderProgressTimeline status={order.status} timeline={order.timeline} />
 
             {order.address && (
               <div className="bg-slate-50 rounded-xl p-5 mb-6 border border-slate-100">
@@ -283,7 +291,7 @@ export function OrderDetailPage() {
                   <img
                     src={item.imageUrl || PLACEHOLDER_IMAGE}
                     alt={item.productName}
-                    className="w-20 h-20 object-cover rounded-lg"
+                    className="h-20 w-20 rounded-lg object-cover"
                   />
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-slate-900 truncate">{item.productName}</p>
