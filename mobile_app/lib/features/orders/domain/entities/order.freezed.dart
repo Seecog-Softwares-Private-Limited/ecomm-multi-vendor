@@ -13,9 +13,287 @@ part of 'order.dart';
 T _$identity<T>(T value) => value;
 
 /// @nodoc
+mixin _$OrderPreviewItem {
+
+ String get productId; String get productName; String? get productSlug; String get imageUrl; int get quantity; String? get variantKey;
+/// Create a copy of OrderPreviewItem
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$OrderPreviewItemCopyWith<OrderPreviewItem> get copyWith => _$OrderPreviewItemCopyWithImpl<OrderPreviewItem>(this as OrderPreviewItem, _$identity);
+
+  /// Serializes this OrderPreviewItem to a JSON map.
+  Map<String, dynamic> toJson();
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is OrderPreviewItem&&(identical(other.productId, productId) || other.productId == productId)&&(identical(other.productName, productName) || other.productName == productName)&&(identical(other.productSlug, productSlug) || other.productSlug == productSlug)&&(identical(other.imageUrl, imageUrl) || other.imageUrl == imageUrl)&&(identical(other.quantity, quantity) || other.quantity == quantity)&&(identical(other.variantKey, variantKey) || other.variantKey == variantKey));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,productId,productName,productSlug,imageUrl,quantity,variantKey);
+
+@override
+String toString() {
+  return 'OrderPreviewItem(productId: $productId, productName: $productName, productSlug: $productSlug, imageUrl: $imageUrl, quantity: $quantity, variantKey: $variantKey)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $OrderPreviewItemCopyWith<$Res>  {
+  factory $OrderPreviewItemCopyWith(OrderPreviewItem value, $Res Function(OrderPreviewItem) _then) = _$OrderPreviewItemCopyWithImpl;
+@useResult
+$Res call({
+ String productId, String productName, String? productSlug, String imageUrl, int quantity, String? variantKey
+});
+
+
+
+
+}
+/// @nodoc
+class _$OrderPreviewItemCopyWithImpl<$Res>
+    implements $OrderPreviewItemCopyWith<$Res> {
+  _$OrderPreviewItemCopyWithImpl(this._self, this._then);
+
+  final OrderPreviewItem _self;
+  final $Res Function(OrderPreviewItem) _then;
+
+/// Create a copy of OrderPreviewItem
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? productId = null,Object? productName = null,Object? productSlug = freezed,Object? imageUrl = null,Object? quantity = null,Object? variantKey = freezed,}) {
+  return _then(_self.copyWith(
+productId: null == productId ? _self.productId : productId // ignore: cast_nullable_to_non_nullable
+as String,productName: null == productName ? _self.productName : productName // ignore: cast_nullable_to_non_nullable
+as String,productSlug: freezed == productSlug ? _self.productSlug : productSlug // ignore: cast_nullable_to_non_nullable
+as String?,imageUrl: null == imageUrl ? _self.imageUrl : imageUrl // ignore: cast_nullable_to_non_nullable
+as String,quantity: null == quantity ? _self.quantity : quantity // ignore: cast_nullable_to_non_nullable
+as int,variantKey: freezed == variantKey ? _self.variantKey : variantKey // ignore: cast_nullable_to_non_nullable
+as String?,
+  ));
+}
+
+}
+
+
+/// Adds pattern-matching-related methods to [OrderPreviewItem].
+extension OrderPreviewItemPatterns on OrderPreviewItem {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _OrderPreviewItem value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _OrderPreviewItem() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _OrderPreviewItem value)  $default,){
+final _that = this;
+switch (_that) {
+case _OrderPreviewItem():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _OrderPreviewItem value)?  $default,){
+final _that = this;
+switch (_that) {
+case _OrderPreviewItem() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String productId,  String productName,  String? productSlug,  String imageUrl,  int quantity,  String? variantKey)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _OrderPreviewItem() when $default != null:
+return $default(_that.productId,_that.productName,_that.productSlug,_that.imageUrl,_that.quantity,_that.variantKey);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String productId,  String productName,  String? productSlug,  String imageUrl,  int quantity,  String? variantKey)  $default,) {final _that = this;
+switch (_that) {
+case _OrderPreviewItem():
+return $default(_that.productId,_that.productName,_that.productSlug,_that.imageUrl,_that.quantity,_that.variantKey);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String productId,  String productName,  String? productSlug,  String imageUrl,  int quantity,  String? variantKey)?  $default,) {final _that = this;
+switch (_that) {
+case _OrderPreviewItem() when $default != null:
+return $default(_that.productId,_that.productName,_that.productSlug,_that.imageUrl,_that.quantity,_that.variantKey);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+@JsonSerializable()
+
+class _OrderPreviewItem extends OrderPreviewItem {
+  const _OrderPreviewItem({required this.productId, required this.productName, this.productSlug, this.imageUrl = '', this.quantity = 1, this.variantKey}): super._();
+  factory _OrderPreviewItem.fromJson(Map<String, dynamic> json) => _$OrderPreviewItemFromJson(json);
+
+@override final  String productId;
+@override final  String productName;
+@override final  String? productSlug;
+@override@JsonKey() final  String imageUrl;
+@override@JsonKey() final  int quantity;
+@override final  String? variantKey;
+
+/// Create a copy of OrderPreviewItem
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$OrderPreviewItemCopyWith<_OrderPreviewItem> get copyWith => __$OrderPreviewItemCopyWithImpl<_OrderPreviewItem>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$OrderPreviewItemToJson(this, );
+}
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _OrderPreviewItem&&(identical(other.productId, productId) || other.productId == productId)&&(identical(other.productName, productName) || other.productName == productName)&&(identical(other.productSlug, productSlug) || other.productSlug == productSlug)&&(identical(other.imageUrl, imageUrl) || other.imageUrl == imageUrl)&&(identical(other.quantity, quantity) || other.quantity == quantity)&&(identical(other.variantKey, variantKey) || other.variantKey == variantKey));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,productId,productName,productSlug,imageUrl,quantity,variantKey);
+
+@override
+String toString() {
+  return 'OrderPreviewItem(productId: $productId, productName: $productName, productSlug: $productSlug, imageUrl: $imageUrl, quantity: $quantity, variantKey: $variantKey)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$OrderPreviewItemCopyWith<$Res> implements $OrderPreviewItemCopyWith<$Res> {
+  factory _$OrderPreviewItemCopyWith(_OrderPreviewItem value, $Res Function(_OrderPreviewItem) _then) = __$OrderPreviewItemCopyWithImpl;
+@override @useResult
+$Res call({
+ String productId, String productName, String? productSlug, String imageUrl, int quantity, String? variantKey
+});
+
+
+
+
+}
+/// @nodoc
+class __$OrderPreviewItemCopyWithImpl<$Res>
+    implements _$OrderPreviewItemCopyWith<$Res> {
+  __$OrderPreviewItemCopyWithImpl(this._self, this._then);
+
+  final _OrderPreviewItem _self;
+  final $Res Function(_OrderPreviewItem) _then;
+
+/// Create a copy of OrderPreviewItem
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? productId = null,Object? productName = null,Object? productSlug = freezed,Object? imageUrl = null,Object? quantity = null,Object? variantKey = freezed,}) {
+  return _then(_OrderPreviewItem(
+productId: null == productId ? _self.productId : productId // ignore: cast_nullable_to_non_nullable
+as String,productName: null == productName ? _self.productName : productName // ignore: cast_nullable_to_non_nullable
+as String,productSlug: freezed == productSlug ? _self.productSlug : productSlug // ignore: cast_nullable_to_non_nullable
+as String?,imageUrl: null == imageUrl ? _self.imageUrl : imageUrl // ignore: cast_nullable_to_non_nullable
+as String,quantity: null == quantity ? _self.quantity : quantity // ignore: cast_nullable_to_non_nullable
+as int,variantKey: freezed == variantKey ? _self.variantKey : variantKey // ignore: cast_nullable_to_non_nullable
+as String?,
+  ));
+}
+
+
+}
+
+
+/// @nodoc
 mixin _$OrderSummary {
 
- String get id; String get status; double get totalAmount; DateTime get createdAt; int get itemCount;
+ String get id; String get status; double get totalAmount; DateTime get createdAt; int get itemCount; List<OrderPreviewItem> get previewItems;
 /// Create a copy of OrderSummary
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +306,16 @@ $OrderSummaryCopyWith<OrderSummary> get copyWith => _$OrderSummaryCopyWithImpl<O
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is OrderSummary&&(identical(other.id, id) || other.id == id)&&(identical(other.status, status) || other.status == status)&&(identical(other.totalAmount, totalAmount) || other.totalAmount == totalAmount)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.itemCount, itemCount) || other.itemCount == itemCount));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is OrderSummary&&(identical(other.id, id) || other.id == id)&&(identical(other.status, status) || other.status == status)&&(identical(other.totalAmount, totalAmount) || other.totalAmount == totalAmount)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.itemCount, itemCount) || other.itemCount == itemCount)&&const DeepCollectionEquality().equals(other.previewItems, previewItems));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,status,totalAmount,createdAt,itemCount);
+int get hashCode => Object.hash(runtimeType,id,status,totalAmount,createdAt,itemCount,const DeepCollectionEquality().hash(previewItems));
 
 @override
 String toString() {
-  return 'OrderSummary(id: $id, status: $status, totalAmount: $totalAmount, createdAt: $createdAt, itemCount: $itemCount)';
+  return 'OrderSummary(id: $id, status: $status, totalAmount: $totalAmount, createdAt: $createdAt, itemCount: $itemCount, previewItems: $previewItems)';
 }
 
 
@@ -48,7 +326,7 @@ abstract mixin class $OrderSummaryCopyWith<$Res>  {
   factory $OrderSummaryCopyWith(OrderSummary value, $Res Function(OrderSummary) _then) = _$OrderSummaryCopyWithImpl;
 @useResult
 $Res call({
- String id, String status, double totalAmount, DateTime createdAt, int itemCount
+ String id, String status, double totalAmount, DateTime createdAt, int itemCount, List<OrderPreviewItem> previewItems
 });
 
 
@@ -65,14 +343,15 @@ class _$OrderSummaryCopyWithImpl<$Res>
 
 /// Create a copy of OrderSummary
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? status = null,Object? totalAmount = null,Object? createdAt = null,Object? itemCount = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? status = null,Object? totalAmount = null,Object? createdAt = null,Object? itemCount = null,Object? previewItems = null,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
 as String,totalAmount: null == totalAmount ? _self.totalAmount : totalAmount // ignore: cast_nullable_to_non_nullable
 as double,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
 as DateTime,itemCount: null == itemCount ? _self.itemCount : itemCount // ignore: cast_nullable_to_non_nullable
-as int,
+as int,previewItems: null == previewItems ? _self.previewItems : previewItems // ignore: cast_nullable_to_non_nullable
+as List<OrderPreviewItem>,
   ));
 }
 
@@ -157,10 +436,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String status,  double totalAmount,  DateTime createdAt,  int itemCount)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String status,  double totalAmount,  DateTime createdAt,  int itemCount,  List<OrderPreviewItem> previewItems)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _OrderSummary() when $default != null:
-return $default(_that.id,_that.status,_that.totalAmount,_that.createdAt,_that.itemCount);case _:
+return $default(_that.id,_that.status,_that.totalAmount,_that.createdAt,_that.itemCount,_that.previewItems);case _:
   return orElse();
 
 }
@@ -178,10 +457,10 @@ return $default(_that.id,_that.status,_that.totalAmount,_that.createdAt,_that.it
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String status,  double totalAmount,  DateTime createdAt,  int itemCount)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String status,  double totalAmount,  DateTime createdAt,  int itemCount,  List<OrderPreviewItem> previewItems)  $default,) {final _that = this;
 switch (_that) {
 case _OrderSummary():
-return $default(_that.id,_that.status,_that.totalAmount,_that.createdAt,_that.itemCount);case _:
+return $default(_that.id,_that.status,_that.totalAmount,_that.createdAt,_that.itemCount,_that.previewItems);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -198,10 +477,10 @@ return $default(_that.id,_that.status,_that.totalAmount,_that.createdAt,_that.it
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String status,  double totalAmount,  DateTime createdAt,  int itemCount)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String status,  double totalAmount,  DateTime createdAt,  int itemCount,  List<OrderPreviewItem> previewItems)?  $default,) {final _that = this;
 switch (_that) {
 case _OrderSummary() when $default != null:
-return $default(_that.id,_that.status,_that.totalAmount,_that.createdAt,_that.itemCount);case _:
+return $default(_that.id,_that.status,_that.totalAmount,_that.createdAt,_that.itemCount,_that.previewItems);case _:
   return null;
 
 }
@@ -213,7 +492,7 @@ return $default(_that.id,_that.status,_that.totalAmount,_that.createdAt,_that.it
 @JsonSerializable()
 
 class _OrderSummary implements OrderSummary {
-  const _OrderSummary({required this.id, required this.status, required this.totalAmount, required this.createdAt, this.itemCount = 0});
+  const _OrderSummary({required this.id, required this.status, required this.totalAmount, required this.createdAt, this.itemCount = 0, final  List<OrderPreviewItem> previewItems = const <OrderPreviewItem>[]}): _previewItems = previewItems;
   factory _OrderSummary.fromJson(Map<String, dynamic> json) => _$OrderSummaryFromJson(json);
 
 @override final  String id;
@@ -221,6 +500,13 @@ class _OrderSummary implements OrderSummary {
 @override final  double totalAmount;
 @override final  DateTime createdAt;
 @override@JsonKey() final  int itemCount;
+ final  List<OrderPreviewItem> _previewItems;
+@override@JsonKey() List<OrderPreviewItem> get previewItems {
+  if (_previewItems is EqualUnmodifiableListView) return _previewItems;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_previewItems);
+}
+
 
 /// Create a copy of OrderSummary
 /// with the given fields replaced by the non-null parameter values.
@@ -235,16 +521,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _OrderSummary&&(identical(other.id, id) || other.id == id)&&(identical(other.status, status) || other.status == status)&&(identical(other.totalAmount, totalAmount) || other.totalAmount == totalAmount)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.itemCount, itemCount) || other.itemCount == itemCount));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _OrderSummary&&(identical(other.id, id) || other.id == id)&&(identical(other.status, status) || other.status == status)&&(identical(other.totalAmount, totalAmount) || other.totalAmount == totalAmount)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.itemCount, itemCount) || other.itemCount == itemCount)&&const DeepCollectionEquality().equals(other._previewItems, _previewItems));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,status,totalAmount,createdAt,itemCount);
+int get hashCode => Object.hash(runtimeType,id,status,totalAmount,createdAt,itemCount,const DeepCollectionEquality().hash(_previewItems));
 
 @override
 String toString() {
-  return 'OrderSummary(id: $id, status: $status, totalAmount: $totalAmount, createdAt: $createdAt, itemCount: $itemCount)';
+  return 'OrderSummary(id: $id, status: $status, totalAmount: $totalAmount, createdAt: $createdAt, itemCount: $itemCount, previewItems: $previewItems)';
 }
 
 
@@ -255,7 +541,7 @@ abstract mixin class _$OrderSummaryCopyWith<$Res> implements $OrderSummaryCopyWi
   factory _$OrderSummaryCopyWith(_OrderSummary value, $Res Function(_OrderSummary) _then) = __$OrderSummaryCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String status, double totalAmount, DateTime createdAt, int itemCount
+ String id, String status, double totalAmount, DateTime createdAt, int itemCount, List<OrderPreviewItem> previewItems
 });
 
 
@@ -272,14 +558,15 @@ class __$OrderSummaryCopyWithImpl<$Res>
 
 /// Create a copy of OrderSummary
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? status = null,Object? totalAmount = null,Object? createdAt = null,Object? itemCount = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? status = null,Object? totalAmount = null,Object? createdAt = null,Object? itemCount = null,Object? previewItems = null,}) {
   return _then(_OrderSummary(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
 as String,totalAmount: null == totalAmount ? _self.totalAmount : totalAmount // ignore: cast_nullable_to_non_nullable
 as double,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
 as DateTime,itemCount: null == itemCount ? _self.itemCount : itemCount // ignore: cast_nullable_to_non_nullable
-as int,
+as int,previewItems: null == previewItems ? _self._previewItems : previewItems // ignore: cast_nullable_to_non_nullable
+as List<OrderPreviewItem>,
   ));
 }
 

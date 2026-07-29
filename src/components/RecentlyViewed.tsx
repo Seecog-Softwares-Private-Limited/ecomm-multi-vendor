@@ -1,11 +1,14 @@
 "use client";
 
-import { memo, useEffect, useState } from "react";
-import type { ProductListItem, ProductDetail } from "@/types/catalog";
+import Link from "next/link";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowRight, ArrowLeft } from "lucide-react";
+import type { ProductDetail } from "@/types/catalog";
 import { getRecentlyViewedIds } from "@/lib/recently-viewed";
 import { resolveProductImageUrl } from "@/lib/product-image";
-import { ProductRowSection } from "@/components/ProductRowSection";
-import type { ListingCommerce } from "@/hooks/useListingCommerce";
+import { ProductImage } from "@/components/ProductImage";
+
+type RecentItem = { id: string; name: string; imageUrl: string; slug?: string };
 
 async function fetchProduct(id: string): Promise<ProductDetail | null> {
   const res = await fetch(`/api/products/${encodeURIComponent(id)}`, { credentials: "include" });
@@ -14,62 +17,131 @@ async function fetchProduct(id: string): Promise<ProductDetail | null> {
   return (json?.data ?? null) as ProductDetail | null;
 }
 
-type RecentlyViewedProps = {
-  commerce?: ListingCommerce;
-  refreshKey?: number;
-};
+export function RecentlyViewed() {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [items, setItems] = useState<RecentItem[]>([]);
 
-export const RecentlyViewed = memo(function RecentlyViewed({
-  commerce,
-  refreshKey = 0,
-}: RecentlyViewedProps) {
-  const [products, setProducts] = useState<ProductListItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const scrollLeft = () => {
+    scrollRef.current?.scrollBy({ left: -260, behavior: "smooth" });
+  };
+  const scrollRight = () => {
+    scrollRef.current?.scrollBy({ left: 260, behavior: "smooth" });
+  };
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
     (async () => {
-      const ids = getRecentlyViewedIds().slice(0, 10);
+      const ids = getRecentlyViewedIds().slice(0, 12);
       if (ids.length === 0) {
-        if (!cancelled) {
-          setProducts([]);
-          setLoading(false);
-        }
+        setItems([]);
         return;
       }
       const results = await Promise.all(ids.map((id) => fetchProduct(id)));
       if (cancelled) return;
-      const next: ProductListItem[] = results
+      const next: RecentItem[] = results
         .filter((p): p is ProductDetail => !!p && typeof p.id === "string")
         .map((p) => ({
           id: p.id,
           name: p.name,
-          slug: p.slug ?? p.id,
-          price: p.price,
-          oldPrice: p.oldPrice,
-          rating: p.rating ?? 0,
-          reviews: p.reviews ?? 0,
+          slug: p.slug,
           imageUrl: resolveProductImageUrl(Array.isArray(p.images) ? p.images[0] : undefined),
         }));
-      setProducts(next);
-      setLoading(false);
+      setItems(next);
     })();
     return () => {
       cancelled = true;
     };
-  }, [refreshKey]);
+  }, []);
+
+  const show = useMemo(() => items.length > 0, [items.length]);
+  if (!show) return null;
 
   return (
-    <ProductRowSection
-      title="Recently Viewed"
-      subtitle="Pick up where you left off"
-      ctaLabel="See history"
-      products={products}
-      loading={loading}
-      commerce={commerce}
-      bgColor="#FAFAFA"
-      animationDelayMs={120}
-    />
+    <div className="w-full flex flex-col gap-5 px-4 sm:px-6 mx-auto max-w-[1440px]">
+      {/* Section title */}
+      <h2
+        className="text-xl sm:text-2xl"
+        style={{
+          fontFamily: "'Nunito', 'Manrope', sans-serif",
+          fontWeight: 800,
+          lineHeight: "1.4",
+          color: "#FF6A00",
+          maxWidth: 1280,
+          margin: "0 auto",
+          width: "100%",
+        }}
+      >
+        Recently Viewed Products
+      </h2>
+
+      {/* Scroll container */}
+      <div className="relative" style={{ maxWidth: 1280, margin: "0 auto", width: "100%" }}>
+        {/* Left arrow */}
+        <button
+          onClick={scrollLeft}
+          className="absolute z-10 hidden items-center justify-center sm:flex"
+          style={{
+            width: 44,
+            height: 44,
+            left: -22,
+            top: "50%",
+            transform: "translateY(-50%)",
+            background: "#FFFFFF",
+            border: "1px solid #FF6A00",
+            boxShadow: "2px 2px 2px rgba(0,0,0,0.1)",
+            borderRadius: 12,
+          }}
+        >
+          <ArrowLeft size={24} color="#FF6A00" />
+        </button>
+
+        {/* Scrollable images */}
+        <div
+          ref={scrollRef}
+          className="flex flex-row overflow-x-auto sm:gap-8"
+          style={{ scrollbarWidth: "none", scrollBehavior: "smooth", gap: 12 }}
+        >
+          {items.map((p) => (
+            <Link
+              key={p.id}
+              href={`/product/${p.slug ?? p.id}`}
+              className="block h-[140px] w-[140px] shrink-0 sm:h-[230px] sm:w-[230px]"
+              title={p.name}
+              aria-label={p.name}
+              style={{ borderRadius: 12 }}
+            >
+              <ProductImage
+                src={p.imageUrl}
+                alt={p.name}
+                className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                style={{
+                  borderRadius: 12,
+                  background: "#000",
+                }}
+              />
+            </Link>
+          ))}
+        </div>
+
+        {/* Right arrow */}
+        <button
+          onClick={scrollRight}
+          className="absolute z-10 hidden items-center justify-center sm:flex"
+          style={{
+            width: 44,
+            height: 44,
+            right: -22,
+            top: "50%",
+            transform: "translateY(-50%)",
+            background: "#FFFFFF",
+            border: "1px solid #FF6A00",
+            boxShadow: "2px 2px 2px rgba(0,0,0,0.1)",
+            borderRadius: 12,
+          }}
+        >
+          <ArrowRight size={24} color="#FF6A00" />
+        </button>
+      </div>
+    </div>
   );
-});
+}

@@ -34,9 +34,6 @@ import { useDeliveryLocation } from "@/contexts/DeliveryLocationContext";
 import { addRecentlyViewedId } from "@/lib/recently-viewed";
 import { DEFAULT_PRODUCT_IMAGE_URL } from "@/lib/product-image";
 import { ProductImage } from "@/components/ProductImage";
-import { ProductCard } from "@/components/product/ProductCard";
-import { useListingCommerce } from "@/hooks/useListingCommerce";
-import { ProductReviewsSection } from "@/components/reviews/ProductReviewsSection";
 
 const PLACEHOLDER_IMAGE = DEFAULT_PRODUCT_IMAGE_URL;
 
@@ -52,6 +49,70 @@ export type ProductDetailPageProps = {
   relatedToItem?: ProductListItem[];
 };
 
+// ─── Related product card (for carousel) ─────────────────────────────────────
+function RelatedProductCard({ item }: { item: ProductListItem }) {
+  const discountPct =
+    item.oldPrice != null && item.oldPrice > item.price && item.oldPrice > 0
+      ? Math.round(((item.oldPrice - item.price) / item.oldPrice) * 100)
+      : 0;
+  return (
+    <Link
+      href={`/product/${item.slug ?? item.id}`}
+      className="flex w-[200px] shrink-0 flex-col overflow-hidden rounded-xl border border-gray-100 bg-white transition-all hover:shadow-lg group sm:w-[220px] md:w-[240px]"
+    >
+      <div className="relative aspect-square overflow-hidden bg-gray-50">
+        <ProductImage
+          src={item.imageUrl}
+          alt={item.name}
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+        />
+        {discountPct > 0 && (
+          <span
+            className="absolute bottom-2 left-2 px-2 py-1 text-xs font-bold text-white rounded"
+            style={{ background: "#16A34A" }}
+          >
+            {discountPct}% OFF
+          </span>
+        )}
+        <button
+          className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/90 flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition shadow border-0 cursor-pointer"
+          aria-label="Wishlist"
+          onClick={(e) => e.preventDefault()}
+        >
+          <Heart size={16} fill="none" color="#6B7280" />
+        </button>
+      </div>
+      <div className="p-3 flex-1 flex flex-col">
+        <h3
+          className="font-medium text-[#111827] line-clamp-2 text-sm leading-snug mb-1.5 group-hover:text-[#FF6A00] transition-colors"
+          style={{ fontFamily: "'Manrope', sans-serif" }}
+        >
+          {item.name}
+        </h3>
+        <div className="flex items-center gap-1 mb-2" style={{ fontFamily: "'Manrope', sans-serif" }}>
+          <Star size={12} fill="#FBBF24" color="#FBBF24" />
+          <span className="text-xs font-semibold text-[#FF6A00]">{Number(item.rating).toFixed(1)}</span>
+          <span className="text-xs text-gray-500">({(item.reviews ?? 0).toLocaleString("en-IN")})</span>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap mt-auto">
+          <span className="font-bold text-[#111827] text-base" style={{ fontFamily: "'Manrope', sans-serif" }}>
+            ₹{item.price.toLocaleString("en-IN")}
+          </span>
+          {item.oldPrice != null && item.oldPrice > item.price && (
+            <span className="text-sm text-gray-400 line-through" style={{ fontFamily: "'Manrope', sans-serif" }}>
+              ₹{item.oldPrice.toLocaleString("en-IN")}
+            </span>
+          )}
+        </div>
+        <p className="flex items-center gap-1 text-xs text-gray-500 mt-1.5" style={{ fontFamily: "'Manrope', sans-serif" }}>
+          <Truck size={12} />
+          Free delivery by Tomorrow
+        </p>
+      </div>
+    </Link>
+  );
+}
+
 // ─── Related products carousel section ───────────────────────────────────────
 function RelatedProductsSection({
   title,
@@ -61,7 +122,6 @@ function RelatedProductsSection({
   items: ProductListItem[];
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const commerce = useListingCommerce();
 
   const scroll = (dir: "left" | "right") => {
     if (!scrollRef.current) return;
@@ -93,23 +153,8 @@ function RelatedProductsSection({
           className="flex min-w-0 flex-1 gap-3 overflow-x-auto scroll-smooth py-2 sm:gap-4 [&::-webkit-scrollbar]:hidden"
           style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
         >
-          {items.map((item, index) => (
-            <ProductCard
-              key={item.id}
-              product={item}
-              layout="carousel"
-              animationDelayMs={Math.min(index * 50, 250)}
-              showWishlist
-              isWishlisted={commerce.isWishlisted(item.id)}
-              wishlistLoading={commerce.wishlistTogglingId === item.id}
-              onWishlistToggle={() => void commerce.toggleWishlist(item)}
-              cartQuantity={commerce.getCartQuantity(item.id)}
-              cartLoading={commerce.cartActionProductId === item.id}
-              onAddToCart={() => void commerce.addToCart(item)}
-              onIncrementCart={() => commerce.incrementCart(item)}
-              onDecrementCart={() => commerce.decrementCart(item)}
-              onGoToCart={() => commerce.openCartDrawer()}
-            />
+          {items.map((item) => (
+            <RelatedProductCard key={item.id} item={item} />
           ))}
         </div>
         <button
@@ -128,11 +173,7 @@ function RelatedProductsSection({
 // ─── Star Rating Row (dynamic: rating and count from API) ─────────────────────
 function StarRow({ rating, count }: { rating: number; count: number }) {
   return (
-    <a
-      href="#reviews"
-      className="flex flex-wrap items-center gap-x-1.5 gap-y-1 rounded-lg transition-colors hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-[#FF6A00]/30"
-      aria-label={`${Number(rating).toFixed(1)} stars, ${count.toLocaleString("en-IN")} ratings — jump to reviews`}
-    >
+    <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
       <div className="flex items-center" style={{ gap: 2 }}>
         {[1, 2, 3, 4, 5].map((s) => {
           const filled = rating >= s;
@@ -142,7 +183,6 @@ function StarRow({ rating, count }: { rating: number; count: number }) {
               size={14}
               fill={filled ? "#FBBF24" : "#E5E7EB"}
               color={filled ? "#FBBF24" : "#E5E7EB"}
-              aria-hidden
             />
           );
         })}
@@ -166,7 +206,7 @@ function StarRow({ rating, count }: { rating: number; count: number }) {
       >
         ({count.toLocaleString("en-IN")} ratings)
       </span>
-    </a>
+    </div>
   );
 }
 
@@ -458,33 +498,40 @@ export function ProductDetailPage({
         if (storageVariation && selectedStorage) parts.push(`Storage:${selectedStorage}`);
         variantKey = parts.length > 0 ? parts.join("|") : null;
       }
-      const res = await fetch("/api/checkout/sessions", {
+      const res = await fetch("/api/cart/items", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
-          type: "BUY_NOW",
-          lines: [{ productId: product.id, quantity: qty, variantKey }],
+          productId: product.id,
+          quantity: qty,
+          variantKey,
         }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const message = data?.error?.message ?? "Could not start checkout. Please try again.";
+        const message = data?.error?.message ?? "Could not add to cart. Please try again.";
         if (res.status === 401 || res.status === 403) {
-          toast.error("Please sign in to use Buy Now.");
-          router.push("/login?returnUrl=" + encodeURIComponent(window.location.pathname));
+          addToGuestCart({
+            productId: product.id,
+            quantity: qty,
+            variantKey,
+            name: product.name,
+            price,
+            imageUrl: activeSkuVariant?.images?.[0] ?? activeSkuVariant?.image ?? product.images?.[0] ?? null,
+            mrp: product.mrp,
+          });
+          toast.success("Added to cart. Sign in to checkout.");
+          router.push("/login?returnUrl=" + encodeURIComponent("/checkout"));
           return;
         }
         toast.error(message);
         setCartError(message);
         return;
       }
-      const sessionId = data?.data?.sessionId as string | undefined;
-      if (!sessionId) {
-        toast.error("Could not start checkout. Please try again.");
-        return;
-      }
-      router.push(`/checkout?session=${encodeURIComponent(sessionId)}`);
+      toast.success("Added to cart");
+      dispatchCartUpdated();
+      router.push("/checkout");
     } catch {
       toast.error("Could not add to cart. Please try again.");
       setCartError("Could not add to cart. Please try again.");
@@ -1633,14 +1680,6 @@ export function ProductDetailPage({
           </div>
         </div>
       </div>
-
-      {/* Customer reviews & ratings */}
-      <ProductReviewsSection
-        productId={product.id}
-        productName={product.name}
-        avgRating={rating}
-        reviewCount={reviewCount}
-      />
 
       {/* Related products from stores */}
       <RelatedProductsSection

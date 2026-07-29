@@ -18,6 +18,8 @@ abstract final class ApiEndpoints {
   static String productById(String id) => '/api/products/$id';
   static String productBySlug(String slug) => '/api/products/slug/$slug';
   static String productReviews(String id) => '/api/products/$id/reviews';
+  static String productReviewSummary(String id) => '/api/products/$id/reviews/summary';
+  static String reviewHelpful(String id) => '/api/reviews/$id/helpful';
   static const String categories = '/api/categories';
   static const String brands = '/api/products/brands';
 
@@ -47,7 +49,15 @@ abstract final class ApiEndpoints {
   static const String razorpayOrder = '/api/payments/razorpay-order';
   static const String verifyPayment = '/api/payments/verify';
 
+  // Notifications
+  static const String notifications = '/api/notifications';
+  static String notification(String id) => '/api/notifications/$id';
+  static const String notificationPreferences = '/api/notifications/preferences';
+
   // Support / CMS
   static const String supportTickets = '/api/support-tickets';
+  static String supportTicketMessages(String id) => '/api/support-tickets/$id/messages';
+  static String supportTicketReply(String id) => '/api/support-tickets/$id/reply';
+  static const String faqs = '/api/faqs';
   static String footerPage(String slug) => '/api/cms/footer-pages/$slug';
 }

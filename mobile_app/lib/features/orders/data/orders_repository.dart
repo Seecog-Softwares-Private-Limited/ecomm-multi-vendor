@@ -4,7 +4,11 @@ import '../domain/entities/order.dart';
 import '../domain/entities/razorpay_session.dart';
 
 abstract interface class OrdersRepository {
-  Future<List<OrderSummary>> getOrders();
+  Future<List<OrderSummary>> getOrders({
+    String? status,
+    String? search,
+    String sort = 'newest',
+  });
   Future<OrderDetail> getOrder(String id);
   Future<PlaceOrderResult> placeOrder({
     required String shippingAddressId,
@@ -30,8 +34,17 @@ class OrdersRepositoryImpl implements OrdersRepository {
   final DioClient _client;
 
   @override
-  Future<List<OrderSummary>> getOrders() async {
-    final data = await _client.get(ApiEndpoints.orders);
+  Future<List<OrderSummary>> getOrders({
+    String? status,
+    String? search,
+    String sort = 'newest',
+  }) async {
+    final query = <String, String>{
+      'sort': sort,
+      if (status != null && status.isNotEmpty && status != 'all') 'status': status,
+      if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
+    };
+    final data = await _client.get(ApiEndpoints.orders, query: query);
     final map = Map<String, dynamic>.from(data as Map);
     final list = (map['orders'] as List?) ?? const [];
     return list

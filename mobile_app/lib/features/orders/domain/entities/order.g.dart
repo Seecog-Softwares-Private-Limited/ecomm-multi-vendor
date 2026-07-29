@@ -6,6 +6,26 @@ part of 'order.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
+_OrderPreviewItem _$OrderPreviewItemFromJson(Map<String, dynamic> json) =>
+    _OrderPreviewItem(
+      productId: json['productId'] as String,
+      productName: json['productName'] as String,
+      productSlug: json['productSlug'] as String?,
+      imageUrl: json['imageUrl'] as String? ?? '',
+      quantity: (json['quantity'] as num?)?.toInt() ?? 1,
+      variantKey: json['variantKey'] as String?,
+    );
+
+Map<String, dynamic> _$OrderPreviewItemToJson(_OrderPreviewItem instance) =>
+    <String, dynamic>{
+      'productId': instance.productId,
+      'productName': instance.productName,
+      'productSlug': instance.productSlug,
+      'imageUrl': instance.imageUrl,
+      'quantity': instance.quantity,
+      'variantKey': instance.variantKey,
+    };
+
 _OrderSummary _$OrderSummaryFromJson(Map<String, dynamic> json) =>
     _OrderSummary(
       id: json['id'] as String,
@@ -13,6 +33,11 @@ _OrderSummary _$OrderSummaryFromJson(Map<String, dynamic> json) =>
       totalAmount: (json['totalAmount'] as num).toDouble(),
       createdAt: DateTime.parse(json['createdAt'] as String),
       itemCount: (json['itemCount'] as num?)?.toInt() ?? 0,
+      previewItems:
+          (json['previewItems'] as List<dynamic>?)
+              ?.map((e) => OrderPreviewItem.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          const <OrderPreviewItem>[],
     );
 
 Map<String, dynamic> _$OrderSummaryToJson(_OrderSummary instance) =>
@@ -22,6 +47,7 @@ Map<String, dynamic> _$OrderSummaryToJson(_OrderSummary instance) =>
       'totalAmount': instance.totalAmount,
       'createdAt': instance.createdAt.toIso8601String(),
       'itemCount': instance.itemCount,
+      'previewItems': instance.previewItems,
     };
 
 _OrderItemLine _$OrderItemLineFromJson(Map<String, dynamic> json) =>

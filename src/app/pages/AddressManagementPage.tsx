@@ -4,7 +4,6 @@ import { useEffect, useState, useCallback } from "react";
 import { Plus, Edit2, Trash2, MapPin, X } from "lucide-react";
 import { toast } from "sonner";
 import { AccountLayout } from "@/components/AccountLayout";
-import { CustomerErrorState } from "@/components/ui-customer/CustomerErrorState";
 
 type AddressItem = {
   id: string;
@@ -225,15 +224,9 @@ export function AddressManagementPage() {
         )}
 
         {error && (
-          <CustomerErrorState
-            title="Couldn't load addresses"
-            message="Failed to load addresses. Please try again."
-            onRetry={() => {
-              setLoading(true);
-              void fetchAddresses();
-            }}
-            showContinueShopping={false}
-          />
+          <div className="py-12 text-center text-red-600 font-medium">
+            Failed to load addresses. Please try again.
+          </div>
         )}
 
         {!loading && !error && addresses.length === 0 && (

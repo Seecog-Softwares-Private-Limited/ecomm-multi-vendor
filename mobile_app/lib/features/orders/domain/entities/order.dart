@@ -6,6 +6,25 @@ part 'order.freezed.dart';
 part 'order.g.dart';
 
 @freezed
+abstract class OrderPreviewItem with _$OrderPreviewItem {
+  const OrderPreviewItem._();
+
+  const factory OrderPreviewItem({
+    required String productId,
+    required String productName,
+    String? productSlug,
+    @Default('') String imageUrl,
+    @Default(1) int quantity,
+    String? variantKey,
+  }) = _OrderPreviewItem;
+
+  factory OrderPreviewItem.fromJson(Map<String, dynamic> json) =>
+      _$OrderPreviewItemFromJson(json);
+
+  String? get image => resolveImageUrl(imageUrl.isEmpty ? null : imageUrl);
+}
+
+@freezed
 abstract class OrderSummary with _$OrderSummary {
   const factory OrderSummary({
     required String id,
@@ -13,6 +32,7 @@ abstract class OrderSummary with _$OrderSummary {
     required double totalAmount,
     required DateTime createdAt,
     @Default(0) int itemCount,
+    @Default(<OrderPreviewItem>[]) List<OrderPreviewItem> previewItems,
   }) = _OrderSummary;
 
   factory OrderSummary.fromJson(Map<String, dynamic> json) => _$OrderSummaryFromJson(json);

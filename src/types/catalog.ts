@@ -76,11 +76,6 @@ export interface ReviewItem {
   comment: string | null;
   verified: boolean;
   helpful: number;
-  /** Optional — shown when backend supports it */
-  title?: string | null;
-  variant?: string | null;
-  photoUrls?: string[];
-  /** Legacy placeholder count */
   images?: number;
 }
 

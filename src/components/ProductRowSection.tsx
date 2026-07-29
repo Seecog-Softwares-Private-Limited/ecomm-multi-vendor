@@ -1,112 +1,108 @@
-"use client";
-
-import { memo } from "react";
-import { ArrowRight } from "lucide-react";
-import Link from "next/link";
-import type { ProductListItem } from "@/types/catalog";
-import { ProductCard } from "@/components/product/ProductCard";
-import { ProductCardSkeleton } from "@/components/product/ProductCardSkeleton";
-import type { ListingCommerce } from "@/hooks/useListingCommerce";
-
-export interface ProductRowSectionProps {
-  title: string;
-  subtitle?: string;
-  ctaLabel?: string;
-  ctaHref?: string;
-  products: ProductListItem[];
-  bgColor?: string;
-  loading?: boolean;
-  commerce?: ListingCommerce;
-  className?: string;
-  animationDelayMs?: number;
-}
-
-export const ProductRowSection = memo(function ProductRowSection({
-  title,
-  subtitle,
-  ctaLabel = "View All",
-  products,
-  ctaHref,
-  bgColor = "#FFFFFF",
-  loading = false,
-  commerce,
-  className = "",
-  animationDelayMs = 0,
-}: ProductRowSectionProps) {
-  if (!loading && products.length === 0) return null;
-
-  return (
-    <section
-      className={`home-section-enter w-full ${className}`}
-      style={{ background: bgColor, animationDelay: `${animationDelayMs}ms` }}
-      aria-label={title}
-    >
-      <div className="mx-auto flex max-w-[1440px] flex-col gap-3 px-3 py-6 sm:gap-4 sm:px-4 sm:py-8 lg:px-6">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            {ctaHref ? (
-              <Link
-                href={ctaHref}
-                className="block rounded-md text-base font-extrabold text-slate-900 no-underline transition-colors hover:text-[#FF6A00] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF6A00] sm:text-lg"
-              >
-                {title}
-              </Link>
-            ) : (
-              <h2 className="text-base font-extrabold text-slate-900 sm:text-lg">{title}</h2>
-            )}
-            {subtitle && (
-              <p className="mt-0.5 text-sm text-slate-500 sm:text-[15px]">{subtitle}</p>
-            )}
-          </div>
-          {ctaHref && (
-            <Link
-              href={ctaHref}
-              className="hidden shrink-0 items-center gap-1 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-[#FF6A00] transition hover:border-[#FF6A00]/40 hover:bg-orange-50 focus:outline-none focus:ring-2 focus:ring-[#FF6A00]/30 sm:inline-flex sm:text-sm"
-            >
-              View All
-              <ArrowRight className="h-3.5 w-3.5" aria-hidden />
-            </Link>
-          )}
-        </div>
-
-        {loading ? (
-          <ProductCardSkeleton layout="carousel" count={5} />
-        ) : (
-          <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth pb-2 sm:gap-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {products.map((product, index) => (
-              <ProductCard
-                key={product.id}
-                product={product}
-                layout="carousel"
-                animationDelayMs={Math.min(index * 50, 250)}
-                showWishlist={Boolean(commerce)}
-                isWishlisted={commerce?.isWishlisted(product.id) ?? false}
-                wishlistLoading={commerce?.wishlistTogglingId === product.id}
-                onWishlistToggle={
-                  commerce ? () => void commerce.toggleWishlist(product) : undefined
-                }
-                cartQuantity={commerce?.getCartQuantity(product.id) ?? 0}
-                cartLoading={commerce?.cartActionProductId === product.id}
-                onAddToCart={commerce ? () => void commerce.addToCart(product) : undefined}
-                onIncrementCart={commerce ? () => commerce.incrementCart(product) : undefined}
-                onDecrementCart={commerce ? () => commerce.decrementCart(product) : undefined}
-                onGoToCart={commerce ? () => commerce.openCartDrawer() : undefined}
-              />
-            ))}
-          </div>
-        )}
-
-        {ctaHref && (
-          <Link
-            href={ctaHref}
-            className="inline-flex w-fit items-center gap-1.5 rounded-xl border border-[#FF6A00] bg-white px-3.5 py-2 text-sm font-semibold text-[#FF6A00] shadow-sm transition hover:bg-orange-50 focus:outline-none focus:ring-2 focus:ring-[#FF6A00]/30 sm:hidden"
-          >
-            {ctaLabel}
-            <ArrowRight className="h-4 w-4" aria-hidden />
-          </Link>
-        )}
-      </div>
-    </section>
-  );
-});
-
+import { ArrowRight } from "lucide-react";
+import Link from "next/link";
+import { ProductImage } from "@/components/ProductImage";
+
+interface ProductRowSectionProps {
+  title: string;
+  ctaLabel: string;
+  ctaHref?: string;
+  products: { src: string; alt: string; href?: string }[];
+  bgColor?: string;
+}
+
+export function ProductRowSection({
+  title,
+  ctaLabel,
+  products,
+  ctaHref,
+  bgColor = "#FFFFFF",
+}: ProductRowSectionProps) {
+  return (
+    <div className="w-full" style={{ background: bgColor }}>
+      <div className="mx-auto flex flex-col gap-4 py-8 px-4 sm:px-6 max-w-[1440px]">
+        {/* Title — same destination as section CTA when href is set */}
+        {ctaHref ? (
+          <Link
+            href={ctaHref}
+            className="text-base sm:text-lg block w-fit no-underline hover:opacity-90 transition-opacity rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF6A00]"
+            style={{
+              fontFamily: "'Nunito','Manrope',sans-serif",
+              fontWeight: 800,
+              lineHeight: "34px",
+              color: "#2B2B2B",
+            }}
+          >
+            {title}
+          </Link>
+        ) : (
+          <p
+            className="text-base sm:text-lg"
+            style={{
+              fontFamily: "'Nunito','Manrope',sans-serif",
+              fontWeight: 800,
+              lineHeight: "34px",
+              color: "#2B2B2B",
+            }}
+          >
+            {title}
+          </p>
+        )}
+
+        {/* Horizontal scroll on small screens, 5-across on desktop */}
+        <div className="flex flex-nowrap gap-3 overflow-x-auto pb-2 sm:grid sm:grid-cols-5 sm:gap-6 sm:overflow-visible">
+          {products.map((p, i) => (
+            <Link
+              key={i}
+              href={p.href ?? "#"}
+              onClick={(e) => {
+                if (p.href) return;
+                e.preventDefault();
+              }}
+              className="block min-w-[130px] overflow-hidden sm:min-w-0"
+              style={{ borderRadius: 12, aspectRatio: "1" }}
+              aria-label={p.alt}
+              title={p.alt}
+            >
+              <ProductImage
+                src={p.src}
+                alt={p.alt}
+                className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                style={{ borderRadius: 12 }}
+              />
+            </Link>
+          ))}
+        </div>
+
+        {/* CTA */}
+        <Link
+          href={ctaHref ?? "#"}
+          onClick={(e) => {
+            if (ctaHref) return;
+            e.preventDefault();
+          }}
+          className="flex flex-row items-center gap-1.5 self-start"
+          style={{
+            padding: "8px 14px",
+            background: "rgba(255,255,255,0.95)",
+            boxShadow:
+              "0px 9.39px 14.08px -2.82px rgba(0,0,0,0.1), 0px 3.75px 5.63px -3.75px rgba(0,0,0,0.1)",
+            borderRadius: 9,
+            border: "1px solid #FF6A00",
+          }}
+        >
+          <span
+            style={{
+              fontFamily: "'Manrope',sans-serif",
+              fontWeight: 500,
+              fontSize: 15,
+              color: "#FF6A00",
+            }}
+          >
+            {ctaLabel}
+          </span>
+          <ArrowRight size={15} color="#FF6A00" />
+        </Link>
+      </div>
+    </div>
+  );
+}

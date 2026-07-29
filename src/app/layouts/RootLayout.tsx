@@ -16,7 +16,7 @@ export function RootLayout({ children, showHeaderFooter = true }: RootLayoutProp
 
   return (
     <div
-      className={`min-h-screen flex flex-col bg-[var(--iv-page-bg)] ${
+      className={`min-h-screen bg-white flex flex-col ${
         shouldShowWebsiteChrome ? "pb-[calc(78px+env(safe-area-inset-bottom,0px))] md:pb-0" : ""
       }`}
     >

@@ -48,12 +48,13 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
 
     setState(() => _submitting = true);
     try {
+      final phoneRaw = _phone.text.trim();
       final result = await ref.read(authRepositoryProvider).register(
             email: _email.text.trim(),
             password: _password.text,
             firstName: _firstName.text.trim(),
             lastName: _lastName.text.trim(),
-            phone: _phone.text.trim(),
+            phone: phoneRaw.isEmpty ? null : phoneRaw,
           );
       if (!mounted) return;
       _showVerifyDialog(result.message);
@@ -137,13 +138,14 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                     const SizedBox(height: AppSpacing.lg),
                     AppTextField(
                       controller: _phone,
-                      label: 'Mobile number',
+                      label: 'Mobile number (optional)',
+                      hint: '10-digit mobile',
                       prefixIcon: Icons.phone_outlined,
                       keyboardType: TextInputType.phone,
                       textInputAction: TextInputAction.next,
                       maxLength: 10,
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                      validator: (v) => Validators.phone(v),
+                      validator: (v) => Validators.phone(v, optional: true),
                     ),
                     const SizedBox(height: AppSpacing.lg),
                     AppTextField(

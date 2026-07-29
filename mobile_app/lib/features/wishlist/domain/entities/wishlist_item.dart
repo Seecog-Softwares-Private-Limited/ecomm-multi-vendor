@@ -18,6 +18,9 @@ abstract class WishlistProduct with _$WishlistProduct {
     @Default(0) int stock,
     @Default('ACTIVE') String status,
     double? avgRating,
+    @Default(0) int reviewCount,
+    String? sellerName,
+    @Default(0) int discountPercent,
     String? imageUrl,
     @Default(false) bool listingPaused,
   }) = _WishlistProduct;
