@@ -17,6 +17,7 @@ _CartProduct _$CartProductFromJson(Map<String, dynamic> json) => _CartProduct(
   status: json['status'] as String? ?? 'ACTIVE',
   imageUrl: json['imageUrl'] as String?,
   listingPaused: json['listingPaused'] as bool? ?? false,
+  sellerName: json['sellerName'] as String?,
 );
 
 Map<String, dynamic> _$CartProductToJson(_CartProduct instance) =>
@@ -31,6 +32,7 @@ Map<String, dynamic> _$CartProductToJson(_CartProduct instance) =>
       'status': instance.status,
       'imageUrl': instance.imageUrl,
       'listingPaused': instance.listingPaused,
+      'sellerName': instance.sellerName,
     };
 
 _CartItem _$CartItemFromJson(Map<String, dynamic> json) => _CartItem(

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/routing/app_routes.dart';
+import '../../../../app/routing/shell_navigation.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../auth/presentation/auth_controller.dart';
@@ -79,7 +80,7 @@ class ProfilePage extends ConsumerWidget {
                     onTap: () => context.push(AppRoutes.orders)),
                 const SizedBox(width: AppSpacing.md),
                 _StatCard(label: 'Wishlist', value: stats?.wishlistCount ?? 0, icon: Icons.favorite_border,
-                    onTap: () => context.go(AppRoutes.wishlist)),
+                    onTap: () => ShellNavigation.goToTab(context, ref, ShellBranch.wishlist)),
                 const SizedBox(width: AppSpacing.md),
                 _StatCard(label: 'Addresses', value: stats?.addressCount ?? 0, icon: Icons.location_on_outlined,
                     onTap: () => context.push(AppRoutes.addresses)),
@@ -89,7 +90,7 @@ class ProfilePage extends ConsumerWidget {
           const SizedBox(height: AppSpacing.lg),
           _MenuGroup(title: 'Orders & shopping', tiles: [
             _MenuTile(icon: Icons.receipt_long_outlined, label: 'My orders', onTap: () => context.push(AppRoutes.orders)),
-            _MenuTile(icon: Icons.favorite_border, label: 'My wishlist', onTap: () => context.go(AppRoutes.wishlist)),
+            _MenuTile(icon: Icons.favorite_border, label: 'My wishlist', onTap: () => ShellNavigation.goToTab(context, ref, ShellBranch.wishlist)),
             _MenuTile(icon: Icons.location_on_outlined, label: 'My addresses', onTap: () => context.push(AppRoutes.addresses)),
           ]),
           _MenuGroup(title: 'Preferences', tiles: [

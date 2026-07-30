@@ -42,10 +42,5 @@ class PreferencesService {
   String get language => _prefs.getString(StorageKeys.language) ?? 'en';
   Future<void> setLanguage(String code) => _prefs.setString(StorageKeys.language, code);
 
-  // Local notifications feed (JSON string)
-  String? get notificationsJson => _prefs.getString(StorageKeys.notifications);
-  Future<void> setNotificationsJson(String json) =>
-      _prefs.setString(StorageKeys.notifications, json);
-
   Future<void> clear() => _prefs.clear();
 }

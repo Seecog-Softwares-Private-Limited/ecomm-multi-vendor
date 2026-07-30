@@ -14,9 +14,13 @@ import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/state_views.dart';
 import '../../../../core/di/providers.dart';
 import '../../../orders/data/checkout_remote_data_source.dart';
-import '../../../cart/presentation/cart_controller.dart';
 import '../../../cart/presentation/commerce_actions.dart';
 import '../../../wishlist/presentation/wishlist_controller.dart';
+import '../../../../core/error/failure.dart';
+import '../../../auth/presentation/auth_controller.dart';
+import '../../../reviews/presentation/reviews_providers.dart';
+import '../../../reviews/presentation/widgets/product_reviews_section.dart';
+import '../../../reviews/presentation/widgets/write_review_sheet.dart';
 import '../../domain/entities/product.dart';
 import '../../domain/variant_key.dart';
 import '../catalog_providers.dart';
@@ -25,9 +29,14 @@ import '../widgets/product_gallery.dart';
 import '../widgets/rating_stars.dart';
 
 class ProductDetailPage extends ConsumerStatefulWidget {
-  const ProductDetailPage({required this.idOrSlug, super.key});
+  const ProductDetailPage({
+    required this.idOrSlug,
+    this.openWriteReview = false,
+    super.key,
+  });
 
   final String idOrSlug;
+  final bool openWriteReview;
 
   @override
   ConsumerState<ProductDetailPage> createState() => _ProductDetailPageState();
@@ -38,6 +47,92 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
   String? _size;
   bool _addingToCart = false;
   bool _buyingNow = false;
+  bool _writeReviewHandled = false;
+  bool _checkingReviewEligibility = false;
+  final _reviewsSectionKey = GlobalKey<ProductReviewsSectionState>();
+  final _reviewsScrollKey = GlobalKey();
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.openWriteReview) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _scheduleWriteReviewFlow());
+    }
+  }
+
+  void _scheduleWriteReviewFlow() {
+    WidgetsBinding.instance.addPostFrameCallback((_) => _handleOpenWriteReview());
+  }
+
+  Future<void> _scrollToReviews() async {
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+    if (!mounted) return;
+    final target = _reviewsScrollKey.currentContext;
+    if (target != null) {
+      await Scrollable.ensureVisible(
+        target,
+        duration: const Duration(milliseconds: 450),
+        curve: Curves.easeInOut,
+        alignment: 0.05,
+      );
+    }
+  }
+
+  Future<void> _handleOpenWriteReview() async {
+    if (_writeReviewHandled) return;
+    final detail = ref.read(productDetailProvider(widget.idOrSlug)).value;
+    if (detail == null) return;
+
+    setState(() => _checkingReviewEligibility = true);
+    try {
+      final authed = ref.read(isAuthenticatedProvider);
+      if (!mounted) return;
+      if (!authed) {
+        _writeReviewHandled = true;
+        await _scrollToReviews();
+        if (!context.mounted) return;
+        context.showSnack('Please sign in to write a review.', isError: true);
+        return;
+      }
+
+      final canReview = await ref.read(canReviewProductProvider(detail.id).future);
+      if (!mounted) return;
+
+      if (!canReview) {
+        _writeReviewHandled = true;
+        await _scrollToReviews();
+        if (mounted) {
+          context.showSnack('Browse reviews below. You can write one after your order is delivered.');
+        }
+        return;
+      }
+
+      final reviews = await ref.read(productReviewsListProvider(detail.id).future);
+      if (!mounted) return;
+
+      if (userAlreadyReviewed(reviews, currentUserDisplayName(ref))) {
+        _writeReviewHandled = true;
+        await _scrollToReviews();
+        if (mounted) context.showSnack('You have already reviewed this product.');
+        return;
+      }
+
+      _writeReviewHandled = true;
+      await showWriteReviewSheet(
+        context: context,
+        ref: ref,
+        productId: detail.id,
+        productName: detail.name,
+        idOrSlug: widget.idOrSlug,
+      );
+    } catch (error) {
+      _writeReviewHandled = true;
+      await _scrollToReviews();
+      if (mounted) context.showSnack(Failure.from(error).message, isError: true);
+    } finally {
+      if (mounted) setState(() => _checkingReviewEligibility = false);
+    }
+  }
 
   String? _variantKey(ProductDetail detail) =>
       detail.skuVariants.isEmpty ? null : buildVariantKey(color: _color, size: _size);
@@ -112,21 +207,35 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
     final async = ref.watch(productDetailProvider(widget.idOrSlug));
     final wishlisted = ref.watch(wishlistedIdsProvider);
 
-    return Scaffold(
-      body: async.when(
-        loading: () => const _DetailScaffold(child: AppLoader(message: 'Loading product…')),
-        error: (error, _) => _DetailScaffold(
-          child: ErrorStateView(
-            message: 'We could not load this product.',
-            onRetry: () => ref.invalidate(productDetailProvider(widget.idOrSlug)),
+    ref.listen(productDetailProvider(widget.idOrSlug), (previous, next) {
+      if (widget.openWriteReview && !_writeReviewHandled && next.hasValue) {
+        _scheduleWriteReviewFlow();
+      }
+    });
+
+    return Stack(
+      children: [
+        Scaffold(
+          body: async.when(
+            loading: () => const _DetailScaffold(child: AppLoader(message: 'Loading product…')),
+            error: (error, _) => _DetailScaffold(
+              child: ErrorStateView(
+                message: 'We could not load this product.',
+                onRetry: () => ref.invalidate(productDetailProvider(widget.idOrSlug)),
+              ),
+            ),
+            data: (detail) => _buildContent(detail, wishlisted.contains(detail.id)),
+          ),
+          bottomNavigationBar: async.maybeWhen(
+            data: (detail) => _buildBottomBar(detail),
+            orElse: () => null,
           ),
         ),
-        data: (detail) => _buildContent(detail, wishlisted.contains(detail.id)),
-      ),
-      bottomNavigationBar: async.maybeWhen(
-        data: (detail) => _buildBottomBar(detail),
-        orElse: () => null,
-      ),
+        if (_checkingReviewEligibility) ...[
+          ModalBarrier(dismissible: false, color: Colors.black.withValues(alpha: 0.35)),
+          const Center(child: CircularProgressIndicator()),
+        ],
+      ],
     );
   }
 
@@ -238,7 +347,13 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
             ),
           ),
         ),
-        _ReviewsSection(productId: detail.id, avgRating: detail.avgRating ?? 0),
+        ProductReviewsSection(
+          key: _reviewsSectionKey,
+          scrollAnchorKey: _reviewsScrollKey,
+          productId: detail.id,
+          productName: detail.name,
+          idOrSlug: widget.idOrSlug,
+        ),
         _RelatedSection(productId: detail.id, currentId: detail.id),
         const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xl)),
       ],
@@ -414,61 +529,6 @@ class _SpecTable extends StatelessWidget {
             ),
           ),
       ],
-    );
-  }
-}
-
-class _ReviewsSection extends ConsumerWidget {
-  const _ReviewsSection({required this.productId, required this.avgRating});
-  final String productId;
-  final double avgRating;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final reviews = ref.watch(productReviewsProvider(productId));
-    return SliverToBoxAdapter(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, 0),
-        child: reviews.maybeWhen(
-          orElse: () => const SizedBox.shrink(),
-          data: (items) {
-            if (items.isEmpty) return const SizedBox.shrink();
-            final shown = items.take(3).toList();
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Ratings & Reviews', style: theme.textTheme.titleMedium),
-                const SizedBox(height: AppSpacing.sm),
-                for (final review in shown)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            RatingStars(rating: review.rating.toDouble(), size: 14),
-                            const SizedBox(width: AppSpacing.sm),
-                            Text(review.user, style: theme.textTheme.labelMedium),
-                            if (review.verified) ...[
-                              const SizedBox(width: AppSpacing.sm),
-                              const Icon(Icons.verified, size: 14, color: AppColors.success),
-                            ],
-                          ],
-                        ),
-                        if ((review.comment ?? '').trim().isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(review.comment!.trim(), style: theme.textTheme.bodyMedium),
-                        ],
-                      ],
-                    ),
-                  ),
-              ],
-            );
-          },
-        ),
-      ),
     );
   }
 }

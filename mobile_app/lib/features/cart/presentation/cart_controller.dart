@@ -28,6 +28,7 @@ class CartSummary {
     required this.savings,
     required this.shipping,
     required this.tax,
+    this.couponDiscount = 0,
     this.totalOverride,
   });
 
@@ -35,6 +36,7 @@ class CartSummary {
   final double savings;
   final double shipping;
   final double tax;
+  final double couponDiscount;
   /// When set (e.g. checkout session totals), use server-computed total.
   final double? totalOverride;
 
@@ -89,11 +91,11 @@ class CartController extends AsyncNotifier<CartState> {
   Future<CartState> build() async {
     final authed = ref.watch(isAuthenticatedProvider);
     if (!authed) return const CartState();
-    final items = await _repo.getItems();
+    final results = await Future.wait([_repo.getItems(), _repo.getSavedItems()]);
     final current = state.value;
     return CartState(
-      items: items,
-      savedForLater: current?.savedForLater ?? const [],
+      items: results[0],
+      savedForLater: results[1],
       couponCode: current?.couponCode,
     );
   }
@@ -101,8 +103,8 @@ class CartController extends AsyncNotifier<CartState> {
   CartState get _state => state.value ?? const CartState();
 
   Future<void> refresh() async {
-    final items = await _repo.getItems();
-    state = AsyncData(_state.copyWith(items: items));
+    final results = await Future.wait([_repo.getItems(), _repo.getSavedItems()]);
+    state = AsyncData(_state.copyWith(items: results[0], savedForLater: results[1]));
   }
 
   Future<Failure?> add(String productId, {int quantity = 1, String? variantKey}) async {

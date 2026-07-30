@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../theme/app_adaptive_colors.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import 'app_button.dart';
@@ -24,6 +25,7 @@ class EmptyStateView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final adaptive = context.adaptiveColors;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.xxl),
@@ -32,8 +34,8 @@ class EmptyStateView extends StatelessWidget {
           children: [
             Container(
               padding: const EdgeInsets.all(AppSpacing.xl),
-              decoration: const BoxDecoration(
-                color: AppColors.primarySurface,
+              decoration: BoxDecoration(
+                color: adaptive.primarySurface,
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, size: 44, color: AppColors.primary),
@@ -45,7 +47,7 @@ class EmptyStateView extends StatelessWidget {
               Text(
                 message!,
                 textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+                style: theme.textTheme.bodyMedium?.copyWith(color: adaptive.textSecondary),
               ),
             ],
             if (actionLabel != null && onAction != null) ...[
@@ -75,6 +77,7 @@ class ErrorStateView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final adaptive = context.adaptiveColors;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.xxl),
@@ -95,7 +98,7 @@ class ErrorStateView extends StatelessWidget {
             Text(
               message,
               textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+              style: theme.textTheme.bodyMedium?.copyWith(color: adaptive.textSecondary),
             ),
             if (onRetry != null) ...[
               const SizedBox(height: AppSpacing.xl),

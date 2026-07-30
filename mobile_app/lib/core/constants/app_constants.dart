@@ -26,5 +26,4 @@ abstract final class StorageKeys {
   static const String themeMode = 'theme_mode';
   static const String recentSearches = 'recent_searches';
   static const String language = 'app_language';
-  static const String notifications = 'notifications_feed';
 }

@@ -12,6 +12,7 @@ import '../../../catalog/domain/repositories/catalog_repository.dart';
 import '../../../catalog/presentation/catalog_providers.dart';
 import '../../../catalog/presentation/widgets/paginated_product_grid.dart';
 import '../../../wishlist/presentation/wishlist_controller.dart';
+import '../../../notifications/presentation/widgets/notification_icon_button.dart';
 import '../widgets/banner_carousel.dart';
 import '../widgets/category_strip.dart';
 import '../widgets/home_search_bar.dart';
@@ -91,10 +92,7 @@ class HomePage extends ConsumerWidget {
           ],
         ),
         actions: [
-          IconButton(
-            onPressed: () => context.push(AppRoutes.notifications),
-            icon: const Icon(Icons.notifications_none),
-          ),
+          NotificationIconButton(onPressed: () => context.push(AppRoutes.notifications)),
           const SizedBox(width: AppSpacing.sm),
         ],
       ),

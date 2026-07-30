@@ -26,4 +26,13 @@ abstract final class Formatters {
     ];
     return '${date.day} ${months[date.month - 1]} ${date.year}';
   }
+
+  static String relativeTime(DateTime date) {
+    final diff = DateTime.now().difference(date);
+    if (diff.inSeconds < 60) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    if (diff.inDays < 7) return '${diff.inDays}d ago';
+    return dayMonthYear(date);
+  }
 }

@@ -12,6 +12,7 @@ abstract final class AppColors {
   static const Color primaryDark = Color(0xFF135C32);
   static const Color primaryLight = Color(0xFF3FA76A);
   static const Color primarySurface = Color(0xFFE7F4EC);
+  static const Color primarySurfaceDark = Color(0xFF1A2E22);
 
   static const Color accent = Color(0xFFFFB300);
   static const Color accentDark = Color(0xFFF08C00);
@@ -34,7 +35,7 @@ abstract final class AppColors {
 
   static const Color textPrimaryDark = Color(0xFFF1F5F9);
   static const Color textSecondaryDark = Color(0xFFB4C0CC);
-  static const Color textMutedDark = Color(0xFF7A8894);
+  static const Color textMutedDark = Color(0xFF8B98A5);
 
   // Semantic
   static const Color success = Color(0xFF16A34A);

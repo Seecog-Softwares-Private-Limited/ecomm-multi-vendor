@@ -7,10 +7,12 @@ import 'package:go_router/go_router.dart';
 import '../../../../app/routing/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
-import '../../../../core/widgets/app_loader.dart';
+import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/state_views.dart';
-import 'orders_providers.dart';
-import 'widgets/order_list_card.dart';
+import '../../domain/entities/order.dart';
+import '../orders_providers.dart';
+import '../widgets/commerce_skeletons.dart';
+import '../widgets/order_list_card.dart';
 
 class OrdersPage extends ConsumerStatefulWidget {
   const OrdersPage({super.key});
@@ -33,9 +35,24 @@ class _OrdersPageState extends ConsumerState<OrdersPage> {
   void _onSearchChanged(String value) {
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 350), () {
-      ref.read(ordersSearchQueryProvider.notifier).state = value.trim();
+      ref.read(ordersSearchQueryProvider.notifier).update(value.trim());
     });
     setState(() {});
+  }
+
+  Future<void> _buyAgain(OrderSummary order) async {
+    context.push(AppRoutes.orderPath(order.id));
+  }
+
+  void _reviewOrder(OrderSummary order) {
+    final slug = order.previewItems.isNotEmpty
+        ? (order.previewItems.first.productSlug ?? order.previewItems.first.productId)
+        : null;
+    if (slug == null) {
+      context.showSnack('No product found to review for this order.', isError: true);
+      return;
+    }
+    context.push(AppRoutes.productPath(slug, writeReview: true));
   }
 
   @override
@@ -59,19 +76,23 @@ class _OrdersPageState extends ConsumerState<OrdersPage> {
                     ? IconButton(
                         onPressed: () {
                           _searchController.clear();
-                          ref.read(ordersSearchQueryProvider.notifier).state = '';
+                          ref.read(ordersSearchQueryProvider.notifier).update('');
                           setState(() {});
                         },
                         icon: const Icon(Icons.close),
                       )
                     : null,
                 filled: true,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.lg), borderSide: BorderSide.none),
+                fillColor: Theme.of(context).colorScheme.surface,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                  borderSide: BorderSide.none,
+                ),
               ),
             ),
           ),
           SizedBox(
-            height: 44,
+            height: 48,
             child: ListView(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
@@ -97,7 +118,7 @@ class _OrdersPageState extends ConsumerState<OrdersPage> {
                         ),
                       ),
                       selected: statusFilter == chip.$1,
-                      onSelected: (_) => ref.read(ordersStatusFilterProvider.notifier).state = chip.$1,
+                      onSelected: (_) => ref.read(ordersStatusFilterProvider.notifier).update(chip.$1),
                       selectedColor: AppColors.primarySurface,
                       checkmarkColor: AppColors.primary,
                     ),
@@ -108,9 +129,10 @@ class _OrdersPageState extends ConsumerState<OrdersPage> {
           const SizedBox(height: AppSpacing.sm),
           Expanded(
             child: async.when(
-              loading: () => const AppLoader(),
+              loading: () => const OrdersSkeleton(),
               error: (error, _) => ErrorStateView(
-                message: 'Could not load your orders.',
+                title: 'Could not load orders',
+                message: 'We had trouble loading your orders. Please try again.',
                 onRetry: () => ref.invalidate(ordersListProvider),
               ),
               data: (orders) {
@@ -119,10 +141,10 @@ class _OrdersPageState extends ConsumerState<OrdersPage> {
                   return EmptyStateView(
                     title: orders.isEmpty ? 'No orders yet' : 'No matching orders',
                     message: orders.isEmpty
-                        ? 'When you place an order it will show up here.'
+                        ? 'When you place an order it will show up here with tracking and updates.'
                         : 'Try a different search or filter.',
                     icon: Icons.receipt_long_outlined,
-                    actionLabel: orders.isEmpty ? 'Start shopping' : null,
+                    actionLabel: orders.isEmpty ? 'Continue Shopping' : null,
                     onAction: orders.isEmpty ? () => context.go(AppRoutes.home) : null,
                   );
                 }
@@ -148,11 +170,19 @@ class _OrdersPageState extends ConsumerState<OrdersPage> {
                         cursor++;
                         for (final order in section.value) {
                           if (index == cursor) {
+                            final category = orderStatusCategory(order.status);
                             return Padding(
                               padding: const EdgeInsets.only(bottom: AppSpacing.md),
                               child: OrderListCard(
                                 order: order,
                                 onTap: () => context.push(AppRoutes.orderPath(order.id)),
+                                onTrack: category == 'shipped'
+                                    ? () => context.push(AppRoutes.orderPath(order.id))
+                                    : null,
+                                onBuyAgain: category == 'delivered' || category == 'cancelled'
+                                    ? () => _buyAgain(order)
+                                    : null,
+                                onReview: category == 'delivered' ? () => _reviewOrder(order) : null,
                               ),
                             );
                           }

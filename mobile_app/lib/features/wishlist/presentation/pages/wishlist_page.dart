@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/routing/app_routes.dart';
+import '../../../../app/routing/shell_navigation.dart';
+import '../../../../core/theme/app_adaptive_colors.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/utils/formatters.dart';
@@ -33,9 +35,12 @@ class WishlistPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(wishlistControllerProvider);
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Wishlist'),
+    return ShellTabBackScope(
+      child: Scaffold(
+        appBar: AppBar(
+          leading: const ShellTabBackButton(),
+          automaticallyImplyLeading: false,
+          title: const Text('Wishlist'),
         actions: [
           if (async.value?.isNotEmpty ?? false)
             TextButton(
@@ -60,7 +65,7 @@ class WishlistPage extends ConsumerWidget {
               message: 'Tap the heart on any product to save it here.',
               icon: Icons.favorite_border,
               actionLabel: 'Start shopping',
-              onAction: () => context.go(AppRoutes.home),
+              onAction: () => ShellNavigation.continueShopping(context, ref),
             );
           }
           return RefreshIndicator(
@@ -81,6 +86,7 @@ class WishlistPage extends ConsumerWidget {
             ),
           );
         },
+      ),
       ),
     );
   }
@@ -139,7 +145,7 @@ class _WishlistTile extends StatelessWidget {
                         Text(Formatters.rupees(product.mrp),
                             style: theme.textTheme.bodySmall?.copyWith(
                               decoration: TextDecoration.lineThrough,
-                              color: AppColors.textMuted,
+                              color: context.adaptiveColors.textMuted,
                             )),
                       ],
                     ],
@@ -162,7 +168,7 @@ class _WishlistTile extends StatelessWidget {
                       const Spacer(),
                       IconButton(
                         onPressed: onRemove,
-                        icon: const Icon(Icons.delete_outline, color: AppColors.textMuted),
+                        icon: Icon(Icons.delete_outline, color: context.adaptiveColors.textMuted),
                       ),
                     ],
                   ),

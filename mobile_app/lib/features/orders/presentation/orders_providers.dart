@@ -19,9 +19,23 @@ final ordersListProvider = FutureProvider.autoDispose<List<OrderSummary>>(
   },
 );
 
-final ordersSearchQueryProvider = StateProvider<String>((ref) => '');
+final ordersSearchQueryProvider = NotifierProvider<_OrdersSearchQuery, String>(_OrdersSearchQuery.new);
 
-final ordersStatusFilterProvider = StateProvider<String>((ref) => 'all');
+final ordersStatusFilterProvider = NotifierProvider<_OrdersStatusFilter, String>(_OrdersStatusFilter.new);
+
+class _OrdersSearchQuery extends Notifier<String> {
+  @override
+  String build() => '';
+
+  void update(String value) => state = value;
+}
+
+class _OrdersStatusFilter extends Notifier<String> {
+  @override
+  String build() => 'all';
+
+  void update(String value) => state = value;
+}
 
 int countOrdersByStatus(List<OrderSummary> orders, String status) {
   if (status == 'all') return orders.length;
@@ -75,13 +89,13 @@ final orderDetailProvider = FutureProvider.autoDispose.family<OrderDetail, Strin
   (ref, id) => ref.read(ordersRepositoryProvider).getOrder(id),
 );
 
-/// Ordered checkout/fulfilment milestones for the tracking timeline.
+/// Ordered fulfilment milestones for the tracking timeline.
 const List<String> kOrderProgress = [
-  'PENDING_PAYMENT',
   'PLACED',
   'PAYMENT_CONFIRMED',
   'PROCESSING',
   'SHIPPED',
+  'OUT_FOR_DELIVERY',
   'DELIVERED',
 ];
 
@@ -93,11 +107,13 @@ const List<String> kOrderProgress = [
     case 'PLACED':
       return (label: 'Order placed', color: AppColors.info, icon: Icons.receipt_long);
     case 'PAYMENT_CONFIRMED':
-      return (label: 'Payment confirmed', color: AppColors.info, icon: Icons.payments_outlined);
+      return (label: 'Confirmed', color: AppColors.info, icon: Icons.verified_outlined);
     case 'PROCESSING':
-      return (label: 'Processing', color: AppColors.warning, icon: Icons.inventory_2_outlined);
+      return (label: 'Packed', color: AppColors.warning, icon: Icons.inventory_2_outlined);
     case 'SHIPPED':
       return (label: 'Shipped', color: AppColors.primary, icon: Icons.local_shipping_outlined);
+    case 'OUT_FOR_DELIVERY':
+      return (label: 'Out for delivery', color: const Color(0xFF7C3AED), icon: Icons.delivery_dining_outlined);
     case 'DELIVERED':
       return (label: 'Delivered', color: AppColors.success, icon: Icons.check_circle_outline);
     case 'CANCELLED':
