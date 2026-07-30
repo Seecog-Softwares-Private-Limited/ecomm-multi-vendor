@@ -26,10 +26,14 @@ import '../../features/orders/presentation/pages/checkout_page.dart';
 import '../../features/orders/presentation/pages/order_detail_page.dart';
 import '../../features/orders/presentation/pages/order_success_page.dart';
 import '../../features/orders/presentation/pages/orders_page.dart';
+import '../../features/profile/presentation/pages/complete_profile_page.dart';
 import '../../features/search/presentation/pages/search_page.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
-import '../../features/support/presentation/pages/support_page.dart';
-import '../../features/profile/presentation/pages/complete_profile_page.dart';
+import '../../features/support/presentation/pages/create_ticket_page.dart';
+import '../../features/support/presentation/pages/faq_page.dart';
+import '../../features/support/presentation/pages/help_center_page.dart';
+import '../../features/support/presentation/pages/support_tickets_page.dart';
+import '../../features/support/presentation/pages/ticket_detail_page.dart';
 import '../../features/wishlist/presentation/pages/wishlist_page.dart';
 import 'app_routes.dart';
 
@@ -205,7 +209,33 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.support,
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (_, state) => SupportPage(orderId: state.uri.queryParameters['orderId']),
+        builder: (_, state) => HelpCenterPage(orderId: state.uri.queryParameters['orderId']),
+      ),
+      GoRoute(
+        path: AppRoutes.supportFaqs,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, state) => FaqPage(
+          initialCategory: state.uri.queryParameters['category'],
+          initialQuery: state.uri.queryParameters['q'],
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.supportTickets,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, _) => const SupportTicketsPage(),
+      ),
+      GoRoute(
+        path: AppRoutes.supportCreateTicket,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, state) => CreateTicketPage(
+          orderId: state.uri.queryParameters['orderId'],
+          categoryHint: state.uri.queryParameters['category'],
+        ),
+      ),
+      GoRoute(
+        path: '${AppRoutes.supportTickets}/:id',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, state) => TicketDetailPage(ticketId: state.pathParameters['id']!),
       ),
       GoRoute(path: AppRoutes.settings, parentNavigatorKey: _rootNavigatorKey, builder: (_, _) => const SettingsPage()),
       GoRoute(

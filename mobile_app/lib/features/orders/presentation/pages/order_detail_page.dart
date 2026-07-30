@@ -310,7 +310,12 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                   label: 'Need Help',
                   icon: Icons.support_agent,
                   variant: AppButtonVariant.secondary,
-                  onPressed: () => context.push('${AppRoutes.support}?orderId=${order.id}'),
+                  onPressed: () => context.push(
+                    Uri(
+                      path: AppRoutes.support,
+                      queryParameters: {'orderId': order.id},
+                    ).toString(),
+                  ),
                 ),
               ),
             ],

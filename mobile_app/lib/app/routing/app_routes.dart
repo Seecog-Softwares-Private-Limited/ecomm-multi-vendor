@@ -40,6 +40,9 @@ abstract final class AppRoutes {
   static const String notifications = '/notifications';
   static const String notificationPreferences = '/notifications/settings';
   static const String support = '/account/support';
+  static const String supportFaqs = '/account/support/faqs';
+  static const String supportTickets = '/account/support/tickets';
+  static const String supportCreateTicket = '/account/support/tickets/new';
   static const String settings = '/account/settings';
   static const String legal = '/legal'; // /legal/:slug
 
@@ -50,6 +53,21 @@ abstract final class AppRoutes {
   }
   static String orderPath(String id) => '$orders/$id';
   static String legalPath(String slug) => '$legal/$slug';
+  static String supportTicketPath(String id) => '$supportTickets/$id';
+  static String supportCreatePath({String? orderId, String? category}) {
+    final params = <String, String>{};
+    if (orderId != null && orderId.isNotEmpty) params['orderId'] = orderId;
+    if (category != null && category.isNotEmpty) params['category'] = category;
+    if (params.isEmpty) return supportCreateTicket;
+    return Uri(path: supportCreateTicket, queryParameters: params).toString();
+  }
+  static String supportFaqsPath({String? category, String? q}) {
+    final params = <String, String>{};
+    if (category != null && category.isNotEmpty) params['category'] = category;
+    if (q != null && q.isNotEmpty) params['q'] = q;
+    if (params.isEmpty) return supportFaqs;
+    return Uri(path: supportFaqs, queryParameters: params).toString();
+  }
 
   static String afterAuth({required bool needsProfileCompletion}) =>
       needsProfileCompletion ? completeProfile : home;
