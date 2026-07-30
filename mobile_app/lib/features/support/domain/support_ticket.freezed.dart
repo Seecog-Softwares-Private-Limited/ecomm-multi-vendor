@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$SupportTicket {
 
- String get id; String get shortId; String get subject; String get status; String? get orderId; DateTime get createdAt; String? get adminReply;
+ String get id; String get shortId; String get subject; String get status; String? get orderId; DateTime get createdAt; DateTime? get lastUpdateAt; DateTime? get updatedAt; String? get adminReply; DateTime? get adminRepliedAt;
 /// Create a copy of SupportTicket
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +28,16 @@ $SupportTicketCopyWith<SupportTicket> get copyWith => _$SupportTicketCopyWithImp
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is SupportTicket&&(identical(other.id, id) || other.id == id)&&(identical(other.shortId, shortId) || other.shortId == shortId)&&(identical(other.subject, subject) || other.subject == subject)&&(identical(other.status, status) || other.status == status)&&(identical(other.orderId, orderId) || other.orderId == orderId)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.adminReply, adminReply) || other.adminReply == adminReply));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is SupportTicket&&(identical(other.id, id) || other.id == id)&&(identical(other.shortId, shortId) || other.shortId == shortId)&&(identical(other.subject, subject) || other.subject == subject)&&(identical(other.status, status) || other.status == status)&&(identical(other.orderId, orderId) || other.orderId == orderId)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.lastUpdateAt, lastUpdateAt) || other.lastUpdateAt == lastUpdateAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&(identical(other.adminReply, adminReply) || other.adminReply == adminReply)&&(identical(other.adminRepliedAt, adminRepliedAt) || other.adminRepliedAt == adminRepliedAt));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,shortId,subject,status,orderId,createdAt,adminReply);
+int get hashCode => Object.hash(runtimeType,id,shortId,subject,status,orderId,createdAt,lastUpdateAt,updatedAt,adminReply,adminRepliedAt);
 
 @override
 String toString() {
-  return 'SupportTicket(id: $id, shortId: $shortId, subject: $subject, status: $status, orderId: $orderId, createdAt: $createdAt, adminReply: $adminReply)';
+  return 'SupportTicket(id: $id, shortId: $shortId, subject: $subject, status: $status, orderId: $orderId, createdAt: $createdAt, lastUpdateAt: $lastUpdateAt, updatedAt: $updatedAt, adminReply: $adminReply, adminRepliedAt: $adminRepliedAt)';
 }
 
 
@@ -48,7 +48,7 @@ abstract mixin class $SupportTicketCopyWith<$Res>  {
   factory $SupportTicketCopyWith(SupportTicket value, $Res Function(SupportTicket) _then) = _$SupportTicketCopyWithImpl;
 @useResult
 $Res call({
- String id, String shortId, String subject, String status, String? orderId, DateTime createdAt, String? adminReply
+ String id, String shortId, String subject, String status, String? orderId, DateTime createdAt, DateTime? lastUpdateAt, DateTime? updatedAt, String? adminReply, DateTime? adminRepliedAt
 });
 
 
@@ -65,7 +65,7 @@ class _$SupportTicketCopyWithImpl<$Res>
 
 /// Create a copy of SupportTicket
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? shortId = null,Object? subject = null,Object? status = null,Object? orderId = freezed,Object? createdAt = null,Object? adminReply = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? shortId = null,Object? subject = null,Object? status = null,Object? orderId = freezed,Object? createdAt = null,Object? lastUpdateAt = freezed,Object? updatedAt = freezed,Object? adminReply = freezed,Object? adminRepliedAt = freezed,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,shortId: null == shortId ? _self.shortId : shortId // ignore: cast_nullable_to_non_nullable
@@ -73,8 +73,11 @@ as String,subject: null == subject ? _self.subject : subject // ignore: cast_nul
 as String,status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
 as String,orderId: freezed == orderId ? _self.orderId : orderId // ignore: cast_nullable_to_non_nullable
 as String?,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
-as DateTime,adminReply: freezed == adminReply ? _self.adminReply : adminReply // ignore: cast_nullable_to_non_nullable
-as String?,
+as DateTime,lastUpdateAt: freezed == lastUpdateAt ? _self.lastUpdateAt : lastUpdateAt // ignore: cast_nullable_to_non_nullable
+as DateTime?,updatedAt: freezed == updatedAt ? _self.updatedAt : updatedAt // ignore: cast_nullable_to_non_nullable
+as DateTime?,adminReply: freezed == adminReply ? _self.adminReply : adminReply // ignore: cast_nullable_to_non_nullable
+as String?,adminRepliedAt: freezed == adminRepliedAt ? _self.adminRepliedAt : adminRepliedAt // ignore: cast_nullable_to_non_nullable
+as DateTime?,
   ));
 }
 
@@ -159,10 +162,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String shortId,  String subject,  String status,  String? orderId,  DateTime createdAt,  String? adminReply)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String shortId,  String subject,  String status,  String? orderId,  DateTime createdAt,  DateTime? lastUpdateAt,  DateTime? updatedAt,  String? adminReply,  DateTime? adminRepliedAt)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _SupportTicket() when $default != null:
-return $default(_that.id,_that.shortId,_that.subject,_that.status,_that.orderId,_that.createdAt,_that.adminReply);case _:
+return $default(_that.id,_that.shortId,_that.subject,_that.status,_that.orderId,_that.createdAt,_that.lastUpdateAt,_that.updatedAt,_that.adminReply,_that.adminRepliedAt);case _:
   return orElse();
 
 }
@@ -180,10 +183,10 @@ return $default(_that.id,_that.shortId,_that.subject,_that.status,_that.orderId,
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String shortId,  String subject,  String status,  String? orderId,  DateTime createdAt,  String? adminReply)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String shortId,  String subject,  String status,  String? orderId,  DateTime createdAt,  DateTime? lastUpdateAt,  DateTime? updatedAt,  String? adminReply,  DateTime? adminRepliedAt)  $default,) {final _that = this;
 switch (_that) {
 case _SupportTicket():
-return $default(_that.id,_that.shortId,_that.subject,_that.status,_that.orderId,_that.createdAt,_that.adminReply);case _:
+return $default(_that.id,_that.shortId,_that.subject,_that.status,_that.orderId,_that.createdAt,_that.lastUpdateAt,_that.updatedAt,_that.adminReply,_that.adminRepliedAt);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -200,10 +203,10 @@ return $default(_that.id,_that.shortId,_that.subject,_that.status,_that.orderId,
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String shortId,  String subject,  String status,  String? orderId,  DateTime createdAt,  String? adminReply)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String shortId,  String subject,  String status,  String? orderId,  DateTime createdAt,  DateTime? lastUpdateAt,  DateTime? updatedAt,  String? adminReply,  DateTime? adminRepliedAt)?  $default,) {final _that = this;
 switch (_that) {
 case _SupportTicket() when $default != null:
-return $default(_that.id,_that.shortId,_that.subject,_that.status,_that.orderId,_that.createdAt,_that.adminReply);case _:
+return $default(_that.id,_that.shortId,_that.subject,_that.status,_that.orderId,_that.createdAt,_that.lastUpdateAt,_that.updatedAt,_that.adminReply,_that.adminRepliedAt);case _:
   return null;
 
 }
@@ -214,8 +217,8 @@ return $default(_that.id,_that.shortId,_that.subject,_that.status,_that.orderId,
 /// @nodoc
 @JsonSerializable()
 
-class _SupportTicket implements SupportTicket {
-  const _SupportTicket({required this.id, this.shortId = '', required this.subject, this.status = 'OPEN', this.orderId, required this.createdAt, this.adminReply});
+class _SupportTicket extends SupportTicket {
+  const _SupportTicket({required this.id, this.shortId = '', required this.subject, this.status = 'OPEN', this.orderId, required this.createdAt, this.lastUpdateAt, this.updatedAt, this.adminReply, this.adminRepliedAt}): super._();
   factory _SupportTicket.fromJson(Map<String, dynamic> json) => _$SupportTicketFromJson(json);
 
 @override final  String id;
@@ -224,7 +227,10 @@ class _SupportTicket implements SupportTicket {
 @override@JsonKey() final  String status;
 @override final  String? orderId;
 @override final  DateTime createdAt;
+@override final  DateTime? lastUpdateAt;
+@override final  DateTime? updatedAt;
 @override final  String? adminReply;
+@override final  DateTime? adminRepliedAt;
 
 /// Create a copy of SupportTicket
 /// with the given fields replaced by the non-null parameter values.
@@ -239,16 +245,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SupportTicket&&(identical(other.id, id) || other.id == id)&&(identical(other.shortId, shortId) || other.shortId == shortId)&&(identical(other.subject, subject) || other.subject == subject)&&(identical(other.status, status) || other.status == status)&&(identical(other.orderId, orderId) || other.orderId == orderId)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.adminReply, adminReply) || other.adminReply == adminReply));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _SupportTicket&&(identical(other.id, id) || other.id == id)&&(identical(other.shortId, shortId) || other.shortId == shortId)&&(identical(other.subject, subject) || other.subject == subject)&&(identical(other.status, status) || other.status == status)&&(identical(other.orderId, orderId) || other.orderId == orderId)&&(identical(other.createdAt, createdAt) || other.createdAt == createdAt)&&(identical(other.lastUpdateAt, lastUpdateAt) || other.lastUpdateAt == lastUpdateAt)&&(identical(other.updatedAt, updatedAt) || other.updatedAt == updatedAt)&&(identical(other.adminReply, adminReply) || other.adminReply == adminReply)&&(identical(other.adminRepliedAt, adminRepliedAt) || other.adminRepliedAt == adminRepliedAt));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,shortId,subject,status,orderId,createdAt,adminReply);
+int get hashCode => Object.hash(runtimeType,id,shortId,subject,status,orderId,createdAt,lastUpdateAt,updatedAt,adminReply,adminRepliedAt);
 
 @override
 String toString() {
-  return 'SupportTicket(id: $id, shortId: $shortId, subject: $subject, status: $status, orderId: $orderId, createdAt: $createdAt, adminReply: $adminReply)';
+  return 'SupportTicket(id: $id, shortId: $shortId, subject: $subject, status: $status, orderId: $orderId, createdAt: $createdAt, lastUpdateAt: $lastUpdateAt, updatedAt: $updatedAt, adminReply: $adminReply, adminRepliedAt: $adminRepliedAt)';
 }
 
 
@@ -259,7 +265,7 @@ abstract mixin class _$SupportTicketCopyWith<$Res> implements $SupportTicketCopy
   factory _$SupportTicketCopyWith(_SupportTicket value, $Res Function(_SupportTicket) _then) = __$SupportTicketCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String shortId, String subject, String status, String? orderId, DateTime createdAt, String? adminReply
+ String id, String shortId, String subject, String status, String? orderId, DateTime createdAt, DateTime? lastUpdateAt, DateTime? updatedAt, String? adminReply, DateTime? adminRepliedAt
 });
 
 
@@ -276,7 +282,7 @@ class __$SupportTicketCopyWithImpl<$Res>
 
 /// Create a copy of SupportTicket
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? shortId = null,Object? subject = null,Object? status = null,Object? orderId = freezed,Object? createdAt = null,Object? adminReply = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? shortId = null,Object? subject = null,Object? status = null,Object? orderId = freezed,Object? createdAt = null,Object? lastUpdateAt = freezed,Object? updatedAt = freezed,Object? adminReply = freezed,Object? adminRepliedAt = freezed,}) {
   return _then(_SupportTicket(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,shortId: null == shortId ? _self.shortId : shortId // ignore: cast_nullable_to_non_nullable
@@ -284,8 +290,11 @@ as String,subject: null == subject ? _self.subject : subject // ignore: cast_nul
 as String,status: null == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
 as String,orderId: freezed == orderId ? _self.orderId : orderId // ignore: cast_nullable_to_non_nullable
 as String?,createdAt: null == createdAt ? _self.createdAt : createdAt // ignore: cast_nullable_to_non_nullable
-as DateTime,adminReply: freezed == adminReply ? _self.adminReply : adminReply // ignore: cast_nullable_to_non_nullable
-as String?,
+as DateTime,lastUpdateAt: freezed == lastUpdateAt ? _self.lastUpdateAt : lastUpdateAt // ignore: cast_nullable_to_non_nullable
+as DateTime?,updatedAt: freezed == updatedAt ? _self.updatedAt : updatedAt // ignore: cast_nullable_to_non_nullable
+as DateTime?,adminReply: freezed == adminReply ? _self.adminReply : adminReply // ignore: cast_nullable_to_non_nullable
+as String?,adminRepliedAt: freezed == adminRepliedAt ? _self.adminRepliedAt : adminRepliedAt // ignore: cast_nullable_to_non_nullable
+as DateTime?,
   ));
 }
 

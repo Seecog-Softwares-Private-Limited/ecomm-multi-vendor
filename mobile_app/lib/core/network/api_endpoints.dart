@@ -56,6 +56,7 @@ abstract final class ApiEndpoints {
 
   // Support / CMS
   static const String supportTickets = '/api/support-tickets';
+  static String supportTicket(String id) => '/api/support-tickets/$id';
   static String supportTicketMessages(String id) => '/api/support-tickets/$id/messages';
   static String supportTicketReply(String id) => '/api/support-tickets/$id/reply';
   static const String faqs = '/api/faqs';
