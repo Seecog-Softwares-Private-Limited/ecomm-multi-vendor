@@ -20,6 +20,7 @@ import '../../features/home/presentation/pages/app_shell_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/home/presentation/pages/legal_page.dart';
 import '../../features/home/presentation/pages/profile_page.dart';
+import '../../features/notifications/presentation/pages/notification_preferences_page.dart';
 import '../../features/notifications/presentation/pages/notifications_page.dart';
 import '../../features/orders/presentation/pages/checkout_page.dart';
 import '../../features/orders/presentation/pages/order_detail_page.dart';
@@ -146,7 +147,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '${AppRoutes.product}/:id',
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (_, state) => ProductDetailPage(idOrSlug: state.pathParameters['id']!),
+        builder: (_, state) => ProductDetailPage(
+          idOrSlug: state.pathParameters['id']!,
+          openWriteReview: state.uri.queryParameters['writeReview'] == '1',
+        ),
       ),
 
       // Commerce.
@@ -160,12 +164,25 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         parentNavigatorKey: _rootNavigatorKey,
         builder: (_, state) {
           final extra = (state.extra as Map?) ?? const {};
+          final qp = state.uri.queryParameters;
           return OrderSuccessPage(
-            orderId: extra['orderId'] as String? ?? '',
-            total: (extra['total'] as num?)?.toDouble() ?? 0,
-            paymentPending: extra['paymentPending'] as bool? ?? false,
+            orderId: extra['orderId'] as String? ?? qp['orderId'] ?? '',
+            total: (extra['total'] as num?)?.toDouble() ?? double.tryParse(qp['total'] ?? '') ?? 0,
+            paymentPending: extra['paymentPending'] as bool? ??
+                (qp['pending'] == 'true'),
           );
         },
+      ),
+
+      GoRoute(
+        path: AppRoutes.cartOverlay,
+        parentNavigatorKey: _rootNavigatorKey,
+        pageBuilder: (_, s) => _fade(const CartPage(), s),
+      ),
+      GoRoute(
+        path: AppRoutes.wishlistOverlay,
+        parentNavigatorKey: _rootNavigatorKey,
+        pageBuilder: (_, s) => _fade(const WishlistPage(), s),
       ),
 
       // Orders.
@@ -180,6 +197,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: AppRoutes.editProfile, parentNavigatorKey: _rootNavigatorKey, builder: (_, _) => const EditProfilePage()),
       GoRoute(path: AppRoutes.addresses, parentNavigatorKey: _rootNavigatorKey, builder: (_, _) => const AddressesPage()),
       GoRoute(path: AppRoutes.notifications, parentNavigatorKey: _rootNavigatorKey, builder: (_, _) => const NotificationsPage()),
+      GoRoute(
+        path: AppRoutes.notificationPreferences,
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (_, _) => const NotificationPreferencesPage(),
+      ),
       GoRoute(
         path: AppRoutes.support,
         parentNavigatorKey: _rootNavigatorKey,

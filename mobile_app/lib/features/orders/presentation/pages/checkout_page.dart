@@ -3,12 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/routing/app_routes.dart';
+import '../../../../app/routing/shell_navigation.dart';
 import '../../../../core/di/providers.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_snackbar.dart';
+import '../../../../core/widgets/state_views.dart';
 import '../../../addresses/domain/entities/address.dart';
 import '../../../addresses/presentation/addresses_controller.dart';
 import '../../../addresses/presentation/pages/address_form_page.dart';
@@ -16,17 +18,20 @@ import '../../../addresses/presentation/pages/addresses_page.dart';
 import '../../../cart/presentation/cart_controller.dart';
 import '../../../cart/presentation/widgets/cart_summary_card.dart';
 import '../../../cart/presentation/widgets/coupon_field.dart';
+import '../../../commerce/presentation/widgets/premium_card.dart';
 import '../../data/checkout_remote_data_source.dart';
 import '../../data/orders_repository.dart';
 import '../../data/razorpay_checkout_service.dart';
 import '../../domain/entities/order.dart';
 import '../../domain/entities/razorpay_session.dart';
 import '../orders_providers.dart';
+import '../widgets/checkout_expandable_section.dart';
+import '../widgets/checkout_order_items.dart';
+import '../widgets/commerce_skeletons.dart';
 
 class CheckoutPage extends ConsumerStatefulWidget {
   const CheckoutPage({super.key, this.sessionId});
 
-  /// Checkout session from Buy Now or cart proceed flow.
   final String? sessionId;
 
   @override
@@ -47,24 +52,29 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   String get _orderIdempotencyKey =>
       _checkoutSessionId == null ? '' : 'order-session:$_checkoutSessionId';
 
+  List<Map<String, dynamic>> get _sessionItems {
+    final items = _sessionPreview?['items'];
+    if (items is! List) return const [];
+    return items.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList(growable: false);
+  }
+
   CartSummary? get _checkoutSummary {
     final totals = _sessionPreview?['totals'];
     if (totals is! Map) return null;
     final map = Map<String, dynamic>.from(totals);
+    final discount = (map['discountAmount'] as num?)?.toDouble() ?? 0;
     return CartSummary(
       subtotal: (map['subtotal'] as num?)?.toDouble() ?? 0,
-      savings: (map['discountAmount'] as num?)?.toDouble() ?? 0,
+      savings: 0,
       shipping: (map['shippingAmount'] as num?)?.toDouble() ?? 0,
       tax: (map['taxAmount'] as num?)?.toDouble() ?? 0,
+      couponDiscount: discount,
       totalOverride: (map['totalAmount'] as num?)?.toDouble(),
     );
   }
 
   bool get _hasCheckoutContent {
-    if (_checkoutSessionId != null) {
-      final items = _sessionPreview?['items'];
-      if (items is List && items.isNotEmpty) return true;
-    }
+    if (_checkoutSessionId != null && _sessionItems.isNotEmpty) return true;
     final cart = ref.read(cartControllerProvider).value;
     return cart != null && !cart.isEmpty;
   }
@@ -104,9 +114,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       final cart = ref.read(cartControllerProvider).value;
       await _loadSessionPreview(sessionId: sessionId, couponCode: cart?.couponCode);
     } catch (error) {
-      if (mounted) {
-        context.showSnack(Failure.from(error).message, isError: true);
-      }
+      if (mounted) context.showSnack(Failure.from(error).message, isError: true);
     } finally {
       if (mounted) setState(() => _sessionLoading = false);
     }
@@ -118,9 +126,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     try {
       await _loadSessionPreview(couponCode: cart?.couponCode);
     } catch (error) {
-      if (mounted) {
-        context.showSnack(Failure.from(error).message, isError: true);
-      }
+      if (mounted) context.showSnack(Failure.from(error).message, isError: true);
     }
   }
 
@@ -129,9 +135,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     try {
       await _loadSessionPreview();
     } catch (error) {
-      if (mounted) {
-        context.showSnack(Failure.from(error).message, isError: true);
-      }
+      if (mounted) context.showSnack(Failure.from(error).message, isError: true);
     }
   }
 
@@ -170,38 +174,23 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     required OrdersRepository ordersRepo,
   }) async {
     final session = await ordersRepo.createRazorpayOrder(result.orderId);
-
     if (!session.configured || !session.isReady) {
       if (!mounted) return;
-      context.showSnack(
-        session.message ?? 'Online payment is not configured. Your order is confirmed.',
-      );
+      context.showSnack(session.message ?? 'Online payment is not configured. Your order is confirmed.');
       ref.read(cartControllerProvider.notifier).clearAfterOrder();
       ref.invalidate(ordersListProvider);
-      _goToOrderSuccess(
-        orderId: result.orderId,
-        total: result.totalAmount,
-        paymentPending: true,
-      );
+      _goToOrderSuccess(orderId: result.orderId, total: result.totalAmount, paymentPending: true);
       return;
     }
 
-    final checkoutResult = await _razorpayCheckout.openCheckout(
-      session,
-      paymentMethod: _payment,
-    );
-
+    final checkoutResult = await _razorpayCheckout.openCheckout(session, paymentMethod: _payment);
     if (!mounted) return;
 
     switch (checkoutResult) {
       case RazorpayCheckoutSuccess(:final paymentId, :final orderId, :final signature):
         if (paymentId.isEmpty || orderId.isEmpty || signature.isEmpty) {
           context.showSnack('Payment response was incomplete.', isError: true);
-          _goToOrderSuccess(
-            orderId: result.orderId,
-            total: result.totalAmount,
-            paymentPending: true,
-          );
+          _goToOrderSuccess(orderId: result.orderId, total: result.totalAmount, paymentPending: true);
           return;
         }
         try {
@@ -215,19 +204,11 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           ref.invalidate(ordersListProvider);
           if (!mounted) return;
           context.showSnack('Payment successful!');
-          _goToOrderSuccess(
-            orderId: result.orderId,
-            total: result.totalAmount,
-            paymentPending: false,
-          );
+          _goToOrderSuccess(orderId: result.orderId, total: result.totalAmount, paymentPending: false);
         } catch (error) {
           if (!mounted) return;
           context.showSnack(Failure.from(error).message, isError: true);
-          _goToOrderSuccess(
-            orderId: result.orderId,
-            total: result.totalAmount,
-            paymentPending: true,
-          );
+          _goToOrderSuccess(orderId: result.orderId, total: result.totalAmount, paymentPending: true);
         }
       case RazorpayCheckoutFailure(:final message, :final cancelled):
         context.showSnack(
@@ -236,15 +217,12 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
               : message,
           isError: !cancelled,
         );
-        _goToOrderSuccess(
-          orderId: result.orderId,
-          total: result.totalAmount,
-          paymentPending: true,
-        );
+        _goToOrderSuccess(orderId: result.orderId, total: result.totalAmount, paymentPending: true);
     }
   }
 
   Future<void> _placeOrder() async {
+    if (_placing) return;
     final address = _effectiveAddress;
     if (address == null) {
       context.showSnack('Please add a delivery address first.', isError: true);
@@ -272,11 +250,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         ref.read(cartControllerProvider.notifier).clearAfterOrder();
         ref.invalidate(ordersListProvider);
         if (!mounted) return;
-        _goToOrderSuccess(
-          orderId: result.orderId,
-          total: result.totalAmount,
-          paymentPending: false,
-        );
+        _goToOrderSuccess(orderId: result.orderId, total: result.totalAmount, paymentPending: false);
       }
     } catch (error) {
       if (!mounted) return;
@@ -297,123 +271,161 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     final couponCode = cart?.couponCode;
 
     return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(title: const Text('Checkout')),
       body: _sessionLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const CheckoutSkeleton()
           : !_hasCheckoutContent
-          ? const Center(child: Text('Your cart is empty.'))
+          ? ErrorStateView(
+              title: 'Nothing to checkout',
+              message: 'Your cart is empty. Add products before checking out.',
+              onRetry: () => ShellNavigation.openCart(context, ref),
+            )
           : ListView(
               padding: const EdgeInsets.all(AppSpacing.lg),
               children: [
-                _SectionTitle('Delivery address', trailing: address == null ? null : 'Change', onTrailing: _selectAddress),
-                if (address == null)
-                  Card(
-                    child: ListTile(
-                      leading: const Icon(Icons.add_location_alt_outlined, color: AppColors.primary),
-                      title: const Text('Add a delivery address'),
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const AddressFormPage()),
-                      ),
-                    ),
-                  )
-                else
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(AppSpacing.lg),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
+                CheckoutExpandableSection(
+                  title: 'Delivery Address',
+                  icon: Icons.location_on_outlined,
+                  subtitle: address?.fullName,
+                  trailing: TextButton(onPressed: _selectAddress, child: const Text('Change')),
+                  child: address == null
+                      ? PremiumCard(
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const AddressFormPage()),
+                          ),
+                          child: Row(
                             children: [
-                              Text(address.fullName, style: theme.textTheme.titleSmall),
-                              const SizedBox(width: AppSpacing.sm),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: AppColors.surfaceVariant,
-                                  borderRadius: BorderRadius.circular(AppRadius.xs),
-                                ),
-                                child: Text(address.name, style: theme.textTheme.labelSmall),
+                              const Icon(Icons.add_location_alt_outlined, color: AppColors.primary),
+                              const SizedBox(width: AppSpacing.md),
+                              Expanded(
+                                child: Text('Add a delivery address', style: theme.textTheme.titleSmall),
                               ),
+                              const Icon(Icons.chevron_right),
                             ],
                           ),
-                          const SizedBox(height: 4),
-                          Text(address.formatted, style: theme.textTheme.bodyMedium),
-                          Text('Phone: ${address.phone}', style: theme.textTheme.bodySmall),
-                        ],
-                      ),
-                    ),
-                  ),
-                const SizedBox(height: AppSpacing.lg),
-                _SectionTitle('Delivery method'),
-                Card(
-                  child: ListTile(
-                    leading: const Icon(Icons.local_shipping_outlined, color: AppColors.primary),
-                    title: const Text('Standard Delivery'),
-                    subtitle: const Text('Delivered in 3–5 business days'),
-                    trailing: Text(
-                      summary != null && summary.shipping == 0
-                          ? 'FREE'
-                          : '₹${(summary?.shipping ?? 0).toStringAsFixed(0)}',
-                      style: theme.textTheme.titleSmall?.copyWith(color: AppColors.success),
-                    ),
-                  ),
+                        )
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Text(address.fullName, style: theme.textTheme.titleSmall),
+                                if (address.isDefault) ...[
+                                  const SizedBox(width: AppSpacing.sm),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primarySurface,
+                                      borderRadius: BorderRadius.circular(AppRadius.xs),
+                                    ),
+                                    child: Text(
+                                      'Default',
+                                      style: theme.textTheme.labelSmall?.copyWith(color: AppColors.primary),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(address.formatted, style: theme.textTheme.bodyMedium),
+                            Text('Phone: ${address.phone}', style: theme.textTheme.bodySmall),
+                            const SizedBox(height: AppSpacing.sm),
+                            OutlinedButton.icon(
+                              onPressed: _selectAddress,
+                              icon: const Icon(Icons.edit_outlined, size: 18),
+                              label: const Text('Change Address'),
+                            ),
+                          ],
+                        ),
                 ),
-                const SizedBox(height: AppSpacing.lg),
-                _SectionTitle('Payment method'),
-                _PaymentTile(
-                  value: 'cod',
-                  groupValue: _payment,
-                  title: 'Cash on Delivery',
-                  subtitle: 'Pay when your order arrives',
+                CheckoutExpandableSection(
+                  title: 'Payment Method',
                   icon: Icons.payments_outlined,
-                  onChanged: (v) => setState(() => _payment = v),
+                  subtitle: _payment == 'cod' ? 'Cash on Delivery' : _payment.toUpperCase(),
+                  child: Column(
+                    children: [
+                      _PaymentOption(
+                        value: 'cod',
+                        groupValue: _payment,
+                        title: 'Cash on Delivery',
+                        subtitle: 'Pay when your order arrives',
+                        icon: Icons.payments_outlined,
+                        onChanged: (v) => setState(() => _payment = v),
+                      ),
+                      _PaymentOption(
+                        value: 'upi',
+                        groupValue: _payment,
+                        title: 'UPI',
+                        subtitle: 'GPay, PhonePe via Razorpay',
+                        icon: Icons.account_balance_wallet_outlined,
+                        onChanged: (v) => setState(() => _payment = v),
+                      ),
+                      _PaymentOption(
+                        value: 'card',
+                        groupValue: _payment,
+                        title: 'Credit / Debit Card',
+                        subtitle: 'Visa, Mastercard, RuPay',
+                        icon: Icons.credit_card,
+                        onChanged: (v) => setState(() => _payment = v),
+                      ),
+                    ],
+                  ),
                 ),
-                _PaymentTile(
-                  value: 'upi',
-                  groupValue: _payment,
-                  title: 'UPI',
-                  subtitle: 'Pay via Razorpay (GPay, PhonePe, etc.)',
-                  icon: Icons.account_balance_wallet_outlined,
-                  onChanged: (v) => setState(() => _payment = v),
+                if (_sessionItems.isNotEmpty)
+                  CheckoutExpandableSection(
+                    title: 'Order Summary',
+                    icon: Icons.shopping_bag_outlined,
+                    subtitle: '${_sessionItems.length} item${_sessionItems.length == 1 ? '' : 's'}',
+                    child: CheckoutOrderItemsList(items: _sessionItems),
+                  ),
+                CheckoutExpandableSection(
+                  title: 'Coupon',
+                  icon: Icons.local_offer_outlined,
+                  initiallyExpanded: couponCode != null,
+                  child: CouponField(
+                    appliedCode: couponCode,
+                    onApply: _applyCoupon,
+                    onRemove: _clearCoupon,
+                  ),
                 ),
-                _PaymentTile(
-                  value: 'card',
-                  groupValue: _payment,
-                  title: 'Credit / Debit Card',
-                  subtitle: 'Visa, Mastercard, RuPay via Razorpay',
-                  icon: Icons.credit_card,
-                  onChanged: (v) => setState(() => _payment = v),
+                CheckoutExpandableSection(
+                  title: 'Price Breakdown',
+                  icon: Icons.receipt_long_outlined,
+                  child: summary != null
+                      ? CartSummaryCard(summary: summary, compact: true)
+                      : const SizedBox.shrink(),
                 ),
-                const SizedBox(height: AppSpacing.lg),
-                _SectionTitle('Coupon'),
-                CouponField(
-                  appliedCode: couponCode,
-                  onApply: _applyCoupon,
-                  onRemove: _clearCoupon,
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                if (summary != null) CartSummaryCard(summary: summary),
-                const SizedBox(height: AppSpacing.md),
                 if (_payment != 'cod')
                   Padding(
-                    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                    padding: const EdgeInsets.only(top: AppSpacing.sm),
                     child: Text(
-                      'Secured by Razorpay. You will complete payment right after placing the order.',
+                      'Secured by Razorpay. Complete payment after placing the order.',
                       style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
                     ),
                   ),
+                const SizedBox(height: 100),
               ],
             ),
       bottomNavigationBar: _sessionLoading || !_hasCheckoutContent || summary == null
           ? null
           : SafeArea(
-              child: Padding(
+              child: Container(
                 padding: const EdgeInsets.all(AppSpacing.md),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surface,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.textPrimary.withValues(alpha: 0.06),
+                      blurRadius: 16,
+                      offset: const Offset(0, -4),
+                    ),
+                  ],
+                ),
                 child: AppButton(
-                  label: _payment == 'cod' ? 'Place order' : 'Place order & pay',
+                  label: _payment == 'cod' ? 'Place Order' : 'Place Order & Pay',
                   isLoading: _placing,
-                  onPressed: _placeOrder,
+                  onPressed: _placing ? null : _placeOrder,
                 ),
               ),
             ),
@@ -421,28 +433,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   }
 }
 
-class _SectionTitle extends StatelessWidget {
-  const _SectionTitle(this.title, {this.trailing, this.onTrailing});
-  final String title;
-  final String? trailing;
-  final VoidCallback? onTrailing;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-      child: Row(
-        children: [
-          Expanded(child: Text(title, style: Theme.of(context).textTheme.titleMedium)),
-          if (trailing != null) TextButton(onPressed: onTrailing, child: Text(trailing!)),
-        ],
-      ),
-    );
-  }
-}
-
-class _PaymentTile extends StatelessWidget {
-  const _PaymentTile({
+class _PaymentOption extends StatelessWidget {
+  const _PaymentOption({
     required this.value,
     required this.groupValue,
     required this.title,
@@ -461,25 +453,44 @@ class _PaymentTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final selected = value == groupValue;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-      child: Card(
-        shape: RoundedRectangleBorder(
+    return Semantics(
+      label: title,
+      selected: selected,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+        child: InkWell(
+          onTap: () => onChanged(value),
           borderRadius: BorderRadius.circular(AppRadius.md),
-          side: BorderSide(
-            color: selected ? AppColors.primary : AppColors.border,
-            width: selected ? 2 : 1,
+          child: Container(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              border: Border.all(
+                color: selected ? AppColors.primary : AppColors.border,
+                width: selected ? 2 : 1,
+              ),
+              color: selected ? AppColors.primarySurface.withValues(alpha: 0.4) : null,
+            ),
+            child: Row(
+              children: [
+                Icon(icon, color: selected ? AppColors.primary : AppColors.textSecondary),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title, style: Theme.of(context).textTheme.titleSmall),
+                      Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
+                    ],
+                  ),
+                ),
+                if (selected)
+                  const Icon(Icons.check_circle, color: AppColors.primary)
+                else
+                  Icon(Icons.circle_outlined, color: AppColors.border),
+              ],
+            ),
           ),
-        ),
-        child: RadioListTile<String>(
-          value: value,
-          groupValue: groupValue,
-          onChanged: (v) {
-            if (v != null) onChanged(v);
-          },
-          title: Text(title),
-          subtitle: Text(subtitle),
-          secondary: Icon(icon, color: selected ? AppColors.primary : AppColors.textSecondary),
         ),
       ),
     );

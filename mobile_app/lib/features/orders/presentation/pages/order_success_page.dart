@@ -7,7 +7,7 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/app_button.dart';
 
-class OrderSuccessPage extends StatelessWidget {
+class OrderSuccessPage extends StatefulWidget {
   const OrderSuccessPage({
     required this.orderId,
     required this.total,
@@ -20,9 +20,39 @@ class OrderSuccessPage extends StatelessWidget {
   final bool paymentPending;
 
   @override
+  State<OrderSuccessPage> createState() => _OrderSuccessPageState();
+}
+
+class _OrderSuccessPageState extends State<OrderSuccessPage> with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _scale;
+  late final Animation<double> _fade;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 800));
+    _scale = CurvedAnimation(parent: _controller, curve: Curves.elasticOut);
+    _fade = CurvedAnimation(parent: _controller, curve: const Interval(0.3, 1, curve: Curves.easeOut));
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  String get _shortOrderId {
+    if (widget.orderId.isEmpty) return '—';
+    return '#${widget.orderId.substring(0, widget.orderId.length.clamp(0, 8)).toUpperCase()}';
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -30,52 +60,86 @@ class OrderSuccessPage extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TweenAnimationBuilder<double>(
-                  tween: Tween(begin: 0, end: 1),
-                  duration: const Duration(milliseconds: 500),
-                  curve: Curves.easeOutBack,
-                  builder: (context, value, child) => Transform.scale(scale: value, child: child),
+                ScaleTransition(
+                  scale: _scale,
                   child: Container(
-                    width: 110,
-                    height: 110,
-                    decoration: const BoxDecoration(color: AppColors.primarySurface, shape: BoxShape.circle),
-                    child: const Icon(Icons.check_circle, color: AppColors.success, size: 72),
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.xl),
-                Text('Order placed!', style: theme.textTheme.headlineSmall),
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  paymentPending
-                      ? 'Your order is confirmed. Complete the online payment to speed up dispatch.'
-                      : 'Thank you for shopping with us. Your order is confirmed.',
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
-                ),
-                const SizedBox(height: AppSpacing.xl),
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppSpacing.lg),
-                    child: Column(
-                      children: [
-                        _row(theme, 'Order ID', '#${orderId.substring(0, orderId.length.clamp(0, 8)).toUpperCase()}'),
-                        const SizedBox(height: AppSpacing.sm),
-                        _row(theme, 'Amount paid', Formatters.rupees(total)),
+                    width: 120,
+                    height: 120,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [AppColors.primarySurface, Color(0xFFD4EDDA)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.success.withValues(alpha: 0.25),
+                          blurRadius: 24,
+                          offset: const Offset(0, 8),
+                        ),
                       ],
                     ),
+                    child: const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 72),
                   ),
                 ),
-                const SizedBox(height: AppSpacing.xxl),
-                AppButton(
-                  label: 'Track order',
-                  icon: Icons.local_shipping_outlined,
-                  onPressed: () => context.pushReplacement(AppRoutes.orderPath(orderId)),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                AppButton(
-                  label: 'Continue shopping',
-                  variant: AppButtonVariant.text,
-                  onPressed: () => context.go(AppRoutes.home),
+                FadeTransition(
+                  opacity: _fade,
+                  child: Column(
+                    children: [
+                      const SizedBox(height: AppSpacing.xl),
+                      Text(
+                        widget.paymentPending ? 'Order saved!' : 'Order placed!',
+                        style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      Text(
+                        widget.paymentPending
+                            ? 'Your order is confirmed. Complete payment to speed up dispatch.'
+                            : 'Thank you for shopping with IndoVyapar. Your order is confirmed.',
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+                      ),
+                      const SizedBox(height: AppSpacing.xl),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(AppSpacing.lg),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surface,
+                          borderRadius: BorderRadius.circular(AppRadius.lg),
+                          border: Border.all(color: AppColors.border),
+                        ),
+                        child: Column(
+                          children: [
+                            _row(theme, 'Order ID', _shortOrderId),
+                            const SizedBox(height: AppSpacing.sm),
+                            _row(theme, 'Amount Paid', Formatters.rupees(widget.total)),
+                            const SizedBox(height: AppSpacing.sm),
+                            _row(
+                              theme,
+                              'Estimated Delivery',
+                              '3–5 business days',
+                              muted: true,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xxl),
+                      AppButton(
+                        label: 'Track Order',
+                        icon: Icons.local_shipping_outlined,
+                        onPressed: widget.orderId.isEmpty
+                            ? null
+                            : () => context.pushReplacement(AppRoutes.orderPath(widget.orderId)),
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      AppButton(
+                        label: 'Continue Shopping',
+                        variant: AppButtonVariant.text,
+                        onPressed: () => context.go(AppRoutes.home),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -85,12 +149,18 @@ class OrderSuccessPage extends StatelessWidget {
     );
   }
 
-  Widget _row(ThemeData theme, String label, String value) {
+  Widget _row(ThemeData theme, String label, String value, {bool muted = false}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label, style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary)),
-        Text(value, style: theme.textTheme.titleSmall),
+        Text(
+          value,
+          style: theme.textTheme.titleSmall?.copyWith(
+            color: muted ? AppColors.textMuted : null,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
       ],
     );
   }

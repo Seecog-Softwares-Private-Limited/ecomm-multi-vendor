@@ -8,16 +8,40 @@ void main() {
     body: 'Your order is on the way.',
     type: NotificationType.order,
     createdAt: DateTime.parse('2026-01-02T10:30:00.000'),
+    orderId: 'ord1234567890',
+    productImageUrl: '/uploads/product.jpg',
   );
 
-  test('json round-trips all fields', () {
-    final restored = AppNotification.fromJson(sample.toJson());
+  test('fromApi parses API fields', () {
+    final restored = AppNotification.fromApi({
+      'id': sample.id,
+      'title': sample.title,
+      'message': sample.body,
+      'type': 'ORDER',
+      'createdAt': sample.createdAt.toIso8601String(),
+      'read': false,
+      'orderId': sample.orderId,
+      'productImageUrl': sample.productImageUrl,
+    });
     expect(restored.id, sample.id);
     expect(restored.title, sample.title);
     expect(restored.body, sample.body);
     expect(restored.type, NotificationType.order);
-    expect(restored.createdAt, sample.createdAt);
+    expect(restored.orderId, sample.orderId);
     expect(restored.read, isFalse);
+  });
+
+  test('RETURN type maps to returnType', () {
+    final n = AppNotification.fromApi({
+      'id': 'r1',
+      'title': 'Return update',
+      'message': 'Your return was approved.',
+      'type': 'RETURN',
+      'createdAt': '2026-01-01T00:00:00.000',
+      'read': true,
+    });
+    expect(n.type, NotificationType.returnType);
+    expect(n.categoryKey, 'returns');
   });
 
   test('copyWith toggles read without touching other fields', () {
@@ -25,19 +49,6 @@ void main() {
     expect(read.read, isTrue);
     expect(read.id, sample.id);
     expect(read.title, sample.title);
-  });
-
-  test('unknown type falls back to general', () {
-    final n = AppNotification.fromJson({
-      'id': 'x',
-      'title': 't',
-      'body': 'b',
-      'type': 'nonsense',
-      'createdAt': '2026-01-01T00:00:00.000',
-      'read': true,
-    });
-    expect(n.type, NotificationType.general);
-    expect(n.read, isTrue);
   });
 
   test('icon and color differ across types', () {

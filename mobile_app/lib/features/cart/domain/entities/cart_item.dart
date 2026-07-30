@@ -20,6 +20,7 @@ abstract class CartProduct with _$CartProduct {
     @Default('ACTIVE') String status,
     String? imageUrl,
     @Default(false) bool listingPaused,
+    String? sellerName,
   }) = _CartProduct;
 
   factory CartProduct.fromJson(Map<String, dynamic> json) => _$CartProductFromJson(json);

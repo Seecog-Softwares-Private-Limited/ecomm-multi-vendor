@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'app_adaptive_colors.dart';
 import 'app_colors.dart';
 import 'app_spacing.dart';
 import 'app_typography.dart';
@@ -14,20 +15,30 @@ abstract final class AppTheme {
   static ThemeData _build(Brightness brightness) {
     final isDark = brightness == Brightness.dark;
 
+    final textColor = isDark ? AppColors.textPrimaryDark : AppColors.textPrimary;
+    final textSecondary = isDark ? AppColors.textSecondaryDark : AppColors.textSecondary;
+    final textMuted = isDark ? AppColors.textMutedDark : AppColors.textMuted;
+    final surface = isDark ? AppColors.surfaceDark : AppColors.surface;
+    final surfaceVariant = isDark ? AppColors.surfaceVariantDark : AppColors.surfaceVariant;
+    final border = isDark ? AppColors.borderDark : AppColors.border;
+    final background = isDark ? AppColors.backgroundDark : AppColors.background;
+    final adaptive = isDark ? AppAdaptiveColors.dark : AppAdaptiveColors.light;
+    final textTheme = AppTypography.textTheme(textColor);
+
     final scheme = ColorScheme.fromSeed(
       seedColor: AppColors.primary,
       brightness: brightness,
       primary: AppColors.primary,
+      onPrimary: Colors.white,
       secondary: AppColors.accent,
-      surface: isDark ? AppColors.surfaceDark : AppColors.surface,
+      onSecondary: AppColors.textPrimary,
+      surface: surface,
+      onSurface: textColor,
+      onSurfaceVariant: textSecondary,
+      outline: border,
       error: AppColors.error,
+      onError: Colors.white,
     );
-
-    final textColor = isDark ? AppColors.textPrimaryDark : AppColors.textPrimary;
-    final surface = isDark ? AppColors.surfaceDark : AppColors.surface;
-    final border = isDark ? AppColors.borderDark : AppColors.border;
-    final background = isDark ? AppColors.backgroundDark : AppColors.background;
-    final textTheme = AppTypography.textTheme(textColor);
 
     return ThemeData(
       useMaterial3: true,
@@ -35,6 +46,7 @@ abstract final class AppTheme {
       colorScheme: scheme,
       scaffoldBackgroundColor: background,
       textTheme: textTheme,
+      extensions: [adaptive],
       splashFactory: InkRipple.splashFactory,
       appBarTheme: AppBarTheme(
         backgroundColor: surface,
@@ -76,11 +88,11 @@ abstract final class AppTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: isDark ? AppColors.surfaceVariantDark : AppColors.surfaceVariant,
+        fillColor: surfaceVariant,
         contentPadding:
             const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.lg),
-        hintStyle: textTheme.bodyMedium?.copyWith(color: AppColors.textMuted),
-        labelStyle: textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+        hintStyle: textTheme.bodyMedium?.copyWith(color: textMuted),
+        labelStyle: textTheme.bodyMedium?.copyWith(color: textSecondary),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadius.md),
           borderSide: BorderSide(color: border),
@@ -113,15 +125,32 @@ abstract final class AppTheme {
       ),
       dividerTheme: DividerThemeData(color: border, thickness: 1, space: 1),
       chipTheme: ChipThemeData(
-        backgroundColor: isDark ? AppColors.surfaceVariantDark : AppColors.surfaceVariant,
+        backgroundColor: surfaceVariant,
         side: BorderSide(color: border),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.pill)),
         labelStyle: textTheme.labelMedium,
+        selectedColor: AppColors.primary.withValues(alpha: isDark ? 0.25 : 0.15),
+        checkmarkColor: AppColors.primary,
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: surface,
+        indicatorColor: AppColors.primary.withValues(alpha: isDark ? 0.25 : 0.12),
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          final selected = states.contains(WidgetState.selected);
+          return textTheme.labelSmall?.copyWith(
+            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+            color: selected ? AppColors.primary : textMuted,
+          );
+        }),
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          final selected = states.contains(WidgetState.selected);
+          return IconThemeData(color: selected ? AppColors.primary : textMuted);
+        }),
       ),
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: surface,
         selectedItemColor: AppColors.primary,
-        unselectedItemColor: AppColors.textMuted,
+        unselectedItemColor: textMuted,
         type: BottomNavigationBarType.fixed,
         elevation: 8,
         selectedLabelStyle: textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w700),
@@ -130,8 +159,21 @@ abstract final class AppTheme {
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         backgroundColor: isDark ? AppColors.surfaceVariantDark : AppColors.textPrimary,
-        contentTextStyle: textTheme.bodyMedium?.copyWith(color: Colors.white),
+        contentTextStyle: textTheme.bodyMedium?.copyWith(
+          color: isDark ? AppColors.textPrimaryDark : Colors.white,
+        ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.sm)),
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: surface,
+        surfaceTintColor: Colors.transparent,
+        titleTextStyle: textTheme.titleLarge,
+        contentTextStyle: textTheme.bodyMedium,
+      ),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: surface,
+        surfaceTintColor: Colors.transparent,
+        modalBackgroundColor: surface,
       ),
       progressIndicatorTheme: const ProgressIndicatorThemeData(color: AppColors.primary),
     );

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../app/routing/shell_navigation.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../cart/presentation/cart_controller.dart';
 import '../../../wishlist/presentation/wishlist_controller.dart';
@@ -13,23 +14,26 @@ class AppShellPage extends ConsumerWidget {
 
   final StatefulNavigationShell navigationShell;
 
-  void _onTap(int index) {
-    navigationShell.goBranch(
-      index,
-      initialLocation: index == navigationShell.currentIndex,
-    );
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final cartCount = ref.watch(cartCountProvider);
     final wishlistCount = ref.watch(wishlistedIdsProvider).length;
 
+    void onTabSelected(int index) {
+      if (index != navigationShell.currentIndex) {
+        ref.read(shellBranchHistoryProvider.notifier).record(navigationShell.currentIndex);
+      }
+      navigationShell.goBranch(
+        index,
+        initialLocation: index == navigationShell.currentIndex,
+      );
+    }
+
     return Scaffold(
       body: navigationShell,
       bottomNavigationBar: NavigationBar(
         selectedIndex: navigationShell.currentIndex,
-        onDestinationSelected: _onTap,
+        onDestinationSelected: onTabSelected,
         destinations: [
           const NavigationDestination(
             icon: Icon(Icons.home_outlined),

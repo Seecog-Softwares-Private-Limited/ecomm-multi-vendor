@@ -3,18 +3,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/routing/app_routes.dart';
+import '../../../../app/routing/shell_navigation.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_cached_image.dart';
-import '../../../../core/widgets/app_loader.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/state_views.dart';
 import '../../../cart/presentation/cart_controller.dart';
+import '../../../commerce/presentation/widgets/premium_card.dart';
+import '../../../commerce/presentation/widgets/price_hierarchy.dart';
 import '../../domain/entities/order.dart';
 import '../orders_providers.dart';
+import '../widgets/commerce_skeletons.dart';
 import '../widgets/order_tracker.dart';
 
 class OrderDetailPage extends ConsumerStatefulWidget {
@@ -45,7 +48,7 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
     setState(() => _working = false);
     if (failure == null) {
       context.showSnack('Items added to cart');
-      context.push(AppRoutes.cart);
+      ShellNavigation.openCart(context, ref);
     } else {
       context.showSnack(failure.message, isError: true);
     }
@@ -103,27 +106,33 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
     );
   }
 
+  String _variantLabel(String? key) {
+    if (key == null || key.isEmpty) return '';
+    return key.replaceAll('|', ' · ').replaceAll(':', ': ');
+  }
+
   @override
   Widget build(BuildContext context) {
     final async = ref.watch(orderDetailProvider(widget.orderId));
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Order details'),
+        title: const Text('Order Details'),
         actions: [
           async.maybeWhen(
             data: (order) => IconButton(
               onPressed: () => _showInvoice(order),
               icon: const Icon(Icons.receipt_long_outlined),
-              tooltip: 'Invoice',
+              tooltip: 'View invoice',
             ),
             orElse: () => const SizedBox.shrink(),
           ),
         ],
       ),
       body: async.when(
-        loading: () => const AppLoader(),
+        loading: () => const OrderDetailSkeleton(),
         error: (error, _) => ErrorStateView(
-          message: 'Could not load this order.',
+          title: 'Could not load order',
+          message: 'We had trouble loading this order. Please try again.',
           onRetry: () => ref.invalidate(orderDetailProvider(widget.orderId)),
         ),
         data: (order) => _buildBody(order),
@@ -135,123 +144,170 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
     final theme = Theme.of(context);
     final status = orderStatusPresentation(order.status);
     final itemsTotal = order.items.fold<double>(0, (sum, i) => sum + i.totalPrice);
+    final category = orderStatusCategory(order.status);
 
     return RefreshIndicator(
       onRefresh: () async => ref.invalidate(orderDetailProvider(widget.orderId)),
       child: ListView(
         padding: const EdgeInsets.all(AppSpacing.lg),
         children: [
-          Row(
-            children: [
-              Icon(status.icon, color: status.color),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(status.label, style: theme.textTheme.titleMedium?.copyWith(color: status.color)),
-                    Text('Placed on ${Formatters.dayMonthYear(order.createdAt)}',
-                        style: theme.textTheme.bodySmall),
-                  ],
+          PremiumCard(
+            child: Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: status.color.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(status.icon, color: status.color),
                 ),
-              ),
-            ],
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(status.label, style: theme.textTheme.titleMedium?.copyWith(color: status.color)),
+                      Text(
+                        'Order ${_shortId(order.id)} · ${Formatters.dayMonthYear(order.createdAt)}',
+                        style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: AppSpacing.lg),
           OrderTracker(status: order.status, timeline: order.timeline),
           const SizedBox(height: AppSpacing.lg),
-          Text('Items', style: theme.textTheme.titleMedium),
+          Text('Ordered Items', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
           const SizedBox(height: AppSpacing.sm),
           for (final item in order.items)
-            Card(
-              margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-              child: Padding(
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+              child: PremiumCard(
                 padding: const EdgeInsets.all(AppSpacing.md),
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     AppCachedImage(
                       imageUrl: item.image,
-                      width: 56,
-                      height: 56,
+                      width: 72,
+                      height: 72,
                       fallbackLabel: item.productName,
-                      borderRadius: BorderRadius.circular(AppRadius.sm),
+                      borderRadius: BorderRadius.circular(AppRadius.md),
                     ),
                     const SizedBox(width: AppSpacing.md),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(item.productName, maxLines: 2, overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.bodyMedium),
-                          Text('Qty: ${item.quantity}', style: theme.textTheme.bodySmall),
+                          Text(
+                            item.productName,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                          ),
+                          if (_variantLabel(item.variantKey).isNotEmpty)
+                            Text(
+                              _variantLabel(item.variantKey),
+                              style: theme.textTheme.labelSmall?.copyWith(color: AppColors.textSecondary),
+                            ),
+                          const SizedBox(height: AppSpacing.xs),
+                          Text('Qty: ${item.quantity}', style: theme.textTheme.labelSmall),
+                          const SizedBox(height: AppSpacing.xs),
+                          PriceHierarchy(
+                            sellingPrice: item.unitPrice,
+                            mrp: item.unitPrice,
+                            compact: true,
+                          ),
                         ],
                       ),
                     ),
-                    Text(Formatters.rupees(item.totalPrice), style: theme.textTheme.titleSmall),
+                    Text(
+                      Formatters.rupees(item.totalPrice),
+                      style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                    ),
                   ],
                 ),
               ),
             ),
           if (order.address != null) ...[
             const SizedBox(height: AppSpacing.md),
-            Text('Delivery address', style: theme.textTheme.titleMedium),
+            Text('Shipping Address', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
             const SizedBox(height: AppSpacing.sm),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(order.address!.fullName, style: theme.textTheme.titleSmall),
-                    const SizedBox(height: 4),
-                    Text(order.address!.formatted, style: theme.textTheme.bodyMedium),
-                    Text('Phone: ${order.address!.phone}', style: theme.textTheme.bodySmall),
-                  ],
-                ),
+            PremiumCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(order.address!.fullName, style: theme.textTheme.titleSmall),
+                  const SizedBox(height: 4),
+                  Text(order.address!.formatted, style: theme.textTheme.bodyMedium),
+                  Text('Phone: ${order.address!.phone}', style: theme.textTheme.bodySmall),
+                ],
               ),
             ),
           ],
           const SizedBox(height: AppSpacing.md),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              child: Column(
-                children: [
-                  _priceRow(theme, 'Items total', Formatters.rupees(itemsTotal)),
-                  if (order.discountAmount > 0)
-                    _priceRow(theme, 'Discount', '- ${Formatters.rupees(order.discountAmount)}'),
-                  _priceRow(theme, 'Tax', Formatters.rupees(order.taxAmount)),
-                  _priceRow(theme, 'Delivery',
-                      order.shippingAmount == 0 ? 'FREE' : Formatters.rupees(order.shippingAmount)),
-                  const Divider(),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('Total', style: theme.textTheme.titleMedium),
-                      Text(Formatters.rupees(order.totalAmount),
-                          style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
-                    ],
-                  ),
-                ],
-              ),
+          Text('Price Breakdown', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+          const SizedBox(height: AppSpacing.sm),
+          PremiumCard(
+            child: Column(
+              children: [
+                _priceRow(theme, 'Items Total', Formatters.rupees(itemsTotal)),
+                if (order.discountAmount > 0)
+                  _priceRow(theme, 'Discount', '- ${Formatters.rupees(order.discountAmount)}'),
+                _priceRow(theme, 'Tax', Formatters.rupees(order.taxAmount)),
+                _priceRow(
+                  theme,
+                  'Delivery',
+                  order.shippingAmount == 0 ? 'FREE' : Formatters.rupees(order.shippingAmount),
+                ),
+                const Divider(),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('Grand Total', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                    Text(
+                      Formatters.rupees(order.totalAmount),
+                      style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
+          if (category == 'delivered' && order.items.isNotEmpty) ...[
+            AppButton(
+              label: 'Rate & Review',
+              icon: Icons.rate_review_outlined,
+              onPressed: () {
+                final item = order.items.first;
+                context.push(AppRoutes.productPath(item.productId, writeReview: true));
+              },
+            ),
+            const SizedBox(height: AppSpacing.sm),
+          ],
           Row(
             children: [
-              Expanded(
-                child: AppButton(
-                  label: 'Reorder',
-                  icon: Icons.refresh,
-                  variant: AppButtonVariant.secondary,
-                  isLoading: _working,
-                  onPressed: () => _reorder(order),
+              if (category == 'delivered' || category == 'cancelled')
+                Expanded(
+                  child: AppButton(
+                    label: 'Buy Again',
+                    icon: Icons.refresh,
+                    variant: AppButtonVariant.secondary,
+                    isLoading: _working,
+                    onPressed: () => _reorder(order),
+                  ),
                 ),
-              ),
-              const SizedBox(width: AppSpacing.md),
+              if (category == 'delivered' || category == 'cancelled')
+                const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: AppButton(
-                  label: 'Need help',
+                  label: 'Need Help',
                   icon: Icons.support_agent,
                   variant: AppButtonVariant.secondary,
                   onPressed: () => context.push('${AppRoutes.support}?orderId=${order.id}'),
@@ -262,7 +318,7 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
           if (orderIsCancellable(order.status)) ...[
             const SizedBox(height: AppSpacing.sm),
             AppButton(
-              label: 'Cancel order',
+              label: 'Cancel Order',
               variant: AppButtonVariant.text,
               onPressed: _working ? null : () => _cancel(order),
             ),
@@ -272,14 +328,16 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
     );
   }
 
+  String _shortId(String id) => '#${id.substring(0, id.length.clamp(0, 8)).toUpperCase()}';
+
   Widget _priceRow(ThemeData theme, String label, String value) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
+      padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary)),
-          Text(value, style: theme.textTheme.bodyMedium),
+          Text(value, style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
         ],
       ),
     );
@@ -304,8 +362,10 @@ class _InvoiceSheet extends StatelessWidget {
             Center(child: Text('Tax Invoice', style: theme.textTheme.titleLarge)),
             const SizedBox(height: AppSpacing.xs),
             Center(
-              child: Text('Order #${order.id.substring(0, order.id.length.clamp(0, 8)).toUpperCase()}',
-                  style: theme.textTheme.bodySmall),
+              child: Text(
+                'Order #${order.id.substring(0, order.id.length.clamp(0, 8)).toUpperCase()}',
+                style: theme.textTheme.bodySmall,
+              ),
             ),
             const Divider(height: AppSpacing.xl),
             for (final item in order.items)
@@ -326,8 +386,10 @@ class _InvoiceSheet extends StatelessWidget {
             const Divider(),
             _row(theme, 'Grand total', Formatters.rupees(order.totalAmount), bold: true),
             const SizedBox(height: AppSpacing.lg),
-            Text('This is a system-generated invoice.',
-                style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textMuted)),
+            Text(
+              'This is a system-generated invoice.',
+              style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
+            ),
           ],
         ),
       ),

@@ -16,6 +16,8 @@ abstract final class AppRoutes {
   static const String categories = '/categories';
   static const String wishlist = '/wishlist';
   static const String cart = '/cart';
+  static const String wishlistOverlay = '/overlay/wishlist';
+  static const String cartOverlay = '/overlay/cart';
   static const String account = '/account';
 
   // Catalog
@@ -36,12 +38,16 @@ abstract final class AppRoutes {
   static const String addresses = '/account/addresses';
   static const String addressForm = '/account/addresses/form';
   static const String notifications = '/notifications';
+  static const String notificationPreferences = '/notifications/settings';
   static const String support = '/account/support';
   static const String settings = '/account/settings';
   static const String legal = '/legal'; // /legal/:slug
 
   static String categoryPath(String id) => '$category/$id';
-  static String productPath(String id) => '$product/$id';
+  static String productPath(String id, {bool writeReview = false}) {
+    final base = '$product/$id';
+    return writeReview ? '$base?writeReview=1' : base;
+  }
   static String orderPath(String id) => '$orders/$id';
   static String legalPath(String slug) => '$legal/$slug';
 
