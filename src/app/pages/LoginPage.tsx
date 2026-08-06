@@ -29,11 +29,19 @@ type PhoneStep = "number" | "otp";
 const SEED_CUSTOMER_EMAIL = "customer@example.com";
 const SEED_CUSTOMER_PASSWORD = "Customer@123";
 
+/**
+ * Set to `true` later to show Mobile OTP ↔ Email toggle and phone OTP login.
+ * When false, only the email form (+ Google) is shown; OTP UI/handlers stay in code.
+ */
+const SHOW_PHONE_OTP_LOGIN = false;
+
 export function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isDev = process.env.NODE_ENV === "development";
-  const [loginMode, setLoginMode] = React.useState<LoginMode>(isDev ? "email" : "phone");
+  const [loginMode, setLoginMode] = React.useState<LoginMode>(
+    SHOW_PHONE_OTP_LOGIN ? (isDev ? "email" : "phone") : "email",
+  );
   const [phoneStep, setPhoneStep] = React.useState<PhoneStep>("number");
   const [showPassword, setShowPassword] = React.useState(false);
   const [email, setEmail] = React.useState(isDev ? SEED_CUSTOMER_EMAIL : "");
@@ -294,6 +302,8 @@ export function LoginPage() {
               </div>
             )}
 
+            {/* OTP mode toggle — code kept; set SHOW_PHONE_OTP_LOGIN = true to show again */}
+            {SHOW_PHONE_OTP_LOGIN ? (
             <div className="mb-6 flex rounded-xl bg-slate-100/90 p-1">
               <button
                 type="button"
@@ -327,8 +337,9 @@ export function LoginPage() {
                 Email
               </button>
             </div>
+            ) : null}
 
-            {loginMode === "email" ? (
+            {loginMode === "email" || !SHOW_PHONE_OTP_LOGIN ? (
             <form className="space-y-5" onSubmit={handleSubmit}>
               <div>
                 <label
