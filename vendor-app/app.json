@@ -2,7 +2,7 @@
   "expo": {
     "name": "vendor-app",
     "slug": "indo-vyapar-app",
-    "version": "1.0.5",
+    "version": "1.0.6",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "vendorapp",
@@ -11,7 +11,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.blablabla0978.vendorapp",
-      "buildNumber": "8"
+      "buildNumber": "9"
     },
     "android": {
       "adaptiveIcon": {
@@ -21,7 +21,7 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.seecog.indovyapar",
-      "versionCode": 8
+      "versionCode": 9
     },
     "web": {
       "output": "static",

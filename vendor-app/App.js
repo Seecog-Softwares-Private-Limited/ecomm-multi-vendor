@@ -18,7 +18,7 @@ import {
 } from 'react-native-safe-area-context';
 
 /** Bump with each store release — busts CDN/WebView cache for HTML on first load. */
-const APP_RELEASE = '1.0.5';
+const APP_RELEASE = '1.0.6';
 
 /**
  * Vendor home — middleware sends unauthenticated users to /vendor/login;
