@@ -3,9 +3,9 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 /**
- * Merge .env then properties.env into process.env (only keys missing/empty).
+ * Load .env into process.env (only keys missing/empty).
+ * properties.env is deprecated and is not loaded.
  * Runs only in Node when Next loads this config — never bundled for Edge/browser.
- * Same behavior as env-loader.mjs (used by app.js).
  */
 function applyEnvContent(content: string) {
   for (const line of content.split("\n")) {
@@ -30,14 +30,12 @@ function applyEnvContent(content: string) {
 }
 
 function loadProjectEnvFiles(cwd: string = process.cwd()) {
-  for (const name of [".env", "properties.env"]) {
-    const p = resolve(cwd, name);
-    if (!existsSync(p)) continue;
-    try {
-      applyEnvContent(readFileSync(p, "utf8"));
-    } catch (e) {
-      console.error("[next.config] Failed to read env file:", p, e);
-    }
+  const p = resolve(cwd, ".env");
+  if (!existsSync(p)) return;
+  try {
+    applyEnvContent(readFileSync(p, "utf8"));
+  } catch (e) {
+    console.error("[next.config] Failed to read env file:", p, e);
   }
 }
 
