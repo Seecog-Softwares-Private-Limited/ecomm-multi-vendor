@@ -81,8 +81,10 @@ for path in \
   fi
 done
 
-if [[ -f "$ROOT/properties.env" ]]; then
-  cp -a "$ROOT/properties.env" "$BUNDLE_DIR/"
+# Do not bundle secrets. Server must supply its own .env after extract.
+# (properties.env is deprecated and must not be copied into deploy bundles.)
+if [[ -f "$ROOT/.env.example" ]]; then
+  cp -a "$ROOT/.env.example" "$BUNDLE_DIR/"
 fi
 
 echo "==> Pack $ARCHIVE"

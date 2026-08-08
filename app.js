@@ -21,13 +21,10 @@ import { fileURLToPath } from "url";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname);
 
-// Load .env or properties.env into process.env
+// Load project secrets from .env only (properties.env is deprecated / not loaded).
 function loadEnv() {
-  const envPath = resolve(root, ".env");
-  const fallbackPath = resolve(root, "properties.env");
-  const path = existsSync(envPath) ? envPath : existsSync(fallbackPath) ? fallbackPath : null;
-
-  if (!path) return Promise.resolve();
+  const path = resolve(root, ".env");
+  if (!existsSync(path)) return Promise.resolve();
 
   return new Promise((resolvePromise) => {
     const rl = createInterface({
@@ -64,7 +61,7 @@ async function main() {
 
   const port = process.env.PORT;
   if (!port || !String(port).trim()) {
-    console.error("PORT must be set in .env or properties.env");
+    console.error("PORT must be set in .env");
     process.exit(1);
   }
 
