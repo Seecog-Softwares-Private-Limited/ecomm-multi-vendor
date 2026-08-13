@@ -9,6 +9,7 @@ import type {
   RegisterPayload,
   LoginPayload,
   VendorLoginPayload,
+  VendorAppleLoginPayload,
   VendorRegisterPayload,
   VendorRegisterResponse,
   VendorSessionResponse,
@@ -38,6 +39,14 @@ export const authService = {
   /** Log in as vendor (Seller table). Sets HTTP-only cookie; JWT sub = seller.id. */
   async vendorLogin(payload: VendorLoginPayload): Promise<VendorSessionResponse> {
     return request<VendorSessionResponse>(`${AUTH_BASE}/vendor-login`, {
+      method: "POST",
+      body: payload,
+    });
+  },
+
+  /** Complete native Sign in with Apple for a vendor. Sets the same HTTP-only cookie. */
+  async vendorAppleLogin(payload: VendorAppleLoginPayload): Promise<VendorSessionResponse> {
+    return request<VendorSessionResponse>(`${AUTH_BASE}/vendor-apple`, {
       method: "POST",
       body: payload,
     });

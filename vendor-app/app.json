@@ -12,6 +12,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.blablabla0978.vendorapp",
       "buildNumber": "10",
+      "usesAppleSignIn": true,
       "infoPlist": {
         "NSCameraUsageDescription": "IndoVyapar Vendor uses the camera to photograph product images.",
         "NSMicrophoneUsageDescription": "IndoVyapar Vendor uses the microphone when recording product videos.",
@@ -39,6 +40,7 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
+      "expo-apple-authentication",
       [
         "expo-splash-screen",
         {

@@ -145,6 +145,8 @@ model Seller {
   passwordResetExpires       DateTime?                  @map("password_reset_expires")
   oauthProvider              String?                    @map("oauth_provider") @db.VarChar(50)
   oauthProviderId            String?                    @map("oauth_provider_id") @db.VarChar(255)
+  /// Stable Sign in with Apple user `sub`. Separate from Google oauth_* so both can coexist.
+  appleUserId                String?                    @unique @map("apple_user_id") @db.VarChar(255)
   /// When false, catalog treats seller as pan-India (PIN list is stored but ignored). When true, use serviceablePincodes rules.
   restrictDeliveryToPincodes Boolean                    @default(false) @map("restrict_delivery_to_pincodes")
   emailOtpCode               String?                    @map("email_otp_code") @db.VarChar(100)

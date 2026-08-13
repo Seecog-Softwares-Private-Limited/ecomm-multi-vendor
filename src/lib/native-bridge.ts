@@ -14,8 +14,42 @@ export type NativeBridgeMessage =
     }
   | {
       type: "custom";
+      name: "OPEN_EXTERNAL_BROWSER";
+      payload?: unknown;
+    }
+  | {
+      type: "custom";
+      name: "SIGN_IN_WITH_APPLE";
+      payload?: { returnUrl?: string };
+    }
+  | {
+      type: "custom";
+      name: "APPLE_AUTH_RESULT";
+      payload?: AppleAuthResultPayload;
+    }
+  | {
+      type: "custom";
       name: string;
       payload?: unknown;
+    };
+
+export type AppleAuthResultPayload =
+  | {
+      success: true;
+      identityToken: string;
+      authorizationCode?: string | null;
+      user?: string | null;
+      email?: string | null;
+      fullName?: {
+        givenName?: string | null;
+        familyName?: string | null;
+      } | null;
+      nonce: string;
+    }
+  | {
+      success: false;
+      cancelled?: boolean;
+      message: string;
     };
 
 export type NativeBridgeHandler = (message: NativeBridgeMessage) => void;
@@ -29,6 +63,7 @@ declare global {
       postMessage: (message: NativeBridgeMessage) => void;
       subscribe?: (handler: NativeBridgeHandler) => () => void;
     };
+    __INDOVYAPAR_ON_APPLE_AUTH_RESULT__?: (payload: AppleAuthResultPayload) => void;
   }
 }
 
@@ -65,9 +100,11 @@ export function subscribeToNative(handler: NativeBridgeHandler): () => void {
     return bridge.subscribe(handler);
   }
 
-  const onMessage = (event: MessageEvent<string>) => {
+  const onMessage = (event: MessageEvent<string | NativeBridgeMessage>) => {
     try {
-      const payload = JSON.parse(event.data) as NativeBridgeMessage;
+      const raw = event.data;
+      const payload =
+        typeof raw === "string" ? (JSON.parse(raw) as NativeBridgeMessage) : raw;
       handler(payload);
     } catch {
       // Ignore malformed bridge messages.

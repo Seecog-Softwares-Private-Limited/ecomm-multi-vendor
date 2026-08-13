@@ -3,6 +3,17 @@ export { hashPassword, verifyPassword } from "./password";
 export { signToken, verifyToken, type JwtPayload } from "./jwt";
 export { setAuthCookie, clearAuthCookie, getTokenFromCookie } from "./cookies";
 export {
+  verifyAppleIdentityToken,
+  sha256Hex,
+  isApplePrivateRelayEmail,
+  AppleAuthError,
+  APPLE_ISSUER,
+  VENDOR_IOS_BUNDLE_ID,
+  resolveAppleVendorMatch,
+  type AppleIdentityClaims,
+  type AppleVendorMatch,
+} from "./apple";
+export {
   registerSchema,
   loginSchema,
   vendorRegisterSchema,
