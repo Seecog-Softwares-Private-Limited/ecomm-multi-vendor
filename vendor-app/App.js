@@ -12,13 +12,15 @@ import {
 import NetInfo from '@react-native-community/netinfo';
 import { WebView } from 'react-native-webview';
 import { StatusBar } from 'expo-status-bar';
+import * as AppleAuthentication from 'expo-apple-authentication';
+import * as Crypto from 'expo-crypto';
 import {
   SafeAreaProvider,
   SafeAreaView,
 } from 'react-native-safe-area-context';
 
 /** Bump with each store release — busts CDN/WebView cache for HTML on first load. */
-const APP_RELEASE = '1.0.7';
+const APP_RELEASE = '1.0.0.2';
 
 /**
  * Vendor home — middleware sends unauthenticated users to /vendor/login;
@@ -41,6 +43,70 @@ const IPAD_WEBVIEW_USER_AGENT =
 function getWebViewUserAgent() {
   if (Platform.OS !== 'ios') return ANDROID_WEBVIEW_USER_AGENT;
   return Platform.isPad ? IPAD_WEBVIEW_USER_AGENT : IPHONE_WEBVIEW_USER_AGENT;
+}
+
+function randomAppleNonce(length = 32) {
+  const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-._';
+  let out = '';
+  for (let i = 0; i < length; i += 1) {
+    out += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return out;
+}
+
+function injectAppleAuthResult(webRef, payload) {
+  if (!webRef) return;
+  const json = JSON.stringify(payload);
+  webRef.injectJavaScript(`
+    (function () {
+      try {
+        var payload = ${json};
+        if (typeof window.__INDOVYAPAR_ON_APPLE_AUTH_RESULT__ === 'function') {
+          window.__INDOVYAPAR_ON_APPLE_AUTH_RESULT__(payload);
+        }
+        window.dispatchEvent(new MessageEvent('message', {
+          data: JSON.stringify({ type: 'custom', name: 'APPLE_AUTH_RESULT', payload: payload })
+        }));
+      } catch (e) {}
+    })();
+    true;
+  `);
+}
+
+async function nativeSignInWithApple() {
+  const available = await AppleAuthentication.isAvailableAsync();
+  if (!available) {
+    throw new Error('Sign in with Apple is not available on this device.');
+  }
+  const nonce = randomAppleNonce();
+  const hashedNonce = await Crypto.digestStringAsync(
+    Crypto.CryptoDigestAlgorithm.SHA256,
+    nonce,
+  );
+  const credential = await AppleAuthentication.signInAsync({
+    requestedScopes: [
+      AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+      AppleAuthentication.AppleAuthenticationScope.EMAIL,
+    ],
+    nonce: hashedNonce,
+  });
+  if (!credential.identityToken) {
+    throw new Error('Apple did not return an identity token.');
+  }
+  return {
+    success: true,
+    identityToken: credential.identityToken,
+    authorizationCode: credential.authorizationCode ?? null,
+    user: credential.user ?? null,
+    email: credential.email ?? null,
+    fullName: credential.fullName
+      ? {
+          givenName: credential.fullName.givenName ?? null,
+          familyName: credential.fullName.familyName ?? null,
+        }
+      : null,
+    nonce,
+  };
 }
 
 /** Disable pinch-zoom + clear stale SW/cache once per app release (post-deploy chunk mismatch). */
@@ -216,6 +282,28 @@ function VendorScreen() {
         Linking.openURL(msg.payload).catch(() => {
           setLoadErrorMessage('Could not open the sign-in browser.');
         });
+        return;
+      }
+      if (msg?.type === 'custom' && msg?.name === 'SIGN_IN_WITH_APPLE') {
+        if (Platform.OS !== 'ios') {
+          injectAppleAuthResult(webRef.current, {
+            success: false,
+            message: 'Sign in with Apple is only available on iOS.',
+          });
+          return;
+        }
+        nativeSignInWithApple()
+          .then((payload) => injectAppleAuthResult(webRef.current, payload))
+          .catch((err) => {
+            const cancelled = err?.code === 'ERR_REQUEST_CANCELED';
+            injectAppleAuthResult(webRef.current, {
+              success: false,
+              cancelled,
+              message: cancelled
+                ? 'Apple sign-in was cancelled.'
+                : err?.message || 'Apple sign-in failed.',
+            });
+          });
       }
     } catch {
       /* ignore non-JSON bridge messages */
