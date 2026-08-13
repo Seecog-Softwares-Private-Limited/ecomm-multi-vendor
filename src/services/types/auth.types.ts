@@ -54,6 +54,18 @@ export interface VendorSessionResponse {
   };
 }
 
+export interface VendorAppleLoginPayload {
+  identityToken: string;
+  nonce: string;
+  authorizationCode?: string | null;
+  user?: string | null;
+  email?: string | null;
+  fullName?: {
+    givenName?: string | null;
+    familyName?: string | null;
+  } | null;
+}
+
 /** Response from vendor registration (includes verification hint when SMTP not configured). */
 export interface VendorRegisterResponse extends VendorSessionResponse {
   message: string;

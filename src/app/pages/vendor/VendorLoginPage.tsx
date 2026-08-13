@@ -7,7 +7,16 @@ import { Mail, Lock, ArrowRight, Eye, EyeOff, Store, Package, TrendingUp } from 
 import { authService } from "@/services/auth.service";
 import { ServiceError } from "@/services/errors";
 import { IndovyaparLogo } from "@/components/IndovyaparLogo";
-import { startVendorOAuthLogin } from "@/lib/auth/start-oauth";
+import {
+  APPLE_AUTH_RESULT_MESSAGE,
+  startVendorAppleLogin,
+  startVendorOAuthLogin,
+} from "@/lib/auth/start-oauth";
+import {
+  hasNativeBridge,
+  subscribeToNative,
+  type AppleAuthResultPayload,
+} from "@/lib/native-bridge";
 
 /**
  * Vendor login page at /vendor/login.
@@ -24,6 +33,7 @@ export function VendorLoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [appleLoading, setAppleLoading] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
 
   useEffect(() => {
@@ -35,6 +45,23 @@ export function VendorLoginPage() {
       );
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    const onResult = (payload: AppleAuthResultPayload | undefined) => {
+      void handleAppleNativeResult(payload);
+    };
+    window.__INDOVYAPAR_ON_APPLE_AUTH_RESULT__ = onResult;
+    const unsubscribe = subscribeToNative((message) => {
+      if (message.type !== "custom" || message.name !== APPLE_AUTH_RESULT_MESSAGE) return;
+      onResult(message.payload as AppleAuthResultPayload | undefined);
+    });
+    return () => {
+      if (window.__INDOVYAPAR_ON_APPLE_AUTH_RESULT__ === onResult) {
+        delete window.__INDOVYAPAR_ON_APPLE_AUTH_RESULT__;
+      }
+      unsubscribe();
+    };
+  }, [callbackUrl, router]);
 
   useEffect(() => {
     let cancelled = false;
@@ -70,6 +97,57 @@ export function VendorLoginPage() {
       setError(err instanceof ServiceError ? err.message : "Login failed");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleAppleNativeResult(payload: AppleAuthResultPayload | undefined) {
+    if (!payload) {
+      setAppleLoading(false);
+      setError("Apple sign-in failed. Please try again.");
+      return;
+    }
+    if (!payload.success) {
+      setAppleLoading(false);
+      if (payload.cancelled) {
+        setError(null);
+        return;
+      }
+      setError(payload.message || "Apple sign-in failed. Please try again.");
+      return;
+    }
+
+    setError(null);
+    setAppleLoading(true);
+    try {
+      await authService.vendorAppleLogin({
+        identityToken: payload.identityToken,
+        nonce: payload.nonce,
+        authorizationCode: payload.authorizationCode,
+        user: payload.user,
+        email: payload.email,
+        fullName: payload.fullName,
+      });
+      await new Promise((r) => setTimeout(r, 50));
+      router.push(callbackUrl);
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof ServiceError ? err.message : "Apple sign-in failed");
+    } finally {
+      setAppleLoading(false);
+    }
+  }
+
+  function handleAppleClick() {
+    setError(null);
+    if (!hasNativeBridge()) {
+      setError("Sign in with Apple is available in the IndoVyapar Vendor iOS app.");
+      return;
+    }
+    setAppleLoading(true);
+    const started = startVendorAppleLogin(callbackUrl);
+    if (!started) {
+      setAppleLoading(false);
+      setError("Sign in with Apple is available in the IndoVyapar Vendor iOS app.");
     }
   }
 
@@ -241,7 +319,7 @@ export function VendorLoginPage() {
 
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || appleLoading}
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#FF6A00] py-3.5 text-sm font-semibold text-white shadow-lg shadow-orange-500/25 transition hover:bg-[#E55F00] focus:outline-none focus:ring-2 focus:ring-[#FF6A00] focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-60"
               >
                 {loading ? (
@@ -266,8 +344,33 @@ export function VendorLoginPage() {
 
               <button
                 type="button"
+                onClick={handleAppleClick}
+                disabled={loading || appleLoading}
+                aria-label="Continue with Apple"
+                className="mt-4 flex w-full items-center justify-center gap-2.5 rounded-xl bg-black px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-black/30 disabled:pointer-events-none disabled:opacity-60"
+              >
+                {appleLoading ? (
+                  <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                ) : (
+                  <>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      className="h-5 w-5 shrink-0 fill-current"
+                      aria-hidden="true"
+                    >
+                      <path d="M16.365 1.43c0 1.14-.42 2.2-1.18 3.02-.78.86-2.06 1.52-3.18 1.43-.12-1.1.42-2.26 1.16-3.08.78-.86 2.14-1.5 3.2-1.37zM20.48 17.24c-.54 1.24-.8 1.8-1.5 2.9-.98 1.52-2.36 3.4-4.08 3.42-1.52.02-1.92-.98-4-.98-2.1 0-2.54.96-4.06.98-1.74.04-3.06-1.64-4.04-3.16-2.76-4.24-3.04-9.22-1.34-11.86 1.2-1.86 3.1-2.96 4.88-2.96 1.82 0 2.96 1 4.46 1 1.46 0 2.36-1 4.46-1 1.56 0 3.22.84 4.4 2.3-3.86 2.12-3.24 7.64.82 9.36z" />
+                    </svg>
+                    Continue with Apple
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
                 onClick={() => startVendorOAuthLogin("google", callbackUrl)}
-                className="mt-4 flex w-full items-center justify-center gap-2.5 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#FF6A00]/25"
+                disabled={loading || appleLoading}
+                className="mt-3 flex w-full items-center justify-center gap-2.5 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#FF6A00]/25 disabled:pointer-events-none disabled:opacity-60"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -292,7 +395,7 @@ export function VendorLoginPage() {
                     fill="#EA4335"
                   />
                 </svg>
-                Google
+                Continue with Google
               </button>
             </div>
 

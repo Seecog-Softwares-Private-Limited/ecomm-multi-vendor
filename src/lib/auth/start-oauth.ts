@@ -1,5 +1,8 @@
 import { hasNativeBridge, postToNative } from "@/lib/native-bridge";
 
+export const SIGN_IN_WITH_APPLE_MESSAGE = "SIGN_IN_WITH_APPLE";
+export const APPLE_AUTH_RESULT_MESSAGE = "APPLE_AUTH_RESULT";
+
 export type SocialOAuthProvider = "google" | "facebook";
 
 /** Set to true when Facebook OAuth is ready to ship. */
@@ -64,4 +67,19 @@ export function startVendorOAuthLogin(
   }
 
   window.location.assign(href);
+}
+
+/**
+ * Starts native Sign in with Apple from /vendor/login inside the iOS WebView.
+ * Returns false when the native bridge is unavailable (browser / Android).
+ */
+export function startVendorAppleLogin(returnUrl = "/vendor"): boolean {
+  if (typeof window === "undefined") return false;
+  if (!hasNativeBridge()) return false;
+
+  return postToNative({
+    type: "custom",
+    name: SIGN_IN_WITH_APPLE_MESSAGE,
+    payload: { returnUrl },
+  });
 }
