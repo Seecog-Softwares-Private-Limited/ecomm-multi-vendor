@@ -61,6 +61,8 @@
     "clsx": "2.1.1",
     "cmdk": "1.1.1",
     "embla-carousel-react": "8.6.0",
+    "expo-apple-authentication": "~8.0.8",
+    "expo-crypto": "~15.0.8",
     "input-otp": "1.4.2",
     "jose": "^5.9.6",
     "lucide-react": "0.487.0",

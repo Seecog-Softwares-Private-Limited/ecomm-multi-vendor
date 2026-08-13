@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "vendor-app",
+    "name": "IndoVyapar Vendor",
     "slug": "indo-vyapar-app",
-    "version": "1.0.7",
+    "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "vendorapp",
@@ -11,8 +11,10 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.blablabla0978.vendorapp",
-      "buildNumber": "10",
+      "buildNumber": "2",
+      "usesAppleSignIn": true,
       "infoPlist": {
+        "CFBundleDisplayName": "IndoVyapar Vendor",
         "NSCameraUsageDescription": "IndoVyapar Vendor uses the camera to photograph product images.",
         "NSMicrophoneUsageDescription": "IndoVyapar Vendor uses the microphone when recording product videos.",
         "NSPhotoLibraryUsageDescription": "IndoVyapar Vendor uses your photo library to attach product images."
@@ -39,6 +41,7 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
+      "expo-apple-authentication",
       [
         "expo-splash-screen",
         {
