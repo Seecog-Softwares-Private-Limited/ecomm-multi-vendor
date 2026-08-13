@@ -16,8 +16,6 @@ import {
   SafeAreaProvider,
   SafeAreaView,
 } from 'react-native-safe-area-context';
-import * as AppleAuthentication from 'expo-apple-authentication';
-import * as Crypto from 'expo-crypto';
 
 /** Bump with each store release — busts CDN/WebView cache for HTML on first load. */
 const APP_RELEASE = '1.0.7';
@@ -79,107 +77,6 @@ const DISABLE_ZOOM_SCRIPT = `
 })();
 true;
 `;
-
-async function createAppleNonce() {
-  const bytes = await Crypto.getRandomBytesAsync(32);
-  const rawNonce = Array.from(bytes)
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
-  const hashedNonce = await Crypto.digestStringAsync(
-    Crypto.CryptoDigestAlgorithm.SHA256,
-    rawNonce,
-  );
-  return { rawNonce, hashedNonce };
-}
-
-function injectAppleAuthResult(webRef, payload) {
-  if (!webRef?.current) return;
-  const message = JSON.stringify({
-    type: 'custom',
-    name: 'APPLE_AUTH_RESULT',
-    payload,
-  });
-  webRef.current.injectJavaScript(`
-    (function () {
-      try {
-        var data = ${JSON.stringify(message)};
-        var parsed = JSON.parse(data);
-        if (typeof window.__INDOVYAPAR_ON_APPLE_AUTH_RESULT__ === 'function') {
-          window.__INDOVYAPAR_ON_APPLE_AUTH_RESULT__(parsed.payload);
-        }
-        window.dispatchEvent(new MessageEvent('message', { data: data }));
-      } catch (e) {}
-    })();
-    true;
-  `);
-}
-
-async function runNativeAppleSignIn(webRef) {
-  try {
-    if (Platform.OS !== 'ios') {
-      injectAppleAuthResult(webRef, {
-        success: false,
-        message: 'Sign in with Apple is available on iOS.',
-      });
-      return;
-    }
-
-    const available = await AppleAuthentication.isAvailableAsync();
-    if (!available) {
-      injectAppleAuthResult(webRef, {
-        success: false,
-        message: 'Sign in with Apple is not available on this device.',
-      });
-      return;
-    }
-
-    const { rawNonce, hashedNonce } = await createAppleNonce();
-    const credential = await AppleAuthentication.signInAsync({
-      requestedScopes: [
-        AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
-        AppleAuthentication.AppleAuthenticationScope.EMAIL,
-      ],
-      nonce: hashedNonce,
-    });
-
-    if (!credential?.identityToken) {
-      injectAppleAuthResult(webRef, {
-        success: false,
-        message: 'Apple sign-in did not return an identity token. Please try again.',
-      });
-      return;
-    }
-
-    injectAppleAuthResult(webRef, {
-      success: true,
-      identityToken: credential.identityToken,
-      authorizationCode: credential.authorizationCode ?? null,
-      user: credential.user ?? null,
-      email: credential.email ?? null,
-      fullName: credential.fullName
-        ? {
-            givenName: credential.fullName.givenName ?? null,
-            familyName: credential.fullName.familyName ?? null,
-          }
-        : null,
-      nonce: rawNonce,
-    });
-  } catch (error) {
-    const code = error?.code;
-    if (code === 'ERR_REQUEST_CANCELED' || code === 'ERR_CANCELED') {
-      injectAppleAuthResult(webRef, {
-        success: false,
-        cancelled: true,
-        message: 'cancelled',
-      });
-      return;
-    }
-    injectAppleAuthResult(webRef, {
-      success: false,
-      message: 'Apple sign-in failed. Please try again.',
-    });
-  }
-}
 
 function VendorScreen() {
   const webRef = useRef(null);
@@ -308,10 +205,6 @@ function VendorScreen() {
       const msg = JSON.parse(event.nativeEvent.data);
       if (msg?.type === 'custom' && msg?.name === 'VENDOR_NAV_EXIT') {
         BackHandler.exitApp();
-        return;
-      }
-      if (msg?.type === 'custom' && msg?.name === 'SIGN_IN_WITH_APPLE') {
-        runNativeAppleSignIn(webRef);
         return;
       }
       if (
