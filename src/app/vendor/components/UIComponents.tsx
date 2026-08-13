@@ -419,20 +419,37 @@ export function FileUpload({
     if (fileUrl && onPreview) onPreview(fileUrl, viewTitle);
   };
 
+  const previewControlClass =
+    "relative z-20 pointer-events-auto inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700";
+
   return (
     <div className="space-y-2">
       {label && <label className="block text-sm font-semibold text-[#1E293B]">{label}</label>}
       <div
-        onClick={() => canReplace && inputRef.current?.click()}
-        className={`border-2 border-dashed ${
+        className={`relative overflow-hidden border-2 border-dashed ${
           error ? "border-[#DC2626]" : "border-[#E2E8F0]"
         } rounded-xl p-6 text-center transition-colors bg-[#F8FAFC] ${
           canReplace ? "cursor-pointer hover:border-[#3B82F6]" : showUploaded && onPreview ? "cursor-default" : "cursor-not-allowed opacity-80"
         }`}
       >
-        <input ref={inputRef} type="file" accept={accept} onChange={handleChange} className="hidden" disabled={disabled || uploading} />
+        {/*
+          Keep the input laid out (opacity-0 overlay) instead of display:none.
+          iPad presents the camera/file sheet as a popover and needs a real sourceView;
+          a hidden input has no frame and can crash WKWebView.
+        */}
+        {canReplace ? (
+          <input
+            ref={inputRef}
+            type="file"
+            accept={accept}
+            onChange={handleChange}
+            disabled={disabled || uploading}
+            aria-label={label ?? "Upload file"}
+            className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
+          />
+        ) : null}
         {uploading ? (
-          <div className="flex flex-col items-center justify-center gap-3">
+          <div className="relative z-0 flex flex-col items-center justify-center gap-3 pointer-events-none">
             <Loader className="w-10 h-10 text-[#3B82F6] animate-spin" />
             <p className="text-sm font-medium text-[#1E293B]">Uploading…</p>
             <div className="w-full max-w-xs h-2 bg-[#E2E8F0] rounded-full overflow-hidden">
@@ -440,22 +457,15 @@ export function FileUpload({
             </div>
           </div>
         ) : showImagePreview ? (
-          <div className="flex flex-col items-center justify-center gap-3">
-            <button
-              type="button"
-              onClick={openPreview}
-              className="rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
-              aria-label={`Preview ${viewTitle}`}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={fileUrl} alt={viewTitle} className="max-h-32 rounded-lg" />
-            </button>
+          <div className="relative z-0 flex flex-col items-center justify-center gap-3 pointer-events-none">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={fileUrl} alt={viewTitle} className="max-h-32 rounded-lg" />
             <div className="flex flex-wrap items-center justify-center gap-2">
               {onPreview && (
                 <button
                   type="button"
                   onClick={openPreview}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+                  className={previewControlClass}
                 >
                   <Eye className="h-4 w-4" />
                   Preview
@@ -465,14 +475,14 @@ export function FileUpload({
             </div>
           </div>
         ) : showUploaded ? (
-          <div className="flex flex-col items-center justify-center gap-3">
+          <div className="relative z-0 flex flex-col items-center justify-center gap-3 pointer-events-none">
             <CheckCircle className="w-10 h-10 text-green-600" />
             <p className="text-sm font-medium text-[#1E293B]">Document uploaded</p>
             {onPreview ? (
               <button
                 type="button"
                 onClick={openPreview}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+                className={previewControlClass}
               >
                 <Eye className="h-4 w-4" />
                 Preview
@@ -482,7 +492,7 @@ export function FileUpload({
                 href={fileUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-sm text-[#3B82F6] hover:underline"
+                className="relative z-20 pointer-events-auto text-sm text-[#3B82F6] hover:underline"
                 onClick={(e) => e.stopPropagation()}
               >
                 View uploaded file
@@ -491,7 +501,7 @@ export function FileUpload({
             {canReplace && <p className="text-xs text-[#94A3B8]">Click area to replace</p>}
           </div>
         ) : (
-          <div>
+          <div className="relative z-0 pointer-events-none">
             <p className="mb-2 text-slate-600">{canReplace ? "Click to upload or drag and drop" : "No document uploaded"}</p>
             <p className="text-sm text-slate-500">{helperText || "PDF, PNG, JPG (max 5MB)"}</p>
           </div>

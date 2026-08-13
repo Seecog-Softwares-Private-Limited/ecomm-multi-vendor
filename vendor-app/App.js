@@ -18,7 +18,7 @@ import {
 } from 'react-native-safe-area-context';
 
 /** Bump with each store release — busts CDN/WebView cache for HTML on first load. */
-const APP_RELEASE = '1.0.6';
+const APP_RELEASE = '1.0.7';
 
 /**
  * Vendor home — middleware sends unauthenticated users to /vendor/login;
@@ -28,12 +28,20 @@ const APP_RELEASE = '1.0.6';
 const VENDOR_DASHBOARD_URI = `https://indovyapar.com/vendor?app=1&v=${APP_RELEASE}`;
 
 /**
- * Mobile Chrome UA — must match phone Chrome so CDN/server serve the same bundles as the browser.
- * Desktop UA caused stale/different cached JS in WebView vs Chrome on the same device.
- * If Google OAuth fails, try removing userAgent from WebView.
+ * Platform-native mobile UA. An Android Chrome UA on iOS WKWebView can break
+ * the system file/camera picker. Desktop UA previously served the wrong bundles.
  */
-const WEBVIEW_USER_AGENT =
+const ANDROID_WEBVIEW_USER_AGENT =
   'Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36';
+const IPHONE_WEBVIEW_USER_AGENT =
+  'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';
+const IPAD_WEBVIEW_USER_AGENT =
+  'Mozilla/5.0 (iPad; CPU OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';
+
+function getWebViewUserAgent() {
+  if (Platform.OS !== 'ios') return ANDROID_WEBVIEW_USER_AGENT;
+  return Platform.isPad ? IPAD_WEBVIEW_USER_AGENT : IPHONE_WEBVIEW_USER_AGENT;
+}
 
 /** Disable pinch-zoom + clear stale SW/cache once per app release (post-deploy chunk mismatch). */
 const DISABLE_ZOOM_SCRIPT = `
@@ -238,7 +246,7 @@ function VendorScreen() {
       thirdPartyCookiesEnabled
       mixedContentMode="compatibility"
       incognito={false}
-      userAgent={WEBVIEW_USER_AGENT}
+      userAgent={getWebViewUserAgent()}
       originWhitelist={['*']}
       bounces={false}
       injectedJavaScriptBeforeContentLoaded={DISABLE_ZOOM_SCRIPT}
