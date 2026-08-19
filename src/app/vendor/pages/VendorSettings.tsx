@@ -1,6 +1,6 @@
 "use client";
 
-import { Lock, User, CreditCard, Bell, Save, Eye, EyeOff } from "lucide-react";
+import { Lock, User, CreditCard, Bell, Save, Eye, EyeOff, Trash2 } from "lucide-react";
 import { Button, Input, Card, Alert, Toggle, Modal } from "../components/UIComponents";
 import { vendorService } from "@/services/vendor.service";
 import { useApi } from "@/lib/hooks/useApi";
@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import * as React from "react";
 
 const DEACTIVATE_CONFIRM_PHRASE = "DEACTIVATE";
+const DELETE_CONFIRM_PHRASE = "DELETE";
 
 export function VendorSettings() {
   const router = useRouter();
@@ -38,6 +39,13 @@ export function VendorSettings() {
   const [deactivateConfirm, setDeactivateConfirm] = React.useState("");
   const [deactivating, setDeactivating] = React.useState(false);
   const [deactivateError, setDeactivateError] = React.useState<string | null>(null);
+
+  // Delete Account state
+  const [showDeleteModal, setShowDeleteModal] = React.useState(false);
+  const [deletePassword, setDeletePassword] = React.useState("");
+  const [deleteConfirm, setDeleteConfirm] = React.useState("");
+  const [deleting, setDeleting] = React.useState(false);
+  const [deleteError, setDeleteError] = React.useState<string | null>(null);
 
   const accountAlreadyInactive =
     me?.status === "on_hold" || me?.status === "blocked" || me?.rawStatus === "ON_HOLD" || me?.rawStatus === "SUSPENDED";
@@ -88,6 +96,47 @@ export function VendorSettings() {
     setDeactivatePassword("");
     setDeactivateConfirm("");
     setDeactivateError(null);
+  };
+
+  const openDeleteModal = () => {
+    setDeletePassword("");
+    setDeleteConfirm("");
+    setDeleteError(null);
+    setShowDeleteModal(true);
+  };
+
+  const closeDeleteModal = () => {
+    if (deleting) return;
+    setShowDeleteModal(false);
+    setDeletePassword("");
+    setDeleteConfirm("");
+    setDeleteError(null);
+  };
+
+  const handleDeleteAccount = async () => {
+    setDeleteError(null);
+    setDeleting(true);
+    try {
+      const payload: { password?: string; confirm?: string } = {};
+      if (deletePassword.trim()) {
+        payload.password = deletePassword;
+      } else {
+        payload.confirm = deleteConfirm.trim();
+      }
+      await vendorService.deleteAccount(payload);
+      setShowDeleteModal(false);
+      router.push("/vendor/login?deleted=1");
+    } catch (err) {
+      const message =
+        err instanceof ServiceError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "Failed to delete account. Please try again.";
+      setDeleteError(message);
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const handleDeactivateAccount = async () => {
@@ -366,6 +415,7 @@ export function VendorSettings() {
       {/* Danger Zone */}
       <Card title="Danger Zone">
         <div className="space-y-4">
+          {/* Deactivate Account */}
           <div className="bg-red-50 border-2 border-red-200 rounded-xl p-6">
             <h4 className="font-semibold text-red-800 mb-2">Deactivate Account</h4>
             <p className="text-sm text-red-700 mb-4">
@@ -382,8 +432,87 @@ export function VendorSettings() {
               </Button>
             )}
           </div>
+
+          {/* Delete Account (Apple Guideline 5.1.1(v)) */}
+          <div className="bg-red-50 border-2 border-red-600 rounded-xl p-6">
+            <div className="flex items-center gap-2 mb-2">
+              <Trash2 className="h-5 w-5 text-red-700 shrink-0" />
+              <h4 className="font-bold text-red-800">Delete Account</h4>
+            </div>
+            <p className="text-sm text-red-700 mb-1">
+              Permanently deletes your vendor account and associated personal data. <strong>This cannot be undone.</strong>
+            </p>
+            <p className="text-sm text-red-600 mb-4">
+              Some historically required records (e.g. completed order references, settlements) may be
+              retained in anonymised form as required by law.
+            </p>
+            <Button variant="danger" size="sm" onClick={openDeleteModal}>
+              <Trash2 className="h-4 w-4" />
+              Delete Account
+            </Button>
+          </div>
         </div>
       </Card>
+
+      {/* Delete Account Modal */}
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={closeDeleteModal}
+        title="Delete Account Permanently"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <Alert
+            type="error"
+            title="This action is permanent and cannot be undone."
+            message="Deleting your account will permanently remove your profile, vendor documents, bank information, notifications, and products that are not part of existing orders. Some historical order and financial records may be retained in anonymised form as required by law."
+          />
+
+          <Input
+            label="Password"
+            type="password"
+            placeholder="Enter your account password"
+            value={deletePassword}
+            onChange={(e) => setDeletePassword(e.target.value)}
+            helperText={`If you signed in with Google or Apple, leave password blank and type ${DELETE_CONFIRM_PHRASE} below.`}
+          />
+
+          {!deletePassword.trim() && (
+            <Input
+              label={`Type ${DELETE_CONFIRM_PHRASE} to confirm`}
+              placeholder={DELETE_CONFIRM_PHRASE}
+              value={deleteConfirm}
+              onChange={(e) => setDeleteConfirm(e.target.value)}
+            />
+          )}
+
+          {deleteError && (
+            <Alert type="error" message={deleteError} />
+          )}
+
+          <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
+            <Button
+              variant="ghost"
+              className="min-h-11 w-full sm:w-auto"
+              onClick={closeDeleteModal}
+              disabled={deleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              className="min-h-11 w-full sm:w-auto"
+              onClick={handleDeleteAccount}
+              disabled={
+                deleting ||
+                (!deletePassword.trim() && deleteConfirm.trim() !== DELETE_CONFIRM_PHRASE)
+              }
+            >
+              {deleting ? "Deleting…" : "Permanently Delete Account"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       <Modal
         isOpen={showDeactivateModal}

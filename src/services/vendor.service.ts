@@ -319,6 +319,13 @@ export const vendorService = {
     });
   },
 
+  async deleteAccount(payload: { password?: string; confirm?: string }): Promise<{ message: string; mode: string }> {
+    return request<{ message: string; mode: string }>(`${VENDOR_BASE}/me`, {
+      method: "DELETE",
+      body: payload,
+    });
+  },
+
   /** Upload a product image. Returns the public URL to use in imageUrls. */
   async uploadImage(file: File): Promise<{ url: string }> {
     const formData = new FormData();

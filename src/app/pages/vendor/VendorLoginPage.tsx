@@ -44,6 +44,11 @@ export function VendorLoginPage() {
         "Your vendor account has been deactivated. Contact support to reactivate."
       );
     }
+    if (searchParams.get("deleted") === "1") {
+      setSuccessMessage(
+        "Your account has been permanently deleted. All personal data has been removed."
+      );
+    }
   }, [searchParams]);
 
   useEffect(() => {
