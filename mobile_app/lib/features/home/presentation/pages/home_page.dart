@@ -102,7 +102,6 @@ class HomePage extends ConsumerWidget {
         onProductTap: (p) => _openProduct(context, p),
         isWishlisted: (p) => wishlisted.contains(p.id),
         onWishlistTap: (p) => ref.toggleWishlist(context, p.id),
-        onAddToCart: (p) => ref.addToCart(context, p.id),
         emptyTitle: 'Nothing here yet',
         emptyMessage: 'Products will appear here once sellers add them.',
       ),

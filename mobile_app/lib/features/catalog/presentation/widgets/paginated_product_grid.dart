@@ -17,7 +17,6 @@ class PaginatedProductGrid extends StatefulWidget {
     required this.onProductTap,
     this.isWishlisted,
     this.onWishlistTap,
-    this.onAddToCart,
     this.transform,
     this.header,
     this.pageSize = 12,
@@ -30,7 +29,6 @@ class PaginatedProductGrid extends StatefulWidget {
   final void Function(Product product) onProductTap;
   final bool Function(Product product)? isWishlisted;
   final void Function(Product product)? onWishlistTap;
-  final void Function(Product product)? onAddToCart;
   final List<Product> Function(List<Product> items)? transform;
   final Widget? header;
   final int pageSize;
@@ -167,7 +165,9 @@ class _PaginatedProductGridState extends State<PaginatedProductGrid> {
                 crossAxisCount: columns,
                 mainAxisSpacing: AppSpacing.lg,
                 crossAxisSpacing: AppSpacing.lg,
-                childAspectRatio: 0.62,
+                // Compact Flipkart-style card (image + title + rating + price).
+                // 0.58 leaves enough height for a 2-line title without unused empty space.
+                childAspectRatio: 0.58,
               ),
               delegate: SliverChildBuilderDelegate(
                 (context, index) {
@@ -179,9 +179,6 @@ class _PaginatedProductGridState extends State<PaginatedProductGrid> {
                     onWishlistTap: widget.onWishlistTap == null
                         ? null
                         : () => widget.onWishlistTap!(product),
-                    onAddToCart: widget.onAddToCart == null
-                        ? null
-                        : () => widget.onAddToCart!(product),
                   );
                 },
                 childCount: display.length,

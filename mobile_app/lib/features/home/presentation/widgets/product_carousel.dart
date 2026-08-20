@@ -56,6 +56,7 @@ class ProductCarousel extends ConsumerWidget {
                 ],
               ),
             ),
+            // Width 168 → square image 168 + padding/title/rating/price ≈ 286. 296 fits without excess empty space.
             SizedBox(
               height: 296,
               child: ListView.separated(
@@ -71,7 +72,6 @@ class ProductCarousel extends ConsumerWidget {
                     onTap: () => onProductTap(product),
                     isWishlisted: wishlisted.contains(product.id),
                     onWishlistTap: () => ref.toggleWishlist(context, product.id),
-                    onAddToCart: () => ref.addToCart(context, product.id),
                   );
                 },
               ),
@@ -89,7 +89,7 @@ class _CarouselSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 340,
+      height: 296,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.all(AppSpacing.lg),

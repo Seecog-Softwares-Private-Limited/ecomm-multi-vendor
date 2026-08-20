@@ -101,7 +101,6 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       onProductTap: (p) => context.push(AppRoutes.productPath(p.slug)),
       isWishlisted: (p) => wishlisted.contains(p.id),
       onWishlistTap: (p) => ref.toggleWishlist(context, p.id),
-      onAddToCart: (p) => ref.addToCart(context, p.id),
       emptyTitle: 'No results for "$query"',
       emptyMessage: 'Try a different search term or adjust your filters.',
     );

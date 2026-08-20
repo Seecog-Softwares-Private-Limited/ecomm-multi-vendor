@@ -116,6 +116,9 @@ jobs:
           ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
           RSYNC_SSH="ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new -o ServerAliveInterval=30 -o ServerAliveCountMax=120"
           DEST="${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/"
+          # IMPORTANT: never sync/delete vendor product images or KYC docs.
+          # Uploads live on the server under PUBLIC_UPLOAD_ROOT (or public/uploads).
+          # Without these excludes, --delete wipes every uploaded file on each deploy.
           rsync -avz --delete \
             -e "$RSYNC_SSH" \
             --exclude '.git' \
@@ -125,6 +128,8 @@ jobs:
             --exclude '.env' \
             --exclude '.env.*' \
             --exclude '.next/cache' \
+            --exclude 'public/uploads/' \
+            --exclude 'public/uploads/**' \
             ./ "$DEST"
           $RSYNC_SSH "${DEPLOY_USER}@${DEPLOY_HOST}" "cd '${DEPLOY_PATH}' && bash ./server-restart.sh --restart-only"
 
