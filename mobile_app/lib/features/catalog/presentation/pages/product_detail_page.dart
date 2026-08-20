@@ -568,7 +568,6 @@ class _RelatedSection extends ConsumerWidget {
                       product: product,
                       width: 168,
                       onTap: () => context.push(AppRoutes.productPath(product.slug)),
-                      onAddToCart: () => ref.addToCart(context, product.id),
                     );
                   },
                 ),

@@ -133,7 +133,6 @@ class _CategoryProductsPageState extends ConsumerState<CategoryProductsPage> {
               onProductTap: (p) => context.push(AppRoutes.productPath(p.slug)),
               isWishlisted: (p) => wishlisted.contains(p.id),
               onWishlistTap: (p) => ref.toggleWishlist(context, p.id),
-              onAddToCart: (p) => ref.addToCart(context, p.id),
               emptyTitle: 'No products here',
               emptyMessage: 'Try another category or adjust filters.',
             ),

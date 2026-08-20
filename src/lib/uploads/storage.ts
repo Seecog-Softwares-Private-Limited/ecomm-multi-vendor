@@ -1,14 +1,17 @@
 import path from "node:path";
-import { existsSync } from "node:fs";
 
 /**
- * Absolute path to `public/uploads` (KYC, vendor-docs, product images).
+ * Absolute path to product/KYC/avatar uploads.
  *
- * On production (PM2, systemd), `process.cwd()` is often wrong — set:
- *   PUBLIC_UPLOAD_ROOT=/full/path/to/your/project/public/uploads
+ * On production (PM2 + GitHub rsync deploy), NEVER store uploads only under the
+ * app tree's `public/uploads` without excluding that path from rsync --delete —
+ * each deploy would wipe every vendor image (HTTP 404 on /uploads/*).
  *
- * Standalone (`output: 'standalone'`): cwd is usually `.next/standalone` and
- * `public/` is copied next to it; default `join(cwd, 'public', 'uploads')` works.
+ * Prefer an absolute path outside the deploy directory, e.g.:
+ *   PUBLIC_UPLOAD_ROOT=/home/bitnami/projects/data/ecomm-uploads
+ *
+ * ecosystem.config.cjs sets a sibling `../data/ecomm-uploads` by default.
+ * Fallback when unset: `join(cwd, 'public', 'uploads')` (OK for local dev only).
  */
 export function getPublicUploadsRoot(): string {
   const fromEnv = process.env.PUBLIC_UPLOAD_ROOT?.trim();

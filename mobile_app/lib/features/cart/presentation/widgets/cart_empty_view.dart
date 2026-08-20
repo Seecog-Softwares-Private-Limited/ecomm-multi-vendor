@@ -96,7 +96,6 @@ class CartEmptyView extends ConsumerWidget {
                         onTap: () => context.push(AppRoutes.productPath(product.slug)),
                         isWishlisted: wishlisted.contains(product.id),
                         onWishlistTap: () => ref.toggleWishlist(context, product.id),
-                        onAddToCart: () => ref.addToCart(context, product.id),
                       );
                     },
                   ),

@@ -6,15 +6,14 @@ import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/app_cached_image.dart';
 import '../../domain/entities/product.dart';
 
-/// Reusable product card used in grids and carousels. All actions are optional
-/// callbacks so it can be embedded anywhere without depending on cart/wishlist.
+/// Reusable product card used in grids and carousels.
+/// Tap opens product details; wishlist is optional. Purchase actions live on PDP.
 class ProductCard extends StatelessWidget {
   const ProductCard({
     required this.product,
     required this.onTap,
     this.onWishlistTap,
     this.isWishlisted = false,
-    this.onAddToCart,
     this.width,
     super.key,
   });
@@ -23,7 +22,6 @@ class ProductCard extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback? onWishlistTap;
   final bool isWishlisted;
-  final VoidCallback? onAddToCart;
   final double? width;
 
   @override
@@ -155,21 +153,6 @@ class ProductCard extends StatelessWidget {
                       ],
                     ],
                   ),
-                  if (onAddToCart != null) ...[
-                    const SizedBox(height: AppSpacing.sm),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: onAddToCart,
-                        style: OutlinedButton.styleFrom(
-                          minimumSize: const Size.fromHeight(38),
-                          padding: EdgeInsets.zero,
-                        ),
-                        icon: const Icon(Icons.add_shopping_cart, size: 16),
-                        label: const Text('Add'),
-                      ),
-                    ),
-                  ],
                 ],
               ),
             ),

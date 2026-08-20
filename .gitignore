@@ -54,3 +54,7 @@ dist/ecomm-linux-server-bundle.tar.gz
 # Misc
 *.pem
 node_modules
+
+# Runtime uploads (product images, KYC) — never commit; live on the server under PUBLIC_UPLOAD_ROOT
+public/uploads/**
+!public/uploads/.gitkeep
