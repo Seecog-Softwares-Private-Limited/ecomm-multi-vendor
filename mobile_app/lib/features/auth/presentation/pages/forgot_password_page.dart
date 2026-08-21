@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/error/failure.dart';
+import '../../../../core/theme/app_adaptive_colors.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/utils/validators.dart';
@@ -119,7 +120,7 @@ class _SentView extends StatelessWidget {
           width: 96,
           height: 96,
           alignment: Alignment.center,
-          decoration: const BoxDecoration(color: AppColors.primarySurface, shape: BoxShape.circle),
+          decoration: BoxDecoration(color: context.adaptiveColors.primarySurface, shape: BoxShape.circle),
           child: const Icon(Icons.mark_email_read_outlined, color: AppColors.primary, size: 48),
         ),
         const SizedBox(height: AppSpacing.xl),
@@ -128,7 +129,7 @@ class _SentView extends StatelessWidget {
         Text(
           message,
           textAlign: TextAlign.center,
-          style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+          style: theme.textTheme.bodyMedium?.copyWith(color: context.adaptiveColors.textSecondary),
         ),
         const SizedBox(height: AppSpacing.xxxl),
         AppButton(label: 'Back to sign in', onPressed: onBack),

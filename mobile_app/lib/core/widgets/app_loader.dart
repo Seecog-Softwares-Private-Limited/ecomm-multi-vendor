@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../theme/app_adaptive_colors.dart';
 import '../theme/app_colors.dart';
 
 /// Standard centered loading indicator with an optional caption.
@@ -24,7 +25,9 @@ class AppLoader extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               message!,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: context.adaptiveColors.textSecondary,
+                  ),
             ),
           ],
         ],

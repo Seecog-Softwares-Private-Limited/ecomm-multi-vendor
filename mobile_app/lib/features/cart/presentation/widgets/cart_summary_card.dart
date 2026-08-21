@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/theme/app_adaptive_colors.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/utils/formatters.dart';
@@ -21,13 +22,14 @@ class CartSummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final adaptive = context.adaptiveColors;
     final totalSavings = summary.savings + summary.couponDiscount;
 
     return Container(
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.border.withValues(alpha: 0.7)),
+        border: Border.all(color: adaptive.border.withValues(alpha: 0.7)),
       ),
       padding: EdgeInsets.all(compact ? AppSpacing.md : AppSpacing.lg),
       child: Column(
@@ -35,10 +37,12 @@ class CartSummaryCard extends StatelessWidget {
         children: [
           Text(title, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
           const SizedBox(height: AppSpacing.md),
-          _row(theme, 'Items Total', Formatters.rupees(summary.subtotal)),
+          _row(context, theme, 'Items Total', Formatters.rupees(summary.subtotal)),
           if (summary.savings > 0)
-            _row(theme, 'Discount', '- ${Formatters.rupees(summary.savings)}', valueColor: AppColors.success),
+            _row(context, theme, 'Discount', '- ${Formatters.rupees(summary.savings)}',
+                valueColor: AppColors.success),
           _row(
+            context,
             theme,
             'Delivery Charges',
             summary.shipping == 0 ? 'FREE' : Formatters.rupees(summary.shipping),
@@ -46,12 +50,13 @@ class CartSummaryCard extends StatelessWidget {
           ),
           if (summary.couponDiscount > 0)
             _row(
+              context,
               theme,
               'Coupon Discount',
               '- ${Formatters.rupees(summary.couponDiscount)}',
               valueColor: AppColors.success,
             ),
-          if (!compact) _row(theme, 'Tax (GST)', Formatters.rupees(summary.tax)),
+          if (!compact) _row(context, theme, 'Tax (GST)', Formatters.rupees(summary.tax)),
           const Padding(
             padding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
             child: Divider(),
@@ -90,14 +95,26 @@ class CartSummaryCard extends StatelessWidget {
     );
   }
 
-  Widget _row(ThemeData theme, String label, String value, {Color? valueColor}) {
+  Widget _row(
+    BuildContext context,
+    ThemeData theme,
+    String label,
+    String value, {
+    Color? valueColor,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary)),
-          Text(value, style: theme.textTheme.bodyMedium?.copyWith(color: valueColor, fontWeight: FontWeight.w600)),
+          Text(
+            label,
+            style: theme.textTheme.bodyMedium?.copyWith(color: context.adaptiveColors.textSecondary),
+          ),
+          Text(
+            value,
+            style: theme.textTheme.bodyMedium?.copyWith(color: valueColor, fontWeight: FontWeight.w600),
+          ),
         ],
       ),
     );

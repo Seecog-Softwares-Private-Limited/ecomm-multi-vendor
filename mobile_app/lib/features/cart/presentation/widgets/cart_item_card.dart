@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/routing/app_routes.dart';
+import '../../../../core/theme/app_adaptive_colors.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/utils/formatters.dart';
@@ -41,6 +42,7 @@ class CartItemCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final adaptive = context.adaptiveColors;
     final product = item.product;
     final notifier = ref.read(cartControllerProvider.notifier);
     final imageSize = compact ? 72.0 : 100.0;
@@ -83,14 +85,14 @@ class CartItemCard extends ConsumerWidget {
                       const SizedBox(height: AppSpacing.xs),
                       Text(
                         _variantLabel,
-                        style: theme.textTheme.labelSmall?.copyWith(color: AppColors.textSecondary),
+                        style: theme.textTheme.labelSmall?.copyWith(color: adaptive.textSecondary),
                       ),
                     ],
                     if (product.sellerName != null && product.sellerName!.isNotEmpty) ...[
                       const SizedBox(height: AppSpacing.xs),
                       Text(
                         'Sold by ${product.sellerName}',
-                        style: theme.textTheme.labelSmall?.copyWith(color: AppColors.textMuted),
+                        style: theme.textTheme.labelSmall?.copyWith(color: adaptive.textMuted),
                       ),
                     ],
                     const SizedBox(height: AppSpacing.sm),
@@ -195,7 +197,7 @@ class _ActionChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final effectiveColor = color ?? AppColors.textSecondary;
+    final effectiveColor = color ?? context.adaptiveColors.textSecondary;
     return Semantics(
       button: true,
       label: label,
@@ -234,6 +236,7 @@ class CartStickySummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final adaptive = context.adaptiveColors;
     final totalSavings = summary.savings + summary.couponDiscount;
 
     return SafeArea(
@@ -243,7 +246,7 @@ class CartStickySummary extends StatelessWidget {
           color: theme.colorScheme.surface,
           boxShadow: [
             BoxShadow(
-              color: AppColors.textPrimary.withValues(alpha: 0.08),
+              color: adaptive.shadow,
               blurRadius: 20,
               offset: const Offset(0, -4),
             ),
@@ -274,7 +277,7 @@ class CartStickySummary extends StatelessWidget {
                     children: [
                       Text(
                         '$itemCount item${itemCount == 1 ? '' : 's'}',
-                        style: theme.textTheme.labelSmall?.copyWith(color: AppColors.textMuted),
+                        style: theme.textTheme.labelSmall?.copyWith(color: adaptive.textMuted),
                       ),
                       Text(
                         Formatters.rupees(summary.total),

@@ -6,6 +6,7 @@ import '../../../../app/routing/app_routes.dart';
 import '../../../../app/routing/shell_navigation.dart';
 import '../../../../core/di/providers.dart';
 import '../../../../core/error/failure.dart';
+import '../../../../core/theme/app_adaptive_colors.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/widgets/app_button.dart';
@@ -316,7 +317,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                     decoration: BoxDecoration(
-                                      color: AppColors.primarySurface,
+                                      color: context.adaptiveColors.primarySurface,
                                       borderRadius: BorderRadius.circular(AppRadius.xs),
                                     ),
                                     child: Text(
@@ -401,7 +402,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                     padding: const EdgeInsets.only(top: AppSpacing.sm),
                     child: Text(
                       'Secured by Razorpay. Complete payment after placing the order.',
-                      style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: context.adaptiveColors.textSecondary,
+                      ),
                     ),
                   ),
                 const SizedBox(height: 100),
@@ -416,7 +419,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                   color: theme.colorScheme.surface,
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.textPrimary.withValues(alpha: 0.06),
+                      color: context.adaptiveColors.shadow,
                       blurRadius: 16,
                       offset: const Offset(0, -4),
                     ),
@@ -453,6 +456,7 @@ class _PaymentOption extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final selected = value == groupValue;
+    final adaptive = context.adaptiveColors;
     return Semantics(
       label: title,
       selected: selected,
@@ -466,14 +470,14 @@ class _PaymentOption extends StatelessWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(AppRadius.md),
               border: Border.all(
-                color: selected ? AppColors.primary : AppColors.border,
+                color: selected ? AppColors.primary : adaptive.border,
                 width: selected ? 2 : 1,
               ),
-              color: selected ? AppColors.primarySurface.withValues(alpha: 0.4) : null,
+              color: selected ? adaptive.primarySurface.withValues(alpha: 0.4) : null,
             ),
             child: Row(
               children: [
-                Icon(icon, color: selected ? AppColors.primary : AppColors.textSecondary),
+                Icon(icon, color: selected ? AppColors.primary : adaptive.textSecondary),
                 const SizedBox(width: AppSpacing.md),
                 Expanded(
                   child: Column(
@@ -487,7 +491,7 @@ class _PaymentOption extends StatelessWidget {
                 if (selected)
                   const Icon(Icons.check_circle, color: AppColors.primary)
                 else
-                  Icon(Icons.circle_outlined, color: AppColors.border),
+                  Icon(Icons.circle_outlined, color: adaptive.border),
               ],
             ),
           ),

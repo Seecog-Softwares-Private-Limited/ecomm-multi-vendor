@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/theme/app_adaptive_colors.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 
@@ -25,15 +26,16 @@ class CheckoutExpandableSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final adaptive = context.adaptiveColors;
     return Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.md),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.border.withValues(alpha: 0.7)),
+        border: Border.all(color: adaptive.border.withValues(alpha: 0.7)),
         boxShadow: [
           BoxShadow(
-            color: AppColors.textPrimary.withValues(alpha: 0.03),
+            color: adaptive.shadow,
             blurRadius: 12,
             offset: const Offset(0, 2),
           ),
@@ -49,14 +51,14 @@ class CheckoutExpandableSection extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: AppColors.primarySurface,
+              color: adaptive.primarySurface,
               borderRadius: BorderRadius.circular(AppRadius.md),
             ),
             child: Icon(icon, color: AppColors.primary, size: 20),
           ),
           title: Text(title, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
           subtitle: subtitle != null
-              ? Text(subtitle!, style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textSecondary))
+              ? Text(subtitle!, style: theme.textTheme.bodySmall?.copyWith(color: adaptive.textSecondary))
               : null,
           trailing: trailing,
           children: [child],

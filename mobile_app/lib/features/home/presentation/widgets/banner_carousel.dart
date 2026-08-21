@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/theme/app_adaptive_colors.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 
@@ -158,7 +159,7 @@ class _BannerCarouselState extends State<BannerCarousel> {
                 width: i == _index ? 20 : 7,
                 height: 7,
                 decoration: BoxDecoration(
-                  color: i == _index ? AppColors.primary : AppColors.border,
+                  color: i == _index ? AppColors.primary : context.adaptiveColors.border,
                   borderRadius: BorderRadius.circular(4),
                 ),
               ),

@@ -12,9 +12,9 @@ import '../../../core/theme/app_colors.dart';
     case 'RESOLVED':
       return (label: 'Resolved', color: AppColors.success, icon: Icons.check_circle_outline);
     case 'CLOSED':
-      return (label: 'Closed', color: AppColors.textSecondary, icon: Icons.lock_outline);
+      return (label: 'Closed', color: AppColors.textMuted, icon: Icons.lock_outline);
     default:
-      return (label: status, color: AppColors.textSecondary, icon: Icons.info_outline);
+      return (label: status, color: AppColors.textMuted, icon: Icons.info_outline);
   }
 }
 

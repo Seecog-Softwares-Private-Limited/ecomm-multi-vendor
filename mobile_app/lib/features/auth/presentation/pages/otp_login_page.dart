@@ -7,7 +7,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/routing/app_routes.dart';
 import '../../../../core/error/failure.dart';
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_adaptive_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../core/widgets/app_button.dart';
@@ -154,7 +154,7 @@ class _OtpLoginPageState extends ConsumerState<OtpLoginPage> {
                       children: [
                         Text(
                           "Didn't get the code?",
-                          style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+                          style: theme.textTheme.bodyMedium?.copyWith(color: context.adaptiveColors.textSecondary),
                         ),
                         TextButton(
                           onPressed: _resendIn > 0 || _busy ? null : () => _sendOtp(resend: true),

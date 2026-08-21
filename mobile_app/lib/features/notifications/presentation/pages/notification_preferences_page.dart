@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/error/failure.dart';
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_adaptive_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/widgets/app_loader.dart';
 import '../../../../core/widgets/app_snackbar.dart';
@@ -18,6 +18,7 @@ class NotificationPreferencesPage extends ConsumerWidget {
     final async = ref.watch(notificationPreferencesControllerProvider);
     final notifier = ref.read(notificationPreferencesControllerProvider.notifier);
     final theme = Theme.of(context);
+    final adaptive = context.adaptiveColors;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -34,7 +35,7 @@ class NotificationPreferencesPage extends ConsumerWidget {
           children: [
             Text(
               'Choose what you want to be notified about',
-              style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+              style: theme.textTheme.bodyMedium?.copyWith(color: adaptive.textSecondary),
             ),
             const SizedBox(height: AppSpacing.lg),
             for (final field in kNotificationPreferenceFields)
@@ -75,16 +76,17 @@ class _PreferenceTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final adaptive = context.adaptiveColors;
     return Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.border.withValues(alpha: 0.7)),
+        border: Border.all(color: adaptive.border.withValues(alpha: 0.7)),
       ),
       child: SwitchListTile(
         title: Text(title, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
-        subtitle: Text(subtitle, style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textSecondary)),
+        subtitle: Text(subtitle, style: theme.textTheme.bodySmall?.copyWith(color: adaptive.textSecondary)),
         value: value,
         onChanged: onChanged,
         contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.xs),

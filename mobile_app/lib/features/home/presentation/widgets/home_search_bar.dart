@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_adaptive_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 
 /// Non-editable search entry point on the home screen; tapping opens search.
@@ -12,6 +12,7 @@ class HomeSearchBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final adaptive = context.adaptiveColors;
     return Material(
       color: theme.colorScheme.surface,
       borderRadius: BorderRadius.circular(AppRadius.pill),
@@ -22,19 +23,19 @@ class HomeSearchBar extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(AppRadius.pill),
-            border: Border.all(color: theme.dividerColor),
+            border: Border.all(color: adaptive.border),
           ),
           child: Row(
             children: [
-              const Icon(Icons.search, color: AppColors.textMuted),
+              Icon(Icons.search, color: adaptive.textMuted),
               const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: Text(
                   'Search for products, brands and more',
-                  style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.textMuted),
+                  style: theme.textTheme.bodyMedium?.copyWith(color: adaptive.textMuted),
                 ),
               ),
-              const Icon(Icons.mic_none, color: AppColors.textMuted),
+              Icon(Icons.mic_none, color: adaptive.textMuted),
             ],
           ),
         ),

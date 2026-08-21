@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/theme/app_adaptive_colors.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 
@@ -30,7 +31,7 @@ class AuthHeader extends StatelessWidget {
         const SizedBox(height: AppSpacing.xs),
         Text(
           subtitle,
-          style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+          style: theme.textTheme.bodyMedium?.copyWith(color: context.adaptiveColors.textSecondary),
         ),
       ],
     );

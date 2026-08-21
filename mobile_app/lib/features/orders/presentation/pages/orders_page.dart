@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/routing/app_routes.dart';
+import '../../../../core/theme/app_adaptive_colors.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/widgets/app_snackbar.dart';
@@ -119,7 +120,7 @@ class _OrdersPageState extends ConsumerState<OrdersPage> {
                       ),
                       selected: statusFilter == chip.$1,
                       onSelected: (_) => ref.read(ordersStatusFilterProvider.notifier).update(chip.$1),
-                      selectedColor: AppColors.primarySurface,
+                      selectedColor: context.adaptiveColors.primarySurface,
                       checkmarkColor: AppColors.primary,
                     ),
                   ),

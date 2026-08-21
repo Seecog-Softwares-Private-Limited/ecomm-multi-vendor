@@ -90,7 +90,7 @@ class _TrackerCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.border.withValues(alpha: 0.7)),
+        border: Border.all(color: context.adaptiveColors.border.withValues(alpha: 0.7)),
       ),
       child: child,
     );

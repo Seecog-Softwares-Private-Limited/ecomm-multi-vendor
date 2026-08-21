@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/di/providers.dart';
+import '../../../../core/theme/app_adaptive_colors.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../settings_controller.dart';
@@ -76,12 +77,13 @@ class _SelectTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final adaptive = context.adaptiveColors;
     return ListTile(
-      leading: Icon(icon, color: selected ? AppColors.primary : AppColors.textSecondary),
+      leading: Icon(icon, color: selected ? AppColors.primary : adaptive.textSecondary),
       title: Text(label),
       trailing: Icon(
         selected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-        color: selected ? AppColors.primary : AppColors.textMuted,
+        color: selected ? AppColors.primary : adaptive.textMuted,
       ),
       onTap: onTap,
     );

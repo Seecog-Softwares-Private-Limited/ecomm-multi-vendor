@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/theme/app_adaptive_colors.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../domain/review_summary.dart';
@@ -12,6 +13,7 @@ class ReviewDistributionBars extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final adaptive = context.adaptiveColors;
     return Column(
       children: [
         for (var star = 5; star >= 1; star--)
@@ -34,7 +36,7 @@ class ReviewDistributionBars extends StatelessWidget {
                         return LinearProgressIndicator(
                           value: value,
                           minHeight: 8,
-                          backgroundColor: AppColors.surfaceVariant,
+                          backgroundColor: adaptive.surfaceVariant,
                           color: AppColors.rating,
                         );
                       },
@@ -46,7 +48,7 @@ class ReviewDistributionBars extends StatelessWidget {
                   width: 28,
                   child: Text(
                     '${summary.countForStar(star)}',
-                    style: theme.textTheme.labelSmall?.copyWith(color: AppColors.textMuted),
+                    style: theme.textTheme.labelSmall?.copyWith(color: adaptive.textMuted),
                     textAlign: TextAlign.right,
                   ),
                 ),

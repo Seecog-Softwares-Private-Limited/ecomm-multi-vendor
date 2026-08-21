@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/routing/app_routes.dart';
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_adaptive_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../core/widgets/app_snackbar.dart';
@@ -126,7 +126,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           for (final term in recent)
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.history, color: AppColors.textMuted),
+              leading: Icon(Icons.history, color: context.adaptiveColors.textMuted),
               title: Text(term),
               trailing: IconButton(
                 icon: const Icon(Icons.close, size: 18),

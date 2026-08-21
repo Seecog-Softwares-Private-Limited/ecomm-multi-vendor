@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/theme/app_adaptive_colors.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../catalog/domain/entities/category.dart';
@@ -50,6 +51,7 @@ class _CategoryChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final adaptive = context.adaptiveColors;
     final icon = (category.icon ?? '').trim();
     return InkWell(
       onTap: onTap,
@@ -61,7 +63,7 @@ class _CategoryChip extends StatelessWidget {
             Container(
               width: 60,
               height: 60,
-              decoration: const BoxDecoration(color: AppColors.primarySurface, shape: BoxShape.circle),
+              decoration: BoxDecoration(color: adaptive.primarySurface, shape: BoxShape.circle),
               alignment: Alignment.center,
               child: icon.isEmpty
                   ? const Icon(Icons.category_outlined, color: AppColors.primary)

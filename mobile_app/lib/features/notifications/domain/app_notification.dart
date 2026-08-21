@@ -106,7 +106,7 @@ class AppNotification {
         NotificationType.payment => AppColors.info,
         NotificationType.offer => AppColors.accentDark,
         NotificationType.system => AppColors.warning,
-        NotificationType.general => AppColors.textSecondary,
+        NotificationType.general => AppColors.textMuted,
       };
 
   String get categoryKey => switch (type) {
