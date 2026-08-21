@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/routing/app_routes.dart';
+import '../../../../core/theme/app_adaptive_colors.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/widgets/app_button.dart';
@@ -12,6 +13,7 @@ class ReviewsEmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final adaptive = context.adaptiveColors;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl),
       child: Column(
@@ -20,7 +22,7 @@ class ReviewsEmptyState extends StatelessWidget {
             width: 96,
             height: 96,
             decoration: BoxDecoration(
-              color: AppColors.primarySurface,
+              color: adaptive.primarySurface,
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.rate_review_outlined, size: 44, color: AppColors.primary),
@@ -34,7 +36,7 @@ class ReviewsEmptyState extends StatelessWidget {
           Text(
             'Be the first customer to review this product.',
             textAlign: TextAlign.center,
-            style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+            style: theme.textTheme.bodyMedium?.copyWith(color: adaptive.textSecondary),
           ),
           const SizedBox(height: AppSpacing.lg),
           AppButton(

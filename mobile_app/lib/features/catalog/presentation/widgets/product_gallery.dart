@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/theme/app_adaptive_colors.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/widgets/app_cached_image.dart';
@@ -90,7 +91,7 @@ class _ProductGalleryState extends State<ProductGallery> {
                   width: i == _index ? 18 : 7,
                   height: 7,
                   decoration: BoxDecoration(
-                    color: i == _index ? AppColors.primary : AppColors.border,
+                    color: i == _index ? AppColors.primary : context.adaptiveColors.border,
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),

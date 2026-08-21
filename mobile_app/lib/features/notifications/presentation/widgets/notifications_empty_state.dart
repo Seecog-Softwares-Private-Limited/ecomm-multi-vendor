@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/routing/app_routes.dart';
+import '../../../../core/theme/app_adaptive_colors.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/widgets/app_button.dart';
@@ -17,6 +18,7 @@ class NotificationsEmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final adaptive = context.adaptiveColors;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.xxl),
@@ -29,8 +31,8 @@ class NotificationsEmptyState extends StatelessWidget {
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    AppColors.primarySurface,
-                    AppColors.primarySurface.withValues(alpha: 0.45),
+                    adaptive.primarySurface,
+                    adaptive.primarySurface.withValues(alpha: 0.45),
                   ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
@@ -55,7 +57,7 @@ class NotificationsEmptyState extends StatelessWidget {
                   ? 'Try another search term or category filter.'
                   : "We'll notify you about orders, payments and important updates.",
               textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+              style: theme.textTheme.bodyMedium?.copyWith(color: adaptive.textSecondary),
             ),
             if (!filtered) ...[
               const SizedBox(height: AppSpacing.xl),

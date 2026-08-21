@@ -119,9 +119,9 @@ const List<String> kOrderProgress = [
     case 'CANCELLED':
       return (label: 'Cancelled', color: AppColors.error, icon: Icons.cancel_outlined);
     case 'RETURNED':
-      return (label: 'Returned', color: AppColors.textSecondary, icon: Icons.assignment_return_outlined);
+      return (label: 'Returned', color: AppColors.textMuted, icon: Icons.assignment_return_outlined);
     default:
-      return (label: status, color: AppColors.textSecondary, icon: Icons.info_outline);
+      return (label: status, color: AppColors.textMuted, icon: Icons.info_outline);
   }
 }
 

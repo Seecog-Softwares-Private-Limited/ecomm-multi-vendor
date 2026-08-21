@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/error/failure.dart';
+import '../../../../core/theme/app_adaptive_colors.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/widgets/app_button.dart';
@@ -113,7 +114,7 @@ class _WriteReviewSheetState extends ConsumerState<WriteReviewSheet> {
             const SizedBox(height: AppSpacing.sm),
             Text(
               'Thank you for sharing your experience.',
-              style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+              style: theme.textTheme.bodyMedium?.copyWith(color: context.adaptiveColors.textSecondary),
             ),
           ],
         ),
@@ -133,7 +134,7 @@ class _WriteReviewSheetState extends ConsumerState<WriteReviewSheet> {
               const SizedBox(height: AppSpacing.xs),
               Text(
                 widget.productName,
-                style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+                style: theme.textTheme.bodyMedium?.copyWith(color: context.adaptiveColors.textSecondary),
               ),
               const SizedBox(height: AppSpacing.xl),
               StarRatingSelector(

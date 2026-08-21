@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../app/routing/app_routes.dart';
 import '../../../../app/routing/shell_navigation.dart';
 import '../../../../core/error/failure.dart';
+import '../../../../core/theme/app_adaptive_colors.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/utils/formatters.dart';
@@ -171,7 +172,7 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                       Text(status.label, style: theme.textTheme.titleMedium?.copyWith(color: status.color)),
                       Text(
                         'Order ${_shortId(order.id)} · ${Formatters.dayMonthYear(order.createdAt)}',
-                        style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
+                        style: theme.textTheme.bodySmall?.copyWith(color: context.adaptiveColors.textMuted),
                       ),
                     ],
                   ),
@@ -213,7 +214,9 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
                           if (_variantLabel(item.variantKey).isNotEmpty)
                             Text(
                               _variantLabel(item.variantKey),
-                              style: theme.textTheme.labelSmall?.copyWith(color: AppColors.textSecondary),
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: context.adaptiveColors.textSecondary,
+                              ),
                             ),
                           const SizedBox(height: AppSpacing.xs),
                           Text('Qty: ${item.quantity}', style: theme.textTheme.labelSmall),
@@ -256,11 +259,12 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
           PremiumCard(
             child: Column(
               children: [
-                _priceRow(theme, 'Items Total', Formatters.rupees(itemsTotal)),
+                _priceRow(context, theme, 'Items Total', Formatters.rupees(itemsTotal)),
                 if (order.discountAmount > 0)
-                  _priceRow(theme, 'Discount', '- ${Formatters.rupees(order.discountAmount)}'),
-                _priceRow(theme, 'Tax', Formatters.rupees(order.taxAmount)),
+                  _priceRow(context, theme, 'Discount', '- ${Formatters.rupees(order.discountAmount)}'),
+                _priceRow(context, theme, 'Tax', Formatters.rupees(order.taxAmount)),
                 _priceRow(
+                  context,
                   theme,
                   'Delivery',
                   order.shippingAmount == 0 ? 'FREE' : Formatters.rupees(order.shippingAmount),
@@ -335,13 +339,16 @@ class _OrderDetailPageState extends ConsumerState<OrderDetailPage> {
 
   String _shortId(String id) => '#${id.substring(0, id.length.clamp(0, 8)).toUpperCase()}';
 
-  Widget _priceRow(ThemeData theme, String label, String value) {
+  Widget _priceRow(BuildContext context, ThemeData theme, String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary)),
+          Text(
+            label,
+            style: theme.textTheme.bodyMedium?.copyWith(color: context.adaptiveColors.textSecondary),
+          ),
           Text(value, style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
         ],
       ),
@@ -393,7 +400,7 @@ class _InvoiceSheet extends StatelessWidget {
             const SizedBox(height: AppSpacing.lg),
             Text(
               'This is a system-generated invoice.',
-              style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
+              style: theme.textTheme.bodySmall?.copyWith(color: context.adaptiveColors.textMuted),
             ),
           ],
         ),

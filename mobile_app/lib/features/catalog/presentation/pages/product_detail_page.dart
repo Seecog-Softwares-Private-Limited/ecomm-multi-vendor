@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/routing/app_routes.dart';
 import '../../../../core/config/env_config.dart';
+import '../../../../core/theme/app_adaptive_colors.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/utils/formatters.dart';
@@ -298,7 +299,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                         Formatters.rupees(detail.mrp),
                         style: theme.textTheme.bodyMedium?.copyWith(
                           decoration: TextDecoration.lineThrough,
-                          color: AppColors.textMuted,
+                          color: context.adaptiveColors.textMuted,
                         ),
                       ),
                       const SizedBox(width: AppSpacing.sm),
@@ -474,6 +475,7 @@ class _DeliveryInfo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final adaptive = context.adaptiveColors;
     Widget row(IconData icon, String text) => Padding(
           padding: const EdgeInsets.symmetric(vertical: 4),
           child: Row(
@@ -487,7 +489,7 @@ class _DeliveryInfo extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: AppColors.primarySurface,
+        color: adaptive.primarySurface,
         borderRadius: BorderRadius.circular(AppRadius.md),
       ),
       child: Column(
@@ -522,7 +524,9 @@ class _SpecTable extends StatelessWidget {
                 SizedBox(
                   width: 130,
                   child: Text(spec.label,
-                      style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary)),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: context.adaptiveColors.textSecondary,
+                      )),
                 ),
                 Expanded(child: Text(spec.value, style: theme.textTheme.bodyMedium)),
               ],

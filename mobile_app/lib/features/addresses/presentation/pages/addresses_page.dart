@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/theme/app_adaptive_colors.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/widgets/app_button.dart';
@@ -88,6 +89,7 @@ class _AddressCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final adaptive = context.adaptiveColors;
     return Card(
       child: InkWell(
         onTap: onSelect,
@@ -104,7 +106,7 @@ class _AddressCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
-                      color: AppColors.surfaceVariant,
+                      color: adaptive.surfaceVariant,
                       borderRadius: BorderRadius.circular(AppRadius.xs),
                     ),
                     child: Text(address.name, style: theme.textTheme.labelSmall),
@@ -116,7 +118,10 @@ class _AddressCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: AppSpacing.xs),
-              Text(address.formatted, style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary)),
+              Text(
+                address.formatted,
+                style: theme.textTheme.bodyMedium?.copyWith(color: adaptive.textSecondary),
+              ),
               const SizedBox(height: AppSpacing.xs),
               Text('Phone: ${address.phone}', style: theme.textTheme.bodySmall),
               const SizedBox(height: AppSpacing.sm),

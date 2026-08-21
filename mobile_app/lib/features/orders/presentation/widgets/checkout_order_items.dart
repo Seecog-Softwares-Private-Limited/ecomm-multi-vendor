@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_adaptive_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/app_cached_image.dart';
@@ -56,6 +56,7 @@ class CheckoutOrderItemsList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final adaptive = context.adaptiveColors;
     if (items.isEmpty) {
       return Text('No items', style: theme.textTheme.bodyMedium);
     }
@@ -87,12 +88,12 @@ class CheckoutOrderItemsList extends StatelessWidget {
                     if (_variant(item) != null)
                       Text(
                         _variant(item)!,
-                        style: theme.textTheme.labelSmall?.copyWith(color: AppColors.textSecondary),
+                        style: theme.textTheme.labelSmall?.copyWith(color: adaptive.textSecondary),
                       ),
                     if (_seller(item) != null)
                       Text(
                         'Sold by ${_seller(item)}',
-                        style: theme.textTheme.labelSmall?.copyWith(color: AppColors.textMuted),
+                        style: theme.textTheme.labelSmall?.copyWith(color: adaptive.textMuted),
                       ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/routing/app_routes.dart';
 import '../../../../core/error/failure.dart';
+import '../../../../core/theme/app_adaptive_colors.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/widgets/app_snackbar.dart';
@@ -190,7 +191,7 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> with Widg
                             selected: category == chip.key,
                             onSelected: (_) =>
                                 ref.read(notificationsCategoryFilterProvider.notifier).update(chip.key),
-                            selectedColor: AppColors.primarySurface,
+                            selectedColor: context.adaptiveColors.primarySurface,
                             checkmarkColor: AppColors.primary,
                           ),
                         ),

@@ -9,6 +9,7 @@ import '../../../../app/routing/app_routes.dart';
 import '../../../../core/di/providers.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/network/api_endpoints.dart';
+import '../../../../core/theme/app_adaptive_colors.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/utils/validators.dart';
@@ -154,7 +155,9 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
                     children: [
                       Text(
                         'Add your mobile number to continue shopping on IndoVyapar.',
-                        style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: context.adaptiveColors.textSecondary,
+                        ),
                       ),
                       const SizedBox(height: AppSpacing.xl),
                       Center(
@@ -213,7 +216,7 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
                       Text(
                         'Mobile number is required.',
                         textAlign: TextAlign.center,
-                        style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
+                        style: theme.textTheme.bodySmall?.copyWith(color: context.adaptiveColors.textMuted),
                       ),
                     ],
                   ),

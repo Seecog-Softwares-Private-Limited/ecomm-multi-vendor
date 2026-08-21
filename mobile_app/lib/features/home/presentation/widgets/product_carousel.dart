@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/theme/app_adaptive_colors.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../cart/presentation/commerce_actions.dart';
@@ -95,10 +96,10 @@ class _CarouselSkeleton extends StatelessWidget {
         padding: const EdgeInsets.all(AppSpacing.lg),
         itemCount: 4,
         separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.md),
-        itemBuilder: (_, _) => Container(
+        itemBuilder: (context, _) => Container(
           width: 168,
           decoration: BoxDecoration(
-            color: AppColors.surfaceVariant,
+            color: context.adaptiveColors.surfaceVariant,
             borderRadius: BorderRadius.circular(AppRadius.lg),
           ),
         ),

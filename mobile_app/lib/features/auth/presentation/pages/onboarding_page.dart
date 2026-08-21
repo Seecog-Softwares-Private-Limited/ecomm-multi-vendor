@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/routing/app_routes.dart';
 import '../../../../core/di/providers.dart';
+import '../../../../core/theme/app_adaptive_colors.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/widgets/app_button.dart';
@@ -95,8 +96,8 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                         Container(
                           width: 160,
                           height: 160,
-                          decoration: const BoxDecoration(
-                            color: AppColors.primarySurface,
+                          decoration: BoxDecoration(
+                            color: context.adaptiveColors.primarySurface,
                             shape: BoxShape.circle,
                           ),
                           child: Icon(slide.icon, size: 76, color: AppColors.primary),
@@ -107,7 +108,9 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                         Text(
                           slide.subtitle,
                           textAlign: TextAlign.center,
-                          style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: context.adaptiveColors.textSecondary,
+                          ),
                         ),
                       ],
                     ),
@@ -125,7 +128,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                     width: i == _index ? 22 : 8,
                     height: 8,
                     decoration: BoxDecoration(
-                      color: i == _index ? AppColors.primary : AppColors.border,
+                      color: i == _index ? AppColors.primary : context.adaptiveColors.border,
                       borderRadius: BorderRadius.circular(4),
                     ),
                   ),

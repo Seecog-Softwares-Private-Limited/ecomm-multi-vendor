@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/error/failure.dart';
+import '../../../../core/theme/app_adaptive_colors.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/utils/formatters.dart';
@@ -24,6 +25,7 @@ class ReviewCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final adaptive = context.adaptiveColors;
     final votes = ref.watch(reviewHelpfulVotesProvider);
     final loading = ref.watch(reviewHelpfulLoadingProvider);
     final voted = votes[review.id] ?? false;
@@ -35,7 +37,7 @@ class ReviewCard extends ConsumerWidget {
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.border.withValues(alpha: 0.7)),
+        border: Border.all(color: adaptive.border.withValues(alpha: 0.7)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -45,7 +47,7 @@ class ReviewCard extends ConsumerWidget {
             children: [
               CircleAvatar(
                 radius: 22,
-                backgroundColor: AppColors.primarySurface,
+                backgroundColor: adaptive.primarySurface,
                 child: Text(
                   reviewUserInitials(review.user),
                   style: theme.textTheme.labelLarge?.copyWith(
@@ -69,7 +71,7 @@ class ReviewCard extends ConsumerWidget {
                         ),
                         Text(
                           _formatReviewDate(review.date),
-                          style: theme.textTheme.labelSmall?.copyWith(color: AppColors.textMuted),
+                          style: theme.textTheme.labelSmall?.copyWith(color: adaptive.textMuted),
                         ),
                       ],
                     ),

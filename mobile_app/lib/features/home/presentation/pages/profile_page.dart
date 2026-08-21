@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/routing/app_routes.dart';
 import '../../../../app/routing/shell_navigation.dart';
+import '../../../../core/theme/app_adaptive_colors.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../auth/presentation/auth_controller.dart';
@@ -168,7 +169,12 @@ class _MenuGroup extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: Theme.of(context).textTheme.labelMedium?.copyWith(color: AppColors.textMuted)),
+          Text(
+            title,
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: context.adaptiveColors.textMuted,
+                ),
+          ),
           const SizedBox(height: AppSpacing.xs),
           Card(child: Column(children: tiles)),
         ],
@@ -185,10 +191,11 @@ class _MenuTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final adaptive = context.adaptiveColors;
     return ListTile(
-      leading: Icon(icon, color: AppColors.textSecondary),
+      leading: Icon(icon, color: adaptive.textSecondary),
       title: Text(label),
-      trailing: const Icon(Icons.chevron_right, color: AppColors.textMuted, size: 20),
+      trailing: Icon(Icons.chevron_right, color: adaptive.textMuted, size: 20),
       onTap: onTap,
     );
   }

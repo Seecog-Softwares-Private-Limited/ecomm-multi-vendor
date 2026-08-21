@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/routing/app_routes.dart';
 import '../../../../core/di/providers.dart';
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_adaptive_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../core/widgets/app_button.dart';
@@ -154,7 +154,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       children: [
                         Text(
                           "Don't have an account?",
-                          style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: context.adaptiveColors.textSecondary,
+                          ),
                         ),
                         TextButton(
                           onPressed: () => context.push(AppRoutes.register),

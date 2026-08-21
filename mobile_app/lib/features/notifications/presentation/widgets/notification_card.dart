@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/theme/app_adaptive_colors.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/utils/formatters.dart';
@@ -26,13 +27,17 @@ class NotificationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final adaptive = context.adaptiveColors;
     final unread = !notification.read;
+    final iconColor = notification.type == NotificationType.general
+        ? adaptive.textSecondary
+        : notification.color;
 
     final card = Semantics(
       label: '${notification.title}. ${notification.body}. ${unread ? 'Unread' : 'Read'}',
       button: true,
       child: Material(
-        color: unread ? AppColors.primarySurface.withValues(alpha: 0.55) : theme.colorScheme.surface,
+        color: unread ? adaptive.primarySurface.withValues(alpha: 0.55) : theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(AppRadius.lg),
         child: InkWell(
           onTap: onTap,
@@ -43,9 +48,21 @@ class NotificationCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(AppRadius.lg),
               border: Border(
                 left: BorderSide(color: unread ? AppColors.primary : Colors.transparent, width: 4),
-                top: BorderSide(color: unread ? AppColors.primary.withValues(alpha: 0.35) : AppColors.border.withValues(alpha: 0.7)),
-                right: BorderSide(color: unread ? AppColors.primary.withValues(alpha: 0.35) : AppColors.border.withValues(alpha: 0.7)),
-                bottom: BorderSide(color: unread ? AppColors.primary.withValues(alpha: 0.35) : AppColors.border.withValues(alpha: 0.7)),
+                top: BorderSide(
+                  color: unread
+                      ? AppColors.primary.withValues(alpha: 0.35)
+                      : adaptive.border.withValues(alpha: 0.7),
+                ),
+                right: BorderSide(
+                  color: unread
+                      ? AppColors.primary.withValues(alpha: 0.35)
+                      : adaptive.border.withValues(alpha: 0.7),
+                ),
+                bottom: BorderSide(
+                  color: unread
+                      ? AppColors.primary.withValues(alpha: 0.35)
+                      : adaptive.border.withValues(alpha: 0.7),
+                ),
               ),
             ),
             padding: const EdgeInsets.all(AppSpacing.md),
@@ -54,8 +71,8 @@ class NotificationCard extends StatelessWidget {
               children: [
                 CircleAvatar(
                   radius: 22,
-                  backgroundColor: notification.color.withValues(alpha: 0.14),
-                  child: Icon(notification.icon, color: notification.color, size: 22),
+                  backgroundColor: iconColor.withValues(alpha: 0.14),
+                  child: Icon(notification.icon, color: iconColor, size: 22),
                 ),
                 const SizedBox(width: AppSpacing.md),
                 Expanded(
@@ -93,14 +110,14 @@ class NotificationCard extends StatelessWidget {
                         notification.body,
                         maxLines: 3,
                         overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+                        style: theme.textTheme.bodyMedium?.copyWith(color: adaptive.textSecondary),
                       ),
                       const SizedBox(height: AppSpacing.sm),
                       Row(
                         children: [
                           Text(
                             Formatters.relativeTime(notification.createdAt),
-                            style: theme.textTheme.labelSmall?.copyWith(color: AppColors.textMuted),
+                            style: theme.textTheme.labelSmall?.copyWith(color: adaptive.textMuted),
                           ),
                           if (notification.shortOrderId != null) ...[
                             Text(' · ', style: theme.textTheme.labelSmall),
@@ -159,7 +176,7 @@ class NotificationCard extends StatelessWidget {
         alignment: Alignment.centerLeft,
         padding: const EdgeInsets.only(left: AppSpacing.lg),
         decoration: BoxDecoration(
-          color: AppColors.primarySurface,
+          color: adaptive.primarySurface,
           borderRadius: BorderRadius.circular(AppRadius.lg),
         ),
         child: const Row(

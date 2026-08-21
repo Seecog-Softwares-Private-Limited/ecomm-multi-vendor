@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_constants.dart';
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_adaptive_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 
 /// Static informational pages (Privacy Policy, Terms, About). Content is bundled
@@ -61,7 +61,7 @@ class LegalPage extends StatelessWidget {
             Text(section.$1, style: theme.textTheme.titleMedium),
             const SizedBox(height: AppSpacing.xs),
             Text(section.$2,
-                style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary, height: 1.5)),
+                style: theme.textTheme.bodyMedium?.copyWith(color: context.adaptiveColors.textSecondary, height: 1.5)),
             const SizedBox(height: AppSpacing.lg),
           ],
         ],

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/routing/app_routes.dart';
+import '../../../../core/theme/app_adaptive_colors.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/widgets/app_loader.dart';
@@ -62,8 +63,8 @@ class CategoriesPage extends ConsumerWidget {
                                 width: 44,
                                 height: 44,
                                 alignment: Alignment.center,
-                                decoration: const BoxDecoration(
-                                  color: AppColors.primarySurface,
+                                decoration: BoxDecoration(
+                                  color: context.adaptiveColors.primarySurface,
                                   shape: BoxShape.circle,
                                 ),
                                 child: (category.icon ?? '').trim().isEmpty
@@ -74,7 +75,7 @@ class CategoriesPage extends ConsumerWidget {
                               Expanded(
                                 child: Text(category.name, style: Theme.of(context).textTheme.titleMedium),
                               ),
-                              const Icon(Icons.chevron_right, color: AppColors.textMuted),
+                              Icon(Icons.chevron_right, color: context.adaptiveColors.textMuted),
                             ],
                           ),
                         ),

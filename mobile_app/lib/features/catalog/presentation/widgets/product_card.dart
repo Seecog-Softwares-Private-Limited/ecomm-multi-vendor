@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/theme/app_adaptive_colors.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/utils/formatters.dart';
@@ -27,6 +28,7 @@ class ProductCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final adaptive = context.adaptiveColors;
     final card = Material(
       color: theme.cardTheme.color,
       borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -80,7 +82,7 @@ class ProductCard extends StatelessWidget {
                           child: Icon(
                             isWishlisted ? Icons.favorite : Icons.favorite_border,
                             size: 18,
-                            color: isWishlisted ? AppColors.error : AppColors.textSecondary,
+                            color: isWishlisted ? AppColors.error : adaptive.textSecondary,
                           ),
                         ),
                       ),
@@ -146,7 +148,7 @@ class ProductCard extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                             style: theme.textTheme.bodySmall?.copyWith(
                               decoration: TextDecoration.lineThrough,
-                              color: AppColors.textMuted,
+                              color: adaptive.textMuted,
                             ),
                           ),
                         ),

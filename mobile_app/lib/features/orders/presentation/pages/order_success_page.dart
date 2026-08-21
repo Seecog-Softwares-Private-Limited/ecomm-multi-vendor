@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/routing/app_routes.dart';
+import '../../../../core/theme/app_adaptive_colors.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/utils/formatters.dart';
@@ -51,6 +52,7 @@ class _OrderSuccessPageState extends State<OrderSuccessPage> with SingleTickerPr
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final adaptive = context.adaptiveColors;
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
@@ -66,8 +68,8 @@ class _OrderSuccessPageState extends State<OrderSuccessPage> with SingleTickerPr
                     width: 120,
                     height: 120,
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [AppColors.primarySurface, Color(0xFFD4EDDA)],
+                      gradient: LinearGradient(
+                        colors: [adaptive.primarySurface, AppColors.success.withValues(alpha: 0.35)],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
@@ -98,7 +100,7 @@ class _OrderSuccessPageState extends State<OrderSuccessPage> with SingleTickerPr
                             ? 'Your order is confirmed. Complete payment to speed up dispatch.'
                             : 'Thank you for shopping with IndoVyapar. Your order is confirmed.',
                         textAlign: TextAlign.center,
-                        style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
+                        style: theme.textTheme.bodyMedium?.copyWith(color: adaptive.textSecondary),
                       ),
                       const SizedBox(height: AppSpacing.xl),
                       Container(
@@ -107,15 +109,16 @@ class _OrderSuccessPageState extends State<OrderSuccessPage> with SingleTickerPr
                         decoration: BoxDecoration(
                           color: theme.colorScheme.surface,
                           borderRadius: BorderRadius.circular(AppRadius.lg),
-                          border: Border.all(color: AppColors.border),
+                          border: Border.all(color: adaptive.border),
                         ),
                         child: Column(
                           children: [
-                            _row(theme, 'Order ID', _shortOrderId),
+                            _row(context, theme, 'Order ID', _shortOrderId),
                             const SizedBox(height: AppSpacing.sm),
-                            _row(theme, 'Amount Paid', Formatters.rupees(widget.total)),
+                            _row(context, theme, 'Amount Paid', Formatters.rupees(widget.total)),
                             const SizedBox(height: AppSpacing.sm),
                             _row(
+                              context,
                               theme,
                               'Estimated Delivery',
                               '3–5 business days',
@@ -149,15 +152,16 @@ class _OrderSuccessPageState extends State<OrderSuccessPage> with SingleTickerPr
     );
   }
 
-  Widget _row(ThemeData theme, String label, String value, {bool muted = false}) {
+  Widget _row(BuildContext context, ThemeData theme, String label, String value, {bool muted = false}) {
+    final adaptive = context.adaptiveColors;
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: theme.textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary)),
+        Text(label, style: theme.textTheme.bodyMedium?.copyWith(color: adaptive.textSecondary)),
         Text(
           value,
           style: theme.textTheme.titleSmall?.copyWith(
-            color: muted ? AppColors.textMuted : null,
+            color: muted ? adaptive.textMuted : null,
             fontWeight: FontWeight.w700,
           ),
         ),
