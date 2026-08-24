@@ -111,7 +111,8 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> with Widg
           async.maybeWhen(
             data: (state) {
               if (state.unreadCount <= 0) return null;
-              return TextButton(
+              return IconButton(
+                tooltip: 'Mark all read (${state.unreadCount})',
                 onPressed: () async {
                   try {
                     await notifier.markAllRead();
@@ -122,7 +123,10 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> with Widg
                     }
                   }
                 },
-                child: const Text('Mark all read'),
+                icon: Badge(
+                  label: Text(state.unreadCount > 99 ? '99+' : '${state.unreadCount}'),
+                  child: const Icon(Icons.done_all),
+                ),
               );
             },
             orElse: () => null,
