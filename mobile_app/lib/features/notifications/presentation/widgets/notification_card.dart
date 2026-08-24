@@ -29,132 +29,149 @@ class NotificationCard extends StatelessWidget {
     final theme = Theme.of(context);
     final adaptive = context.adaptiveColors;
     final unread = !notification.read;
+    final title = notification.title.trim().isEmpty ? 'Notification' : notification.title.trim();
+    final body = notification.body.trim();
+    // Keep icon readable on both light and dark surfaces (avoid green-on-green).
     final iconColor = notification.type == NotificationType.general
         ? adaptive.textSecondary
         : notification.color;
 
     final card = Semantics(
-      label: '${notification.title}. ${notification.body}. ${unread ? 'Unread' : 'Read'}',
+      label: '$title. $body. ${unread ? 'Unread' : 'Read'}',
       button: true,
       child: Material(
-        color: unread ? adaptive.primarySurface.withValues(alpha: 0.55) : theme.colorScheme.surface,
+        color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(AppRadius.lg),
+        clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
           onLongPress: onLongPress,
-          borderRadius: BorderRadius.circular(AppRadius.lg),
           child: Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(AppRadius.lg),
-              border: Border(
-                left: BorderSide(color: unread ? AppColors.primary : Colors.transparent, width: 4),
-                top: BorderSide(
-                  color: unread
-                      ? AppColors.primary.withValues(alpha: 0.35)
-                      : adaptive.border.withValues(alpha: 0.7),
-                ),
-                right: BorderSide(
-                  color: unread
-                      ? AppColors.primary.withValues(alpha: 0.35)
-                      : adaptive.border.withValues(alpha: 0.7),
-                ),
-                bottom: BorderSide(
-                  color: unread
-                      ? AppColors.primary.withValues(alpha: 0.35)
-                      : adaptive.border.withValues(alpha: 0.7),
-                ),
+              border: Border.all(
+                color: unread
+                    ? AppColors.primary.withValues(alpha: 0.45)
+                    : adaptive.border.withValues(alpha: 0.7),
               ),
             ),
             padding: const EdgeInsets.all(AppSpacing.md),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                CircleAvatar(
-                  radius: 22,
-                  backgroundColor: iconColor.withValues(alpha: 0.14),
-                  child: Icon(notification.icon, color: iconColor, size: 22),
-                ),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Text(
-                              notification.title,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.titleSmall?.copyWith(
-                                fontWeight: unread ? FontWeight.w800 : FontWeight.w600,
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (unread)
+                    Container(
+                      width: 4,
+                      margin: const EdgeInsets.only(right: AppSpacing.md),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    )
+                  else
+                    const SizedBox(width: 4 + AppSpacing.md),
+                  CircleAvatar(
+                    radius: 22,
+                    backgroundColor: adaptive.surfaceVariant,
+                    child: Icon(notification.icon, color: iconColor, size: 22),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                title,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.titleSmall?.copyWith(
+                                  color: adaptive.textPrimary,
+                                  fontWeight: unread ? FontWeight.w800 : FontWeight.w600,
+                                ),
                               ),
                             ),
-                          ),
-                          if (unread) ...[
-                            const SizedBox(width: AppSpacing.sm),
-                            Container(
-                              width: 10,
-                              height: 10,
-                              decoration: const BoxDecoration(
-                                color: AppColors.primary,
-                                shape: BoxShape.circle,
+                            if (unread) ...[
+                              const SizedBox(width: AppSpacing.sm),
+                              Container(
+                                width: 10,
+                                height: 10,
+                                margin: const EdgeInsets.only(top: 4),
+                                decoration: const BoxDecoration(
+                                  color: AppColors.primary,
+                                  shape: BoxShape.circle,
+                                ),
                               ),
-                            ),
+                            ],
                           ],
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        notification.body,
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodyMedium?.copyWith(color: adaptive.textSecondary),
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                      Row(
-                        children: [
-                          Text(
-                            Formatters.relativeTime(notification.createdAt),
-                            style: theme.textTheme.labelSmall?.copyWith(color: adaptive.textMuted),
-                          ),
-                          if (notification.shortOrderId != null) ...[
-                            Text(' · ', style: theme.textTheme.labelSmall),
-                            Text(
-                              notification.shortOrderId!,
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: AppColors.primary,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                      if (notification.actionLabel != null && notification.actionLabel!.isNotEmpty) ...[
-                        const SizedBox(height: AppSpacing.sm),
-                        Text(
-                          notification.actionLabel!,
-                          style: theme.textTheme.labelMedium?.copyWith(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.w700,
-                          ),
                         ),
+                        if (body.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            body,
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: adaptive.textSecondary,
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: AppSpacing.sm),
+                        Row(
+                          children: [
+                            Text(
+                              Formatters.relativeTime(notification.createdAt),
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: adaptive.textMuted,
+                              ),
+                            ),
+                            if (notification.shortOrderId != null) ...[
+                              Text(
+                                ' · ',
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: adaptive.textMuted,
+                                ),
+                              ),
+                              Text(
+                                notification.shortOrderId!,
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        if (notification.actionLabel != null &&
+                            notification.actionLabel!.trim().isNotEmpty) ...[
+                          const SizedBox(height: AppSpacing.sm),
+                          Text(
+                            notification.actionLabel!,
+                            style: theme.textTheme.labelMedium?.copyWith(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
-                ),
-                if (notification.image != null) ...[
-                  const SizedBox(width: AppSpacing.sm),
-                  AppCachedImage(
-                    imageUrl: notification.image,
-                    width: 52,
-                    height: 52,
-                    fallbackLabel: notification.title,
-                    borderRadius: BorderRadius.circular(AppRadius.sm),
-                  ),
+                  if (notification.image != null) ...[
+                    const SizedBox(width: AppSpacing.sm),
+                    AppCachedImage(
+                      imageUrl: notification.image,
+                      width: 52,
+                      height: 52,
+                      fallbackLabel: title,
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ),
@@ -163,7 +180,6 @@ class NotificationCard extends StatelessWidget {
 
     return Dismissible(
       key: Key('notification-${notification.id}'),
-      direction: DismissDirection.horizontal,
       confirmDismiss: (direction) async {
         if (direction == DismissDirection.startToEnd) {
           if (!notification.read) onMarkRead();
@@ -176,14 +192,17 @@ class NotificationCard extends StatelessWidget {
         alignment: Alignment.centerLeft,
         padding: const EdgeInsets.only(left: AppSpacing.lg),
         decoration: BoxDecoration(
-          color: adaptive.primarySurface,
+          color: adaptive.surfaceVariant,
           borderRadius: BorderRadius.circular(AppRadius.lg),
         ),
-        child: const Row(
+        child: Row(
           children: [
             Icon(Icons.mark_email_read_outlined, color: AppColors.primary),
-            SizedBox(width: AppSpacing.sm),
-            Text('Mark read', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700)),
+            const SizedBox(width: AppSpacing.sm),
+            Text(
+              'Mark read',
+              style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700),
+            ),
           ],
         ),
       ),

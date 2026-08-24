@@ -4,8 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { VendorStatusCard } from "@/app/vendor/components/VendorStatusCard";
 import type { VendorStatusDisplay } from "@/lib/auth";
-
-const VENDOR_LOGIN_PATH = "/vendor/login";
+import { buildVendorLoginPath } from "@/lib/vendor-app-query";
 
 type MeResponse = {
   vendorId: string;
@@ -28,7 +27,12 @@ export default function VendorStatusPage() {
       .then((res) => {
         if (cancelled) return;
         if (res.status === 401 || res.status === 403) {
-          router.replace(`${VENDOR_LOGIN_PATH}?callbackUrl=${encodeURIComponent("/vendor/status")}`);
+          router.replace(
+            buildVendorLoginPath(
+              "/vendor/status",
+              new URLSearchParams(window.location.search)
+            )
+          );
           return;
         }
         return res.json();
@@ -38,7 +42,14 @@ export default function VendorStatusPage() {
         setData(json.data as MeResponse);
       })
       .catch(() => {
-        if (!cancelled) router.replace(VENDOR_LOGIN_PATH);
+        if (!cancelled) {
+          router.replace(
+            buildVendorLoginPath(
+              "/vendor/status",
+              new URLSearchParams(window.location.search)
+            )
+          );
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false);

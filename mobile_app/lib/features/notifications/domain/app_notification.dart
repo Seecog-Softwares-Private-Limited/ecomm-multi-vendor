@@ -59,20 +59,33 @@ class AppNotification {
         actionLabel: actionLabel,
       );
 
-  factory AppNotification.fromApi(Map<String, dynamic> json) => AppNotification(
-        id: json['id']?.toString() ?? '',
-        title: json['title']?.toString() ?? '',
-        body: json['message']?.toString() ?? '',
-        type: _parseType(json['type']?.toString()),
-        createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? '') ?? DateTime.now(),
-        read: json['read'] == true,
-        readAt: json['readAt'] != null ? DateTime.tryParse(json['readAt'].toString()) : null,
-        orderId: json['orderId']?.toString(),
-        productId: json['productId']?.toString(),
-        productImageUrl: json['productImageUrl']?.toString(),
-        actionHref: json['actionHref']?.toString(),
-        actionLabel: json['actionLabel']?.toString(),
-      );
+  factory AppNotification.fromApi(Map<String, dynamic> json) {
+    final title = _stringOf(json['title']);
+    final body = _stringOf(json['message']) ??
+        _stringOf(json['body']) ??
+        _stringOf(json['description']) ??
+        '';
+    return AppNotification(
+      id: _stringOf(json['id']) ?? '',
+      title: title ?? '',
+      body: body,
+      type: _parseType(json['type']?.toString()),
+      createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? '') ?? DateTime.now(),
+      read: json['read'] == true,
+      readAt: json['readAt'] != null ? DateTime.tryParse(json['readAt'].toString()) : null,
+      orderId: _stringOf(json['orderId']),
+      productId: _stringOf(json['productId']),
+      productImageUrl: _stringOf(json['productImageUrl']),
+      actionHref: _stringOf(json['actionHref']),
+      actionLabel: _stringOf(json['actionLabel']),
+    );
+  }
+
+  static String? _stringOf(Object? value) {
+    if (value == null) return null;
+    final text = value.toString().trim();
+    return text.isEmpty ? null : text;
+  }
 
   static NotificationType _parseType(String? raw) {
     switch (raw?.toUpperCase()) {

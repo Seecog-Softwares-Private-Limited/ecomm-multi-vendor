@@ -8,6 +8,7 @@ import { VendorAppNavProvider } from "@/contexts/VendorAppNavContext";
 import { authService } from "@/services/auth.service";
 import { LogOut } from "lucide-react";
 import type { VendorStatusDisplay } from "@/lib/auth";
+import { buildVendorLoginPath } from "@/lib/vendor-app-query";
 
 const VENDOR_LOGIN_PATH = "/vendor/login";
 const VENDOR_REGISTER_PATH = "/vendor/register";
@@ -27,7 +28,7 @@ function isVendorAuthPage(path: string | null) {
   );
 }
 
-/** Paths a vendor can access when not approved (dashboard shows onboarding card, profile, support). */
+/** Paths a vendor can access when not approved (onboarding, profile, settings, support). */
 function isAllowedWhenNotApproved(path: string | null) {
   if (!path) return false;
   return (
@@ -36,6 +37,8 @@ function isAllowedWhenNotApproved(path: string | null) {
     path === "/vendor" ||
     path === "/vendor/profile" ||
     path.startsWith("/vendor/profile") ||
+    path === "/vendor/settings" ||
+    path.startsWith("/vendor/settings/") ||
     path === "/vendor/support" ||
     path.startsWith("/vendor/support/") ||
     path === "/vendor/verify" ||
@@ -97,8 +100,11 @@ export function VendorLayoutWrapper({
       .then((res) => {
         if (cancelled) return res;
         if (res.status === 401 || res.status === 403) {
-          const callbackUrl = encodeURIComponent(pathname ?? "/vendor");
-          routerRef.current.replace(`${VENDOR_LOGIN_PATH}?callbackUrl=${callbackUrl}`);
+          const loginPath = buildVendorLoginPath(
+            pathname ?? "/vendor",
+            new URLSearchParams(window.location.search)
+          );
+          routerRef.current.replace(loginPath);
           return res;
         }
         return res.json();
@@ -121,7 +127,10 @@ export function VendorLayoutWrapper({
           return;
         }
         routerRef.current.replace(
-          `${VENDOR_LOGIN_PATH}?callbackUrl=${encodeURIComponent(pathname ?? "/vendor")}`
+          buildVendorLoginPath(
+            pathname ?? "/vendor",
+            new URLSearchParams(window.location.search)
+          )
         );
       })
       .finally(() => {
