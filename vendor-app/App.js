@@ -13,6 +13,7 @@ import NetInfo from '@react-native-community/netinfo';
 import { WebView } from 'react-native-webview';
 import { StatusBar } from 'expo-status-bar';
 import * as AppleAuthentication from 'expo-apple-authentication';
+import * as Crypto from 'expo-crypto';
 import {
   SafeAreaProvider,
   SafeAreaView,
@@ -77,16 +78,19 @@ async function nativeSignInWithApple() {
   if (!available) {
     throw new Error('Sign in with Apple is not available on this device.');
   }
-  const nonce = randomAppleNonce();
-  // Pass the raw nonce. expo-apple-authentication forwards it to Apple; Apple
-  // SHA-256s it into the identity token. The backend hashes the same raw nonce.
-  // Pre-hashing here would double-hash and fail verification (Guideline 4.8).
+  const rawNonce = randomAppleNonce();
+  // expo-apple-authentication forwards `nonce` unmodified to Apple.
+  // Apple requires the SHA-256 hashed nonce value for replay protection.
+  const hashedNonce = await Crypto.digestStringAsync(
+    Crypto.CryptoDigestAlgorithm.SHA256,
+    rawNonce
+  );
   const credential = await AppleAuthentication.signInAsync({
     requestedScopes: [
       AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
       AppleAuthentication.AppleAuthenticationScope.EMAIL,
     ],
-    nonce,
+    nonce: hashedNonce,
   });
   if (!credential.identityToken) {
     throw new Error('Apple did not return an identity token.');
@@ -103,7 +107,8 @@ async function nativeSignInWithApple() {
           familyName: credential.fullName.familyName ?? null,
         }
       : null,
-    nonce,
+    // Backend verification expects the raw nonce, and hashes exactly once.
+    nonce: rawNonce,
   };
 }
 
