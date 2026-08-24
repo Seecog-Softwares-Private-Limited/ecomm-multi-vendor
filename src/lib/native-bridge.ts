@@ -49,6 +49,7 @@ export type AppleAuthResultPayload =
   | {
       success: false;
       cancelled?: boolean;
+      cancelled?: boolean;
       message: string;
     };
 
