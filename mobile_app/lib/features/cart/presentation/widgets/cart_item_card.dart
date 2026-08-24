@@ -124,10 +124,10 @@ class CartItemCard extends ConsumerWidget {
                     onChanged: (q) => notifier.setQuantity(item, q),
                   )
                 else if (onMoveToCart != null)
-                  OutlinedButton.icon(
-                    onPressed: onMoveToCart,
-                    icon: const Icon(Icons.shopping_cart_outlined, size: 18),
-                    label: const Text('Move to cart'),
+                  _ActionChip(
+                    icon: Icons.shopping_cart_outlined,
+                    label: 'Move to cart',
+                    onTap: onMoveToCart!,
                   ),
                 const Spacer(),
                 if (showQuantityStepper) ...[
@@ -148,6 +148,18 @@ class CartItemCard extends ConsumerWidget {
                     label: 'Remove',
                     color: AppColors.error,
                     onTap: () => notifier.remove(item),
+                  ),
+                ] else if (onMoveToCart != null) ...[
+                  _ActionChip(
+                    icon: Icons.delete_outline,
+                    label: 'Remove',
+                    color: AppColors.error,
+                    onTap: () async {
+                      await notifier.remove(item);
+                      if (context.mounted) {
+                        context.showSnack('Item removed from saved list');
+                      }
+                    },
                   ),
                 ],
               ],

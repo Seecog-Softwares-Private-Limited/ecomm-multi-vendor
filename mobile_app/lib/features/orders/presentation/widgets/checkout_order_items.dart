@@ -5,12 +5,22 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/app_cached_image.dart';
 import '../../../commerce/presentation/widgets/price_hierarchy.dart';
+import '../../../commerce/presentation/widgets/quantity_dropdown.dart';
 
 /// Checkout order summary line items from session preview.
 class CheckoutOrderItemsList extends StatelessWidget {
-  const CheckoutOrderItemsList({required this.items, super.key});
+  const CheckoutOrderItemsList({
+    required this.items,
+    this.onQuantityChanged,
+    this.maxQuantityForItem,
+    this.quantityUpdating = false,
+    super.key,
+  });
 
   final List<Map<String, dynamic>> items;
+  final Future<void> Function(Map<String, dynamic> item, int quantity)? onQuantityChanged;
+  final int Function(Map<String, dynamic> item)? maxQuantityForItem;
+  final bool quantityUpdating;
 
   String? _imageUrl(Map<String, dynamic> item) {
     final product = item['product'];
@@ -27,12 +37,15 @@ class CheckoutOrderItemsList extends StatelessWidget {
   }
 
   double _price(Map<String, dynamic> item) {
-    return (item['unitPrice'] as num?)?.toDouble() ??
+    return (item['unitSellingPrice'] as num?)?.toDouble() ??
+        (item['unitPrice'] as num?)?.toDouble() ??
         (item['sellingPrice'] as num?)?.toDouble() ??
         0;
   }
 
   double _mrp(Map<String, dynamic> item) {
+    final unitMrp = (item['unitMrp'] as num?)?.toDouble();
+    if (unitMrp != null) return unitMrp;
     final product = item['product'];
     if (product is Map) return (product['mrp'] as num?)?.toDouble() ?? _price(item);
     return (item['mrp'] as num?)?.toDouble() ?? _price(item);
@@ -51,6 +64,14 @@ class CheckoutOrderItemsList extends StatelessWidget {
       if (seller != null && seller.isNotEmpty) return seller;
     }
     return item['sellerName']?.toString();
+  }
+
+  int _quantity(Map<String, dynamic> item) => (item['quantity'] as num?)?.toInt() ?? 1;
+
+  int _maxQty(Map<String, dynamic> item) {
+    final fromCallback = maxQuantityForItem?.call(item);
+    if (fromCallback != null && fromCallback >= 1) return fromCallback;
+    return 10;
   }
 
   @override
@@ -95,11 +116,19 @@ class CheckoutOrderItemsList extends StatelessWidget {
                         'Sold by ${_seller(item)}',
                         style: theme.textTheme.labelSmall?.copyWith(color: adaptive.textMuted),
                       ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      'Qty: ${(item['quantity'] as num?)?.toInt() ?? 1}',
-                      style: theme.textTheme.labelSmall,
-                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    if (onQuantityChanged != null)
+                      QuantityDropdown(
+                        quantity: _quantity(item),
+                        max: _maxQty(item),
+                        enabled: !quantityUpdating,
+                        onChanged: (qty) => onQuantityChanged!(item, qty),
+                      )
+                    else
+                      Text(
+                        'Qty: ${_quantity(item)}',
+                        style: theme.textTheme.labelSmall,
+                      ),
                     const SizedBox(height: AppSpacing.xs),
                     PriceHierarchy(
                       sellingPrice: _price(item),
@@ -112,7 +141,7 @@ class CheckoutOrderItemsList extends StatelessWidget {
               Text(
                 Formatters.rupees(
                   (item['lineTotal'] as num?)?.toDouble() ??
-                      _price(item) * ((item['quantity'] as num?)?.toInt() ?? 1),
+                      _price(item) * _quantity(item),
                 ),
                 style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
               ),
