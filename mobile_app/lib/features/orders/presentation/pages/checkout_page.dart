@@ -44,6 +44,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   String _payment = 'cod';
   bool _placing = false;
   bool _sessionLoading = true;
+  bool _quantityUpdating = false;
   String? _checkoutSessionId;
   Map<String, dynamic>? _sessionPreview;
   late final RazorpayCheckoutService _razorpayCheckout;
@@ -137,6 +138,84 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       await _loadSessionPreview();
     } catch (error) {
       if (mounted) context.showSnack(Failure.from(error).message, isError: true);
+    }
+  }
+
+  int _maxQuantityForItem(Map<String, dynamic> item) {
+    const flipkartStyleCap = 10;
+    final cartItemId = item['cartItemId']?.toString();
+    final cart = ref.read(cartControllerProvider).value;
+    if (cartItemId != null && cartItemId.isNotEmpty && cart != null) {
+      for (final line in cart.items) {
+        if (line.id == cartItemId) {
+          final stock = line.product.stock;
+          if (stock > 0) return stock.clamp(1, flipkartStyleCap);
+          break;
+        }
+      }
+    }
+    final current = (item['quantity'] as num?)?.toInt() ?? 1;
+    return current > flipkartStyleCap ? current : flipkartStyleCap;
+  }
+
+  Future<void> _updateItemQuantity(Map<String, dynamic> item, int quantity) async {
+    if (_quantityUpdating || quantity < 1) return;
+    final ds = CheckoutRemoteDataSource(ref.read(dioClientProvider));
+    final previousSessionId = _checkoutSessionId;
+    final couponCode = ref.read(cartControllerProvider).value?.couponCode;
+    final cartItemId = item['cartItemId']?.toString();
+    final productId = item['productId']?.toString();
+    final variantRaw = item['variantKey']?.toString();
+    final variantKey = (variantRaw == null || variantRaw.isEmpty) ? null : variantRaw;
+
+    setState(() => _quantityUpdating = true);
+    try {
+      late final String sessionId;
+      if (cartItemId != null && cartItemId.isNotEmpty) {
+        final cart = ref.read(cartControllerProvider).value;
+        final cartItem = cart?.items.where((e) => e.id == cartItemId).firstOrNull;
+        if (cartItem == null) {
+          throw Exception('Cart item not found. Please go back and try again.');
+        }
+        await ref.read(cartControllerProvider.notifier).setQuantity(cartItem, quantity);
+        final updated = ref.read(cartControllerProvider).value;
+        if (updated == null || updated.isEmpty) {
+          throw Exception('Cart is empty after quantity update.');
+        }
+        sessionId = await ds.createCartSession(updated.items.map((e) => e.id).toList());
+      } else if (productId != null && productId.isNotEmpty) {
+        sessionId = await ds.createBuyNowSession(
+          productId: productId,
+          quantity: quantity,
+          variantKey: variantKey,
+        );
+      } else {
+        throw Exception('Unable to update quantity for this item.');
+      }
+
+      if (previousSessionId != null &&
+          previousSessionId.isNotEmpty &&
+          previousSessionId != sessionId) {
+        try {
+          await ds.cancelSession(previousSessionId);
+        } catch (_) {
+          // Best-effort cleanup of the previous checkout snapshot.
+        }
+      }
+
+      if (!mounted) return;
+      setState(() => _checkoutSessionId = sessionId);
+      await _loadSessionPreview(sessionId: sessionId, couponCode: couponCode);
+      if (!mounted) return;
+      context.replace('${AppRoutes.checkout}?session=$sessionId');
+    } catch (error) {
+      if (!mounted) return;
+      final message = error is Exception
+          ? error.toString().replaceFirst(RegExp(r'^Exception:\s*'), '')
+          : Failure.from(error).message;
+      context.showSnack(message, isError: true);
+    } finally {
+      if (mounted) setState(() => _quantityUpdating = false);
     }
   }
 
@@ -378,7 +457,12 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                     title: 'Order Summary',
                     icon: Icons.shopping_bag_outlined,
                     subtitle: '${_sessionItems.length} item${_sessionItems.length == 1 ? '' : 's'}',
-                    child: CheckoutOrderItemsList(items: _sessionItems),
+                    child: CheckoutOrderItemsList(
+                      items: _sessionItems,
+                      quantityUpdating: _quantityUpdating,
+                      maxQuantityForItem: _maxQuantityForItem,
+                      onQuantityChanged: _updateItemQuantity,
+                    ),
                   ),
                 CheckoutExpandableSection(
                   title: 'Coupon',

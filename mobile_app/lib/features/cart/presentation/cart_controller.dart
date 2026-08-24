@@ -133,12 +133,20 @@ class CartController extends AsyncNotifier<CartState> {
   }
 
   Future<void> remove(CartItem item) async {
-    final previous = _state.items;
-    state = AsyncData(_state.copyWith(items: previous.where((i) => i.id != item.id).toList()));
+    final previousItems = _state.items;
+    final previousSaved = _state.savedForLater;
+    state = AsyncData(
+      _state.copyWith(
+        items: previousItems.where((i) => i.id != item.id).toList(),
+        savedForLater: previousSaved.where((i) => i.id != item.id).toList(),
+      ),
+    );
     try {
       await _repo.remove(item.id);
     } catch (_) {
-      state = AsyncData(_state.copyWith(items: previous));
+      state = AsyncData(
+        _state.copyWith(items: previousItems, savedForLater: previousSaved),
+      );
       rethrow;
     }
   }
