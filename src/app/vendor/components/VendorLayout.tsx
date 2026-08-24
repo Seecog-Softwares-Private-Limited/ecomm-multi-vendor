@@ -385,6 +385,7 @@ export function VendorLayout({
   const bottomNavOnboarding: { name: string; path: string; icon: LucideIcon }[] = [
     { name: "Home", path: "/vendor", icon: LayoutDashboard },
     { name: "Profile", path: "/vendor/profile?tab=business_info", icon: User },
+    { name: "Settings", path: "/vendor/settings", icon: Settings },
     { name: "Support", path: "/vendor/support", icon: HelpCircle },
   ];
   const bottomNavItems = approved ? bottomNavApproved : bottomNavOnboarding;

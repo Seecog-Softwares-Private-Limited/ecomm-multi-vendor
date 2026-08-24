@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { applyApiCors, apiCorsPreflight } from "@/lib/api/cors";
 import { getVerifiedSession } from "@/lib/auth/middleware-auth";
+import { copyVendorAppContextParams } from "@/lib/vendor-app-query";
 import {
   isAuthPage,
   isAuthRequiredPath,
@@ -107,6 +108,7 @@ function redirectToLogin(
 ): NextResponse {
   const url = new URL(loginPath, request.url);
   url.searchParams.set("callbackUrl", fromPath);
+  copyVendorAppContextParams(request.nextUrl.searchParams, url.searchParams);
   return NextResponse.redirect(url);
 }
 

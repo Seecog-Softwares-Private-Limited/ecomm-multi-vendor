@@ -28,8 +28,11 @@ const katibeh = Katibeh({
 });
 
 export const metadata: Metadata = {
-  title: "E-commerce Website Wireframes",
-  description: "MarketHub - Multi-Vendor Marketplace",
+  title: {
+    default: "IndoVyapar",
+    template: "%s | IndoVyapar",
+  },
+  description: "IndoVyapar — multi-vendor marketplace",
 };
 
 /** App-like mobile / WebView: disable pinch-zoom (vendor + customer hybrid apps). */
