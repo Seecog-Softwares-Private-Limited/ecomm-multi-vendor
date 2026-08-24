@@ -13,7 +13,6 @@ import NetInfo from '@react-native-community/netinfo';
 import { WebView } from 'react-native-webview';
 import { StatusBar } from 'expo-status-bar';
 import * as AppleAuthentication from 'expo-apple-authentication';
-import * as Crypto from 'expo-crypto';
 import {
   SafeAreaProvider,
   SafeAreaView,
@@ -79,16 +78,15 @@ async function nativeSignInWithApple() {
     throw new Error('Sign in with Apple is not available on this device.');
   }
   const nonce = randomAppleNonce();
-  const hashedNonce = await Crypto.digestStringAsync(
-    Crypto.CryptoDigestAlgorithm.SHA256,
-    nonce,
-  );
+  // Pass the raw nonce. expo-apple-authentication forwards it to Apple; Apple
+  // SHA-256s it into the identity token. The backend hashes the same raw nonce.
+  // Pre-hashing here would double-hash and fail verification (Guideline 4.8).
   const credential = await AppleAuthentication.signInAsync({
     requestedScopes: [
       AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
       AppleAuthentication.AppleAuthenticationScope.EMAIL,
     ],
-    nonce: hashedNonce,
+    nonce,
   });
   if (!credential.identityToken) {
     throw new Error('Apple did not return an identity token.');
@@ -299,6 +297,7 @@ function VendorScreen() {
             injectAppleAuthResult(webRef.current, {
               success: false,
               cancelled,
+              cancelled: cancelled,
               message: cancelled
                 ? 'Apple sign-in was cancelled.'
                 : err?.message || 'Apple sign-in failed.',

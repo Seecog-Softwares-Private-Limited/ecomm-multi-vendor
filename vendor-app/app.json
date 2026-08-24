@@ -11,8 +11,11 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.blablabla0978.vendorapp",
-      "buildNumber": "2",
+      "buildNumber": "4",
       "usesAppleSignIn": true,
+      "entitlements": {
+        "com.apple.developer.applesignin": ["Default"]
+      },
       "infoPlist": {
         "CFBundleDisplayName": "IndoVyapar Vendor",
         "NSCameraUsageDescription": "IndoVyapar Vendor uses the camera to photograph product images.",

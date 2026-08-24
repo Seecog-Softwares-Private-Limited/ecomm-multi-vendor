@@ -113,7 +113,7 @@ export function VendorLoginPage() {
     }
     if (!payload.success) {
       setAppleLoading(false);
-      if (payload.cancelled) {
+      if (payload.cancelled || payload.cancelled) {
         setError(null);
         return;
       }
