@@ -12,6 +12,10 @@ import { signToken, setAuthCookie } from "@/lib/auth";
 import { queueGoogleOAuthWelcomeEmail } from "@/lib/email/oauth-google-welcome";
 import { prisma } from "@/lib/prisma";
 import { userNeedsProfileCompletion } from "@/lib/profile/needs-completion";
+import {
+  completeVendorGoogleOAuth,
+  vendorErrorRedirect,
+} from "@/lib/auth/complete-vendor-google-oauth";
 
 const SUPPORTED_PROVIDERS: OAuthProvider[] = ["google", "facebook"];
 
@@ -24,12 +28,8 @@ function errorRedirect(baseUrl: string, message: string): NextResponse {
 /**
  * GET /api/auth/oauth/[provider]/callback
  *
- * Handles the OAuth callback:
- *  1. Verifies state cookie (CSRF check)
- *  2. Exchanges authorization code for user info
- *  3. Finds or creates a User record
- *  4. Issues JWT session cookie
- *  5. Redirects to returnUrl
+ * Shared Google redirect URI for customer + vendor (registered in Google Cloud).
+ * Vendor sessions are selected when OAuth state has `flow: "vendor"`.
  */
 export async function GET(request: NextRequest, context: ApiRouteContext) {
   const params = await context.params;
@@ -49,32 +49,81 @@ export async function GET(request: NextRequest, context: ApiRouteContext) {
   const stateFromQuery = searchParams.get("state");
   const oauthError = searchParams.get("error");
 
+  const stateObjEarly = stateFromQuery ? decodeOAuthState(stateFromQuery) : null;
+  const isVendorFlow = stateObjEarly?.flow === "vendor";
+
   if (oauthError) {
-    return errorRedirect(appBase, oauthError === "access_denied" ? "Login was cancelled" : "OAuth error");
+    if (isVendorFlow) {
+      return vendorErrorRedirect(
+        appBase,
+        oauthError === "access_denied" ? "Login was cancelled" : "OAuth error",
+        stateObjEarly?.returnUrl
+      );
+    }
+    return errorRedirect(
+      appBase,
+      oauthError === "access_denied" ? "Login was cancelled" : "OAuth error"
+    );
   }
 
   if (!code) {
+    if (isVendorFlow) {
+      return vendorErrorRedirect(
+        appBase,
+        "Missing authorization code",
+        stateObjEarly?.returnUrl
+      );
+    }
     return errorRedirect(appBase, "Missing authorization code");
   }
 
-  // ── CSRF state verification (cookie must match provider-returned `state` param) ─
   const cookieState = request.cookies.get(OAUTH_STATE_COOKIE)?.value;
   if (!cookieState || !stateFromQuery) {
+    if (isVendorFlow) {
+      return vendorErrorRedirect(
+        appBase,
+        "Missing OAuth state — please try again",
+        stateObjEarly?.returnUrl
+      );
+    }
     return errorRedirect(appBase, "Missing OAuth state — please try again");
   }
 
   if (cookieState !== stateFromQuery) {
+    if (isVendorFlow) {
+      return vendorErrorRedirect(
+        appBase,
+        "Invalid OAuth state — please start sign-in again",
+        stateObjEarly?.returnUrl
+      );
+    }
     return errorRedirect(appBase, "Invalid OAuth state — please start sign-in again");
   }
 
   const stateObj = decodeOAuthState(stateFromQuery);
   if (!stateObj) {
+    if (isVendorFlow) {
+      return vendorErrorRedirect(
+        appBase,
+        "Invalid OAuth state — please start sign-in again",
+        stateObjEarly?.returnUrl
+      );
+    }
     return errorRedirect(appBase, "Invalid OAuth state — please start sign-in again");
+  }
+
+  if (stateObj.flow === "vendor") {
+    return completeVendorGoogleOAuth({
+      provider,
+      code,
+      requestBase,
+      appBase,
+      returnUrl: stateObj.returnUrl || "/vendor",
+    });
   }
 
   const returnUrl = stateObj.returnUrl || "/";
 
-  // ── Exchange code for user info ──────────────────────────────────────────
   let oauthUser;
   try {
     oauthUser = await exchangeOAuthCode(provider, code, requestBase);
@@ -84,10 +133,12 @@ export async function GET(request: NextRequest, context: ApiRouteContext) {
   }
 
   if (!oauthUser.email) {
-    return errorRedirect(appBase, "Your " + provider + " account has no email address. Use a different sign-in method.");
+    return errorRedirect(
+      appBase,
+      "Your " + provider + " account has no email address. Use a different sign-in method."
+    );
   }
 
-  // ── Find or create user ──────────────────────────────────────────────────
   let isNewUser = false;
 
   let user = await prisma.user.findFirst({
@@ -104,7 +155,6 @@ export async function GET(request: NextRequest, context: ApiRouteContext) {
   });
 
   if (user) {
-    // Link OAuth provider if not already set, and ensure emailVerified
     await prisma.user.update({
       where: { id: user.id },
       data: {
@@ -130,7 +180,6 @@ export async function GET(request: NextRequest, context: ApiRouteContext) {
     });
   } else {
     isNewUser = true;
-    // Create new user — no password (OAuth-only)
     user = await prisma.user.create({
       data: {
         email: oauthUser.email,
@@ -158,7 +207,6 @@ export async function GET(request: NextRequest, context: ApiRouteContext) {
     return errorRedirect(appBase, "Could not create your account. Please try again.");
   }
 
-  // ── Welcome email (Google OAuth, new users only — async, non-blocking) ───
   if (provider === "google" && isNewUser) {
     queueGoogleOAuthWelcomeEmail({
       to: user.email,
@@ -168,7 +216,6 @@ export async function GET(request: NextRequest, context: ApiRouteContext) {
     });
   }
 
-  // ── Issue JWT session ────────────────────────────────────────────────────
   const token = await signToken({
     sub: user.id,
     email: user.email,
@@ -184,8 +231,6 @@ export async function GET(request: NextRequest, context: ApiRouteContext) {
 
   const response = NextResponse.redirect(new URL(destination, appBase).toString());
   setAuthCookie(response, token);
-
-  // Clear the state cookie
   response.cookies.set(OAUTH_STATE_COOKIE, "", { maxAge: 0, path: "/" });
 
   return response;

@@ -4,6 +4,7 @@ import {
   buildOAuthAuthUrl,
   generateOAuthState,
   encodeOAuthState,
+  OAUTH_STATE_COOKIE,
   VENDOR_OAUTH_STATE_COOKIE,
   getOAuthAppBaseUrl,
   isOAuthClientConfigured,
@@ -18,6 +19,9 @@ const SUPPORTED_PROVIDERS: OAuthProvider[] = ["google"];
  * GET /api/auth/vendor-oauth/[provider]?returnUrl=/vendor
  *
  * Starts Google OAuth for vendor (Seller) sign-in.
+ * Uses the same Google redirect_uri as customer login
+ * (`/api/auth/oauth/google/callback`) — that URI is registered in Google Cloud.
+ * Vendor completion is selected via OAuth state `flow: "vendor"`.
  */
 export async function GET(request: NextRequest, context: ApiRouteContext) {
   const params = await context.params;
@@ -42,7 +46,6 @@ export async function GET(request: NextRequest, context: ApiRouteContext) {
   }
 
   const returnUrl = searchParams.get("returnUrl") ?? "/vendor";
-  // When the hybrid app starts OAuth, keep app=1 on the post-login destination.
   let effectiveReturnUrl = returnUrl;
   if (searchParams.get("app") && !returnUrl.includes("app=")) {
     const sep = returnUrl.includes("?") ? "&" : "?";
@@ -52,20 +55,25 @@ export async function GET(request: NextRequest, context: ApiRouteContext) {
     }
   }
 
-  const stateObj = generateOAuthState(effectiveReturnUrl);
+  const stateObj = generateOAuthState(effectiveReturnUrl, "vendor");
   const stateStr = encodeOAuthState(stateObj);
 
   const oauthBaseUrl = resolveOAuthBaseUrlFromRequest(request);
+  // Auth URL still tagged as vendor for logging; Google redirect_uri is shared.
   const authUrl = buildOAuthAuthUrl(provider, stateStr, oauthBaseUrl, "vendor");
 
   const response = NextResponse.redirect(authUrl);
-  response.cookies.set(VENDOR_OAUTH_STATE_COOKIE, stateStr, {
+  const cookieOpts = {
     httpOnly: true,
-    sameSite: "lax",
+    sameSite: "lax" as const,
     secure: process.env.NODE_ENV === "production",
     maxAge: 600,
     path: "/",
-  });
+  };
+  // Shared callback reads OAUTH_STATE_COOKIE.
+  response.cookies.set(OAUTH_STATE_COOKIE, stateStr, cookieOpts);
+  // Keep vendor cookie too for the legacy vendor callback path if still hit.
+  response.cookies.set(VENDOR_OAUTH_STATE_COOKIE, stateStr, cookieOpts);
 
   return response;
 }

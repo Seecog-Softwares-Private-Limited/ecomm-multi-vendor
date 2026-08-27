@@ -1,40 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { ApiRouteContext } from "@/lib/api";
 import {
-  exchangeOAuthCode,
   decodeOAuthState,
   VENDOR_OAUTH_STATE_COOKIE,
+  OAUTH_STATE_COOKIE,
   getOAuthAppBaseUrl,
   resolveOAuthBaseUrlFromRequest,
   type OAuthProvider,
 } from "@/lib/auth/oauth";
-import { signToken, setAuthCookie } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import {
+  completeVendorGoogleOAuth,
+  vendorErrorRedirect,
+} from "@/lib/auth/complete-vendor-google-oauth";
 
 const SUPPORTED_PROVIDERS: OAuthProvider[] = ["google"];
 
-function errorRedirect(baseUrl: string, message: string, returnUrl?: string): NextResponse {
-  const url = new URL("/vendor/login", baseUrl);
-  url.searchParams.set("error", message);
-  if (returnUrl) {
-    url.searchParams.set("callbackUrl", returnUrl);
-    try {
-      const ret = new URL(returnUrl, baseUrl);
-      const app = ret.searchParams.get("app");
-      const v = ret.searchParams.get("v");
-      if (app) url.searchParams.set("app", app);
-      if (v) url.searchParams.set("v", v);
-    } catch {
-      /* ignore */
-    }
-  }
-  return NextResponse.redirect(url.toString());
-}
-
 /**
- * GET /api/auth/vendor-oauth/[provider]/callback
- *
- * Completes vendor Google OAuth: finds Seller by email, links provider, issues SELLER session.
+ * Legacy vendor callback path.
+ * New vendor Google logins use the shared `/api/auth/oauth/google/callback`
+ * (registered in Google Cloud). This route remains for older in-flight states.
  */
 export async function GET(request: NextRequest, context: ApiRouteContext) {
   const params = await context.params;
@@ -46,7 +30,7 @@ export async function GET(request: NextRequest, context: ApiRouteContext) {
   const appBase = requestBase || getOAuthAppBaseUrl();
 
   if (!provider || !SUPPORTED_PROVIDERS.includes(provider)) {
-    return errorRedirect(appBase, "Unsupported login provider");
+    return vendorErrorRedirect(appBase, "Unsupported login provider");
   }
 
   const { searchParams } = new URL(request.url);
@@ -55,101 +39,37 @@ export async function GET(request: NextRequest, context: ApiRouteContext) {
   const oauthError = searchParams.get("error");
 
   if (oauthError) {
-    return errorRedirect(
+    return vendorErrorRedirect(
       appBase,
       oauthError === "access_denied" ? "Login was cancelled" : "OAuth error"
     );
   }
 
   if (!code) {
-    return errorRedirect(appBase, "Missing authorization code");
+    return vendorErrorRedirect(appBase, "Missing authorization code");
   }
 
-  const cookieState = request.cookies.get(VENDOR_OAUTH_STATE_COOKIE)?.value;
+  const cookieState =
+    request.cookies.get(VENDOR_OAUTH_STATE_COOKIE)?.value ||
+    request.cookies.get(OAUTH_STATE_COOKIE)?.value;
   if (!cookieState || !stateFromQuery) {
-    return errorRedirect(appBase, "Missing OAuth state — please try again");
+    return vendorErrorRedirect(appBase, "Missing OAuth state — please try again");
   }
 
   if (cookieState !== stateFromQuery) {
-    return errorRedirect(appBase, "Invalid OAuth state — please start sign-in again");
+    return vendorErrorRedirect(appBase, "Invalid OAuth state — please start sign-in again");
   }
 
   const stateObj = decodeOAuthState(stateFromQuery);
   if (!stateObj) {
-    return errorRedirect(appBase, "Invalid OAuth state — please start sign-in again");
+    return vendorErrorRedirect(appBase, "Invalid OAuth state — please start sign-in again");
   }
 
-  const returnUrl = stateObj.returnUrl || "/vendor";
-
-  let oauthUser;
-  try {
-    oauthUser = await exchangeOAuthCode(provider, code, requestBase, "vendor");
-  } catch (e) {
-    console.error(`[Vendor OAuth] ${provider} code exchange failed:`, e);
-    return errorRedirect(appBase, "Failed to authenticate with Google", returnUrl);
-  }
-
-  if (!oauthUser.email) {
-    return errorRedirect(
-      appBase,
-      "Your Google account has no email address. Use email and password instead.",
-      returnUrl
-    );
-  }
-
-  const seller = await prisma.seller.findFirst({
-    where: { email: oauthUser.email, deletedAt: null },
-    select: {
-      id: true,
-      email: true,
-      businessName: true,
-      ownerName: true,
-      status: true,
-    },
+  return completeVendorGoogleOAuth({
+    provider,
+    code,
+    requestBase,
+    appBase,
+    returnUrl: stateObj.returnUrl || "/vendor",
   });
-
-  if (!seller) {
-    return errorRedirect(
-      appBase,
-      "No vendor account exists for this Google email. Register as a vendor first.",
-      returnUrl
-    );
-  }
-
-  await prisma.seller.update({
-    where: { id: seller.id },
-    data: {
-      emailVerified: true,
-      oauthProvider: provider,
-      oauthProviderId: oauthUser.providerId,
-      verificationToken: null,
-      verificationTokenExpires: null,
-    },
-  });
-
-  const token = await signToken({
-    sub: seller.id,
-    email: seller.email,
-    role: "SELLER",
-  });
-
-  const response = NextResponse.redirect((() => {
-    const dest = new URL(returnUrl, appBase);
-    // Preserve hybrid-app chrome after Google returns.
-    if (!dest.searchParams.has("app") && returnUrl.includes("app=")) {
-      try {
-        const fromReturn = new URL(returnUrl, appBase);
-        if (fromReturn.searchParams.get("app")) {
-          dest.searchParams.set("app", fromReturn.searchParams.get("app")!);
-        }
-      } catch {
-        /* ignore */
-      }
-    }
-    return dest.toString();
-  })());
-  setAuthCookie(response, token);
-  response.cookies.set(VENDOR_OAUTH_STATE_COOKIE, "", { maxAge: 0, path: "/" });
-
-  return response;
 }

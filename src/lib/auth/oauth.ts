@@ -90,16 +90,11 @@ export function resolveOAuthBaseUrlFromRequest(request: NextRequest): string {
     return requestOrigin;
   }
 
+  // Production: always use the configured public URL so Google sees one stable
+  // redirect_uri (avoids www vs apex and http vs https mismatches).
   const configured = appUrl();
-  if (configured) {
-    try {
-      const configuredHost = new URL(configured).host;
-      if (configuredHost === host) {
-        return configured.replace(/\/$/, "");
-      }
-    } catch {
-      return configured.replace(/\/$/, "");
-    }
+  if (configured && !configured.includes("localhost")) {
+    return configured.replace(/\/$/, "");
   }
 
   return requestOrigin;
@@ -108,10 +103,16 @@ export function resolveOAuthBaseUrlFromRequest(request: NextRequest): string {
 export function oauthRedirectUri(
   provider: OAuthProvider,
   baseUrl?: string,
-  flow: OAuthFlow = "customer"
+  _flow: OAuthFlow = "customer"
 ): string {
   const origin = (baseUrl?.trim() || appUrl()).replace(/\/$/, "");
-  const prefix = flow === "vendor" ? "/api/auth/vendor-oauth" : "/api/auth/oauth";
+  // Google Cloud OAuth clients usually register a single web redirect URI.
+  // Customer + vendor Google login share `/api/auth/oauth/google/callback`;
+  // vendor vs customer is distinguished via OAuth state `flow`.
+  if (provider === "google") {
+    return `${origin}/api/auth/oauth/google/callback`;
+  }
+  const prefix = _flow === "vendor" ? "/api/auth/vendor-oauth" : "/api/auth/oauth";
   return `${origin}${prefix}/${provider}/callback`;
 }
 
@@ -135,10 +136,15 @@ export const VENDOR_OAUTH_STATE_COOKIE = "vendor_oauth_state";
 export interface OAuthState {
   state: string;
   returnUrl: string;
+  /** Defaults to customer when omitted (legacy state cookies). */
+  flow?: OAuthFlow;
 }
 
-export function generateOAuthState(returnUrl: string): OAuthState {
-  return { state: randomBytes(16).toString("hex"), returnUrl };
+export function generateOAuthState(
+  returnUrl: string,
+  flow: OAuthFlow = "customer"
+): OAuthState {
+  return { state: randomBytes(16).toString("hex"), returnUrl, flow };
 }
 
 export function encodeOAuthState(s: OAuthState): string {
@@ -153,7 +159,11 @@ export function decodeOAuthState(raw: string): OAuthState | null {
       typeof parsed.state === "string" &&
       typeof parsed.returnUrl === "string"
     ) {
-      return parsed as OAuthState;
+      const flow =
+        parsed.flow === "vendor" || parsed.flow === "customer"
+          ? (parsed.flow as OAuthFlow)
+          : "customer";
+      return { state: parsed.state, returnUrl: parsed.returnUrl, flow };
     }
   } catch { /* ignore */ }
   return null;
