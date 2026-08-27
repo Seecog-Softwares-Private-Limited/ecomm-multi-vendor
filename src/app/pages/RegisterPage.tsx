@@ -19,6 +19,7 @@ import { getGuestCart, clearGuestCart } from "@/lib/guest-cart";
 import { IndovyaparLogo } from "@/components/IndovyaparLogo";
 import { dispatchCartUpdated } from "@/contexts/CartDrawerContext";
 import { startOAuthLogin } from "@/lib/auth/start-oauth";
+import { useAppMode } from "@/contexts/AppModeContext";
 
 const inputClass =
   "block w-full rounded-xl border border-slate-200 bg-slate-50/50 py-3 text-slate-900 placeholder:text-slate-400 transition focus:border-[#FF6A00] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6A00]/20";
@@ -80,6 +81,7 @@ function RegisterBrandPanel() {
 export function RegisterPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { isAppMode } = useAppMode();
   const returnUrl =
     searchParams?.get("returnUrl") ?? searchParams?.get("callbackUrl") ?? "/";
   const [showPassword, setShowPassword] = React.useState(false);
@@ -107,6 +109,12 @@ export function RegisterPage() {
       resendAbortRef.current = null;
     }
   }, [registeredEmail]);
+
+  // Vendor hybrid app must not surface customer Google signup (Guideline 4.8 / 4).
+  React.useEffect(() => {
+    if (!isAppMode) return;
+    router.replace("/vendor/login?app=1");
+  }, [isAppMode, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -256,6 +264,14 @@ export function RegisterPage() {
   const goToLogin = () => {
     router.push("/login");
   };
+
+  if (isAppMode) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#F9FAFB]">
+        <span className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-[#FF6A00] border-t-transparent" />
+      </div>
+    );
+  }
 
   if (registeredEmail) {
     return (

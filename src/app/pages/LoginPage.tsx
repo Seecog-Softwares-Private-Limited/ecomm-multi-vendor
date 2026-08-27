@@ -21,6 +21,7 @@ import { normalizeIndianPhone, INDIAN_MOBILE_HINT } from "@/lib/auth/phone";
 import { syncCustomerDefaultAddressToDeliveryLocation } from "@/lib/delivery-location";
 import { dispatchCartUpdated } from "@/contexts/CartDrawerContext";
 import { startOAuthLogin } from "@/lib/auth/start-oauth";
+import { useAppMode } from "@/contexts/AppModeContext";
 
 type LoginMode = "email" | "phone";
 type PhoneStep = "number" | "otp";
@@ -38,6 +39,7 @@ const SHOW_PHONE_OTP_LOGIN = false;
 export function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { isAppMode } = useAppMode();
   const isDev = process.env.NODE_ENV === "development";
   const [loginMode, setLoginMode] = React.useState<LoginMode>(
     SHOW_PHONE_OTP_LOGIN ? (isDev ? "email" : "phone") : "email",
@@ -58,6 +60,12 @@ export function LoginPage() {
   const returnUrl =
     searchParams?.get("returnUrl") ?? searchParams?.get("callbackUrl") ?? "/";
 
+  // Vendor hybrid app must not surface customer Google login (Guideline 4.8 / 4).
+  React.useEffect(() => {
+    if (!isAppMode) return;
+    router.replace("/vendor/login?app=1");
+  }, [isAppMode, router]);
+
   React.useEffect(() => {
     const fromUrl = searchParams?.get("email")?.trim();
     if (fromUrl) setEmail(fromUrl);
@@ -67,7 +75,6 @@ export function LoginPage() {
   }, [searchParams]);
 
   React.useEffect(() => {
-    console.log("User agent:", "=> isEmbeddedWebView:", isEmbeddedWebView, window);
     if (typeof window === "undefined") return;
     const ua = window.navigator.userAgent || "";
     const embedded =
@@ -75,7 +82,6 @@ export function LoginPage() {
       /WebView/i.test(ua) ||
       /(iPhone|iPad|iPod)(?!.*Safari)/i.test(ua) || // iOS in-app browser/webview
       /FBAN|FBAV|Instagram/i.test(ua);
-    console.log("User agent:", ua, "=> isEmbeddedWebView:", embedded, isEmbeddedWebView);
     setIsEmbeddedWebView(embedded);
   }, []);
 
@@ -110,6 +116,14 @@ export function LoginPage() {
     const t = setInterval(() => setResendSeconds((s) => (s > 0 ? s - 1 : 0)), 1000);
     return () => clearInterval(t);
   }, [resendSeconds]);
+
+  if (isAppMode) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#F9FAFB]">
+        <span className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-[#FF6A00] border-t-transparent" />
+      </div>
+    );
+  }
 
   const requestOtp = async (isResend = false) => {
     setError(null);
@@ -558,7 +572,7 @@ export function LoginPage() {
 
               {isEmbeddedWebView ? (
                 <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700 ring-1 ring-amber-200">
-                  Social login requires a secure browser session. Open this page in Chrome/Safari if you are inside an app webview.
+                  Social login continues in this app window. Stay here to complete Google sign-in.
                 </p>
               ) : null}
 

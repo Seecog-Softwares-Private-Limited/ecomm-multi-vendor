@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import * as React from "react";
 import { IndovyaparLogo } from "@/components/IndovyaparLogo";
+import { useAppMode } from "@/contexts/AppModeContext";
+import { useRouter } from "next/navigation";
 
 const inputClass =
   "block w-full rounded-xl border border-slate-200 bg-slate-50/50 py-3 pl-12 pr-4 text-slate-900 placeholder:text-slate-400 transition focus:border-[#FF6A00] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6A00]/20";
@@ -72,12 +74,19 @@ function ForgotPasswordBrandPanel() {
 }
 
 export function ForgotPasswordPage() {
+  const router = useRouter();
+  const { isAppMode } = useAppMode();
   const [submitted, setSubmitted] = React.useState(false);
   const [email, setEmail] = React.useState("");
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   /** Shown in development when SMTP is off so you can still test the reset flow. */
   const [devResetLink, setDevResetLink] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (!isAppMode) return;
+    router.replace("/vendor/login?app=1");
+  }, [isAppMode, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,6 +126,14 @@ export function ForgotPasswordPage() {
       setLoading(false);
     }
   };
+
+  if (isAppMode) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#F9FAFB]">
+        <span className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-[#FF6A00] border-t-transparent" />
+      </div>
+    );
+  }
 
   if (submitted) {
     return (

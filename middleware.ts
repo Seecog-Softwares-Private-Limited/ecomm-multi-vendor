@@ -62,8 +62,16 @@ export async function middleware(request: NextRequest) {
     !isVendorPublicPage(pathname)
   ) {
     if (!session) return redirectToLogin(request, pathname, VENDOR_LOGIN);
-    if (!SELLER_ROLES.includes(session.role))
-      return NextResponse.redirect(new URL(LOGIN_PATH, request.url));
+    if (!SELLER_ROLES.includes(session.role)) {
+      // Never send vendor-shell traffic to customer /login (Guideline 4.8).
+      const url = new URL(VENDOR_LOGIN, request.url);
+      url.searchParams.set(
+        "error",
+        "Please sign in with a vendor account."
+      );
+      copyVendorAppContextParams(request.nextUrl.searchParams, url.searchParams);
+      return NextResponse.redirect(url);
+    }
     return passThrough(request, pathname);
   }
 
