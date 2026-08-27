@@ -12,7 +12,7 @@ import {
   CreditCard,
   AlertTriangle,
 } from "lucide-react";
-import { Button, Card, Alert, Modal, Input, Textarea, Select } from "../components/UIComponents";
+import { Button, Card, Alert, Modal, Input, Textarea } from "../components/UIComponents";
 import * as React from "react";
 
 export type VendorOrderDetailOrder = {
@@ -94,15 +94,10 @@ export function VendorOrderDetail({ orderId = "", order: orderProp, onBack }: Ve
 
   const [showRejectModal, setShowRejectModal] = React.useState(false);
   const [showShipModal, setShowShipModal] = React.useState(false);
-  const [showCancelModal, setShowCancelModal] = React.useState(false);
-  const [showDisputeModal, setShowDisputeModal] = React.useState(false);
 
   const [rejectReason, setRejectReason] = React.useState("");
   const [courierName, setCourierName] = React.useState("");
   const [trackingLink, setTrackingLink] = React.useState("");
-  const [cancelReason, setCancelReason] = React.useState("");
-  const [disputeType, setDisputeType] = React.useState("");
-  const [disputeDetails, setDisputeDetails] = React.useState("");
   const [actionBusy, setActionBusy] = React.useState(false);
   const [banner, setBanner] = React.useState<{ type: "success" | "error"; message: string } | null>(
     null
@@ -191,25 +186,6 @@ export function VendorOrderDetail({ orderId = "", order: orderProp, onBack }: Ve
     if (ok) {
       setBanner({ type: "success", message: "Marked as delivered." });
     }
-  };
-
-  const handleCancelOrder = () => {
-    if (!cancelReason.trim()) {
-      alert("Please provide a reason for cancellation");
-      return;
-    }
-    alert(`Order cancelled: ${cancelReason}`);
-    setShowCancelModal(false);
-    onBack?.();
-  };
-
-  const handleReportIssue = () => {
-    if (!disputeType || !disputeDetails.trim()) {
-      alert("Please select issue type and provide details");
-      return;
-    }
-    alert(`Issue reported: ${disputeType}`);
-    setShowDisputeModal(false);
   };
 
   const getStatusColor = (status: string) => {
@@ -341,15 +317,6 @@ export function VendorOrderDetail({ orderId = "", order: orderProp, onBack }: Ve
               <Truck className="h-5 w-5" />
               Mark as Shipped
             </Button>
-            <Button
-              variant="secondary"
-              disabled={actionBusy}
-              className="min-h-11 w-full sm:w-auto"
-              onClick={() => setShowCancelModal(true)}
-            >
-              <XCircle className="h-5 w-5" />
-              Cancel Order
-            </Button>
           </div>
         </Card>
       )}
@@ -365,15 +332,6 @@ export function VendorOrderDetail({ orderId = "", order: orderProp, onBack }: Ve
             >
               <CheckCircle className="h-5 w-5" />
               Mark as Delivered
-            </Button>
-            <Button
-              variant="secondary"
-              disabled={actionBusy}
-              className="min-h-11 w-full sm:w-auto"
-              onClick={() => setShowDisputeModal(true)}
-            >
-              <AlertTriangle className="h-5 w-5" />
-              Report an Issue
             </Button>
           </div>
         </Card>
@@ -542,10 +500,16 @@ export function VendorOrderDetail({ orderId = "", order: orderProp, onBack }: Ve
             <Button
               variant="secondary"
               className="w-full"
-              onClick={() => setShowDisputeModal(true)}
+              onClick={() => {
+                const id = order.id?.trim() || orderId?.trim() || "";
+                const href = id
+                  ? `/vendor/support?orderId=${encodeURIComponent(id)}`
+                  : "/vendor/support";
+                window.location.href = href;
+              }}
             >
               <AlertTriangle className="w-5 h-5" />
-              Report an Issue
+              Contact Support
             </Button>
           </Card>
         </div>
@@ -619,81 +583,6 @@ export function VendorOrderDetail({ orderId = "", order: orderProp, onBack }: Ve
               onClick={() => void handleShipOrder()}
             >
               Confirm Shipment
-            </Button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Cancel Modal */}
-      <Modal
-        isOpen={showCancelModal}
-        onClose={() => setShowCancelModal(false)}
-        title="Cancel Order"
-        size="md"
-      >
-        <div className="space-y-4">
-          <Alert
-            type="warning"
-            message="This order has been accepted. Cancelling now may require admin approval."
-          />
-          <Textarea
-            label="Reason for Cancellation"
-            placeholder="Explain why you're cancelling this order..."
-            rows={4}
-            value={cancelReason}
-            onChange={(e) => setCancelReason(e.target.value)}
-            required
-          />
-          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-            <Button variant="ghost" className="min-h-11 w-full sm:w-auto" onClick={() => setShowCancelModal(false)}>
-              Cancel
-            </Button>
-            <Button variant="danger" className="min-h-11 w-full sm:w-auto" onClick={handleCancelOrder}>
-              Cancel Order
-            </Button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Dispute Modal */}
-      <Modal
-        isOpen={showDisputeModal}
-        onClose={() => setShowDisputeModal(false)}
-        title="Report an Issue"
-        size="md"
-      >
-        <div className="space-y-4">
-          <Select
-            label="Issue Type"
-            value={disputeType}
-            onChange={(e) => setDisputeType(e.target.value)}
-            options={[
-              { value: "", label: "Select Issue" },
-              { value: "wrong-address", label: "Wrong Address" },
-              { value: "customer-unreachable", label: "Customer Unreachable" },
-              { value: "product-damaged", label: "Product Damaged" },
-              { value: "other", label: "Other" },
-            ]}
-            required
-          />
-          <Textarea
-            label="Issue Details"
-            placeholder="Provide more details about the issue..."
-            rows={4}
-            value={disputeDetails}
-            onChange={(e) => setDisputeDetails(e.target.value)}
-            required
-          />
-          <Alert
-            type="info"
-            message="Admin will review this issue and take necessary action. You'll be notified via email."
-          />
-          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-            <Button variant="ghost" className="min-h-11 w-full sm:w-auto" onClick={() => setShowDisputeModal(false)}>
-              Cancel
-            </Button>
-            <Button variant="primary" className="min-h-11 w-full sm:w-auto" onClick={handleReportIssue}>
-              Submit Issue
             </Button>
           </div>
         </div>

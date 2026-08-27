@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Link } from "../../components/Link";
 import { Mail, Lock, ArrowRight, Eye, EyeOff, Store, Package, TrendingUp } from "lucide-react";
@@ -13,10 +13,13 @@ import {
   startVendorOAuthLogin,
 } from "@/lib/auth/start-oauth";
 import {
-  hasNativeBridge,
+  canUseNativeAppleSignIn,
   subscribeToNative,
   type AppleAuthResultPayload,
 } from "@/lib/native-bridge";
+import { useAppMode } from "@/contexts/AppModeContext";
+
+const APPLE_AUTH_TIMEOUT_MS = 45_000;
 
 /**
  * Vendor login page at /vendor/login.
@@ -35,6 +38,17 @@ export function VendorLoginPage() {
   const [loading, setLoading] = useState(false);
   const [appleLoading, setAppleLoading] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
+  const [showAppleSignIn, setShowAppleSignIn] = useState(false);
+  const appleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const applePendingRef = useRef(false);
+  const { isAppMode } = useAppMode();
+
+  function clearAppleTimeout() {
+    if (appleTimeoutRef.current) {
+      clearTimeout(appleTimeoutRef.current);
+      appleTimeoutRef.current = null;
+    }
+  }
 
   useEffect(() => {
     const oauthErr = searchParams.get("error")?.trim();
@@ -52,6 +66,19 @@ export function VendorLoginPage() {
   }, [searchParams]);
 
   useEffect(() => {
+    const refreshAppleAvailability = () => {
+      setShowAppleSignIn(canUseNativeAppleSignIn());
+    };
+    refreshAppleAvailability();
+    const id = window.setInterval(refreshAppleAvailability, 500);
+    const stop = window.setTimeout(() => window.clearInterval(id), 5000);
+    return () => {
+      window.clearInterval(id);
+      window.clearTimeout(stop);
+    };
+  }, []);
+
+  useEffect(() => {
     const onResult = (payload: AppleAuthResultPayload | undefined) => {
       void handleAppleNativeResult(payload);
     };
@@ -65,6 +92,8 @@ export function VendorLoginPage() {
         delete window.__INDOVYAPAR_ON_APPLE_AUTH_RESULT__;
       }
       unsubscribe();
+      clearAppleTimeout();
+      applePendingRef.current = false;
     };
   }, [callbackUrl, router]);
 
@@ -106,6 +135,9 @@ export function VendorLoginPage() {
   }
 
   async function handleAppleNativeResult(payload: AppleAuthResultPayload | undefined) {
+    applePendingRef.current = false;
+    clearAppleTimeout();
+
     if (!payload) {
       setAppleLoading(false);
       setError("Apple sign-in failed. Please try again.");
@@ -144,13 +176,24 @@ export function VendorLoginPage() {
 
   function handleAppleClick() {
     setError(null);
-    if (!hasNativeBridge()) {
+    if (!canUseNativeAppleSignIn()) {
       setError("Sign in with Apple is available in the IndoVyapar Vendor iOS app.");
       return;
     }
+    applePendingRef.current = true;
     setAppleLoading(true);
+    clearAppleTimeout();
+    appleTimeoutRef.current = setTimeout(() => {
+      if (!applePendingRef.current) return;
+      applePendingRef.current = false;
+      setAppleLoading(false);
+      setError("Apple sign-in timed out. Please try again.");
+    }, APPLE_AUTH_TIMEOUT_MS);
+
     const started = startVendorAppleLogin(callbackUrl);
     if (!started) {
+      applePendingRef.current = false;
+      clearAppleTimeout();
       setAppleLoading(false);
       setError("Sign in with Apple is available in the IndoVyapar Vendor iOS app.");
     }
@@ -347,35 +390,37 @@ export function VendorLoginPage() {
                 <div className="flex-1 border-t border-slate-200" />
               </div>
 
-              <button
-                type="button"
-                onClick={handleAppleClick}
-                disabled={loading || appleLoading}
-                aria-label="Continue with Apple"
-                className="mt-4 flex w-full items-center justify-center gap-2.5 rounded-xl bg-black px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-black/30 disabled:pointer-events-none disabled:opacity-60"
-              >
-                {appleLoading ? (
-                  <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                ) : (
-                  <>
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 24 24"
-                      className="h-5 w-5 shrink-0 fill-current"
-                      aria-hidden="true"
-                    >
-                      <path d="M16.365 1.43c0 1.14-.42 2.2-1.18 3.02-.78.86-2.06 1.52-3.18 1.43-.12-1.1.42-2.26 1.16-3.08.78-.86 2.14-1.5 3.2-1.37zM20.48 17.24c-.54 1.24-.8 1.8-1.5 2.9-.98 1.52-2.36 3.4-4.08 3.42-1.52.02-1.92-.98-4-.98-2.1 0-2.54.96-4.06.98-1.74.04-3.06-1.64-4.04-3.16-2.76-4.24-3.04-9.22-1.34-11.86 1.2-1.86 3.1-2.96 4.88-2.96 1.82 0 2.96 1 4.46 1 1.46 0 2.36-1 4.46-1 1.56 0 3.22.84 4.4 2.3-3.86 2.12-3.24 7.64.82 9.36z" />
-                    </svg>
-                    Continue with Apple
-                  </>
-                )}
-              </button>
+              {showAppleSignIn ? (
+                <button
+                  type="button"
+                  onClick={handleAppleClick}
+                  disabled={loading || appleLoading}
+                  aria-label="Continue with Apple"
+                  className="mt-4 flex w-full items-center justify-center gap-2.5 rounded-xl bg-black px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-black/30 disabled:pointer-events-none disabled:opacity-60"
+                >
+                  {appleLoading ? (
+                    <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  ) : (
+                    <>
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        className="h-5 w-5 shrink-0 fill-current"
+                        aria-hidden="true"
+                      >
+                        <path d="M16.365 1.43c0 1.14-.42 2.2-1.18 3.02-.78.86-2.06 1.52-3.18 1.43-.12-1.1.42-2.26 1.16-3.08.78-.86 2.14-1.5 3.2-1.37zM20.48 17.24c-.54 1.24-.8 1.8-1.5 2.9-.98 1.52-2.36 3.4-4.08 3.42-1.52.02-1.92-.98-4-.98-2.1 0-2.54.96-4.06.98-1.74.04-3.06-1.64-4.04-3.16-2.76-4.24-3.04-9.22-1.34-11.86 1.2-1.86 3.1-2.96 4.88-2.96 1.82 0 2.96 1 4.46 1 1.46 0 2.36-1 4.46-1 1.56 0 3.22.84 4.4 2.3-3.86 2.12-3.24 7.64.82 9.36z" />
+                      </svg>
+                      Continue with Apple
+                    </>
+                  )}
+                </button>
+              ) : null}
 
               <button
                 type="button"
                 onClick={() => startVendorOAuthLogin("google", callbackUrl)}
                 disabled={loading || appleLoading}
-                className="mt-3 flex w-full items-center justify-center gap-2.5 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#FF6A00]/25 disabled:pointer-events-none disabled:opacity-60"
+                className={`${showAppleSignIn ? "mt-3" : "mt-4"} flex w-full items-center justify-center gap-2.5 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#FF6A00]/25 disabled:pointer-events-none disabled:opacity-60`}
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -417,14 +462,16 @@ export function VendorLoginPage() {
             </div>
           </div>
 
-          <p className="mt-8 text-center">
-            <Link
-              href="/login"
-              className="text-sm text-slate-500 hover:text-slate-700 transition"
-            >
-              Are you a customer? Sign in here
-            </Link>
-          </p>
+          {!isAppMode ? (
+            <p className="mt-8 text-center">
+              <Link
+                href="/login"
+                className="text-sm text-slate-500 hover:text-slate-700 transition"
+              >
+                Are you a customer? Sign in here
+              </Link>
+            </p>
+          ) : null}
         </div>
       </div>
     </div>
