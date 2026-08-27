@@ -14,13 +14,14 @@ import { WebView } from 'react-native-webview';
 import { StatusBar } from 'expo-status-bar';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Crypto from 'expo-crypto';
+import * as WebBrowser from 'expo-web-browser';
 import {
   SafeAreaProvider,
   SafeAreaView,
 } from 'react-native-safe-area-context';
 
 /** Bump with each store release — busts CDN/WebView cache for HTML on first load. */
-const APP_RELEASE = '1.0.0.7';
+const APP_RELEASE = '1.0.0.8';
 
 /**
  * Vendor home — middleware sends unauthenticated users to /vendor/login;
@@ -29,6 +30,12 @@ const APP_RELEASE = '1.0.0.7';
  */
 const VENDOR_DASHBOARD_URI = `https://indovyapar.com/vendor?app=1&v=${APP_RELEASE}`;
 const VENDOR_LOGIN_URI = `https://indovyapar.com/vendor/login?app=1&v=${APP_RELEASE}`;
+/** Must match Google Cloud authorized redirect URI (shared customer/vendor callback). */
+const GOOGLE_OAUTH_REDIRECT_URI =
+  'https://indovyapar.com/api/auth/oauth/google/callback';
+
+// Finish auth sessions that return to this app (iOS ASWebAuthenticationSession).
+WebBrowser.maybeCompleteAuthSession();
 
 /**
  * Platform-native mobile UA. An Android Chrome UA on iOS WKWebView can break
@@ -73,6 +80,26 @@ function isBlockedCustomerAuthPath(pathname) {
     path === '/complete-profile' ||
     path.startsWith('/complete-profile/')
   );
+}
+
+/**
+ * Google OAuth authorize URL — must not run inside WKWebView (no Safari cookies →
+ * email/password form instead of account picker; Google also blocks many embedded UAs).
+ */
+function isGoogleOAuthAuthorizeUrl(url) {
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.toLowerCase();
+    if (!host.includes('accounts.google.com')) return false;
+    const path = parsed.pathname.toLowerCase();
+    return (
+      path.includes('/o/oauth2') ||
+      path.includes('/signin/oauth') ||
+      path.includes('/servicelogin')
+    );
+  } catch {
+    return false;
+  }
 }
 
 function randomAppleNonce(length = 32) {
@@ -248,6 +275,7 @@ true;
 
 function VendorScreen() {
   const webRef = useRef(null);
+  const googleAuthInFlightRef = useRef(false);
 
   const [splash, setSplash] = useState(true);
   const [errorKey, setErrorKey] = useState(0);
@@ -435,35 +463,81 @@ function VendorScreen() {
     }
   }, []);
 
-  const onShouldStartLoadWithRequest = useCallback((request) => {
-    const url = request?.url;
-    if (!url || url === 'about:blank' || url.startsWith('data:') || url.startsWith('blob:')) {
-      return true;
-    }
-    // Allow iframe / subframe loads (Google widgets, etc.).
-    if (request?.isTopFrame === false) {
-      return true;
-    }
-
-    let parsed;
+  const startGoogleAuthSession = useCallback(async (authUrl) => {
+    if (googleAuthInFlightRef.current) return;
+    googleAuthInFlightRef.current = true;
     try {
-      parsed = new URL(url);
-    } catch {
-      return true;
+      // ASWebAuthenticationSession / Chrome Custom Tabs — uses system browser
+      // cookies so Google can show the account picker (not an empty WebView form).
+      // preferEphemeralSession:false is required for saved Google accounts to appear.
+      const result = await WebBrowser.openAuthSessionAsync(
+        authUrl,
+        GOOGLE_OAUTH_REDIRECT_URI,
+        {
+          preferEphemeralSession: false,
+          showInRecents: false,
+          createTask: false,
+        }
+      );
+      if (result.type === 'success' && typeof result.url === 'string') {
+        const callbackUrl = result.url;
+        // Complete OAuth inside the WebView so the session cookie is stored there.
+        if (webRef.current?.loadUrl) {
+          webRef.current.loadUrl(callbackUrl);
+        } else {
+          webRef.current?.injectJavaScript(
+            `window.location.replace(${JSON.stringify(callbackUrl)}); true;`
+          );
+        }
+      }
+    } catch (err) {
+      setLoadErrorMessage(
+        err?.message || 'Google sign-in failed. Please try again.'
+      );
+    } finally {
+      googleAuthInFlightRef.current = false;
     }
-
-    if (isOurMarketplaceHost(parsed.hostname) && isBlockedCustomerAuthPath(parsed.pathname)) {
-      const dest = JSON.stringify(VENDOR_LOGIN_URI);
-      setTimeout(() => {
-        webRef.current?.injectJavaScript(
-          `window.location.replace(${dest}); true;`
-        );
-      }, 0);
-      return false;
-    }
-
-    return true;
   }, []);
+
+  const onShouldStartLoadWithRequest = useCallback(
+    (request) => {
+      const url = request?.url;
+      if (!url || url === 'about:blank' || url.startsWith('data:') || url.startsWith('blob:')) {
+        return true;
+      }
+      // Allow iframe / subframe loads (Google widgets, etc.).
+      if (request?.isTopFrame === false) {
+        return true;
+      }
+
+      let parsed;
+      try {
+        parsed = new URL(url);
+      } catch {
+        return true;
+      }
+
+      // Google OAuth: never continue inside the WebView — open system auth session
+      // so the user can pick an existing Google account.
+      if (isGoogleOAuthAuthorizeUrl(url)) {
+        startGoogleAuthSession(url);
+        return false;
+      }
+
+      if (isOurMarketplaceHost(parsed.hostname) && isBlockedCustomerAuthPath(parsed.pathname)) {
+        const dest = JSON.stringify(VENDOR_LOGIN_URI);
+        setTimeout(() => {
+          webRef.current?.injectJavaScript(
+            `window.location.replace(${dest}); true;`
+          );
+        }, 0);
+        return false;
+      }
+
+      return true;
+    },
+    [startGoogleAuthSession]
+  );
 
   // react-native-webview has no web implementation. Rather than embed the site
   // in an iframe (which breaks auth via third-party cookie blocking), web does a
@@ -495,7 +569,20 @@ function VendorScreen() {
       bounces={false}
       injectedJavaScriptBeforeContentLoaded={DISABLE_ZOOM_SCRIPT}
       onShouldStartLoadWithRequest={onShouldStartLoadWithRequest}
-      onNavigationStateChange={() => {}}
+      onNavigationStateChange={(navState) => {
+        // Android sometimes skips onShouldStartLoadWithRequest for server redirects.
+        if (
+          Platform.OS === 'android' &&
+          navState?.url &&
+          isGoogleOAuthAuthorizeUrl(navState.url)
+        ) {
+          startGoogleAuthSession(navState.url);
+          webRef.current?.stopLoading?.();
+          webRef.current?.injectJavaScript(
+            `window.location.replace(${JSON.stringify(VENDOR_LOGIN_URI)}); true;`
+          );
+        }
+      }}
       onLoadStart={onLoadStart}
       onLoadEnd={onLoadEnd}
       onError={onError}
