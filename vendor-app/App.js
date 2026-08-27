@@ -20,7 +20,7 @@ import {
 } from 'react-native-safe-area-context';
 
 /** Bump with each store release — busts CDN/WebView cache for HTML on first load. */
-const APP_RELEASE = '1.0.0.2';
+const APP_RELEASE = '1.0.0.6';
 
 /**
  * Vendor home — middleware sends unauthenticated users to /vendor/login;
@@ -43,6 +43,37 @@ const IPAD_WEBVIEW_USER_AGENT =
 function getWebViewUserAgent() {
   if (Platform.OS !== 'ios') return ANDROID_WEBVIEW_USER_AGENT;
   return Platform.isPad ? IPAD_WEBVIEW_USER_AGENT : IPHONE_WEBVIEW_USER_AGENT;
+}
+
+/** Never hand OAuth / vendor auth URLs to the system browser (App Store Guideline 4). */
+function shouldBlockExternalBrowserOpen(url) {
+  if (typeof url !== 'string' || !url.startsWith('http')) return true;
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return true;
+  }
+  const host = parsed.hostname.toLowerCase();
+  const path = parsed.pathname.toLowerCase();
+  if (
+    path.includes('/api/auth/vendor-oauth') ||
+    path.includes('/api/auth/oauth') ||
+    path.includes('/api/auth/vendor-apple') ||
+    path.includes('/vendor/login') ||
+    path.includes('/vendor/register')
+  ) {
+    return true;
+  }
+  if (
+    host.includes('accounts.google.com') ||
+    host.includes('appleid.apple.com') ||
+    host.includes('facebook.com') ||
+    host.includes('fb.com')
+  ) {
+    return true;
+  }
+  return false;
 }
 
 function randomAppleNonce(length = 32) {
@@ -116,6 +147,12 @@ async function nativeSignInWithApple() {
 const DISABLE_ZOOM_SCRIPT = `
 (function () {
   try {
+    window.__INDOVYAPAR_NATIVE__ = {
+      platform: ${JSON.stringify(Platform.OS)},
+      appleSignIn: ${Platform.OS === 'ios' ? 'true' : 'false'},
+      appRelease: ${JSON.stringify(APP_RELEASE)}
+    };
+
     var meta = document.querySelector('meta[name="viewport"]');
     if (!meta) {
       meta = document.createElement('meta');
@@ -251,6 +288,19 @@ function VendorScreen() {
     }
     httpRejectedRef.current = false;
     webViewFailedRef.current = false;
+    // Re-assert capability flag after navigations (cached pages / SPA).
+    webRef.current?.injectJavaScript(`
+      (function () {
+        try {
+          window.__INDOVYAPAR_NATIVE__ = {
+            platform: ${JSON.stringify(Platform.OS)},
+            appleSignIn: ${Platform.OS === 'ios' ? 'true' : 'false'},
+            appRelease: ${JSON.stringify(APP_RELEASE)}
+          };
+        } catch (e) {}
+      })();
+      true;
+    `);
   }, [isOffline]);
 
   const onError = useCallback((syn) => {
@@ -282,8 +332,12 @@ function VendorScreen() {
         typeof msg.payload === 'string' &&
         msg.payload.startsWith('http')
       ) {
+        // Keep vendor/auth flows inside the WebView (Guideline 4).
+        if (shouldBlockExternalBrowserOpen(msg.payload)) {
+          return;
+        }
         Linking.openURL(msg.payload).catch(() => {
-          setLoadErrorMessage('Could not open the sign-in browser.');
+          setLoadErrorMessage('Could not open the link.');
         });
         return;
       }
@@ -302,7 +356,6 @@ function VendorScreen() {
             injectAppleAuthResult(webRef.current, {
               success: false,
               cancelled,
-              cancelled: cancelled,
               message: cancelled
                 ? 'Apple sign-in was cancelled.'
                 : err?.message || 'Apple sign-in failed.',

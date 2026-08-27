@@ -54,6 +54,13 @@ export type AppleAuthResultPayload =
 
 export type NativeBridgeHandler = (message: NativeBridgeMessage) => void;
 
+/** Capability flag injected by the IndoVyapar Vendor iOS/Android WebView shell. */
+export type IndovyaparNativeCapabilities = {
+  platform: "ios" | "android" | string;
+  appleSignIn: boolean;
+  appRelease?: string;
+};
+
 declare global {
   interface Window {
     ReactNativeWebView?: {
@@ -64,6 +71,7 @@ declare global {
       subscribe?: (handler: NativeBridgeHandler) => () => void;
     };
     __INDOVYAPAR_ON_APPLE_AUTH_RESULT__?: (payload: AppleAuthResultPayload) => void;
+    __INDOVYAPAR_NATIVE__?: IndovyaparNativeCapabilities;
   }
 }
 
@@ -74,6 +82,25 @@ function canUseDom() {
 export function hasNativeBridge(): boolean {
   if (!canUseDom()) return false;
   return Boolean(window.ReactNativeWebView || window.__INDOVYAPAAR_NATIVE_BRIDGE__);
+}
+
+/**
+ * True only when the Vendor iOS app has advertised native Apple Sign In.
+ * Falls back to iOS WebView UA when the capability flag is not yet injected.
+ */
+export function canUseNativeAppleSignIn(): boolean {
+  if (!canUseDom() || !hasNativeBridge()) return false;
+
+  const caps = window.__INDOVYAPAR_NATIVE__;
+  if (caps && typeof caps === "object") {
+    return caps.appleSignIn === true && caps.platform === "ios";
+  }
+
+  const ua = window.navigator?.userAgent ?? "";
+  const isIosUa =
+    /iPhone|iPad|iPod/i.test(ua) ||
+    (ua.includes("Mac") && typeof document !== "undefined" && "ontouchend" in document);
+  return isIosUa;
 }
 
 export function postToNative(message: NativeBridgeMessage): boolean {

@@ -5,6 +5,7 @@ import { Button, Input, Textarea, Card, Alert } from "../components/UIComponents
 import { DataState } from "../../components/DataState";
 import { useApi } from "@/lib/hooks/useApi";
 import { vendorService } from "@/services/vendor.service";
+import { useSearchParams } from "next/navigation";
 import * as React from "react";
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -39,12 +40,23 @@ function displayCategory(raw: string): string {
 }
 
 export function VendorSupport() {
+  const searchParams = useSearchParams();
+  const orderIdFromQuery = searchParams.get("orderId")?.trim() ?? "";
   const [subject, setSubject] = React.useState("");
   const [message, setMessage] = React.useState("");
   const [category, setCategory] = React.useState("general");
   const [saving, setSaving] = React.useState(false);
   const [successMessage, setSuccessMessage] = React.useState<string | null>(null);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
+  const prefillsApplied = React.useRef(false);
+
+  React.useEffect(() => {
+    if (!orderIdFromQuery || prefillsApplied.current) return;
+    setSubject(`Order ${orderIdFromQuery}`);
+    setCategory("orders");
+    setMessage(`Regarding order ${orderIdFromQuery}:\n\n`);
+    prefillsApplied.current = true;
+  }, [orderIdFromQuery]);
 
   const { data: tickets, error, isLoading, refetch } = useApi(() =>
     vendorService.getSupportTickets()
