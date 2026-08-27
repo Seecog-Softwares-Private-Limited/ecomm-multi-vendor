@@ -1,6 +1,6 @@
 "use client";
 
-import { HelpCircle, Send, Phone, Mail, MessageSquare, Ticket } from "lucide-react";
+import { HelpCircle, Send, Mail, Ticket } from "lucide-react";
 import { Button, Input, Textarea, Card, Alert } from "../components/UIComponents";
 import { DataState } from "../../components/DataState";
 import { useApi } from "@/lib/hooks/useApi";
@@ -91,35 +91,11 @@ export function VendorSupport() {
     }
   };
 
-  const contactMethods = [
-    {
-      icon: Phone,
-      title: "Phone Support",
-      description: "Call us for urgent issues",
-      value: "+91 1800-123-4567",
-      color: "from-blue-500 to-indigo-600",
-    },
-    {
-      icon: Mail,
-      title: "Email Support",
-      description: "Send us a detailed email",
-      value: "vendor-support@indovypar.com",
-      color: "from-green-500 to-emerald-600",
-    },
-    {
-      icon: MessageSquare,
-      title: "Live Chat",
-      description: "Chat with our team",
-      value: "Available 9 AM - 6 PM IST",
-      color: "from-purple-500 to-pink-600",
-    },
-  ];
-
   const faqs = [
     {
       question: "How do I add a new product?",
       answer:
-        'Go to Products → Add Product. Fill in all details and submit for approval. Products must be approved by admin before going live.',
+        "Go to Products → Add Product. Fill in all details and submit for approval. Products must be approved by admin before going live.",
     },
     {
       question: "When will I receive my payout?",
@@ -137,15 +113,14 @@ export function VendorSupport() {
         "Commission varies by category, typically 10-15%. You can see the exact commission for each order in the Earnings section.",
     },
     {
-      question: "How do I handle returns?",
+      question: "How do I handle returns or order issues?",
       answer:
-        "You cannot process returns directly. If there's an issue, use the 'Report an Issue' button on the order detail page. Admin will handle the return/refund.",
+        "Open the order detail page and tap Contact Support. That opens this form with the order ID filled in so our team can help.",
     },
   ];
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
         <h1 className="text-xl font-bold leading-snug text-[#1E293B] sm:text-2xl lg:text-3xl mb-2">
           Support & Help
@@ -153,42 +128,38 @@ export function VendorSupport() {
         <p className="text-[#64748B]">Get help with your vendor account</p>
       </div>
 
-      {/* Contact Methods */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {contactMethods.map((method, index) => {
-          const Icon = method.icon;
-          return (
-            <Card key={index}>
-              <div className="text-center">
-                <div
-                  className={`w-16 h-16 bg-gradient-to-br ${method.color} rounded-full flex items-center justify-center mx-auto mb-4`}
-                >
-                  <Icon className="w-8 h-8 text-white" />
-                </div>
-                <h3 className="font-bold text-[#1E293B] mb-2">{method.title}</h3>
-                <p className="text-sm text-[#64748B] mb-3">{method.description}</p>
-                <p className="font-semibold text-[#3B82F6]">{method.value}</p>
-              </div>
-            </Card>
-          );
-        })}
-      </div>
+      <Card>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-emerald-100">
+              <Mail className="h-6 w-6 text-emerald-700" />
+            </div>
+            <div>
+              <h3 className="font-bold text-[#1E293B]">Email Support</h3>
+              <p className="text-sm text-[#64748B]">
+                Prefer email? Write to us and include your vendor email and order ID if relevant.
+              </p>
+              <a
+                href="mailto:vendor-support@indovyapar.com"
+                className="mt-1 inline-block text-sm font-semibold text-[#3B82F6] hover:underline"
+              >
+                vendor-support@indovyapar.com
+              </a>
+            </div>
+          </div>
+        </div>
+      </Card>
 
-      {/* Submit Ticket */}
       <Card title="Submit a Support Ticket">
         <div className="space-y-6">
-          {successMessage && (
-            <Alert type="success" message={successMessage} />
-          )}
-          {errorMessage && (
-            <Alert type="error" message={errorMessage} />
-          )}
+          {successMessage && <Alert type="success" message={successMessage} />}
+          {errorMessage && <Alert type="error" message={errorMessage} />}
           <Alert
             type="info"
-            message="Our support team typically responds within 24 hours on business days. For urgent issues, please call us."
+            message="Our support team typically responds within 24 hours on business days. Use the ticket form below for the fastest response."
           />
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             <Input
               label="Subject"
               placeholder="Brief description of your issue"
@@ -201,14 +172,13 @@ export function VendorSupport() {
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                className="w-full px-4 py-3 border-2 border-[#E2E8F0] rounded-xl focus:border-[#3B82F6] focus:outline-none transition-all bg-white text-[#1E293B]"
+                className="w-full rounded-xl border-2 border-[#E2E8F0] bg-white px-4 py-3 text-[#1E293B] transition-all focus:border-[#3B82F6] focus:outline-none"
               >
-                <option value="general">General Inquiry</option>
-                <option value="orders">Orders & Fulfillment</option>
-                <option value="products">Product Listings</option>
-                <option value="payments">Payments & Payouts</option>
-                <option value="technical">Technical Issue</option>
-                <option value="account">Account & KYC</option>
+                {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
@@ -223,19 +193,14 @@ export function VendorSupport() {
           />
 
           <div className="flex justify-end">
-            <Button
-              variant="primary"
-              onClick={handleSubmit}
-              disabled={saving}
-            >
-              <Send className="w-5 h-5" />
+            <Button variant="primary" onClick={() => void handleSubmit()} disabled={saving}>
+              <Send className="h-5 w-5" />
               {saving ? "Submitting..." : "Submit Ticket"}
             </Button>
           </div>
         </div>
       </Card>
 
-      {/* My Tickets */}
       <Card title="My Support Tickets">
         <DataState isLoading={isLoading} error={error} retry={refetch}>
           {tickets && tickets.length > 0 ? (
@@ -243,30 +208,29 @@ export function VendorSupport() {
               {tickets.map((t) => (
                 <div
                   key={t.id}
-                  className="flex items-start gap-3 p-4 bg-[#F8FAFC] rounded-xl border-2 border-[#E2E8F0]"
+                  className="flex items-start gap-3 rounded-xl border-2 border-[#E2E8F0] bg-[#F8FAFC] p-4"
                 >
-                  <Ticket className="w-5 h-5 text-[#3B82F6] flex-shrink-0 mt-0.5" />
+                  <Ticket className="mt-0.5 h-5 w-5 shrink-0 text-[#3B82F6]" />
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold text-[#1E293B]">{t.subject}</p>
-                    <p className="text-sm text-[#64748B] mt-1">
-                      {displayCategory(t.category)} ·{" "}
-                      {STATUS_LABELS[t.status] ?? t.status}
+                    <p className="mt-1 text-sm text-[#64748B]">
+                      {displayCategory(t.category)} · {STATUS_LABELS[t.status] ?? t.status}
                     </p>
-                    <p className="text-sm text-[#64748B] mt-1 line-clamp-2">
-                      {t.message}
-                    </p>
-                    {t.adminReply && (
-                      <div className="mt-3 pt-3 border-t border-[#E2E8F0]">
-                        <p className="text-xs font-semibold text-[#16A34A] uppercase tracking-wider mb-1">Support reply</p>
-                        <p className="text-sm text-[#1E293B] whitespace-pre-wrap">{t.adminReply}</p>
-                        {t.adminRepliedAt && (
-                          <p className="text-xs text-[#94A3B8] mt-1">
+                    <p className="mt-1 line-clamp-2 text-sm text-[#64748B]">{t.message}</p>
+                    {t.adminReply ? (
+                      <div className="mt-3 border-t border-[#E2E8F0] pt-3">
+                        <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-[#16A34A]">
+                          Support reply
+                        </p>
+                        <p className="whitespace-pre-wrap text-sm text-[#1E293B]">{t.adminReply}</p>
+                        {t.adminRepliedAt ? (
+                          <p className="mt-1 text-xs text-[#94A3B8]">
                             {new Date(t.adminRepliedAt).toLocaleString()}
                           </p>
-                        )}
+                        ) : null}
                       </div>
-                    )}
-                    <p className="text-xs text-[#94A3B8] mt-2">
+                    ) : null}
+                    <p className="mt-2 text-xs text-[#94A3B8]">
                       {new Date(t.createdAt).toLocaleString()}
                     </p>
                   </div>
@@ -274,61 +238,45 @@ export function VendorSupport() {
               ))}
             </div>
           ) : (
-            <p className="text-[#64748B] py-4">You haven&apos;t submitted any tickets yet.</p>
+            <p className="py-4 text-[#64748B]">You haven&apos;t submitted any tickets yet.</p>
           )}
         </DataState>
       </Card>
 
-      {/* FAQs */}
       <div id="faqs">
-      <Card title="Frequently Asked Questions">
-        <div className="space-y-4">
-          {faqs.map((faq, index) => (
-            <div
-              key={index}
-              className="bg-[#F8FAFC] rounded-xl p-6 border-2 border-[#E2E8F0] hover:border-[#3B82F6] transition-colors"
-            >
-              <div className="flex items-start gap-3">
-                <HelpCircle className="w-5 h-5 text-[#3B82F6] flex-shrink-0 mt-1" />
-                <div>
-                  <h4 className="font-semibold text-[#1E293B] mb-2">{faq.question}</h4>
-                  <p className="text-sm text-[#64748B]">{faq.answer}</p>
+        <Card title="Frequently Asked Questions">
+          <div className="space-y-4">
+            {faqs.map((faq, index) => (
+              <div
+                key={index}
+                className="rounded-xl border-2 border-[#E2E8F0] bg-[#F8FAFC] p-6 transition-colors hover:border-[#3B82F6]"
+              >
+                <div className="flex items-start gap-3">
+                  <HelpCircle className="mt-1 h-5 w-5 shrink-0 text-[#3B82F6]" />
+                  <div>
+                    <h4 className="mb-2 font-semibold text-[#1E293B]">{faq.question}</h4>
+                    <p className="text-sm text-[#64748B]">{faq.answer}</p>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
-      </Card>
+            ))}
+          </div>
+        </Card>
       </div>
 
-      {/* Help Resources */}
       <Card title="Additional Resources">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <a
-            href="/vendor/guidelines"
-            className="flex items-center gap-3 p-4 bg-[#F8FAFC] rounded-xl hover:bg-[#F1F5F9] transition-colors border-2 border-transparent hover:border-[#3B82F6]"
-          >
-            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-              <HelpCircle className="w-5 h-5 text-blue-600" />
-            </div>
-            <div>
-              <p className="font-semibold text-[#1E293B]">Vendor Guidelines</p>
-              <p className="text-sm text-[#64748B]">Read our complete vendor manual</p>
-            </div>
-          </a>
-          <a
-            href="/vendor/support#faqs"
-            className="flex items-center gap-3 p-4 bg-[#F8FAFC] rounded-xl hover:bg-[#F1F5F9] transition-colors border-2 border-transparent hover:border-[#3B82F6]"
-          >
-            <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-              <MessageSquare className="w-5 h-5 text-green-600" />
-            </div>
-            <div>
-              <p className="font-semibold text-[#1E293B]">Video Tutorials</p>
-              <p className="text-sm text-[#64748B]">Watch step-by-step guides</p>
-            </div>
-          </a>
-        </div>
+        <a
+          href="/vendor/guidelines"
+          className="flex items-center gap-3 rounded-xl border-2 border-transparent bg-[#F8FAFC] p-4 transition-colors hover:border-[#3B82F6] hover:bg-[#F1F5F9]"
+        >
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100">
+            <HelpCircle className="h-5 w-5 text-blue-600" />
+          </div>
+          <div>
+            <p className="font-semibold text-[#1E293B]">Vendor Guidelines</p>
+            <p className="text-sm text-[#64748B]">Read our complete vendor manual</p>
+          </div>
+        </a>
       </Card>
     </div>
   );

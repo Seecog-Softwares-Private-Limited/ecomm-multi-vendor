@@ -10,6 +10,7 @@ import {
   resolveOAuthBaseUrlFromRequest,
   type OAuthProvider,
 } from "@/lib/auth/oauth";
+import { copyVendorAppContextParams } from "@/lib/vendor-app-query";
 
 const SUPPORTED_PROVIDERS: OAuthProvider[] = ["google"];
 
@@ -28,19 +29,30 @@ export async function GET(request: NextRequest, context: ApiRouteContext) {
     return NextResponse.json({ error: "Unsupported provider" }, { status: 400 });
   }
 
+  const { searchParams } = new URL(request.url);
+
   if (!isOAuthClientConfigured(provider)) {
     const login = new URL("/vendor/login", getOAuthAppBaseUrl());
     login.searchParams.set(
       "error",
       "Google sign-in is not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in your environment."
     );
+    copyVendorAppContextParams(searchParams, login.searchParams);
     return NextResponse.redirect(login.toString());
   }
 
-  const { searchParams } = new URL(request.url);
   const returnUrl = searchParams.get("returnUrl") ?? "/vendor";
+  // When the hybrid app starts OAuth, keep app=1 on the post-login destination.
+  let effectiveReturnUrl = returnUrl;
+  if (searchParams.get("app") && !returnUrl.includes("app=")) {
+    const sep = returnUrl.includes("?") ? "&" : "?";
+    effectiveReturnUrl = `${returnUrl}${sep}app=${encodeURIComponent(searchParams.get("app")!)}`;
+    if (searchParams.get("v")) {
+      effectiveReturnUrl += `&v=${encodeURIComponent(searchParams.get("v")!)}`;
+    }
+  }
 
-  const stateObj = generateOAuthState(returnUrl);
+  const stateObj = generateOAuthState(effectiveReturnUrl);
   const stateStr = encodeOAuthState(stateObj);
 
   const oauthBaseUrl = resolveOAuthBaseUrlFromRequest(request);

@@ -444,6 +444,28 @@ export function VendorSettings() {
 
       <Card title="Danger Zone">
         <div className="space-y-4">
+          <div className="rounded-xl border-2 border-[#E2E8F0] bg-[#F8FAFC] p-6">
+            <h4 className="mb-2 font-semibold text-[#1E293B]">Legal</h4>
+            <p className="mb-4 text-sm text-[#64748B]">
+              Review how IndoVyapar handles your data and the terms for selling on the platform.
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <a
+                href="/info/privacy-policy"
+                className="text-sm font-semibold text-[#3B82F6] hover:underline"
+              >
+                Privacy Policy
+              </a>
+              <span className="text-[#CBD5E1]">·</span>
+              <a
+                href="/info/terms-of-service"
+                className="text-sm font-semibold text-[#3B82F6] hover:underline"
+              >
+                Terms of Service
+              </a>
+            </div>
+          </div>
+
           <div className="bg-red-50 border-2 border-red-200 rounded-xl p-6">
             <h4 className="font-semibold text-red-800 mb-2">Deactivate Account</h4>
             <p className="text-sm text-red-700 mb-4">

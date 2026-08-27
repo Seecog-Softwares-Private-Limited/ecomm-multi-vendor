@@ -20,7 +20,7 @@ import {
 } from 'react-native-safe-area-context';
 
 /** Bump with each store release — busts CDN/WebView cache for HTML on first load. */
-const APP_RELEASE = '1.0.0.6';
+const APP_RELEASE = '1.0.0.7';
 
 /**
  * Vendor home — middleware sends unauthenticated users to /vendor/login;
@@ -28,6 +28,7 @@ const APP_RELEASE = '1.0.0.6';
  * `app=1` enables hybrid-app chrome hiding on shared layouts; `v` busts stale caches.
  */
 const VENDOR_DASHBOARD_URI = `https://indovyapar.com/vendor?app=1&v=${APP_RELEASE}`;
+const VENDOR_LOGIN_URI = `https://indovyapar.com/vendor/login?app=1&v=${APP_RELEASE}`;
 
 /**
  * Platform-native mobile UA. An Android Chrome UA on iOS WKWebView can break
@@ -45,35 +46,33 @@ function getWebViewUserAgent() {
   return Platform.isPad ? IPAD_WEBVIEW_USER_AGENT : IPHONE_WEBVIEW_USER_AGENT;
 }
 
-/** Never hand OAuth / vendor auth URLs to the system browser (App Store Guideline 4). */
-function shouldBlockExternalBrowserOpen(url) {
-  if (typeof url !== 'string' || !url.startsWith('http')) return true;
-  let parsed;
-  try {
-    parsed = new URL(url);
-  } catch {
-    return true;
-  }
-  const host = parsed.hostname.toLowerCase();
-  const path = parsed.pathname.toLowerCase();
-  if (
-    path.includes('/api/auth/vendor-oauth') ||
-    path.includes('/api/auth/oauth') ||
-    path.includes('/api/auth/vendor-apple') ||
-    path.includes('/vendor/login') ||
-    path.includes('/vendor/register')
-  ) {
-    return true;
-  }
-  if (
-    host.includes('accounts.google.com') ||
-    host.includes('appleid.apple.com') ||
-    host.includes('facebook.com') ||
-    host.includes('fb.com')
-  ) {
-    return true;
-  }
-  return false;
+function isOurMarketplaceHost(hostname) {
+  const host = String(hostname || '').toLowerCase();
+  return (
+    host === 'indovyapar.com' ||
+    host.endsWith('.indovyapar.com') ||
+    host === 'localhost' ||
+    host.endsWith('.localhost')
+  );
+}
+
+/** Customer auth surfaces must never appear inside the vendor app (Guideline 4.8). */
+function isBlockedCustomerAuthPath(pathname) {
+  const path = String(pathname || '').toLowerCase();
+  if (path.startsWith('/vendor')) return false;
+  if (path.startsWith('/api')) return false;
+  return (
+    path === '/login' ||
+    path.startsWith('/login/') ||
+    path === '/register' ||
+    path.startsWith('/register/') ||
+    path === '/forgot-password' ||
+    path.startsWith('/forgot-password/') ||
+    path === '/reset-password' ||
+    path.startsWith('/reset-password/') ||
+    path === '/complete-profile' ||
+    path.startsWith('/complete-profile/')
+  );
 }
 
 function randomAppleNonce(length = 32) {
@@ -143,7 +142,7 @@ async function nativeSignInWithApple() {
   };
 }
 
-/** Disable pinch-zoom + clear stale SW/cache once per app release (post-deploy chunk mismatch). */
+/** Disable pinch-zoom + clear stale SW/cache; block customer auth SPA routes (Guideline 4 / 4.8). */
 const DISABLE_ZOOM_SCRIPT = `
 (function () {
   try {
@@ -152,6 +151,7 @@ const DISABLE_ZOOM_SCRIPT = `
       appleSignIn: ${Platform.OS === 'ios' ? 'true' : 'false'},
       appRelease: ${JSON.stringify(APP_RELEASE)}
     };
+    try { window.sessionStorage.setItem('indovyapar-app-mode', '1'); } catch (e) {}
 
     var meta = document.querySelector('meta[name="viewport"]');
     if (!meta) {
@@ -178,6 +178,68 @@ const DISABLE_ZOOM_SCRIPT = `
           keys.forEach(function (k) { caches.delete(k); });
         });
       }
+    }
+
+    var VENDOR_LOGIN = ${JSON.stringify(VENDOR_LOGIN_URI)};
+    function isBlockedCustomerPath(pathname) {
+      var path = String(pathname || '').toLowerCase();
+      if (path.indexOf('/vendor') === 0 || path.indexOf('/api') === 0) return false;
+      return (
+        path === '/login' || path.indexOf('/login/') === 0 ||
+        path === '/register' || path.indexOf('/register/') === 0 ||
+        path === '/forgot-password' || path.indexOf('/forgot-password/') === 0 ||
+        path === '/reset-password' || path.indexOf('/reset-password/') === 0 ||
+        path === '/complete-profile' || path.indexOf('/complete-profile/') === 0
+      );
+    }
+    function guardUrl(raw) {
+      try {
+        var u = new URL(String(raw), window.location.href);
+        if (u.origin === window.location.origin && isBlockedCustomerPath(u.pathname)) {
+          window.location.replace(VENDOR_LOGIN);
+          return true;
+        }
+      } catch (e) {}
+      return false;
+    }
+    var _push = history.pushState;
+    var _replace = history.replaceState;
+    history.pushState = function () {
+      if (arguments[2] && guardUrl(arguments[2])) return;
+      return _push.apply(this, arguments);
+    };
+    history.replaceState = function () {
+      if (arguments[2] && guardUrl(arguments[2])) return;
+      return _replace.apply(this, arguments);
+    };
+    document.addEventListener('click', function (e) {
+      var a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
+      if (!a) return;
+      var href = a.getAttribute('href');
+      if (!href || href.charAt(0) === '#') return;
+      if (a.getAttribute('target') === '_blank') {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!guardUrl(href)) {
+          try { window.location.assign(a.href); } catch (err) {}
+        }
+        return;
+      }
+      if (guardUrl(href)) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    }, true);
+    var _open = window.open;
+    window.open = function (url) {
+      if (url && guardUrl(url)) return null;
+      if (url) {
+        try { window.location.assign(String(url)); } catch (e) {}
+      }
+      return null;
+    };
+    if (isBlockedCustomerPath(window.location.pathname)) {
+      window.location.replace(VENDOR_LOGIN);
     }
   } catch (e) {}
 })();
@@ -329,16 +391,22 @@ function VendorScreen() {
       if (
         msg?.type === 'custom' &&
         msg?.name === 'OPEN_EXTERNAL_BROWSER' &&
-        typeof msg.payload === 'string' &&
-        msg.payload.startsWith('http')
+        typeof msg.payload === 'string'
       ) {
-        // Keep vendor/auth flows inside the WebView (Guideline 4).
-        if (shouldBlockExternalBrowserOpen(msg.payload)) {
+        const target = msg.payload.trim();
+        // Never hand http(s) to Safari / Chrome Custom Tabs (Guideline 4).
+        // Keep navigation inside the WebView. Only tel:/mailto: may leave the app.
+        if (/^(tel:|mailto:)/i.test(target)) {
+          Linking.openURL(target).catch(() => {});
           return;
         }
-        Linking.openURL(msg.payload).catch(() => {
-          setLoadErrorMessage('Could not open the link.');
-        });
+        if (/^https?:\/\//i.test(target)) {
+          const dest = JSON.stringify(target);
+          webRef.current?.injectJavaScript(
+            `window.location.assign(${dest}); true;`
+          );
+          return;
+        }
         return;
       }
       if (msg?.type === 'custom' && msg?.name === 'SIGN_IN_WITH_APPLE') {
@@ -367,6 +435,36 @@ function VendorScreen() {
     }
   }, []);
 
+  const onShouldStartLoadWithRequest = useCallback((request) => {
+    const url = request?.url;
+    if (!url || url === 'about:blank' || url.startsWith('data:') || url.startsWith('blob:')) {
+      return true;
+    }
+    // Allow iframe / subframe loads (Google widgets, etc.).
+    if (request?.isTopFrame === false) {
+      return true;
+    }
+
+    let parsed;
+    try {
+      parsed = new URL(url);
+    } catch {
+      return true;
+    }
+
+    if (isOurMarketplaceHost(parsed.hostname) && isBlockedCustomerAuthPath(parsed.pathname)) {
+      const dest = JSON.stringify(VENDOR_LOGIN_URI);
+      setTimeout(() => {
+        webRef.current?.injectJavaScript(
+          `window.location.replace(${dest}); true;`
+        );
+      }, 0);
+      return false;
+    }
+
+    return true;
+  }, []);
+
   // react-native-webview has no web implementation. Rather than embed the site
   // in an iframe (which breaks auth via third-party cookie blocking), web does a
   // top-level redirect (see effect above) and shows a brief loading screen here.
@@ -393,8 +491,10 @@ function VendorScreen() {
       incognito={false}
       userAgent={getWebViewUserAgent()}
       originWhitelist={['*']}
+      setSupportMultipleWindows={false}
       bounces={false}
       injectedJavaScriptBeforeContentLoaded={DISABLE_ZOOM_SCRIPT}
+      onShouldStartLoadWithRequest={onShouldStartLoadWithRequest}
       onNavigationStateChange={() => {}}
       onLoadStart={onLoadStart}
       onLoadEnd={onLoadEnd}

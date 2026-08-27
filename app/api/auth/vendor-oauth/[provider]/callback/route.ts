@@ -18,6 +18,15 @@ function errorRedirect(baseUrl: string, message: string, returnUrl?: string): Ne
   url.searchParams.set("error", message);
   if (returnUrl) {
     url.searchParams.set("callbackUrl", returnUrl);
+    try {
+      const ret = new URL(returnUrl, baseUrl);
+      const app = ret.searchParams.get("app");
+      const v = ret.searchParams.get("v");
+      if (app) url.searchParams.set("app", app);
+      if (v) url.searchParams.set("v", v);
+    } catch {
+      /* ignore */
+    }
   }
   return NextResponse.redirect(url.toString());
 }
@@ -124,7 +133,21 @@ export async function GET(request: NextRequest, context: ApiRouteContext) {
     role: "SELLER",
   });
 
-  const response = NextResponse.redirect(new URL(returnUrl, appBase).toString());
+  const response = NextResponse.redirect((() => {
+    const dest = new URL(returnUrl, appBase);
+    // Preserve hybrid-app chrome after Google returns.
+    if (!dest.searchParams.has("app") && returnUrl.includes("app=")) {
+      try {
+        const fromReturn = new URL(returnUrl, appBase);
+        if (fromReturn.searchParams.get("app")) {
+          dest.searchParams.set("app", fromReturn.searchParams.get("app")!);
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+    return dest.toString();
+  })());
   setAuthCookie(response, token);
   response.cookies.set(VENDOR_OAUTH_STATE_COOKIE, "", { maxAge: 0, path: "/" });
 

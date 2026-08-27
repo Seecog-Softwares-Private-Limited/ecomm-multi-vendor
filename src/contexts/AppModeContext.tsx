@@ -24,17 +24,28 @@ function isTruthyAppParam(value: string | null): boolean {
   return normalized === "true" || normalized === "1" || normalized === "yes";
 }
 
+function readClientAppModeHint(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    if (window.__INDOVYAPAR_NATIVE__) return true;
+    return window.sessionStorage.getItem(APP_MODE_SESSION_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
 function AppModeProviderInner({ children }: { children: React.ReactNode }) {
   const searchParams = useSearchParams();
-  const [isAppMode, setIsAppMode] = useState(false);
+  const [isAppMode, setIsAppMode] = useState(() => readClientAppModeHint());
 
   useEffect(() => {
     const appQueryValue = searchParams.get("app");
     const hasAppQuery = searchParams.has("app");
     const querySaysAppMode = isTruthyAppParam(appQueryValue);
     const persistedAppMode = window.sessionStorage.getItem(APP_MODE_SESSION_KEY) === "1";
+    const nativeShell = Boolean(window.__INDOVYAPAR_NATIVE__);
 
-    if (querySaysAppMode) {
+    if (querySaysAppMode || nativeShell) {
       window.sessionStorage.setItem(APP_MODE_SESSION_KEY, "1");
       setIsAppMode(true);
       return;
@@ -56,15 +67,19 @@ function AppModeProviderInner({ children }: { children: React.ReactNode }) {
   return <AppModeContext.Provider value={contextValue}>{children}</AppModeContext.Provider>;
 }
 
+/** Avoid a flash of isAppMode=false (which can expose customer Google login). */
+function AppModeSuspenseFallback({ children }: { children: React.ReactNode }) {
+  const [hint] = useState(() => readClientAppModeHint());
+  return (
+    <AppModeContext.Provider value={{ isAppMode: hint }}>
+      {children}
+    </AppModeContext.Provider>
+  );
+}
+
 export function AppModeProvider({ children }: { children: React.ReactNode }) {
   return (
-    <Suspense
-      fallback={
-        <AppModeContext.Provider value={{ isAppMode: false }}>
-          {children}
-        </AppModeContext.Provider>
-      }
-    >
+    <Suspense fallback={<AppModeSuspenseFallback>{children}</AppModeSuspenseFallback>}>
       <AppModeProviderInner>{children}</AppModeProviderInner>
     </Suspense>
   );
