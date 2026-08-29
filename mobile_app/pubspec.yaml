@@ -7,7 +7,7 @@ publish_to: 'none'
 # Android reads these via flutter.versionName / flutter.versionCode in build.gradle.kts.
 # iOS reads FLUTTER_BUILD_NAME / FLUTTER_BUILD_NUMBER from Info.plist.
 # Increment versionCode on EVERY Play upload (must be higher than the live Play Store release).
-version: 1.0.5+9
+version: 1.0.6+10
 
 environment:
   sdk: ^3.12.2
