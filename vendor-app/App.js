@@ -83,6 +83,35 @@ function isBlockedCustomerAuthPath(pathname) {
 }
 
 /**
+ * Vendor Google OAuth start — server sets oauth_state then redirects to Google.
+ * Intercept here so Chrome Custom Tabs owns the full OAuth chain (not WebView).
+ */
+function isVendorGoogleOAuthStartUrl(url) {
+  try {
+    const parsed = new URL(url);
+    return (
+      isOurMarketplaceHost(parsed.hostname) &&
+      /^\/api\/auth\/vendor-oauth\/google\/?$/i.test(parsed.pathname)
+    );
+  } catch {
+    return false;
+  }
+}
+
+/** Shared Google callback registered in Google Cloud (customer + vendor). */
+function isGoogleOAuthCallbackUrl(url) {
+  try {
+    const parsed = new URL(url);
+    return (
+      isOurMarketplaceHost(parsed.hostname) &&
+      parsed.pathname === '/api/auth/oauth/google/callback'
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Google OAuth authorize URL — must not run inside WKWebView (no Safari cookies →
  * email/password form instead of account picker; Google also blocks many embedded UAs).
  */
@@ -463,15 +492,16 @@ function VendorScreen() {
     }
   }, []);
 
-  const startGoogleAuthSession = useCallback(async (authUrl) => {
+  const startGoogleAuthSession = useCallback(async (startUrl) => {
     if (googleAuthInFlightRef.current) return;
     googleAuthInFlightRef.current = true;
     try {
       // ASWebAuthenticationSession / Chrome Custom Tabs — uses system browser
       // cookies so Google can show the account picker (not an empty WebView form).
+      // Start at vendor-oauth when possible so state + Google + callback share one CCT session.
       // preferEphemeralSession:false is required for saved Google accounts to appear.
       const result = await WebBrowser.openAuthSessionAsync(
-        authUrl,
+        startUrl,
         GOOGLE_OAUTH_REDIRECT_URI,
         {
           preferEphemeralSession: false,
@@ -481,7 +511,11 @@ function VendorScreen() {
       );
       if (result.type === 'success' && typeof result.url === 'string') {
         const callbackUrl = result.url;
-        // Complete OAuth inside the WebView so the session cookie is stored there.
+        if (!isGoogleOAuthCallbackUrl(callbackUrl)) {
+          setLoadErrorMessage('Google sign-in did not complete. Please try again.');
+          return;
+        }
+        // Complete OAuth inside the WebView so the vendor session cookie is stored there.
         if (webRef.current?.loadUrl) {
           webRef.current.loadUrl(callbackUrl);
         } else {
@@ -490,6 +524,7 @@ function VendorScreen() {
           );
         }
       }
+      // cancel / dismiss — user closed Google sign-in; stay on login page.
     } catch (err) {
       setLoadErrorMessage(
         err?.message || 'Google sign-in failed. Please try again.'
@@ -517,8 +552,13 @@ function VendorScreen() {
         return true;
       }
 
-      // Google OAuth: never continue inside the WebView — open system auth session
-      // so the user can pick an existing Google account.
+      // Vendor OAuth start: run entire Google flow in Chrome Custom Tabs (not WebView).
+      if (isVendorGoogleOAuthStartUrl(url)) {
+        startGoogleAuthSession(url);
+        return false;
+      }
+
+      // Fallback: Google authorize URL if vendor-oauth redirect still hits WebView.
       if (isGoogleOAuthAuthorizeUrl(url)) {
         startGoogleAuthSession(url);
         return false;
@@ -571,16 +611,15 @@ function VendorScreen() {
       onShouldStartLoadWithRequest={onShouldStartLoadWithRequest}
       onNavigationStateChange={(navState) => {
         // Android sometimes skips onShouldStartLoadWithRequest for server redirects.
-        if (
-          Platform.OS === 'android' &&
-          navState?.url &&
-          isGoogleOAuthAuthorizeUrl(navState.url)
-        ) {
+        if (Platform.OS !== 'android' || !navState?.url) return;
+        if (isVendorGoogleOAuthStartUrl(navState.url)) {
           startGoogleAuthSession(navState.url);
           webRef.current?.stopLoading?.();
-          webRef.current?.injectJavaScript(
-            `window.location.replace(${JSON.stringify(VENDOR_LOGIN_URI)}); true;`
-          );
+          return;
+        }
+        if (isGoogleOAuthAuthorizeUrl(navState.url)) {
+          startGoogleAuthSession(navState.url);
+          webRef.current?.stopLoading?.();
         }
       }}
       onLoadStart={onLoadStart}

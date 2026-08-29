@@ -8,8 +8,9 @@
  *   APP_URL / NEXT_PUBLIC_APP_URL — used to build redirect_uri
  */
 
-import { randomBytes } from "crypto";
+import { randomBytes, createHmac, timingSafeEqual } from "crypto";
 import type { NextRequest } from "next/server";
+import { authConfig } from "./config";
 
 export type OAuthProvider = "google" | "facebook";
 
@@ -64,8 +65,9 @@ export function getOAuthAppBaseUrl(): string {
 
 /**
  * Origin used for OAuth redirect_uri and callback redirects.
- * Must match the browser tab that started sign-in or the oauth_state cookie
- * will not be sent back (causing "Missing OAuth state").
+ * Must match the browser tab that started sign-in when using legacy unsigned state.
+ * Signed OAuth state (HMAC) validates without the cookie — required for vendor hybrid
+ * apps where WebView and Chrome Custom Tabs use separate cookie stores.
  */
 export function resolveOAuthBaseUrlFromRequest(request: NextRequest): string {
   const host =
@@ -133,11 +135,51 @@ export function isOAuthClientConfigured(provider: OAuthProvider): boolean {
 export const OAUTH_STATE_COOKIE = "oauth_state";
 export const VENDOR_OAUTH_STATE_COOKIE = "vendor_oauth_state";
 
+/** Matches cookie maxAge on OAuth start routes. */
+export const OAUTH_STATE_TTL_MS = 600_000;
+
 export interface OAuthState {
   state: string;
   returnUrl: string;
   /** Defaults to customer when omitted (legacy state cookies). */
   flow?: OAuthFlow;
+}
+
+interface SignedOAuthPayload extends OAuthState {
+  exp: number;
+}
+
+function oauthStateSecret(): string {
+  return (
+    process.env.OAUTH_STATE_SECRET?.trim() ||
+    authConfig.jwtSecret ||
+    "dev-oauth-state-change-me"
+  );
+}
+
+function signOAuthStateBody(body: string): string {
+  return createHmac("sha256", oauthStateSecret()).update(body).digest("base64url");
+}
+
+function parseOAuthStateFields(parsed: unknown): OAuthState | null {
+  if (
+    parsed &&
+    typeof parsed === "object" &&
+    typeof (parsed as SignedOAuthPayload).state === "string" &&
+    typeof (parsed as SignedOAuthPayload).returnUrl === "string"
+  ) {
+    const flow =
+      (parsed as SignedOAuthPayload).flow === "vendor" ||
+      (parsed as SignedOAuthPayload).flow === "customer"
+        ? ((parsed as SignedOAuthPayload).flow as OAuthFlow)
+        : "customer";
+    return {
+      state: (parsed as SignedOAuthPayload).state,
+      returnUrl: (parsed as SignedOAuthPayload).returnUrl,
+      flow,
+    };
+  }
+  return null;
 }
 
 export function generateOAuthState(
@@ -147,26 +189,88 @@ export function generateOAuthState(
   return { state: randomBytes(16).toString("hex"), returnUrl, flow };
 }
 
+/** HMAC-signed state — verifiable without the oauth_state cookie (hybrid WebView + CCT). */
 export function encodeOAuthState(s: OAuthState): string {
-  return Buffer.from(JSON.stringify(s)).toString("base64url");
+  const payload: SignedOAuthPayload = {
+    ...s,
+    exp: Date.now() + OAUTH_STATE_TTL_MS,
+  };
+  const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
+  const sig = signOAuthStateBody(body);
+  return `${body}.${sig}`;
 }
 
 export function decodeOAuthState(raw: string): OAuthState | null {
+  if (!raw) return null;
+
+  const dot = raw.indexOf(".");
+  if (dot > 0 && dot < raw.length - 1) {
+    const body = raw.slice(0, dot);
+    const sig = raw.slice(dot + 1);
+    const expected = signOAuthStateBody(body);
+    if (sig.length !== expected.length) return null;
+    try {
+      if (!timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null;
+    } catch {
+      return null;
+    }
+    try {
+      const parsed = JSON.parse(Buffer.from(body, "base64url").toString("utf-8"));
+      if (typeof parsed?.exp === "number" && parsed.exp < Date.now()) return null;
+      return parseOAuthStateFields(parsed);
+    } catch {
+      return null;
+    }
+  }
+
+  // Legacy unsigned state (in-flight sessions during deploy) — requires cookie match.
   try {
     const parsed = JSON.parse(Buffer.from(raw, "base64url").toString("utf-8"));
-    if (
-      parsed &&
-      typeof parsed.state === "string" &&
-      typeof parsed.returnUrl === "string"
-    ) {
-      const flow =
-        parsed.flow === "vendor" || parsed.flow === "customer"
-          ? (parsed.flow as OAuthFlow)
-          : "customer";
-      return { state: parsed.state, returnUrl: parsed.returnUrl, flow };
+    return parseOAuthStateFields(parsed);
+  } catch {
+    return null;
+  }
+}
+
+export type OAuthStateValidation =
+  | { ok: true; state: OAuthState }
+  | { ok: false; reason: "missing" | "invalid" | "mismatch" };
+
+/**
+ * Validates OAuth callback `state` query param.
+ * Signed state (HMAC) is accepted without cookie — required for Android vendor app
+ * where WebView and Chrome Custom Tabs do not share the oauth_state cookie.
+ * Cookie match is still required when present (defense in depth).
+ */
+export function validateOAuthCallbackState(
+  request: NextRequest,
+  stateFromQuery: string | null
+): OAuthStateValidation {
+  if (!stateFromQuery) return { ok: false, reason: "missing" };
+
+  const state = decodeOAuthState(stateFromQuery);
+  if (!state) return { ok: false, reason: "invalid" };
+
+  const cookieState = request.cookies.get(OAUTH_STATE_COOKIE)?.value;
+  const isSignedEnvelope = stateFromQuery.includes(".");
+
+  if (isSignedEnvelope) {
+    if (cookieState && cookieState !== stateFromQuery) {
+      return { ok: false, reason: "mismatch" };
     }
-  } catch { /* ignore */ }
-  return null;
+    return { ok: true, state };
+  }
+
+  if (!cookieState) return { ok: false, reason: "missing" };
+  if (cookieState !== stateFromQuery) return { ok: false, reason: "mismatch" };
+  return { ok: true, state };
+}
+
+export function oauthStateErrorMessage(
+  reason: "missing" | "invalid" | "mismatch"
+): string {
+  if (reason === "missing") return "Missing OAuth state — please try again";
+  return "Invalid OAuth state — please start sign-in again";
 }
 
 // ─── Google ───────────────────────────────────────────────────────────────────

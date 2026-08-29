@@ -6,6 +6,8 @@ import {
   OAUTH_STATE_COOKIE,
   getOAuthAppBaseUrl,
   resolveOAuthBaseUrlFromRequest,
+  validateOAuthCallbackState,
+  oauthStateErrorMessage,
   type OAuthProvider,
 } from "@/lib/auth/oauth";
 import { signToken, setAuthCookie } from "@/lib/auth";
@@ -77,40 +79,16 @@ export async function GET(request: NextRequest, context: ApiRouteContext) {
     return errorRedirect(appBase, "Missing authorization code");
   }
 
-  const cookieState = request.cookies.get(OAUTH_STATE_COOKIE)?.value;
-  if (!cookieState || !stateFromQuery) {
+  const stateValidation = validateOAuthCallbackState(request, stateFromQuery);
+  if (!stateValidation.ok) {
+    const message = oauthStateErrorMessage(stateValidation.reason);
     if (isVendorFlow) {
-      return vendorErrorRedirect(
-        appBase,
-        "Missing OAuth state — please try again",
-        stateObjEarly?.returnUrl
-      );
+      return vendorErrorRedirect(appBase, message, stateObjEarly?.returnUrl);
     }
-    return errorRedirect(appBase, "Missing OAuth state — please try again");
+    return errorRedirect(appBase, message);
   }
 
-  if (cookieState !== stateFromQuery) {
-    if (isVendorFlow) {
-      return vendorErrorRedirect(
-        appBase,
-        "Invalid OAuth state — please start sign-in again",
-        stateObjEarly?.returnUrl
-      );
-    }
-    return errorRedirect(appBase, "Invalid OAuth state — please start sign-in again");
-  }
-
-  const stateObj = decodeOAuthState(stateFromQuery);
-  if (!stateObj) {
-    if (isVendorFlow) {
-      return vendorErrorRedirect(
-        appBase,
-        "Invalid OAuth state — please start sign-in again",
-        stateObjEarly?.returnUrl
-      );
-    }
-    return errorRedirect(appBase, "Invalid OAuth state — please start sign-in again");
-  }
+  const stateObj = stateValidation.state;
 
   if (stateObj.flow === "vendor") {
     return completeVendorGoogleOAuth({

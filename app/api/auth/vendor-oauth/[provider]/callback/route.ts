@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { ApiRouteContext } from "@/lib/api";
 import {
-  decodeOAuthState,
-  VENDOR_OAUTH_STATE_COOKIE,
-  OAUTH_STATE_COOKIE,
   getOAuthAppBaseUrl,
   resolveOAuthBaseUrlFromRequest,
+  validateOAuthCallbackState,
+  oauthStateErrorMessage,
   type OAuthProvider,
 } from "@/lib/auth/oauth";
 import {
@@ -49,21 +48,12 @@ export async function GET(request: NextRequest, context: ApiRouteContext) {
     return vendorErrorRedirect(appBase, "Missing authorization code");
   }
 
-  const cookieState =
-    request.cookies.get(VENDOR_OAUTH_STATE_COOKIE)?.value ||
-    request.cookies.get(OAUTH_STATE_COOKIE)?.value;
-  if (!cookieState || !stateFromQuery) {
-    return vendorErrorRedirect(appBase, "Missing OAuth state — please try again");
+  const stateValidation = validateOAuthCallbackState(request, stateFromQuery);
+  if (!stateValidation.ok) {
+    return vendorErrorRedirect(appBase, oauthStateErrorMessage(stateValidation.reason));
   }
 
-  if (cookieState !== stateFromQuery) {
-    return vendorErrorRedirect(appBase, "Invalid OAuth state — please start sign-in again");
-  }
-
-  const stateObj = decodeOAuthState(stateFromQuery);
-  if (!stateObj) {
-    return vendorErrorRedirect(appBase, "Invalid OAuth state — please start sign-in again");
-  }
+  const stateObj = stateValidation.state;
 
   return completeVendorGoogleOAuth({
     provider,
