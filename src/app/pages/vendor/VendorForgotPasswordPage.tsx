@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Link } from "../../components/Link";
 import { Mail, ArrowRight, ArrowLeft, CheckCircle2 } from "lucide-react";
 import { IndovyaparLogo } from "@/components/IndovyaparLogo";
+import { useAppMode } from "@/contexts/AppModeContext";
 
 const primaryBtnClass =
   "flex w-full items-center justify-center gap-2 rounded-xl bg-[#FF6A00] py-3.5 text-sm font-semibold text-white shadow-lg shadow-orange-500/25 transition hover:bg-[#E55F00] focus:outline-none focus:ring-2 focus:ring-[#FF6A00] focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-60";
@@ -13,6 +14,7 @@ const primaryBtnClass =
  * Submits to POST /api/auth/vendor-forgot-password; shows success message (no email enumeration).
  */
 export function VendorForgotPasswordPage() {
+  const { isAppMode } = useAppMode();
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [resetLink, setResetLink] = useState<string | null>(null);
@@ -211,11 +213,13 @@ export function VendorForgotPasswordPage() {
             </div>
           </div>
 
-          <p className="mt-8 text-center">
-            <Link href="/login" className="text-sm text-slate-500 hover:text-slate-700 transition">
-              Are you a customer? Sign in here
-            </Link>
-          </p>
+          {!isAppMode ? (
+            <p className="mt-8 text-center">
+              <Link href="/login" className="text-sm text-slate-500 hover:text-slate-700 transition">
+                Are you a customer? Sign in here
+              </Link>
+            </p>
+          ) : null}
         </div>
       </div>
     </div>

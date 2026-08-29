@@ -490,10 +490,15 @@ export function FileUpload({
             ) : (
               <a
                 href={fileUrl}
-                target="_blank"
-                rel="noopener noreferrer"
                 className="relative z-20 pointer-events-auto text-sm text-[#3B82F6] hover:underline"
-                onClick={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // Stay in the same WebView / tab (Guideline 4 — no Safari handoff).
+                  if (typeof window !== "undefined" && window.ReactNativeWebView) {
+                    e.preventDefault();
+                    window.location.assign(fileUrl);
+                  }
+                }}
               >
                 View uploaded file
               </a>

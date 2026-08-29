@@ -326,6 +326,17 @@ export const vendorService = {
     });
   },
 
+  /** Change password for the authenticated vendor (email/password accounts). */
+  async changePassword(payload: {
+    currentPassword: string;
+    newPassword: string;
+  }): Promise<{ message: string }> {
+    return request<{ message: string }>(`${VENDOR_BASE}/me/password`, {
+      method: "PATCH",
+      body: payload,
+    });
+  },
+
   /** Upload a product image. Returns the public URL to use in imageUrls. */
   async uploadImage(file: File): Promise<{ url: string }> {
     const formData = new FormData();

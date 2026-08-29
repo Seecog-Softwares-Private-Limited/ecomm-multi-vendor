@@ -14,13 +14,14 @@ import { WebView } from 'react-native-webview';
 import { StatusBar } from 'expo-status-bar';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Crypto from 'expo-crypto';
+import * as WebBrowser from 'expo-web-browser';
 import {
   SafeAreaProvider,
   SafeAreaView,
 } from 'react-native-safe-area-context';
 
 /** Bump with each store release — busts CDN/WebView cache for HTML on first load. */
-const APP_RELEASE = '1.0.0.2';
+const APP_RELEASE = '1.0.0.8';
 
 /**
  * Vendor home — middleware sends unauthenticated users to /vendor/login;
@@ -28,6 +29,13 @@ const APP_RELEASE = '1.0.0.2';
  * `app=1` enables hybrid-app chrome hiding on shared layouts; `v` busts stale caches.
  */
 const VENDOR_DASHBOARD_URI = `https://indovyapar.com/vendor?app=1&v=${APP_RELEASE}`;
+const VENDOR_LOGIN_URI = `https://indovyapar.com/vendor/login?app=1&v=${APP_RELEASE}`;
+/** Must match Google Cloud authorized redirect URI (shared customer/vendor callback). */
+const GOOGLE_OAUTH_REDIRECT_URI =
+  'https://indovyapar.com/api/auth/oauth/google/callback';
+
+// Finish auth sessions that return to this app (iOS ASWebAuthenticationSession).
+WebBrowser.maybeCompleteAuthSession();
 
 /**
  * Platform-native mobile UA. An Android Chrome UA on iOS WKWebView can break
@@ -43,6 +51,55 @@ const IPAD_WEBVIEW_USER_AGENT =
 function getWebViewUserAgent() {
   if (Platform.OS !== 'ios') return ANDROID_WEBVIEW_USER_AGENT;
   return Platform.isPad ? IPAD_WEBVIEW_USER_AGENT : IPHONE_WEBVIEW_USER_AGENT;
+}
+
+function isOurMarketplaceHost(hostname) {
+  const host = String(hostname || '').toLowerCase();
+  return (
+    host === 'indovyapar.com' ||
+    host.endsWith('.indovyapar.com') ||
+    host === 'localhost' ||
+    host.endsWith('.localhost')
+  );
+}
+
+/** Customer auth surfaces must never appear inside the vendor app (Guideline 4.8). */
+function isBlockedCustomerAuthPath(pathname) {
+  const path = String(pathname || '').toLowerCase();
+  if (path.startsWith('/vendor')) return false;
+  if (path.startsWith('/api')) return false;
+  return (
+    path === '/login' ||
+    path.startsWith('/login/') ||
+    path === '/register' ||
+    path.startsWith('/register/') ||
+    path === '/forgot-password' ||
+    path.startsWith('/forgot-password/') ||
+    path === '/reset-password' ||
+    path.startsWith('/reset-password/') ||
+    path === '/complete-profile' ||
+    path.startsWith('/complete-profile/')
+  );
+}
+
+/**
+ * Google OAuth authorize URL — must not run inside WKWebView (no Safari cookies →
+ * email/password form instead of account picker; Google also blocks many embedded UAs).
+ */
+function isGoogleOAuthAuthorizeUrl(url) {
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.toLowerCase();
+    if (!host.includes('accounts.google.com')) return false;
+    const path = parsed.pathname.toLowerCase();
+    return (
+      path.includes('/o/oauth2') ||
+      path.includes('/signin/oauth') ||
+      path.includes('/servicelogin')
+    );
+  } catch {
+    return false;
+  }
 }
 
 function randomAppleNonce(length = 32) {
@@ -112,10 +169,17 @@ async function nativeSignInWithApple() {
   };
 }
 
-/** Disable pinch-zoom + clear stale SW/cache once per app release (post-deploy chunk mismatch). */
+/** Disable pinch-zoom + clear stale SW/cache; block customer auth SPA routes (Guideline 4 / 4.8). */
 const DISABLE_ZOOM_SCRIPT = `
 (function () {
   try {
+    window.__INDOVYAPAR_NATIVE__ = {
+      platform: ${JSON.stringify(Platform.OS)},
+      appleSignIn: ${Platform.OS === 'ios' ? 'true' : 'false'},
+      appRelease: ${JSON.stringify(APP_RELEASE)}
+    };
+    try { window.sessionStorage.setItem('indovyapar-app-mode', '1'); } catch (e) {}
+
     var meta = document.querySelector('meta[name="viewport"]');
     if (!meta) {
       meta = document.createElement('meta');
@@ -142,6 +206,68 @@ const DISABLE_ZOOM_SCRIPT = `
         });
       }
     }
+
+    var VENDOR_LOGIN = ${JSON.stringify(VENDOR_LOGIN_URI)};
+    function isBlockedCustomerPath(pathname) {
+      var path = String(pathname || '').toLowerCase();
+      if (path.indexOf('/vendor') === 0 || path.indexOf('/api') === 0) return false;
+      return (
+        path === '/login' || path.indexOf('/login/') === 0 ||
+        path === '/register' || path.indexOf('/register/') === 0 ||
+        path === '/forgot-password' || path.indexOf('/forgot-password/') === 0 ||
+        path === '/reset-password' || path.indexOf('/reset-password/') === 0 ||
+        path === '/complete-profile' || path.indexOf('/complete-profile/') === 0
+      );
+    }
+    function guardUrl(raw) {
+      try {
+        var u = new URL(String(raw), window.location.href);
+        if (u.origin === window.location.origin && isBlockedCustomerPath(u.pathname)) {
+          window.location.replace(VENDOR_LOGIN);
+          return true;
+        }
+      } catch (e) {}
+      return false;
+    }
+    var _push = history.pushState;
+    var _replace = history.replaceState;
+    history.pushState = function () {
+      if (arguments[2] && guardUrl(arguments[2])) return;
+      return _push.apply(this, arguments);
+    };
+    history.replaceState = function () {
+      if (arguments[2] && guardUrl(arguments[2])) return;
+      return _replace.apply(this, arguments);
+    };
+    document.addEventListener('click', function (e) {
+      var a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
+      if (!a) return;
+      var href = a.getAttribute('href');
+      if (!href || href.charAt(0) === '#') return;
+      if (a.getAttribute('target') === '_blank') {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!guardUrl(href)) {
+          try { window.location.assign(a.href); } catch (err) {}
+        }
+        return;
+      }
+      if (guardUrl(href)) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    }, true);
+    var _open = window.open;
+    window.open = function (url) {
+      if (url && guardUrl(url)) return null;
+      if (url) {
+        try { window.location.assign(String(url)); } catch (e) {}
+      }
+      return null;
+    };
+    if (isBlockedCustomerPath(window.location.pathname)) {
+      window.location.replace(VENDOR_LOGIN);
+    }
   } catch (e) {}
 })();
 true;
@@ -149,6 +275,7 @@ true;
 
 function VendorScreen() {
   const webRef = useRef(null);
+  const googleAuthInFlightRef = useRef(false);
 
   const [splash, setSplash] = useState(true);
   const [errorKey, setErrorKey] = useState(0);
@@ -251,6 +378,19 @@ function VendorScreen() {
     }
     httpRejectedRef.current = false;
     webViewFailedRef.current = false;
+    // Re-assert capability flag after navigations (cached pages / SPA).
+    webRef.current?.injectJavaScript(`
+      (function () {
+        try {
+          window.__INDOVYAPAR_NATIVE__ = {
+            platform: ${JSON.stringify(Platform.OS)},
+            appleSignIn: ${Platform.OS === 'ios' ? 'true' : 'false'},
+            appRelease: ${JSON.stringify(APP_RELEASE)}
+          };
+        } catch (e) {}
+      })();
+      true;
+    `);
   }, [isOffline]);
 
   const onError = useCallback((syn) => {
@@ -279,12 +419,22 @@ function VendorScreen() {
       if (
         msg?.type === 'custom' &&
         msg?.name === 'OPEN_EXTERNAL_BROWSER' &&
-        typeof msg.payload === 'string' &&
-        msg.payload.startsWith('http')
+        typeof msg.payload === 'string'
       ) {
-        Linking.openURL(msg.payload).catch(() => {
-          setLoadErrorMessage('Could not open the sign-in browser.');
-        });
+        const target = msg.payload.trim();
+        // Never hand http(s) to Safari / Chrome Custom Tabs (Guideline 4).
+        // Keep navigation inside the WebView. Only tel:/mailto: may leave the app.
+        if (/^(tel:|mailto:)/i.test(target)) {
+          Linking.openURL(target).catch(() => {});
+          return;
+        }
+        if (/^https?:\/\//i.test(target)) {
+          const dest = JSON.stringify(target);
+          webRef.current?.injectJavaScript(
+            `window.location.assign(${dest}); true;`
+          );
+          return;
+        }
         return;
       }
       if (msg?.type === 'custom' && msg?.name === 'SIGN_IN_WITH_APPLE') {
@@ -302,7 +452,6 @@ function VendorScreen() {
             injectAppleAuthResult(webRef.current, {
               success: false,
               cancelled,
-              cancelled: cancelled,
               message: cancelled
                 ? 'Apple sign-in was cancelled.'
                 : err?.message || 'Apple sign-in failed.',
@@ -313,6 +462,82 @@ function VendorScreen() {
       /* ignore non-JSON bridge messages */
     }
   }, []);
+
+  const startGoogleAuthSession = useCallback(async (authUrl) => {
+    if (googleAuthInFlightRef.current) return;
+    googleAuthInFlightRef.current = true;
+    try {
+      // ASWebAuthenticationSession / Chrome Custom Tabs — uses system browser
+      // cookies so Google can show the account picker (not an empty WebView form).
+      // preferEphemeralSession:false is required for saved Google accounts to appear.
+      const result = await WebBrowser.openAuthSessionAsync(
+        authUrl,
+        GOOGLE_OAUTH_REDIRECT_URI,
+        {
+          preferEphemeralSession: false,
+          showInRecents: false,
+          createTask: false,
+        }
+      );
+      if (result.type === 'success' && typeof result.url === 'string') {
+        const callbackUrl = result.url;
+        // Complete OAuth inside the WebView so the session cookie is stored there.
+        if (webRef.current?.loadUrl) {
+          webRef.current.loadUrl(callbackUrl);
+        } else {
+          webRef.current?.injectJavaScript(
+            `window.location.replace(${JSON.stringify(callbackUrl)}); true;`
+          );
+        }
+      }
+    } catch (err) {
+      setLoadErrorMessage(
+        err?.message || 'Google sign-in failed. Please try again.'
+      );
+    } finally {
+      googleAuthInFlightRef.current = false;
+    }
+  }, []);
+
+  const onShouldStartLoadWithRequest = useCallback(
+    (request) => {
+      const url = request?.url;
+      if (!url || url === 'about:blank' || url.startsWith('data:') || url.startsWith('blob:')) {
+        return true;
+      }
+      // Allow iframe / subframe loads (Google widgets, etc.).
+      if (request?.isTopFrame === false) {
+        return true;
+      }
+
+      let parsed;
+      try {
+        parsed = new URL(url);
+      } catch {
+        return true;
+      }
+
+      // Google OAuth: never continue inside the WebView — open system auth session
+      // so the user can pick an existing Google account.
+      if (isGoogleOAuthAuthorizeUrl(url)) {
+        startGoogleAuthSession(url);
+        return false;
+      }
+
+      if (isOurMarketplaceHost(parsed.hostname) && isBlockedCustomerAuthPath(parsed.pathname)) {
+        const dest = JSON.stringify(VENDOR_LOGIN_URI);
+        setTimeout(() => {
+          webRef.current?.injectJavaScript(
+            `window.location.replace(${dest}); true;`
+          );
+        }, 0);
+        return false;
+      }
+
+      return true;
+    },
+    [startGoogleAuthSession]
+  );
 
   // react-native-webview has no web implementation. Rather than embed the site
   // in an iframe (which breaks auth via third-party cookie blocking), web does a
@@ -340,9 +565,24 @@ function VendorScreen() {
       incognito={false}
       userAgent={getWebViewUserAgent()}
       originWhitelist={['*']}
+      setSupportMultipleWindows={false}
       bounces={false}
       injectedJavaScriptBeforeContentLoaded={DISABLE_ZOOM_SCRIPT}
-      onNavigationStateChange={() => {}}
+      onShouldStartLoadWithRequest={onShouldStartLoadWithRequest}
+      onNavigationStateChange={(navState) => {
+        // Android sometimes skips onShouldStartLoadWithRequest for server redirects.
+        if (
+          Platform.OS === 'android' &&
+          navState?.url &&
+          isGoogleOAuthAuthorizeUrl(navState.url)
+        ) {
+          startGoogleAuthSession(navState.url);
+          webRef.current?.stopLoading?.();
+          webRef.current?.injectJavaScript(
+            `window.location.replace(${JSON.stringify(VENDOR_LOGIN_URI)}); true;`
+          );
+        }
+      }}
       onLoadStart={onLoadStart}
       onLoadEnd={onLoadEnd}
       onError={onError}

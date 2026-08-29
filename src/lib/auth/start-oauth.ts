@@ -1,4 +1,4 @@
-import { hasNativeBridge, postToNative } from "@/lib/native-bridge";
+import { canUseNativeAppleSignIn, postToNative } from "@/lib/native-bridge";
 
 export const SIGN_IN_WITH_APPLE_MESSAGE = "SIGN_IN_WITH_APPLE";
 export const APPLE_AUTH_RESULT_MESSAGE = "APPLE_AUTH_RESULT";
@@ -23,9 +23,9 @@ export function buildVendorOAuthStartPath(
 }
 
 /**
- * Starts Google or Facebook OAuth from the login/register pages.
- * Uses the native bridge in the mobile app WebView when available; always
- * performs a full-page navigation so regular browsers are not left on a noop.
+ * Starts Google or Facebook OAuth from the customer login/register pages.
+ * Always stays in the same WebView / browser tab (no system Safari handoff).
+ * Opening Safari for OAuth fails App Store Guideline 4 for hybrid apps.
  */
 export function startOAuthLogin(provider: SocialOAuthProvider, returnUrl = "/"): void {
   if (typeof window === "undefined") return;
@@ -35,18 +35,14 @@ export function startOAuthLogin(provider: SocialOAuthProvider, returnUrl = "/"):
     window.location.origin
   ).toString();
 
-  if (hasNativeBridge()) {
-    postToNative({
-      type: "custom",
-      name: "OPEN_EXTERNAL_BROWSER",
-      payload: href,
-    });
-  }
-
   window.location.assign(href);
 }
 
-/** Google sign-in for vendor (Seller) accounts at /vendor/login */
+/**
+ * Google sign-in for vendor (Seller) accounts at /vendor/login.
+ * Always stays in the same WebView / browser tab (no system Safari handoff).
+ * Required for App Store Guideline 4 — auth must complete in-app.
+ */
 export function startVendorOAuthLogin(
   provider: SocialOAuthProvider,
   returnUrl = "/vendor"
@@ -56,26 +52,30 @@ export function startVendorOAuthLogin(
   const href = new URL(
     buildVendorOAuthStartPath(provider, returnUrl),
     window.location.origin
-  ).toString();
-
-  if (hasNativeBridge()) {
-    postToNative({
-      type: "custom",
-      name: "OPEN_EXTERNAL_BROWSER",
-      payload: href,
-    });
+  );
+  // Preserve hybrid-app context through the Google round-trip.
+  try {
+    const current = new URL(window.location.href);
+    if (current.searchParams.get("app") || window.__INDOVYAPAR_NATIVE__) {
+      href.searchParams.set("app", current.searchParams.get("app") || "1");
+    }
+    if (current.searchParams.get("v")) {
+      href.searchParams.set("v", current.searchParams.get("v")!);
+    }
+  } catch {
+    /* ignore */
   }
 
-  window.location.assign(href);
+  window.location.assign(href.toString());
 }
 
 /**
  * Starts native Sign in with Apple from /vendor/login inside the iOS WebView.
- * Returns false when the native bridge is unavailable (browser / Android).
+ * Returns false when native Apple Sign In is unavailable (browser / Android).
  */
 export function startVendorAppleLogin(returnUrl = "/vendor"): boolean {
   if (typeof window === "undefined") return false;
-  if (!hasNativeBridge()) return false;
+  if (!canUseNativeAppleSignIn()) return false;
 
   return postToNative({
     type: "custom",
