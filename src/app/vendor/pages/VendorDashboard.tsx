@@ -93,7 +93,7 @@ export function VendorDashboard() {
     vendorService.getMe()
   );
 
-  if (meLoading || !me) {
+  if (meLoading) {
     return (
       <div className="flex min-h-[320px] items-center justify-center">
         <div className="h-10 w-10 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
@@ -101,7 +101,9 @@ export function VendorDashboard() {
     );
   }
 
-  if (meError) {
+  // Not loading and no data (error or empty) — show a recoverable error instead
+  // of an endless spinner (App Store Guideline 2.1 — no dead states).
+  if (meError || !me) {
     return (
       <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center text-red-700">
         Failed to load your account. Please refresh or try again later.

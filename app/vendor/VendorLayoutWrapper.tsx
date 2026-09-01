@@ -42,7 +42,13 @@ function isAllowedWhenNotApproved(path: string | null) {
     path === "/vendor/support" ||
     path.startsWith("/vendor/support/") ||
     path === "/vendor/verify" ||
-    path.startsWith("/vendor/verify/")
+    path.startsWith("/vendor/verify/") ||
+    // Reachable from support/header during onboarding — avoid redirect loops
+    // that look like broken navigation (App Store Guideline 2.1).
+    path === "/vendor/guidelines" ||
+    path.startsWith("/vendor/guidelines/") ||
+    path === "/vendor/notifications" ||
+    path.startsWith("/vendor/notifications/")
   );
 }
 

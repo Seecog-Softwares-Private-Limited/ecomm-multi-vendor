@@ -97,6 +97,7 @@ export async function GET(request: NextRequest, context: ApiRouteContext) {
       requestBase,
       appBase,
       returnUrl: stateObj.returnUrl || "/vendor",
+      native: stateObj.native === true,
     });
   }
 

@@ -19,7 +19,6 @@
       "infoPlist": {
         "CFBundleDisplayName": "IndoVyapar Vendor",
         "NSCameraUsageDescription": "IndoVyapar Vendor uses the camera to photograph product images.",
-        "NSMicrophoneUsageDescription": "IndoVyapar Vendor uses the microphone when recording product videos.",
         "NSPhotoLibraryUsageDescription": "IndoVyapar Vendor uses your photo library to attach product images."
       }
     },
@@ -34,7 +33,6 @@
       "versionCode": 10,
       "permissions": [
         "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO",
         "android.permission.READ_MEDIA_IMAGES",
         "android.permission.READ_EXTERNAL_STORAGE"
       ]
