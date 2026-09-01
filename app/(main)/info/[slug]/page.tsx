@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { TopBar } from "@/components/TopBar";
-import { Navbar } from "@/components/Navbar";
-import { CategoryNav } from "@/components/CategoryNav";
+import { InfoPageChrome } from "@/components/InfoPageChrome";
 import { getCmsFooterPageMeta, isValidCmsFooterSlug } from "@/lib/cms-footer-pages";
 import { isLikelyHtmlContent } from "@/lib/cms-content-render";
 import type { ComponentType } from "react";
@@ -43,10 +41,14 @@ export async function generateMetadata({
 
 export default async function Page({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ app?: string }>;
 }) {
   const { slug } = await params;
+  const { app } = await searchParams;
+  const appModeHint = app === "1" || app === "true" || app === "yes";
   if (!slug || !isValidCmsFooterSlug(slug)) {
     notFound();
   }
@@ -114,19 +116,14 @@ export default async function Page({
       )
     ) : (
       <p className="text-slate-600">
-        Content will appear here once it is published from the admin CMS. If you are the site owner, run{" "}
-        <code className="rounded bg-slate-100 px-1.5 py-0.5 text-sm">npx prisma migrate deploy</code> on the
-        server and open <strong>Admin → CMS</strong> to add text for this page.
+        This information will be available here soon. Please check back later or
+        contact our support team if you need assistance.
       </p>
     );
 
   return (
     <>
-      <header className="sticky top-0 z-[80]">
-        <TopBar tone="onBrand" />
-        <Navbar surface="solid" />
-        <CategoryNav />
-      </header>
+      <InfoPageChrome appModeHint={appModeHint} />
       <div
         className="min-h-[50vh] bg-slate-100 pb-12 pt-6 sm:pt-10"
         style={{ fontFamily: "'Manrope', sans-serif" }}

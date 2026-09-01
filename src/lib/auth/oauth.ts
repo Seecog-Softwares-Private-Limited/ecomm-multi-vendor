@@ -143,6 +143,14 @@ export interface OAuthState {
   returnUrl: string;
   /** Defaults to customer when omitted (legacy state cookies). */
   flow?: OAuthFlow;
+  /**
+   * True when sign-in was started from the native app via
+   * ASWebAuthenticationSession / Chrome Custom Tabs. The auth session runs in
+   * a browser whose cookie store is NOT shared with the app WebView, so the
+   * session must be handed back to the WebView via a one-time token instead of
+   * setting the auth cookie in the browser store.
+   */
+  native?: boolean;
 }
 
 interface SignedOAuthPayload extends OAuthState {
@@ -177,6 +185,7 @@ function parseOAuthStateFields(parsed: unknown): OAuthState | null {
       state: (parsed as SignedOAuthPayload).state,
       returnUrl: (parsed as SignedOAuthPayload).returnUrl,
       flow,
+      native: (parsed as SignedOAuthPayload).native === true,
     };
   }
   return null;
@@ -184,9 +193,66 @@ function parseOAuthStateFields(parsed: unknown): OAuthState | null {
 
 export function generateOAuthState(
   returnUrl: string,
-  flow: OAuthFlow = "customer"
+  flow: OAuthFlow = "customer",
+  native = false
 ): OAuthState {
-  return { state: randomBytes(16).toString("hex"), returnUrl, flow };
+  return { state: randomBytes(16).toString("hex"), returnUrl, flow, native };
+}
+
+// ─── Native session hand-off token ───────────────────────────────────────────
+//
+// When the native app runs Google OAuth in ASWebAuthenticationSession / Chrome
+// Custom Tabs, the resulting session cookie lands in the system browser's cookie
+// store — not the app WebView. We therefore mint a short-lived, HMAC-signed
+// hand-off token, return it to the app via the custom-scheme callback, and the
+// app loads it into the WebView (native-complete route) so the auth cookie is
+// finally set in the WebView's own cookie store.
+
+/** Short lifetime — the app redeems it immediately after the auth session closes. */
+export const VENDOR_HANDOFF_TTL_MS = 120_000;
+
+interface VendorHandoffPayload {
+  sub: string;
+  email: string;
+  exp: number;
+}
+
+export function signVendorNativeHandoff(input: { sub: string; email: string }): string {
+  const payload: VendorHandoffPayload = {
+    sub: input.sub,
+    email: input.email,
+    exp: Date.now() + VENDOR_HANDOFF_TTL_MS,
+  };
+  const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
+  const sig = signOAuthStateBody(body);
+  return `${body}.${sig}`;
+}
+
+export function verifyVendorNativeHandoff(
+  raw: string
+): { sub: string; email: string } | null {
+  if (!raw) return null;
+  const dot = raw.indexOf(".");
+  if (dot <= 0 || dot >= raw.length - 1) return null;
+  const body = raw.slice(0, dot);
+  const sig = raw.slice(dot + 1);
+  const expected = signOAuthStateBody(body);
+  if (sig.length !== expected.length) return null;
+  try {
+    if (!timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null;
+  } catch {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(
+      Buffer.from(body, "base64url").toString("utf-8")
+    ) as VendorHandoffPayload;
+    if (typeof parsed?.exp !== "number" || parsed.exp < Date.now()) return null;
+    if (typeof parsed.sub !== "string" || typeof parsed.email !== "string") return null;
+    return { sub: parsed.sub, email: parsed.email };
+  } catch {
+    return null;
+  }
 }
 
 /** HMAC-signed state — verifiable without the oauth_state cookie (hybrid WebView + CCT). */

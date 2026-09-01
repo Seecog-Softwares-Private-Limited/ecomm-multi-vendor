@@ -55,7 +55,10 @@ export async function GET(request: NextRequest, context: ApiRouteContext) {
     }
   }
 
-  const stateObj = generateOAuthState(effectiveReturnUrl, "vendor");
+  // Native app starts sign-in in ASWebAuthenticationSession / Chrome Custom Tabs;
+  // the session cookie can't reach the WebView, so complete via one-time hand-off.
+  const isNative = searchParams.get("native") === "1";
+  const stateObj = generateOAuthState(effectiveReturnUrl, "vendor", isNative);
   const stateStr = encodeOAuthState(stateObj);
 
   const oauthBaseUrl = resolveOAuthBaseUrlFromRequest(request);

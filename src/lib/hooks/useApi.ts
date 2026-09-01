@@ -12,6 +12,32 @@ export type ApiState<T> = {
 
 type UseApiFetcher<T> = () => Promise<T>;
 
+/** Cap every request so a hung network never traps the UI on an endless spinner. */
+const DEFAULT_TIMEOUT_MS = 15000;
+
+class RequestTimeoutError extends Error {
+  constructor() {
+    super("The request took too long. Please check your connection and try again.");
+    this.name = "RequestTimeoutError";
+  }
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new RequestTimeoutError()), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      }
+    );
+  });
+}
+
 /**
  * Client-side data fetch hook with loading and error state.
  *
@@ -46,14 +72,17 @@ export function useApi<T>(
 
     try {
       if (isFetcher && fetcherRef.current) {
-        const result = await fetcherRef.current();
+        const result = await withTimeout(fetcherRef.current(), DEFAULT_TIMEOUT_MS);
         setData(result);
       } else if (typeof source === "string") {
-        const res = await fetch(source, {
-          ...options,
-          headers: { "Content-Type": "application/json", ...options?.headers },
-          credentials: "include",
-        });
+        const res = await withTimeout(
+          fetch(source, {
+            ...options,
+            headers: { "Content-Type": "application/json", ...options?.headers },
+            credentials: "include",
+          }),
+          DEFAULT_TIMEOUT_MS
+        );
         const text = await res.text();
         let json: unknown;
         try {

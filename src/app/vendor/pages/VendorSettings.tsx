@@ -451,14 +451,14 @@ export function VendorSettings() {
             </p>
             <div className="flex flex-wrap gap-3">
               <a
-                href="/info/privacy-policy"
+                href="/info/privacy-policy?app=1"
                 className="text-sm font-semibold text-[#3B82F6] hover:underline"
               >
                 Privacy Policy
               </a>
               <span className="text-[#CBD5E1]">·</span>
               <a
-                href="/info/terms-of-service"
+                href="/info/terms-of-service?app=1"
                 className="text-sm font-semibold text-[#3B82F6] hover:underline"
               >
                 Terms of Service

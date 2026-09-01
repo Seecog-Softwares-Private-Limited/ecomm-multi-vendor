@@ -139,7 +139,11 @@ export function VendorLoginPage() {
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/vendor/me", { credentials: "include" })
+    const controller = new AbortController();
+    // Never let a hung request trap the user on a full-screen spinner — show the
+    // login form after 8s regardless (App Store Guideline 2.1 — no dead states).
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    fetch("/api/vendor/me", { credentials: "include", signal: controller.signal })
       .then((res) => (res.ok ? res.json() : null))
       .then((json) => {
         if (cancelled) return;
@@ -155,6 +159,8 @@ export function VendorLoginPage() {
       });
     return () => {
       cancelled = true;
+      clearTimeout(timeout);
+      controller.abort();
     };
   }, [callbackUrl, router]);
 
@@ -517,11 +523,11 @@ export function VendorLoginPage() {
             </p>
           ) : (
             <p className="mt-8 text-center text-xs text-slate-400">
-              <a href="/info/privacy-policy" className="hover:text-slate-600 hover:underline">
+              <a href="/info/privacy-policy?app=1" className="hover:text-slate-600 hover:underline">
                 Privacy Policy
               </a>
               <span className="mx-2">·</span>
-              <a href="/info/terms-of-service" className="hover:text-slate-600 hover:underline">
+              <a href="/info/terms-of-service?app=1" className="hover:text-slate-600 hover:underline">
                 Terms
               </a>
             </p>

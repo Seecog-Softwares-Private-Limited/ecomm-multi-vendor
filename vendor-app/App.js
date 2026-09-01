@@ -30,9 +30,17 @@ const APP_RELEASE = '1.0.0.8';
  */
 const VENDOR_DASHBOARD_URI = `https://indovyapar.com/vendor?app=1&v=${APP_RELEASE}`;
 const VENDOR_LOGIN_URI = `https://indovyapar.com/vendor/login?app=1&v=${APP_RELEASE}`;
-/** Must match Google Cloud authorized redirect URI (shared customer/vendor callback). */
-const GOOGLE_OAUTH_REDIRECT_URI =
-  'https://indovyapar.com/api/auth/oauth/google/callback';
+/**
+ * Custom-scheme callback for the auth session. Must match app.json `scheme`.
+ * ASWebAuthenticationSession (iOS) / Chrome Custom Tabs (Android) require a real
+ * app scheme here — an https URL is never intercepted, so the session would hang
+ * and the Google button appears unresponsive (App Store Guideline 2.1(a)).
+ */
+const NATIVE_OAUTH_CALLBACK_SCHEME = 'vendorapp';
+const NATIVE_OAUTH_CALLBACK_URL = `${NATIVE_OAUTH_CALLBACK_SCHEME}://google-auth`;
+/** Redeems the one-time hand-off token inside the WebView (sets session cookie there). */
+const NATIVE_OAUTH_COMPLETE_URL =
+  'https://indovyapar.com/api/auth/vendor-oauth/native-complete';
 
 // Finish auth sessions that return to this app (iOS ASWebAuthenticationSession).
 WebBrowser.maybeCompleteAuthSession();
@@ -63,22 +71,25 @@ function isOurMarketplaceHost(hostname) {
   );
 }
 
-/** Customer auth surfaces must never appear inside the vendor app (Guideline 4.8). */
-function isBlockedCustomerAuthPath(pathname) {
+/**
+ * Strict allow-list — the vendor app may ONLY show vendor pages, API routes, and
+ * the legal info pages (privacy/terms) linked from login/settings. Everything
+ * else on our host (customer storefront, customer /login with Google-only, cart,
+ * category, product, etc.) is blocked so no customer surface is ever reachable
+ * (App Store Guidelines 4 and 4.8 — repeated rejection theme).
+ */
+function isAllowedAppPath(pathname) {
   const path = String(pathname || '').toLowerCase();
-  if (path.startsWith('/vendor')) return false;
-  if (path.startsWith('/api')) return false;
+  if (path === '' || path === '/') return false;
   return (
-    path === '/login' ||
-    path.startsWith('/login/') ||
-    path === '/register' ||
-    path.startsWith('/register/') ||
-    path === '/forgot-password' ||
-    path.startsWith('/forgot-password/') ||
-    path === '/reset-password' ||
-    path.startsWith('/reset-password/') ||
-    path === '/complete-profile' ||
-    path.startsWith('/complete-profile/')
+    path === '/vendor' ||
+    path.startsWith('/vendor/') ||
+    path === '/api' ||
+    path.startsWith('/api/') ||
+    path === '/info/privacy-policy' ||
+    path === '/info/terms-of-service' ||
+    path === '/info/refund-policy' ||
+    path === '/info/shipping-policy'
   );
 }
 
@@ -92,19 +103,6 @@ function isVendorGoogleOAuthStartUrl(url) {
     return (
       isOurMarketplaceHost(parsed.hostname) &&
       /^\/api\/auth\/vendor-oauth\/google\/?$/i.test(parsed.pathname)
-    );
-  } catch {
-    return false;
-  }
-}
-
-/** Shared Google callback registered in Google Cloud (customer + vendor). */
-function isGoogleOAuthCallbackUrl(url) {
-  try {
-    const parsed = new URL(url);
-    return (
-      isOurMarketplaceHost(parsed.hostname) &&
-      parsed.pathname === '/api/auth/oauth/google/callback'
     );
   } catch {
     return false;
@@ -237,21 +235,34 @@ const DISABLE_ZOOM_SCRIPT = `
     }
 
     var VENDOR_LOGIN = ${JSON.stringify(VENDOR_LOGIN_URI)};
-    function isBlockedCustomerPath(pathname) {
-      var path = String(pathname || '').toLowerCase();
-      if (path.indexOf('/vendor') === 0 || path.indexOf('/api') === 0) return false;
+    function endsWith(str, suffix) {
+      return str.length >= suffix.length && str.slice(str.length - suffix.length) === suffix;
+    }
+    function isOurHost(hostname) {
+      var h = String(hostname || '').toLowerCase();
       return (
-        path === '/login' || path.indexOf('/login/') === 0 ||
-        path === '/register' || path.indexOf('/register/') === 0 ||
-        path === '/forgot-password' || path.indexOf('/forgot-password/') === 0 ||
-        path === '/reset-password' || path.indexOf('/reset-password/') === 0 ||
-        path === '/complete-profile' || path.indexOf('/complete-profile/') === 0
+        h === 'indovyapar.com' ||
+        endsWith(h, '.indovyapar.com') ||
+        h === 'localhost' ||
+        endsWith(h, '.localhost')
+      );
+    }
+    function isAllowedAppPath(pathname) {
+      var path = String(pathname || '').toLowerCase();
+      if (path === '' || path === '/') return false;
+      return (
+        path === '/vendor' || path.indexOf('/vendor/') === 0 ||
+        path === '/api' || path.indexOf('/api/') === 0 ||
+        path === '/info/privacy-policy' ||
+        path === '/info/terms-of-service' ||
+        path === '/info/refund-policy' ||
+        path === '/info/shipping-policy'
       );
     }
     function guardUrl(raw) {
       try {
         var u = new URL(String(raw), window.location.href);
-        if (u.origin === window.location.origin && isBlockedCustomerPath(u.pathname)) {
+        if (u.origin === window.location.origin && !isAllowedAppPath(u.pathname)) {
           window.location.replace(VENDOR_LOGIN);
           return true;
         }
@@ -294,7 +305,7 @@ const DISABLE_ZOOM_SCRIPT = `
       }
       return null;
     };
-    if (isBlockedCustomerPath(window.location.pathname)) {
+    if (isOurHost(window.location.hostname) && !isAllowedAppPath(window.location.pathname)) {
       window.location.replace(VENDOR_LOGIN);
     }
   } catch (e) {}
@@ -492,47 +503,91 @@ function VendorScreen() {
     }
   }, []);
 
-  const startGoogleAuthSession = useCallback(async (startUrl) => {
-    if (googleAuthInFlightRef.current) return;
-    googleAuthInFlightRef.current = true;
-    try {
-      // ASWebAuthenticationSession / Chrome Custom Tabs — uses system browser
-      // cookies so Google can show the account picker (not an empty WebView form).
-      // Start at vendor-oauth when possible so state + Google + callback share one CCT session.
-      // preferEphemeralSession:false is required for saved Google accounts to appear.
-      const result = await WebBrowser.openAuthSessionAsync(
-        startUrl,
-        GOOGLE_OAUTH_REDIRECT_URI,
-        {
-          preferEphemeralSession: false,
-          showInRecents: false,
-          createTask: false,
-        }
+  const loadInWebView = useCallback((url) => {
+    if (webRef.current?.loadUrl) {
+      webRef.current.loadUrl(url);
+    } else {
+      webRef.current?.injectJavaScript(
+        `window.location.replace(${JSON.stringify(url)}); true;`
       );
-      if (result.type === 'success' && typeof result.url === 'string') {
-        const callbackUrl = result.url;
-        if (!isGoogleOAuthCallbackUrl(callbackUrl)) {
+    }
+  }, []);
+
+  const startGoogleAuthSession = useCallback(
+    async (startUrl) => {
+      if (googleAuthInFlightRef.current) return;
+      googleAuthInFlightRef.current = true;
+      try {
+        // Flag the flow as native so the server returns a one-time hand-off token
+        // via the custom scheme instead of setting the cookie in the auth-session
+        // browser (whose cookie store the WebView cannot read).
+        let authStartUrl = startUrl;
+        try {
+          const u = new URL(startUrl);
+          if (/^\/api\/auth\/vendor-oauth\//i.test(u.pathname)) {
+            u.searchParams.set('native', '1');
+            authStartUrl = u.toString();
+          }
+        } catch {}
+
+        // ASWebAuthenticationSession (iOS) / Chrome Custom Tabs (Android) use the
+        // system browser's cookies so Google shows the account picker, and the
+        // custom-scheme callback lets the session reliably close and return here.
+        // preferEphemeralSession:false is required for saved Google accounts to appear.
+        const result = await WebBrowser.openAuthSessionAsync(
+          authStartUrl,
+          NATIVE_OAUTH_CALLBACK_URL,
+          {
+            preferEphemeralSession: false,
+            showInRecents: false,
+            createTask: false,
+          }
+        );
+
+        if (result.type !== 'success' || typeof result.url !== 'string') {
+          // cancel / dismiss — user closed Google sign-in; stay on login page.
+          return;
+        }
+
+        let returned;
+        try {
+          returned = new URL(result.url);
+        } catch {
           setLoadErrorMessage('Google sign-in did not complete. Please try again.');
           return;
         }
-        // Complete OAuth inside the WebView so the vendor session cookie is stored there.
-        if (webRef.current?.loadUrl) {
-          webRef.current.loadUrl(callbackUrl);
-        } else {
-          webRef.current?.injectJavaScript(
-            `window.location.replace(${JSON.stringify(callbackUrl)}); true;`
-          );
+
+        const authError = returned.searchParams.get('error');
+        if (authError) {
+          setLoadErrorMessage(authError);
+          return;
         }
+
+        const handoffToken = returned.searchParams.get('token');
+        if (!handoffToken) {
+          setLoadErrorMessage('Google sign-in did not complete. Please try again.');
+          return;
+        }
+
+        // Redeem the hand-off token in the WebView so the vendor session cookie
+        // is written to the WebView's own cookie store.
+        const completeUrl = new URL(NATIVE_OAUTH_COMPLETE_URL);
+        completeUrl.searchParams.set('token', handoffToken);
+        completeUrl.searchParams.set(
+          'returnUrl',
+          returned.searchParams.get('returnUrl') || '/vendor?app=1'
+        );
+        loadInWebView(completeUrl.toString());
+      } catch (err) {
+        setLoadErrorMessage(
+          err?.message || 'Google sign-in failed. Please try again.'
+        );
+      } finally {
+        googleAuthInFlightRef.current = false;
       }
-      // cancel / dismiss — user closed Google sign-in; stay on login page.
-    } catch (err) {
-      setLoadErrorMessage(
-        err?.message || 'Google sign-in failed. Please try again.'
-      );
-    } finally {
-      googleAuthInFlightRef.current = false;
-    }
-  }, []);
+    },
+    [loadInWebView]
+  );
 
   const onShouldStartLoadWithRequest = useCallback(
     (request) => {
@@ -564,7 +619,9 @@ function VendorScreen() {
         return false;
       }
 
-      if (isOurMarketplaceHost(parsed.hostname) && isBlockedCustomerAuthPath(parsed.pathname)) {
+      // Confine the app to vendor/API/legal surfaces; anything else on our host
+      // (customer storefront + customer login) is redirected to vendor login.
+      if (isOurMarketplaceHost(parsed.hostname) && !isAllowedAppPath(parsed.pathname)) {
         const dest = JSON.stringify(VENDOR_LOGIN_URI);
         setTimeout(() => {
           webRef.current?.injectJavaScript(

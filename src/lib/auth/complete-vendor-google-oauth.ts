@@ -3,11 +3,19 @@ import {
   exchangeOAuthCode,
   OAUTH_STATE_COOKIE,
   VENDOR_OAUTH_STATE_COOKIE,
+  signVendorNativeHandoff,
   type OAuthProvider,
   type OAuthUserInfo,
 } from "@/lib/auth/oauth";
 import { signToken, setAuthCookie } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+
+/**
+ * Custom URL scheme the native app registers (see vendor-app `scheme`).
+ * ASWebAuthenticationSession / Chrome Custom Tabs deliver this callback URL
+ * privately back to the app that started the session.
+ */
+const NATIVE_OAUTH_CALLBACK = "vendorapp://google-auth";
 
 function vendorErrorRedirect(
   baseUrl: string,
@@ -46,9 +54,22 @@ export async function completeVendorGoogleOAuth(opts: {
   requestBase: string;
   appBase: string;
   returnUrl: string;
+  native?: boolean;
   oauthUser?: OAuthUserInfo;
 }): Promise<NextResponse> {
-  const { provider, code, requestBase, appBase, returnUrl } = opts;
+  const { provider, code, requestBase, appBase, returnUrl, native } = opts;
+
+  // Native errors must return to the custom scheme so the auth session closes
+  // and control returns to the app; an https redirect would strand the user
+  // inside the ASWebAuthenticationSession / Custom Tab sheet.
+  const fail = (message: string): NextResponse => {
+    if (native) {
+      const url = new URL(NATIVE_OAUTH_CALLBACK);
+      url.searchParams.set("error", message);
+      return NextResponse.redirect(url.toString());
+    }
+    return vendorErrorRedirect(appBase, message, returnUrl);
+  };
 
   let oauthUser = opts.oauthUser;
   if (!oauthUser) {
@@ -57,15 +78,13 @@ export async function completeVendorGoogleOAuth(opts: {
       oauthUser = await exchangeOAuthCode(provider, code, requestBase, "customer");
     } catch (e) {
       console.error(`[Vendor OAuth] ${provider} code exchange failed:`, e);
-      return vendorErrorRedirect(appBase, "Failed to authenticate with Google", returnUrl);
+      return fail("Failed to authenticate with Google");
     }
   }
 
   if (!oauthUser.email) {
-    return vendorErrorRedirect(
-      appBase,
-      "Your Google account has no email address. Use email and password instead.",
-      returnUrl
+    return fail(
+      "Your Google account has no email address. Use email and password instead."
     );
   }
 
@@ -81,10 +100,8 @@ export async function completeVendorGoogleOAuth(opts: {
   });
 
   if (!seller) {
-    return vendorErrorRedirect(
-      appBase,
-      "No vendor account exists for this Google email. Register as a vendor first.",
-      returnUrl
+    return fail(
+      "No vendor account exists for this Google email. Register as a vendor first."
     );
   }
 
@@ -102,6 +119,20 @@ export async function completeVendorGoogleOAuth(opts: {
   } catch (e) {
     // oauthProvider columns may be missing on older DBs — still issue session.
     console.error("[Vendor OAuth] seller OAuth link update failed (non-fatal):", e);
+  }
+
+  // Native flow: the auth session's cookie store is separate from the WebView,
+  // so return a one-time hand-off token via the custom scheme. The app redeems
+  // it through /api/auth/vendor-oauth/native-complete inside the WebView, which
+  // sets the auth cookie in the WebView's own cookie store.
+  if (native) {
+    const handoff = signVendorNativeHandoff({ sub: seller.id, email: seller.email });
+    const url = new URL(NATIVE_OAUTH_CALLBACK);
+    url.searchParams.set("token", handoff);
+    url.searchParams.set("returnUrl", returnUrl || "/vendor");
+    const response = NextResponse.redirect(url.toString());
+    clearOAuthStateCookies(response);
+    return response;
   }
 
   const token = await signToken({
