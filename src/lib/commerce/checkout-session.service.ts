@@ -508,7 +508,9 @@ export async function getCheckoutSessionForUser(
   const requestedCoupon = couponCode?.trim() || "";
   if (requestedCoupon) {
     try {
-      const coupon = await applyCouponToSubtotal(requestedCoupon, computeLineSubtotal(pricedLines));
+      const coupon = await applyCouponToSubtotal(requestedCoupon, computeLineSubtotal(pricedLines), {
+        userId,
+      });
       discountAmount = coupon.discountAmount;
       couponId = coupon.couponId;
       appliedCouponCode = coupon.couponCode;
@@ -523,7 +525,9 @@ export async function getCheckoutSessionForUser(
       const message =
         msg === "COUPON_EXhausted"
           ? "This coupon has reached its usage limit."
-          : "Invalid or expired coupon code";
+          : msg === "COUPON_USER_LIMIT"
+            ? "You have already used this coupon the maximum number of times."
+            : "Invalid or expired coupon code";
       couponResult = {
         code: requestedCoupon,
         valid: false,

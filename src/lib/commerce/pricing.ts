@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { DEFAULT_GST_PERCENT } from "@/lib/constants/gst";
 import { calculateShippingAmount } from "@/lib/constants/shipping";
+import { assertCouponLimitsForUser } from "@/lib/commerce/coupon-usage";
 
 export type PricedCheckoutLine = {
   productId: string;
@@ -44,7 +45,8 @@ export function computeTaxAmount(lines: PricedCheckoutLine[]): number {
 
 export async function applyCouponToSubtotal(
   couponCode: string | null | undefined,
-  subtotal: number
+  subtotal: number,
+  options?: { userId?: string | null }
 ): Promise<{ discountAmount: number; couponId: string | null; couponCode: string | null }> {
   if (!couponCode?.trim()) {
     return { discountAmount: 0, couponId: null, couponCode: null };
@@ -64,9 +66,15 @@ export async function applyCouponToSubtotal(
     throw new Error("COUPON_INVALID");
   }
 
-  if (coupon.maxUses != null && (coupon.usedCount ?? 0) >= coupon.maxUses) {
-    throw new Error("COUPON_EXhausted");
-  }
+  await assertCouponLimitsForUser(
+    {
+      id: coupon.id,
+      maxUses: coupon.maxUses,
+      maxUsesPerUser: coupon.maxUsesPerUser,
+      usedCount: coupon.usedCount,
+    },
+    options?.userId
+  );
 
   const val = Number(coupon.discountValue);
   const discountAmount =

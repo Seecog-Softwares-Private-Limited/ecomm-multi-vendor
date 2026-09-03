@@ -22,6 +22,7 @@ import {
   formatPriceChangeMessage,
   type PricedCheckoutLine,
 } from "./pricing";
+import { consumeCouponUse } from "./coupon-usage";
 import { consumeSessionReservations } from "./stock-reservation";
 import { extendPaymentWindowForSession } from "./payment-window";
 import { confirmRazorpayPayment } from "./payment-completion.service";
@@ -306,7 +307,9 @@ export async function placeOrderFromCheckoutSession(
   let discountAmount = 0;
   let couponId: string | null = null;
   try {
-    const coupon = await applyCouponToSubtotal(couponCode ?? null, computeLineSubtotal(pricedLines));
+    const coupon = await applyCouponToSubtotal(couponCode ?? null, computeLineSubtotal(pricedLines), {
+      userId,
+    });
     discountAmount = coupon.discountAmount;
     couponId = coupon.couponId;
   } catch (e) {
@@ -323,6 +326,13 @@ export async function placeOrderFromCheckoutSession(
         "This coupon has reached its usage limit.",
         Status.BAD_REQUEST,
         "COUPON_EXhausted"
+      );
+    }
+    if (msg === "COUPON_USER_LIMIT") {
+      throw new ApiRouteError(
+        "You have already used this coupon the maximum number of times.",
+        Status.BAD_REQUEST,
+        "COUPON_USER_LIMIT"
       );
     }
     throw e;
@@ -413,10 +423,37 @@ export async function placeOrderFromCheckoutSession(
         await clearConsumedCartItems(tx, userId, consumedCartItemIds);
         await transitionCheckoutSession(tx, checkoutSessionId, "COMPLETED", "completed");
         if (couponId) {
-          await tx.coupon.update({
-            where: { id: couponId },
-            data: { usedCount: { increment: 1 } },
-          });
+          try {
+            await consumeCouponUse(tx, {
+              couponId,
+              userId,
+              orderId: orderCreated.id,
+            });
+          } catch (e) {
+            const msg = e instanceof Error ? e.message : "";
+            if (msg === "COUPON_EXhausted") {
+              throw new ApiRouteError(
+                "This coupon has reached its usage limit.",
+                Status.BAD_REQUEST,
+                "COUPON_EXhausted"
+              );
+            }
+            if (msg === "COUPON_USER_LIMIT") {
+              throw new ApiRouteError(
+                "You have already used this coupon the maximum number of times.",
+                Status.BAD_REQUEST,
+                "COUPON_USER_LIMIT"
+              );
+            }
+            if (msg === "COUPON_INVALID") {
+              throw new ApiRouteError(
+                "This coupon code is invalid or has expired.",
+                Status.BAD_REQUEST,
+                "COUPON_INVALID"
+              );
+            }
+            throw e;
+          }
         }
       }
 

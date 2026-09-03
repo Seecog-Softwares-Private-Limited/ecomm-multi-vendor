@@ -20,9 +20,11 @@
     "delete-customers-by-email": "tsx scripts/delete-customers-by-email.ts",
     "commerce:cleanup": "tsx scripts/commerce-cleanup.ts",
     "test:commerce": "tsx scripts/test-commerce-pricing.ts",
+    "test:coupons": "tsx scripts/test-admin-coupons.ts && tsx scripts/test-coupon-usage-limits.ts",
     "test:customer-apis": "tsx scripts/test-customer-apis.ts",
     "seed:faqs": "tsx scripts/seed-faqs.ts",
     "smoke:commerce": "tsx scripts/smoke-test-commerce.ts",
+    "smoke:coupon-limits": "tsx scripts/smoke-test-coupon-limits.ts",
     "smoke:customer": "tsx scripts/smoke-test-customer-app.ts",
     "smoke:customer-app": "tsx scripts/test-customer-apis.ts && tsx scripts/smoke-test-customer-app.ts",
     "stress:stock-reservation": "tsx scripts/stress-test-stock-reservation.ts"

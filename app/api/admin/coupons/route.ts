@@ -80,6 +80,7 @@ export const POST = withApiHandler(async (request: NextRequest) => {
         validFrom: parsed.data.validFrom,
         validTo: parsed.data.validTo,
         maxUses: parsed.data.maxUses,
+        maxUsesPerUser: parsed.data.maxUsesPerUser,
         deletedAt: parsed.data.isActive ? null : new Date(),
       },
     });

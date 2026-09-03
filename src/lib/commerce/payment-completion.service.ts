@@ -11,6 +11,7 @@ import {
   fulfillStockFromOrderItems,
   reservationFulfillmentState,
 } from "./stock-reservation";
+import { consumeCouponUse } from "./coupon-usage";
 
 type Tx = Prisma.TransactionClient;
 
@@ -231,10 +232,37 @@ export async function confirmRazorpayPayment(
     }
 
     if (shouldIncrementCoupon && freshOrder.couponId) {
-      await tx.coupon.update({
-        where: { id: freshOrder.couponId },
-        data: { usedCount: { increment: 1 } },
-      });
+      try {
+        await consumeCouponUse(tx, {
+          couponId: freshOrder.couponId,
+          userId: freshOrder.userId,
+          orderId: order.id,
+        });
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "";
+        if (msg === "COUPON_EXhausted") {
+          throw new ApiRouteError(
+            "This coupon has reached its usage limit.",
+            Status.BAD_REQUEST,
+            "COUPON_EXhausted"
+          );
+        }
+        if (msg === "COUPON_USER_LIMIT") {
+          throw new ApiRouteError(
+            "You have already used this coupon the maximum number of times.",
+            Status.BAD_REQUEST,
+            "COUPON_USER_LIMIT"
+          );
+        }
+        if (msg === "COUPON_INVALID") {
+          throw new ApiRouteError(
+            "This coupon code is invalid or has expired.",
+            Status.BAD_REQUEST,
+            "COUPON_INVALID"
+          );
+        }
+        throw e;
+      }
     }
 
     return true;
