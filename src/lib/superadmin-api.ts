@@ -182,5 +182,6 @@ export const PERMISSION_LABELS: Record<string, string> = {
   support_tickets: "Support Tickets",
   notifications: "Notifications",
   cms: "CMS",
+  coupons: "Coupons",
   settings: "Settings (built-in for all admins — not assignable here)",
 };

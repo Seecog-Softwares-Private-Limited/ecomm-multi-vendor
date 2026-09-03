@@ -14,6 +14,7 @@ export const ADMIN_ASSIGNABLE_PERMISSION_KEYS = [
   "support_tickets",
   "notifications",
   "cms",
+  "coupons",
 ] as const;
 
 export type AdminAssignablePermissionKey = (typeof ADMIN_ASSIGNABLE_PERMISSION_KEYS)[number];

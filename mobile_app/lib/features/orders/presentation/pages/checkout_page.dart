@@ -45,6 +45,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   bool _placing = false;
   bool _sessionLoading = true;
   bool _quantityUpdating = false;
+  bool _couponApplying = false;
   String? _checkoutSessionId;
   Map<String, dynamic>? _sessionPreview;
   late final RazorpayCheckoutService _razorpayCheckout;
@@ -97,6 +98,36 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     setState(() => _sessionPreview = preview);
   }
 
+  /// Interprets session preview `coupon` field. Returns error message if invalid.
+  String? _syncCouponFromPreview(Map<String, dynamic> preview, {required String? requestedCode}) {
+    final coupon = preview['coupon'];
+    if (requestedCode == null || requestedCode.trim().isEmpty) {
+      // No coupon requested — leave cart coupon as-is unless we cleared it.
+      return null;
+    }
+    if (coupon is! Map) {
+      // Older API without coupon block — treat missing discount + code as failure.
+      final totals = preview['totals'];
+      final discount = totals is Map ? (totals['discountAmount'] as num?)?.toDouble() ?? 0 : 0;
+      final applied = totals is Map ? totals['couponCode']?.toString() : null;
+      if (applied != null && applied.isNotEmpty && discount > 0) {
+        ref.read(cartControllerProvider.notifier).applyVerifiedCoupon(applied);
+        return null;
+      }
+      ref.read(cartControllerProvider.notifier).clearCoupon();
+      return 'Invalid or expired coupon code';
+    }
+    final valid = coupon['valid'] == true;
+    final code = coupon['code']?.toString() ?? requestedCode;
+    final message = coupon['message']?.toString();
+    if (valid) {
+      ref.read(cartControllerProvider.notifier).applyVerifiedCoupon(code);
+      return null;
+    }
+    ref.read(cartControllerProvider.notifier).clearCoupon();
+    return (message != null && message.isNotEmpty) ? message : 'Invalid or expired coupon code';
+  }
+
   Future<void> _initCheckoutSession() async {
     final fromRoute = widget.sessionId ?? GoRouterState.of(context).uri.queryParameters['session'];
     final ds = CheckoutRemoteDataSource(ref.read(dioClientProvider));
@@ -114,7 +145,15 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       }
       setState(() => _checkoutSessionId = sessionId);
       final cart = ref.read(cartControllerProvider).value;
-      await _loadSessionPreview(sessionId: sessionId, couponCode: cart?.couponCode);
+      final pending = cart?.couponCode;
+      await _loadSessionPreview(sessionId: sessionId, couponCode: pending);
+      if (!mounted) return;
+      if (pending != null && pending.isNotEmpty && _sessionPreview != null) {
+        final err = _syncCouponFromPreview(_sessionPreview!, requestedCode: pending);
+        if (err != null && mounted) {
+          context.showSnack(err, isError: true);
+        }
+      }
     } catch (error) {
       if (mounted) context.showSnack(Failure.from(error).message, isError: true);
     } finally {
@@ -123,12 +162,32 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   }
 
   Future<void> _applyCoupon(String code) async {
-    ref.read(cartControllerProvider.notifier).applyCoupon(code);
-    final cart = ref.read(cartControllerProvider).value;
+    final normalized = code.trim().toUpperCase();
+    if (normalized.isEmpty || _couponApplying) return;
+    // Clear any previous applied chip while validating the new code.
+    ref.read(cartControllerProvider.notifier).clearCoupon();
+    setState(() => _couponApplying = true);
     try {
-      await _loadSessionPreview(couponCode: cart?.couponCode);
+      await _loadSessionPreview(couponCode: normalized);
+      if (!mounted) return;
+      final preview = _sessionPreview;
+      if (preview == null) {
+        context.showSnack('Could not validate coupon. Please try again.', isError: true);
+        return;
+      }
+      final err = _syncCouponFromPreview(preview, requestedCode: normalized);
+      if (err != null) {
+        // Reload preview without coupon so totals stay correct.
+        await _loadSessionPreview();
+        if (mounted) context.showSnack(err, isError: true);
+        return;
+      }
+      if (mounted) context.showSnack('Coupon applied');
     } catch (error) {
+      ref.read(cartControllerProvider.notifier).clearCoupon();
       if (mounted) context.showSnack(Failure.from(error).message, isError: true);
+    } finally {
+      if (mounted) setState(() => _couponApplying = false);
     }
   }
 
@@ -162,7 +221,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     if (_quantityUpdating || quantity < 1) return;
     final ds = CheckoutRemoteDataSource(ref.read(dioClientProvider));
     final previousSessionId = _checkoutSessionId;
-    final couponCode = ref.read(cartControllerProvider).value?.couponCode;
+    final cartState = ref.read(cartControllerProvider).value;
+    final couponCode =
+        cartState?.couponVerified == true ? cartState?.couponCode : null;
     final cartItemId = item['cartItemId']?.toString();
     final productId = item['productId']?.toString();
     final variantRaw = item['variantKey']?.toString();
@@ -319,7 +380,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       final result = await ordersRepo.placeOrder(
         shippingAddressId: address.id,
         paymentMethod: _payment,
-        couponCode: cart?.couponCode,
+        couponCode: cart?.couponVerified == true ? cart?.couponCode : null,
         checkoutSessionId: _checkoutSessionId,
         idempotencyKey: _orderIdempotencyKey,
       );
@@ -467,9 +528,11 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                 CheckoutExpandableSection(
                   title: 'Coupon',
                   icon: Icons.local_offer_outlined,
-                  initiallyExpanded: couponCode != null,
+                  initiallyExpanded: cart?.couponVerified == true || couponCode != null,
                   child: CouponField(
-                    appliedCode: couponCode,
+                    appliedCode: cart?.couponVerified == true ? couponCode : null,
+                    verified: cart?.couponVerified == true,
+                    isApplying: _couponApplying,
                     onApply: _applyCoupon,
                     onRemove: _clearCoupon,
                   ),

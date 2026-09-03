@@ -19,7 +19,8 @@ export type AdminPermission =
   | "support_tickets"
   | "notifications"
   | "settings"
-  | "cms";
+  | "cms"
+  | "coupons";
 
 export type AdminContext = {
   admin: {
@@ -47,7 +48,7 @@ const LEGACY_TO_GRANULAR: Record<string, AdminPermission[]> = {
   support: ["support_tickets"],
   /** Legacy bundle name; expands to notifications + cms (Settings page is granted to all admins in code). */
   settings: ["notifications", "cms"],
-  marketing: [],
+  marketing: ["coupons"],
 };
 
 const SUPER_ADMIN_ALL_PERMISSIONS: AdminPermission[] = [
@@ -63,6 +64,7 @@ const SUPER_ADMIN_ALL_PERMISSIONS: AdminPermission[] = [
   "notifications",
   "settings",
   "cms",
+  "coupons",
 ];
 
 export function expandAdminPermissions(raw: string[]): string[] {

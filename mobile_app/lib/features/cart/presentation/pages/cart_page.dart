@@ -61,10 +61,17 @@ class CartPage extends ConsumerWidget {
                     ),
                   const SizedBox(height: AppSpacing.sm),
                   CouponField(
-                    appliedCode: state.couponCode,
-                    onApply: (code) {
-                      ref.read(cartControllerProvider.notifier).applyCoupon(code);
-                      context.showSnack('Coupon "$code" will apply at checkout');
+                    appliedCode: state.couponVerified ? state.couponCode : null,
+                    verified: state.couponVerified,
+                    onApply: (code) async {
+                      // Cart has no checkout session — do not mark as applied.
+                      // Store candidate for checkout to validate against the backend.
+                      ref.read(cartControllerProvider.notifier).setPendingCoupon(code);
+                      if (context.mounted) {
+                        context.showSnack(
+                          'Coupon saved. It will be verified when you checkout.',
+                        );
+                      }
                     },
                     onRemove: () => ref.read(cartControllerProvider.notifier).clearCoupon(),
                   ),

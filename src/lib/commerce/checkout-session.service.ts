@@ -384,6 +384,16 @@ export type CheckoutSessionPayload = {
     lineTotal: number;
   }>;
   totals: CheckoutTotals;
+  /**
+   * Present when the client sent `couponCode`. Soft preview never throws for
+   * invalid coupons — use `valid` so UIs do not show "applied" incorrectly.
+   */
+  coupon: {
+    code: string;
+    valid: boolean;
+    message: string | null;
+    couponId: string | null;
+  } | null;
   cartStale: boolean;
   requiresPriceConfirmation: boolean;
   priceChanges: Array<{
@@ -493,14 +503,33 @@ export async function getCheckoutSessionForUser(
   let discountAmount = 0;
   let couponId: string | null = null;
   let appliedCouponCode: string | null = null;
-  if (couponCode?.trim()) {
+  let couponResult: CheckoutSessionPayload["coupon"] = null;
+
+  const requestedCoupon = couponCode?.trim() || "";
+  if (requestedCoupon) {
     try {
-      const coupon = await applyCouponToSubtotal(couponCode, computeLineSubtotal(pricedLines));
+      const coupon = await applyCouponToSubtotal(requestedCoupon, computeLineSubtotal(pricedLines));
       discountAmount = coupon.discountAmount;
       couponId = coupon.couponId;
       appliedCouponCode = coupon.couponCode;
-    } catch {
-      // Preview only — validated at order placement
+      couponResult = {
+        code: coupon.couponCode ?? requestedCoupon,
+        valid: true,
+        message: null,
+        couponId: coupon.couponId,
+      };
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "";
+      const message =
+        msg === "COUPON_EXhausted"
+          ? "This coupon has reached its usage limit."
+          : "Invalid or expired coupon code";
+      couponResult = {
+        code: requestedCoupon,
+        valid: false,
+        message,
+        couponId: null,
+      };
     }
   }
 
@@ -532,6 +561,7 @@ export async function getCheckoutSessionForUser(
       lineTotal: Number(line.unitSellingPrice) * line.quantity,
     })),
     totals,
+    coupon: couponResult,
     cartStale,
     requiresPriceConfirmation,
     priceChanges,
