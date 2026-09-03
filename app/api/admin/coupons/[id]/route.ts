@@ -82,6 +82,7 @@ export const PUT = withApiHandler(async (request: NextRequest, context?: ApiRout
         validFrom: parsed.data.validFrom,
         validTo: parsed.data.validTo,
         maxUses: parsed.data.maxUses,
+        maxUsesPerUser: parsed.data.maxUsesPerUser,
         deletedAt: parsed.data.isActive ? null : existing.deletedAt ?? new Date(),
       },
     });

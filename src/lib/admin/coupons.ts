@@ -12,6 +12,8 @@ export type ParsedCouponInput = {
   validFrom: Date;
   validTo: Date;
   maxUses: number | null;
+  /** Null = unlimited redemptions per customer. */
+  maxUsesPerUser: number | null;
   isActive: boolean;
 };
 
@@ -57,26 +59,30 @@ function parseDate(raw: unknown): Date | null {
   return null;
 }
 
-function parseMaxUses(raw: unknown): { ok: true; value: number | null } | { ok: false; message: string } {
+function parsePositiveIntOrNull(
+  raw: unknown,
+  fieldLabel: string
+): { ok: true; value: number | null } | { ok: false; message: string } {
+  const blankMsg = `${fieldLabel} must be a positive integer, or leave blank for unlimited`;
   if (raw === undefined || raw === null || raw === "") {
     return { ok: true, value: null };
   }
   if (typeof raw === "number" && Number.isFinite(raw)) {
     const n = Math.trunc(raw);
-    if (n <= 0) return { ok: false, message: "Maximum uses must be a positive integer, or leave blank for unlimited" };
+    if (n <= 0) return { ok: false, message: blankMsg };
     return { ok: true, value: n };
   }
   if (typeof raw === "string") {
     const t = raw.trim();
     if (!t) return { ok: true, value: null };
     if (!/^\d+$/.test(t)) {
-      return { ok: false, message: "Maximum uses must be a positive integer, or leave blank for unlimited" };
+      return { ok: false, message: blankMsg };
     }
     const n = parseInt(t, 10);
-    if (n <= 0) return { ok: false, message: "Maximum uses must be a positive integer, or leave blank for unlimited" };
+    if (n <= 0) return { ok: false, message: blankMsg };
     return { ok: true, value: n };
   }
-  return { ok: false, message: "Maximum uses must be a positive integer, or leave blank for unlimited" };
+  return { ok: false, message: blankMsg };
 }
 
 function parseStatusActive(raw: unknown): boolean {
@@ -150,9 +156,32 @@ export function parseCouponBody(body: unknown): CouponParseSuccess | CouponParse
     };
   }
 
-  const maxUsesParsed = parseMaxUses(o.maxUses);
+  const maxUsesParsed = parsePositiveIntOrNull(o.maxUses, "Maximum uses");
   if (!maxUsesParsed.ok) {
     return { ok: false, message: "Validation failed", fields: { maxUses: maxUsesParsed.message } };
+  }
+
+  const maxUsesPerUserParsed = parsePositiveIntOrNull(o.maxUsesPerUser, "Maximum uses per user");
+  if (!maxUsesPerUserParsed.ok) {
+    return {
+      ok: false,
+      message: "Validation failed",
+      fields: { maxUsesPerUser: maxUsesPerUserParsed.message },
+    };
+  }
+
+  if (
+    maxUsesParsed.value != null &&
+    maxUsesPerUserParsed.value != null &&
+    maxUsesPerUserParsed.value > maxUsesParsed.value
+  ) {
+    return {
+      ok: false,
+      message: "Validation failed",
+      fields: {
+        maxUsesPerUser: "Maximum uses per user cannot be greater than Maximum uses",
+      },
+    };
   }
 
   return {
@@ -164,6 +193,7 @@ export function parseCouponBody(body: unknown): CouponParseSuccess | CouponParse
       validFrom,
       validTo,
       maxUses: maxUsesParsed.value,
+      maxUsesPerUser: maxUsesPerUserParsed.value,
       isActive: parseStatusActive(o.status),
     },
   };
@@ -195,6 +225,7 @@ export function serializeCoupon(row: {
   validFrom: Date;
   validTo: Date;
   maxUses: number | null;
+  maxUsesPerUser?: number | null;
   usedCount: number | null;
   createdAt: Date;
   updatedAt: Date;
@@ -209,6 +240,7 @@ export function serializeCoupon(row: {
     validFrom: row.validFrom.toISOString(),
     validTo: row.validTo.toISOString(),
     maxUses: row.maxUses,
+    maxUsesPerUser: row.maxUsesPerUser ?? null,
     usedCount: row.usedCount ?? 0,
     status: row.deletedAt == null ? "Active" : "Inactive",
     lifecycleStatus: computeCouponStatus(row),

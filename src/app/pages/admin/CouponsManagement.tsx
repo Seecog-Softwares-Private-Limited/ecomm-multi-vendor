@@ -12,6 +12,7 @@ export type CouponRow = {
   validFrom: string;
   validTo: string;
   maxUses: number | null;
+  maxUsesPerUser: number | null;
   usedCount: number;
   status: "Active" | "Inactive";
   lifecycleStatus: "Active" | "Scheduled" | "Expired" | "Exhausted" | "Inactive";
@@ -27,6 +28,7 @@ type FormState = {
   validFrom: string;
   validTo: string;
   maxUses: string;
+  maxUsesPerUser: string;
   status: "Active" | "Inactive";
 };
 
@@ -37,6 +39,7 @@ const emptyForm: FormState = {
   validFrom: "",
   validTo: "",
   maxUses: "",
+  maxUsesPerUser: "",
   status: "Active",
 };
 
@@ -70,8 +73,10 @@ function formatValidity(row: CouponRow): string {
 
 function formatUsage(row: CouponRow): string {
   const used = row.usedCount ?? 0;
-  if (row.maxUses == null) return `${used} / Unlimited`;
-  return `${used} / ${row.maxUses}`;
+  const global = row.maxUses == null ? `${used} / Unlimited` : `${used} / ${row.maxUses}`;
+  const perUser =
+    row.maxUsesPerUser == null ? "Unlimited / user" : `${row.maxUsesPerUser} / user`;
+  return `${global} · ${perUser}`;
 }
 
 function statusBadgeClass(status: CouponRow["lifecycleStatus"]): string {
@@ -164,6 +169,7 @@ export function CouponsManagement() {
       validFrom: toDatetimeLocalValue(row.validFrom),
       validTo: toDatetimeLocalValue(row.validTo),
       maxUses: row.maxUses == null ? "" : String(row.maxUses),
+      maxUsesPerUser: row.maxUsesPerUser == null ? "" : String(row.maxUsesPerUser),
       status: row.deletedAt ? "Inactive" : row.status,
     });
     setUsedCountReadonly(row.usedCount ?? 0);
@@ -183,6 +189,7 @@ export function CouponsManagement() {
         validFrom: fromDatetimeLocalValue(form.validFrom),
         validTo: fromDatetimeLocalValue(form.validTo),
         maxUses: form.maxUses.trim() === "" ? null : form.maxUses.trim(),
+        maxUsesPerUser: form.maxUsesPerUser.trim() === "" ? null : form.maxUsesPerUser.trim(),
         status: form.status,
       };
       if (!payload.validFrom || !payload.validTo) {
@@ -242,6 +249,7 @@ export function CouponsManagement() {
         validFrom: row.validFrom,
         validTo: row.validTo,
         maxUses: row.maxUses,
+        maxUsesPerUser: row.maxUsesPerUser,
         status: active ? "Active" : "Inactive",
       }),
     });
@@ -421,6 +429,17 @@ export function CouponsManagement() {
               />
             </label>
             <label className="block">
+              <span className="text-xs font-medium text-slate-500">Maximum uses per user</span>
+              <input
+                type="number"
+                min="1"
+                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                value={form.maxUsesPerUser}
+                onChange={(e) => setForm((f) => ({ ...f, maxUsesPerUser: e.target.value }))}
+                placeholder="Blank = unlimited"
+              />
+            </label>
+            <label className="block">
               <span className="text-xs font-medium text-slate-500">Status</span>
               <select
                 className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
@@ -437,8 +456,21 @@ export function CouponsManagement() {
               </select>
             </label>
             {editingId && (
-              <div className="sm:col-span-2 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600">
-                Used: <strong className="text-slate-900">{usedCountReadonly}</strong> (read-only)
+              <div className="sm:col-span-2 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600 space-y-1">
+                <div>
+                  Uses:{" "}
+                  <strong className="text-slate-900">
+                    {usedCountReadonly}
+                    {form.maxUses.trim() === "" ? " / Unlimited" : ` / ${form.maxUses.trim()}`}
+                  </strong>{" "}
+                  (total, read-only)
+                </div>
+                <div>
+                  Maximum uses per user:{" "}
+                  <strong className="text-slate-900">
+                    {form.maxUsesPerUser.trim() === "" ? "Unlimited" : form.maxUsesPerUser.trim()}
+                  </strong>
+                </div>
               </div>
             )}
           </div>
