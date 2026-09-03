@@ -56,7 +56,7 @@ class CartSummaryCard extends StatelessWidget {
               '- ${Formatters.rupees(summary.couponDiscount)}',
               valueColor: AppColors.success,
             ),
-          if (!compact) _row(context, theme, 'Tax (GST)', Formatters.rupees(summary.tax)),
+          _row(context, theme, 'Tax (GST)', Formatters.rupees(summary.tax)),
           const Padding(
             padding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
             child: Divider(),
