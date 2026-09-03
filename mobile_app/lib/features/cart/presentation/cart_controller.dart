@@ -48,11 +48,15 @@ class CartState {
     this.items = const [],
     this.savedForLater = const [],
     this.couponCode,
+    this.couponVerified = false,
   });
 
   final List<CartItem> items;
   final List<CartItem> savedForLater;
+  /// Candidate / applied coupon code (uppercase). Only show as applied when [couponVerified].
   final String? couponCode;
+  /// True only after checkout-session preview confirmed the code with the backend.
+  final bool couponVerified;
 
   int get totalQuantity => items.fold(0, (sum, i) => sum + i.quantity);
   bool get isEmpty => items.isEmpty;
@@ -74,12 +78,14 @@ class CartState {
     List<CartItem>? items,
     List<CartItem>? savedForLater,
     String? couponCode,
+    bool? couponVerified,
     bool clearCoupon = false,
   }) {
     return CartState(
       items: items ?? this.items,
       savedForLater: savedForLater ?? this.savedForLater,
       couponCode: clearCoupon ? null : (couponCode ?? this.couponCode),
+      couponVerified: clearCoupon ? false : (couponVerified ?? this.couponVerified),
     );
   }
 }
@@ -97,6 +103,7 @@ class CartController extends AsyncNotifier<CartState> {
       items: results[0],
       savedForLater: results[1],
       couponCode: current?.couponCode,
+      couponVerified: current?.couponVerified ?? false,
     );
   }
 
@@ -171,7 +178,18 @@ class CartController extends AsyncNotifier<CartState> {
     return add(item.productId, quantity: item.quantity, variantKey: item.variantKey);
   }
 
-  void applyCoupon(String code) => state = AsyncData(_state.copyWith(couponCode: code.trim().toUpperCase()));
+  /// Stores a candidate code without marking it verified (cart / pre-checkout).
+  void setPendingCoupon(String code) => state = AsyncData(
+        _state.copyWith(couponCode: code.trim().toUpperCase(), couponVerified: false),
+      );
+
+  /// Marks coupon applied only after backend checkout preview confirms it.
+  void applyVerifiedCoupon(String code) => state = AsyncData(
+        _state.copyWith(couponCode: code.trim().toUpperCase(), couponVerified: true),
+      );
+
+  @Deprecated('Use setPendingCoupon or applyVerifiedCoupon')
+  void applyCoupon(String code) => setPendingCoupon(code);
 
   void clearCoupon() => state = AsyncData(_state.copyWith(clearCoupon: true));
 

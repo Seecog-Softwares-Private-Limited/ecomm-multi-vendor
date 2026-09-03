@@ -16,6 +16,7 @@ import {
   Lock,
   FileText,
   MapPin,
+  TicketPercent,
 } from "lucide-react";
 import { IndovyaparLogo } from "@/components/IndovyaparLogo";
 import { useEffect, useState } from "react";
@@ -34,6 +35,7 @@ const menuItems: MenuItem[] = [
   { icon: FolderTree, label: "Categories", path: "/admin/categories", permission: "categories" },
   { icon: Package, label: "Products", path: "/admin/products", permission: "products" },
   { icon: ShoppingBag, label: "Orders", path: "/admin/orders", permission: "orders" },
+  { icon: TicketPercent, label: "Coupons", path: "/admin/coupons", permission: "coupons" },
   { icon: RotateCcw, label: "Returns", path: "/admin/returns", permission: "returns" },
   { icon: DollarSign, label: "Settlements", path: "/admin/settlements", permission: "settlements" },
   { icon: BarChart3, label: "Analytics", path: "/admin/analytics", permission: "analytics" },

@@ -27,6 +27,12 @@ export type CheckoutSessionPreview = {
     taxAmount: number;
     totalAmount: number;
   };
+  coupon?: {
+    code: string;
+    valid: boolean;
+    message: string | null;
+    couponId: string | null;
+  } | null;
   cartStale: boolean;
   requiresPriceConfirmation: boolean;
   priceChanges: Array<{
