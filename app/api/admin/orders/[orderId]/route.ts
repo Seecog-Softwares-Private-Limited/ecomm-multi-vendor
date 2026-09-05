@@ -11,6 +11,7 @@ import { resolveProductImageUrl } from "@/lib/product-image";
 import { requireAdminPermission } from "@/lib/admin-rbac";
 
 const ORDER_STATUS_DISPLAY: Record<OrderStatus, string> = {
+  PENDING_PAYMENT: "Pending payment",
   PLACED: "Placed",
   PAYMENT_CONFIRMED: "Payment confirmed",
   PROCESSING: "Processing",

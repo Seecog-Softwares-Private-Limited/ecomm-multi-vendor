@@ -364,14 +364,14 @@ export function VendorLayout({
   };
 
   const navigation = [
-    { name: "Dashboard", path: "/vendor", icon: LayoutDashboard },
-    { name: "Orders", path: "/vendor/orders", icon: ShoppingBag },
-    { name: "Products", path: "/vendor/products", icon: Package },
-    { name: "Earnings", path: "/vendor/earnings", icon: Wallet },
-    { name: "Payouts", path: "/vendor/payouts", icon: CreditCard },
-    { name: "Reports", path: "/vendor/reports", icon: FileText },
-    { name: "Profile & KYC", path: "/vendor/profile?tab=business_info", icon: User },
-    { name: "Support", path: "/vendor/support", icon: HelpCircle },
+    { name: "Dashboard", path: "/vendor", icon: LayoutDashboard, requiresApproval: false },
+    { name: "Orders", path: "/vendor/orders", icon: ShoppingBag, requiresApproval: true },
+    { name: "Products", path: "/vendor/products", icon: Package, requiresApproval: true },
+    { name: "Earnings", path: "/vendor/earnings", icon: Wallet, requiresApproval: true },
+    { name: "Payouts", path: "/vendor/payouts", icon: CreditCard, requiresApproval: true },
+    { name: "Reports", path: "/vendor/reports", icon: FileText, requiresApproval: true },
+    { name: "Profile & KYC", path: "/vendor/profile?tab=business_info", icon: User, requiresApproval: false },
+    { name: "Support", path: "/vendor/support", icon: HelpCircle, requiresApproval: false },
   ] as const;
 
   /** Mobile bottom bar — mirrors seller-app style primary destinations. */
@@ -651,6 +651,9 @@ export function VendorLayout({
               icon={item.icon}
               label={item.name}
               route={item.path}
+              // Unapproved vendors must not tap sell features that only bounce to
+              // /vendor/status — looks like an unresponsive button (Guideline 2.1).
+              disabled={item.requiresApproval && !approved}
               active={isActive(item.path)}
               onSelect={() => setSidebarOpen(false)}
             />

@@ -348,6 +348,13 @@ function VendorScreen() {
     }
   }, []);
 
+  // Never leave the splash overlay stuck forever if the WebView never fires onLoadEnd.
+  useEffect(() => {
+    if (!splash) return undefined;
+    const t = setTimeout(() => setSplash(false), 20000);
+    return () => clearTimeout(t);
+  }, [splash]);
+
   useEffect(() => {
     NetInfo.fetch().then((state) => {
       const offline =
@@ -513,9 +520,29 @@ function VendorScreen() {
     }
   }, []);
 
+  const notifyGoogleAuthResult = useCallback((payload) => {
+    const json = JSON.stringify(payload ?? {});
+    webRef.current?.injectJavaScript(`
+      (function () {
+        try {
+          window.dispatchEvent(new MessageEvent('message', {
+            data: JSON.stringify({ type: 'custom', name: 'GOOGLE_AUTH_RESULT', payload: ${json} })
+          }));
+        } catch (e) {}
+      })();
+      true;
+    `);
+  }, []);
+
   const startGoogleAuthSession = useCallback(
     async (startUrl) => {
-      if (googleAuthInFlightRef.current) return;
+      if (googleAuthInFlightRef.current) {
+        // Don't silently ignore a second tap — that looks like an unresponsive button.
+        notifyGoogleAuthResult({
+          message: 'Google sign-in is already in progress. Finish or cancel the open sheet, then try again.',
+        });
+        return;
+      }
       googleAuthInFlightRef.current = true;
       try {
         // Flag the flow as native so the server returns a one-time hand-off token
@@ -545,7 +572,8 @@ function VendorScreen() {
         );
 
         if (result.type !== 'success' || typeof result.url !== 'string') {
-          // cancel / dismiss — user closed Google sign-in; stay on login page.
+          // cancel / dismiss — clear web spinner so the button isn't stuck.
+          notifyGoogleAuthResult({ cancelled: true });
           return;
         }
 
@@ -554,18 +582,21 @@ function VendorScreen() {
           returned = new URL(result.url);
         } catch {
           setLoadErrorMessage('Google sign-in did not complete. Please try again.');
+          notifyGoogleAuthResult({ message: 'Google sign-in did not complete. Please try again.' });
           return;
         }
 
         const authError = returned.searchParams.get('error');
         if (authError) {
           setLoadErrorMessage(authError);
+          notifyGoogleAuthResult({ message: authError });
           return;
         }
 
         const handoffToken = returned.searchParams.get('token');
         if (!handoffToken) {
           setLoadErrorMessage('Google sign-in did not complete. Please try again.');
+          notifyGoogleAuthResult({ message: 'Google sign-in did not complete. Please try again.' });
           return;
         }
 
@@ -579,14 +610,14 @@ function VendorScreen() {
         );
         loadInWebView(completeUrl.toString());
       } catch (err) {
-        setLoadErrorMessage(
-          err?.message || 'Google sign-in failed. Please try again.'
-        );
+        const message = err?.message || 'Google sign-in failed. Please try again.';
+        setLoadErrorMessage(message);
+        notifyGoogleAuthResult({ message });
       } finally {
         googleAuthInFlightRef.current = false;
       }
     },
-    [loadInWebView]
+    [loadInWebView, notifyGoogleAuthResult]
   );
 
   const onShouldStartLoadWithRequest = useCallback(

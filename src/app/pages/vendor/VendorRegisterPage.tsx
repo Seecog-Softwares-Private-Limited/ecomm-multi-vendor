@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Link } from "../../components/Link";
 import {
   Mail,
@@ -29,10 +30,15 @@ const iconWrap = "pointer-events-none absolute inset-y-0 left-0 flex items-cente
  */
 export function VendorRegisterPage() {
   const { isAppMode } = useAppMode();
-  const [email, setEmail] = useState("");
+  const searchParams = useSearchParams();
+  // Prefill when the user arrives from Apple/Google sign-in without a vendor account.
+  const socialProvider = searchParams.get("social");
+  const socialLabel =
+    socialProvider === "apple" ? "Apple" : socialProvider === "google" ? "Google" : null;
+  const [email, setEmail] = useState(() => searchParams.get("email") ?? "");
   const [password, setPassword] = useState("");
   const [businessName, setBusinessName] = useState("");
-  const [ownerName, setOwnerName] = useState("");
+  const [ownerName, setOwnerName] = useState(() => searchParams.get("name") ?? "");
   const [phone, setPhone] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -151,6 +157,16 @@ export function VendorRegisterPage() {
                     Fill in your details to register as a vendor
                   </p>
                 </div>
+
+                {socialLabel && (
+                  <div
+                    className="mb-5 rounded-xl bg-blue-50 px-4 py-3 text-sm text-blue-800 ring-1 ring-blue-200/80"
+                    role="status"
+                  >
+                    Your {socialLabel} account isn’t linked to a vendor yet. Complete the details
+                    below to create your vendor account, then sign in with {socialLabel}.
+                  </div>
+                )}
 
                 <form className="space-y-5" onSubmit={handleSubmit}>
                   {error && (

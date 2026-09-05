@@ -41,7 +41,7 @@ export interface AppleIdentityClaims {
   iat?: number;
 }
 
-export type AppleJwtVerifyKey = jose.JWTVerifyGetKey | jose.CryptoKey | Uint8Array;
+export type AppleJwtVerifyKey = jose.JWTVerifyGetKey | jose.KeyLike | Uint8Array;
 
 let remoteJwks: ReturnType<typeof jose.createRemoteJWKSet> | null = null;
 
@@ -93,12 +93,20 @@ export async function verifyAppleIdentityToken(
 
   let payload: jose.JWTPayload;
   try {
-    const verified = await jose.jwtVerify(token, key, {
-      issuer: APPLE_ISSUER,
-      audience,
-      clockTolerance: 5,
-      currentDate: options.now,
-    });
+    const verified =
+      typeof key === "function"
+        ? await jose.jwtVerify(token, key, {
+            issuer: APPLE_ISSUER,
+            audience,
+            clockTolerance: 5,
+            currentDate: options.now,
+          })
+        : await jose.jwtVerify(token, key as jose.KeyLike | Uint8Array, {
+            issuer: APPLE_ISSUER,
+            audience,
+            clockTolerance: 5,
+            currentDate: options.now,
+          });
     payload = verified.payload;
   } catch (err) {
     const code =
@@ -155,7 +163,8 @@ export type AppleVendorMatch =
 
 /**
  * Decide how an Apple identity maps to an existing Vendor.
- * Never auto-creates a Seller. Never uses private-relay email as a merge key.
+ * Never uses private-relay email as a merge key.
+ * Callers auto-create when action is "register" and an email is available.
  */
 export function resolveAppleVendorMatch(input: {
   appleUserId: string;

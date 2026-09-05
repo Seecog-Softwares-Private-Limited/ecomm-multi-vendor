@@ -4,6 +4,8 @@ import {
   apiSuccess,
   apiBadRequest,
   apiUnauthorized,
+  apiError,
+  Status,
 } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { signToken, setAuthCookie } from "@/lib/auth";
@@ -13,9 +15,12 @@ import {
   resolveAppleVendorMatch,
   verifyAppleIdentityToken,
 } from "@/lib/auth/apple";
+import { createSocialVendor, SocialVendorCreateError } from "@/lib/auth/create-social-vendor";
 
 const NO_VENDOR_MESSAGE =
   "No vendor account exists for this Apple account. Please register as a vendor first.";
+/** Stable code so the client can route to vendor registration instead of a dead-end error. */
+const NOT_REGISTERED_CODE = "VENDOR_NOT_REGISTERED";
 
 type AppleFullName = {
   givenName?: string | null;
@@ -41,7 +46,7 @@ function composeOwnerName(fullName: unknown, current: string): string | undefine
  * POST /api/auth/vendor-apple
  *
  * Verifies a native Sign in with Apple identity token from the Vendor iOS app,
- * finds an existing Seller (never auto-creates), and sets the same auth_token
+ * finds an existing Seller or auto-creates one, and sets the same auth_token
  * cookie used by email/password and Google vendor login.
  */
 export const POST = withApiHandler(async (request: NextRequest) => {
@@ -114,13 +119,64 @@ export const POST = withApiHandler(async (request: NextRequest) => {
     );
   }
 
+  const composedName = composeOwnerName(record.fullName, "") ?? "";
+  // Apple returns email on first authorization (real or private relay). Later
+  // sign-ins often omit email — those are resolved via appleUserId above.
+  const accountEmail = verifiedRealEmail ?? claims.email ?? null;
+
+  // No vendor account yet → auto-create one linked to this Apple ID and sign in.
+  // (Guideline 2.1 — social sign-in must not dead-end.) The vendor lands in the
+  // onboarding/KYC flow and must set a real business name before being approved.
   if (match.action === "register") {
-    return apiUnauthorized(NO_VENDOR_MESSAGE);
+    if (!accountEmail) {
+      // Extremely rare: Apple withheld any email — fall back to registration.
+      return apiError(NO_VENDOR_MESSAGE, Status.UNAUTHORIZED, NOT_REGISTERED_CODE, {
+        email: "",
+        name: composedName,
+      });
+    }
+
+    try {
+      const created = await createSocialVendor({
+        email: accountEmail,
+        name: composedName,
+        provider: "apple",
+        appleUserId,
+      });
+
+      const newToken = await signToken({
+        sub: created.id,
+        email: created.email,
+        role: "SELLER",
+      });
+      const createdResponse = apiSuccess({
+        vendor: {
+          id: created.id,
+          email: created.email,
+          businessName: created.businessName,
+          ownerName: created.ownerName,
+          status: created.status,
+          role: "SELLER",
+        },
+      });
+      setAuthCookie(createdResponse, newToken);
+      return createdResponse;
+    } catch (err) {
+      if (err instanceof SocialVendorCreateError) {
+        return apiUnauthorized(err.message);
+      }
+      throw err;
+    }
   }
 
+  // match.action === "login" (conflict already returned above)
   let seller = byAppleSub?.id === match.sellerId ? byAppleSub : byEmail;
   if (!seller || seller.id !== match.sellerId) {
-    return apiUnauthorized(NO_VENDOR_MESSAGE);
+    // Defensive: should not happen when action is login.
+    return apiError(NO_VENDOR_MESSAGE, Status.UNAUTHORIZED, NOT_REGISTERED_CODE, {
+      email: accountEmail ?? "",
+      name: composedName,
+    });
   }
 
   const ownerName = composeOwnerName(record.fullName, seller.ownerName);

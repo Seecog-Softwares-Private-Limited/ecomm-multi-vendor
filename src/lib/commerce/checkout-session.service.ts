@@ -424,7 +424,7 @@ export async function getCheckoutSessionForUser(
               gstPercent: true,
               productVariants: {
                 where: { deletedAt: null },
-                select: { color: true, size: true, price: true },
+                select: { color: true, size: true, price: true, stock: true },
               },
               images: {
                 where: { deletedAt: null },
@@ -593,7 +593,7 @@ export async function confirmCheckoutSessionPrices(
           mrp: true,
           productVariants: {
             where: { deletedAt: null },
-            select: { color: true, size: true, price: true },
+            select: { color: true, size: true, price: true, stock: true },
           },
         },
       });

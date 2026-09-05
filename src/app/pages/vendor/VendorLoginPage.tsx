@@ -49,19 +49,35 @@ export function VendorLoginPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [appleLoading, setAppleLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
   // Sync init — avoid first paint with Google and no Apple on iOS (Guideline 4.8).
   const [showAppleSignIn, setShowAppleSignIn] = useState(() => canUseNativeAppleSignIn());
   const [socialReady, setSocialReady] = useState(() => !isLikelyNativeIosShell());
   const appleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const applePendingRef = useRef(false);
+  const googleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { isAppMode } = useAppMode();
+
+  const socialBusy = loading || appleLoading || googleLoading;
 
   function clearAppleTimeout() {
     if (appleTimeoutRef.current) {
       clearTimeout(appleTimeoutRef.current);
       appleTimeoutRef.current = null;
     }
+  }
+
+  function clearGoogleTimeout() {
+    if (googleTimeoutRef.current) {
+      clearTimeout(googleTimeoutRef.current);
+      googleTimeoutRef.current = null;
+    }
+  }
+
+  function clearGoogleLoading() {
+    clearGoogleTimeout();
+    setGoogleLoading(false);
   }
 
   useEffect(() => {
@@ -118,22 +134,57 @@ export function VendorLoginPage() {
     }
   })();
 
+  function handleGoogleClick() {
+    setError(null);
+    setGoogleLoading(true);
+    clearGoogleTimeout();
+    // If the native auth sheet never returns (or cancel isn't messaged), don't
+    // leave the button looking permanently stuck (Guideline 2.1).
+    googleTimeoutRef.current = setTimeout(() => {
+      setGoogleLoading(false);
+      setError("Google sign-in timed out. Please try again.");
+    }, 60_000);
+    startVendorOAuthLogin("google", oauthReturnUrl);
+  }
+
   useEffect(() => {
     const onResult = (payload: AppleAuthResultPayload | undefined) => {
       void handleAppleNativeResult(payload);
     };
     window.__INDOVYAPAR_ON_APPLE_AUTH_RESULT__ = onResult;
     const unsubscribe = subscribeToNative((message) => {
-      if (message.type !== "custom" || message.name !== APPLE_AUTH_RESULT_MESSAGE) return;
-      onResult(message.payload as AppleAuthResultPayload | undefined);
+      if (message.type !== "custom") return;
+      if (message.name === APPLE_AUTH_RESULT_MESSAGE) {
+        onResult(message.payload as AppleAuthResultPayload | undefined);
+        return;
+      }
+      // Native Google auth sheet closed (cancel / error / about to reload).
+      if (message.name === "GOOGLE_AUTH_RESULT") {
+        clearGoogleLoading();
+        const payload = message.payload as { cancelled?: boolean; message?: string } | undefined;
+        if (payload?.cancelled) {
+          setError(null);
+          return;
+        }
+        if (payload?.message) setError(payload.message);
+      }
     });
+    const onPageShow = () => clearGoogleLoading();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") clearGoogleLoading();
+    };
+    window.addEventListener("pageshow", onPageShow);
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       if (window.__INDOVYAPAR_ON_APPLE_AUTH_RESULT__ === onResult) {
         delete window.__INDOVYAPAR_ON_APPLE_AUTH_RESULT__;
       }
       unsubscribe();
       clearAppleTimeout();
+      clearGoogleTimeout();
       applePendingRef.current = false;
+      window.removeEventListener("pageshow", onPageShow);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [callbackUrl, router]);
 
@@ -169,12 +220,17 @@ export function VendorLoginPage() {
     setError(null);
     setLoading(true);
     try {
-      await authService.vendorLogin({ email, password });
+      await Promise.race([
+        authService.vendorLogin({ email, password }),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Sign-in timed out. Please try again.")), 20000)
+        ),
+      ]);
       await new Promise((r) => setTimeout(r, 50));
       router.push(callbackUrl);
       router.refresh();
     } catch (err) {
-      setError(err instanceof ServiceError ? err.message : "Login failed");
+      setError(err instanceof ServiceError ? err.message : err instanceof Error ? err.message : "Login failed");
     } finally {
       setLoading(false);
     }
@@ -202,19 +258,38 @@ export function VendorLoginPage() {
     setError(null);
     setAppleLoading(true);
     try {
-      await authService.vendorAppleLogin({
-        identityToken: payload.identityToken,
-        nonce: payload.nonce,
-        authorizationCode: payload.authorizationCode,
-        user: payload.user,
-        email: payload.email,
-        fullName: payload.fullName,
-      });
+      await Promise.race([
+        authService.vendorAppleLogin({
+          identityToken: payload.identityToken,
+          nonce: payload.nonce,
+          authorizationCode: payload.authorizationCode,
+          user: payload.user,
+          email: payload.email,
+          fullName: payload.fullName,
+        }),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Apple sign-in timed out. Please try again.")), 20000)
+        ),
+      ]);
       await new Promise((r) => setTimeout(r, 50));
       router.push(callbackUrl);
       router.refresh();
     } catch (err) {
-      setError(err instanceof ServiceError ? err.message : "Apple sign-in failed");
+      // Rare: Apple withheld email so auto-create couldn't run. Don't dump into
+      // password register (that won't link Apple). Show a clear next step.
+      if (err instanceof ServiceError && err.code === "VENDOR_NOT_REGISTERED") {
+        setError(
+          "Apple did not share an email address. Tap Register as vendor, or try Sign in with Apple again and allow email."
+        );
+        return;
+      }
+      setError(
+        err instanceof ServiceError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "Apple sign-in failed"
+      );
     } finally {
       setAppleLoading(false);
     }
@@ -406,7 +481,7 @@ export function VendorLoginPage() {
 
               <button
                 type="submit"
-                disabled={loading || appleLoading}
+                disabled={socialBusy}
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#FF6A00] py-3.5 text-sm font-semibold text-white shadow-lg shadow-orange-500/25 transition hover:bg-[#E55F00] focus:outline-none focus:ring-2 focus:ring-[#FF6A00] focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-60"
               >
                 {loading ? (
@@ -439,7 +514,7 @@ export function VendorLoginPage() {
                     <button
                       type="button"
                       onClick={handleAppleClick}
-                      disabled={loading || appleLoading}
+                      disabled={socialBusy}
                       aria-label="Continue with Apple"
                       className="mt-4 flex w-full items-center justify-center gap-2.5 rounded-xl bg-black px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-black/30 disabled:pointer-events-none disabled:opacity-60"
                     >
@@ -465,10 +540,14 @@ export function VendorLoginPage() {
                   {!isLikelyNativeIosShell() || showAppleSignIn ? (
                     <button
                       type="button"
-                      onClick={() => startVendorOAuthLogin("google", oauthReturnUrl)}
-                      disabled={loading || appleLoading}
+                      onClick={handleGoogleClick}
+                      disabled={socialBusy}
                       className={`${showAppleSignIn ? "mt-3" : "mt-4"} flex w-full items-center justify-center gap-2.5 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#FF6A00]/25 disabled:pointer-events-none disabled:opacity-60`}
                     >
+                      {googleLoading ? (
+                        <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-slate-400 border-t-slate-700" />
+                      ) : (
+                        <>
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
                         viewBox="0 0 24 24"
@@ -493,6 +572,8 @@ export function VendorLoginPage() {
                         />
                       </svg>
                       Continue with Google
+                        </>
+                      )}
                     </button>
                   ) : null}
                 </>

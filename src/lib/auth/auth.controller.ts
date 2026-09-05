@@ -76,6 +76,8 @@ export type VerifyOtpSuccess = {
     lastName: string | null;
     phone: string | null;
     role: "CUSTOMER";
+    profileCompleted: boolean;
+    needsProfileCompletion: boolean;
   };
 };
 

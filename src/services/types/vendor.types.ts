@@ -35,6 +35,8 @@ export interface VendorMeResponse {
   statusReason: string | null;
   businessName: string | null;
   emailVerified: boolean;
+  /** True when account was created via Google/Apple (use Forgot password to set email password). */
+  socialSignInOnly?: boolean;
 }
 
 /** Payload for creating a product (POST /api/vendor/products). */

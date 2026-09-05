@@ -154,7 +154,7 @@ export async function placeOrderFromCheckoutSession(
               sellingPrice: true,
               productVariants: {
                 where: { deletedAt: null },
-                select: { color: true, size: true, price: true },
+                select: { color: true, size: true, price: true, stock: true },
               },
               seller: { select: { id: true, status: true, deletedAt: true, businessName: true } },
             },

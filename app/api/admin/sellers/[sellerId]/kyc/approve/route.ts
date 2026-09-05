@@ -26,7 +26,7 @@ export const POST = withApiHandler(
 
     const seller = await prisma.seller.findFirst({
       where: { id: sellerId, deletedAt: null },
-      select: { id: true, status: true, phone: true },
+      select: { id: true, status: true, phone: true, businessName: true, ownerName: true },
     });
 
     if (!seller) {

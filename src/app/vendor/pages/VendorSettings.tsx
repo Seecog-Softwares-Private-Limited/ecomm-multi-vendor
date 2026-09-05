@@ -20,7 +20,9 @@ export function VendorSettings() {
     isLoading: profileLoading,
     refetch: refetchProfile,
   } = useApi(() => vendorService.getProfile());
-  const [activeTab, setActiveTab] = React.useState("password");
+  const [activeTab, setActiveTab] = React.useState("profile");
+
+  const socialSignInOnly = Boolean(me?.socialSignInOnly);
 
   const [currentPassword, setCurrentPassword] = React.useState("");
   const [newPassword, setNewPassword] = React.useState("");
@@ -277,7 +279,11 @@ export function VendorSettings() {
           <div className="space-y-6">
             <Alert
               type="info"
-              message="Use a strong password with at least 8 characters, including uppercase, lowercase, and a number. Google/Apple-only accounts can set a password via Forgot password."
+              message={
+                socialSignInOnly
+                  ? "You signed in with Google or Apple. If you have not set an email password yet, use Forgot password first — then you can change it here."
+                  : "Use a strong password with at least 8 characters, including uppercase, lowercase, and a number."
+              }
             />
 
             {passwordError && <Alert type="error" message={passwordError} />}

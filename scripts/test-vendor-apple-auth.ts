@@ -24,7 +24,7 @@ async function makeSigner() {
 }
 
 async function signToken(
-  privateKey: jose.CryptoKey,
+  privateKey: jose.KeyLike,
   claims: Record<string, unknown>,
   audience = VENDOR_IOS_BUNDLE_ID
 ) {

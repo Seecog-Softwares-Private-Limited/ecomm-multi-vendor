@@ -41,7 +41,7 @@ export const POST = withApiHandler(async (request: NextRequest) => {
 
   await assertVendorCanEditKyc(sellerId);
 
-  let formData: FormData;
+  let formData;
   try {
     formData = await request.formData();
   } catch {
