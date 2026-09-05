@@ -49,7 +49,7 @@ export const POST = withApiHandler(async (request: NextRequest) => {
   if (!session) return apiUnauthorized("Not authenticated");
   if (session.role !== "CUSTOMER") return apiForbidden("Only customers can upload an avatar here.");
 
-  let formData: FormData;
+  let formData;
   try {
     formData = await request.formData();
   } catch (err) {

@@ -166,7 +166,7 @@ export const POST = withApiHandler(async (request: NextRequest) => {
     },
   });
 
-  const profileName = profile?.businessName ?? "Vendor";
+  const profileName = profile?.business?.displayName ?? "Vendor";
   const { getSmsNotificationService } = await import("@/services/sms-notification.service");
   getSmsNotificationService().onVendorAddProduct({
     productName: product.name,

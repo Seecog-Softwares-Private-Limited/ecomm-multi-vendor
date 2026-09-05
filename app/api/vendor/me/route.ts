@@ -19,6 +19,14 @@ export const GET = withApiHandler(async (request: NextRequest) => {
 
   const statusInfo = await getVendorStatus(sellerId);
 
+  const seller = await prisma.seller.findFirst({
+    where: { id: sellerId, deletedAt: null },
+    select: {
+      oauthProvider: true,
+      appleUserId: true,
+    },
+  });
+
   return apiSuccess({
     vendorId: sellerId,
     email: session.email,
@@ -28,6 +36,9 @@ export const GET = withApiHandler(async (request: NextRequest) => {
     statusReason: statusInfo?.statusReason ?? null,
     businessName: statusInfo?.businessName ?? null,
     emailVerified: statusInfo?.emailVerified ?? false,
+    // Social-created vendors should use Forgot password to set an email password
+    // (Change Password "current password" will never match the random hash).
+    socialSignInOnly: Boolean(seller?.oauthProvider || seller?.appleUserId),
   });
 });
 

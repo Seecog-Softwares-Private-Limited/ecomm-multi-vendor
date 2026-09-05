@@ -63,7 +63,7 @@ export const PATCH = withApiHandler(async (request: NextRequest) => {
 
   const seller = await prisma.seller.findFirst({
     where: { id: sellerId, deletedAt: null },
-    select: { id: true, passwordHash: true },
+    select: { id: true, passwordHash: true, oauthProvider: true, appleUserId: true },
   });
 
   if (!seller) {
@@ -71,6 +71,7 @@ export const PATCH = withApiHandler(async (request: NextRequest) => {
   }
 
   const hash = seller.passwordHash?.trim() ?? "";
+  const isSocial = Boolean(seller.oauthProvider || seller.appleUserId);
   if (hash.length < 20) {
     return apiBadRequest(
       "This account uses Google or Apple sign-in and has no password. Use Forgot password to set one, or continue with social login."
@@ -79,7 +80,11 @@ export const PATCH = withApiHandler(async (request: NextRequest) => {
 
   const valid = await verifyPassword(currentPassword, hash);
   if (!valid) {
-    return apiBadRequest("Current password is incorrect");
+    return apiBadRequest(
+      isSocial
+        ? "Current password is incorrect. If you signed in with Google or Apple, use Forgot password first to set an email password."
+        : "Current password is incorrect"
+    );
   }
 
   const passwordHash = await hashPassword(newPassword);

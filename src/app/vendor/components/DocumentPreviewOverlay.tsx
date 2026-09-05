@@ -99,11 +99,37 @@ export function DocumentPreviewOverlay({ preview, onClose }: DocumentPreviewOver
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-100">
         {pdf ? (
-          <iframe
-            title={title}
-            src={url}
-            className="h-full w-full flex-1 border-0 bg-white"
-          />
+          <div className="flex h-full min-h-0 flex-1 flex-col">
+            <iframe
+              title={title}
+              src={url}
+              className="h-full w-full min-h-0 flex-1 border-0 bg-white"
+            />
+            {/* WKWebView often blanks nested PDF iframes — always offer Open. */}
+            <div className="shrink-0 border-t border-slate-200 bg-white px-4 py-3 text-center">
+              <p className="mb-2 text-xs text-slate-500">
+                If the PDF looks blank, open it below.
+              </p>
+              {inNativeApp ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    window.location.assign(url);
+                  }}
+                  className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700"
+                >
+                  Open document
+                </button>
+              ) : (
+                <a
+                  href={url}
+                  className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700"
+                >
+                  Open document
+                </a>
+              )}
+            </div>
+          </div>
         ) : image ? (
           <div className="flex h-full items-center justify-center overflow-auto p-4">
             {/* eslint-disable-next-line @next/next/no-img-element */}

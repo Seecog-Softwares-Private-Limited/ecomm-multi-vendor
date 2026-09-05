@@ -9,6 +9,11 @@ import {
 } from "@/lib/auth/oauth";
 import { signToken, setAuthCookie } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import {
+  createSocialVendor,
+  SocialVendorCreateError,
+  type CreatedSocialVendor,
+} from "@/lib/auth/create-social-vendor";
 
 /**
  * Custom URL scheme the native app registers (see vendor-app `scheme`).
@@ -88,8 +93,8 @@ export async function completeVendorGoogleOAuth(opts: {
     );
   }
 
-  const seller = await prisma.seller.findFirst({
-    where: { email: oauthUser.email, deletedAt: null },
+  let seller: CreatedSocialVendor | null = await prisma.seller.findFirst({
+    where: { email: oauthUser.email.trim().toLowerCase(), deletedAt: null },
     select: {
       id: true,
       email: true,
@@ -100,9 +105,24 @@ export async function completeVendorGoogleOAuth(opts: {
   });
 
   if (!seller) {
-    return fail(
-      "No vendor account exists for this Google email. Register as a vendor first."
-    );
+    // No vendor account yet → auto-create one and sign in (Guideline 2.1 — social
+    // sign-in must not dead-end). Lands in onboarding/KYC; a real business name is
+    // required before approval to sell.
+    const fullName = `${oauthUser.firstName ?? ""} ${oauthUser.lastName ?? ""}`.trim();
+    try {
+      seller = await createSocialVendor({
+        email: oauthUser.email,
+        name: fullName,
+        provider: "google",
+        oauthProviderId: oauthUser.providerId,
+      });
+    } catch (err) {
+      if (err instanceof SocialVendorCreateError) {
+        return fail(err.message);
+      }
+      console.error("[Vendor OAuth] social vendor create failed:", err);
+      return fail("Could not create your vendor account. Please try again.");
+    }
   }
 
   try {
