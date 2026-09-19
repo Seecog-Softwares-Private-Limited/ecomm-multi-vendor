@@ -7,7 +7,7 @@ import {
   apiForbidden,
   apiNotFound,
 } from "@/lib/api";
-import { getSession } from "@/lib/auth";
+import { assertCustomerAuthComplete } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getRazorpay } from "@/lib/razorpay";
 import { extendPaymentWindowForSession } from "@/lib/commerce/payment-window";
@@ -18,9 +18,10 @@ import { extendPaymentWindowForSession } from "@/lib/commerce/payment-window";
  * Returns { razorpayOrderId, amount, currency, keyId } for use in Razorpay Checkout.
  */
 export const POST = withApiHandler(async (request: NextRequest) => {
-  const session = await getSession(request);
-  if (!session) return apiUnauthorized("Please log in.");
-  if (session.role !== "CUSTOMER") return apiForbidden("Only customers can pay for orders.");
+  const session = await assertCustomerAuthComplete(request, {
+    unauthorizedMessage: "Please log in.",
+    forbiddenMessage: "Only customers can pay for orders.",
+  });
 
   let body: unknown;
   try {

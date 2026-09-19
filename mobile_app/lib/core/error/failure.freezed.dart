@@ -86,13 +86,14 @@ extension FailurePatterns on Failure {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( NetworkFailure value)?  network,TResult Function( ServerFailure value)?  server,TResult Function( UnauthorizedFailure value)?  unauthorized,TResult Function( ValidationFailure value)?  validation,TResult Function( UnexpectedFailure value)?  unexpected,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( NetworkFailure value)?  network,TResult Function( ServerFailure value)?  server,TResult Function( UnauthorizedFailure value)?  unauthorized,TResult Function( AccountIncompleteFailure value)?  accountIncomplete,TResult Function( ValidationFailure value)?  validation,TResult Function( UnexpectedFailure value)?  unexpected,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case NetworkFailure() when network != null:
 return network(_that);case ServerFailure() when server != null:
 return server(_that);case UnauthorizedFailure() when unauthorized != null:
-return unauthorized(_that);case ValidationFailure() when validation != null:
+return unauthorized(_that);case AccountIncompleteFailure() when accountIncomplete != null:
+return accountIncomplete(_that);case ValidationFailure() when validation != null:
 return validation(_that);case UnexpectedFailure() when unexpected != null:
 return unexpected(_that);case _:
   return orElse();
@@ -112,13 +113,14 @@ return unexpected(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( NetworkFailure value)  network,required TResult Function( ServerFailure value)  server,required TResult Function( UnauthorizedFailure value)  unauthorized,required TResult Function( ValidationFailure value)  validation,required TResult Function( UnexpectedFailure value)  unexpected,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( NetworkFailure value)  network,required TResult Function( ServerFailure value)  server,required TResult Function( UnauthorizedFailure value)  unauthorized,required TResult Function( AccountIncompleteFailure value)  accountIncomplete,required TResult Function( ValidationFailure value)  validation,required TResult Function( UnexpectedFailure value)  unexpected,}){
 final _that = this;
 switch (_that) {
 case NetworkFailure():
 return network(_that);case ServerFailure():
 return server(_that);case UnauthorizedFailure():
-return unauthorized(_that);case ValidationFailure():
+return unauthorized(_that);case AccountIncompleteFailure():
+return accountIncomplete(_that);case ValidationFailure():
 return validation(_that);case UnexpectedFailure():
 return unexpected(_that);}
 }
@@ -134,13 +136,14 @@ return unexpected(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( NetworkFailure value)?  network,TResult? Function( ServerFailure value)?  server,TResult? Function( UnauthorizedFailure value)?  unauthorized,TResult? Function( ValidationFailure value)?  validation,TResult? Function( UnexpectedFailure value)?  unexpected,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( NetworkFailure value)?  network,TResult? Function( ServerFailure value)?  server,TResult? Function( UnauthorizedFailure value)?  unauthorized,TResult? Function( AccountIncompleteFailure value)?  accountIncomplete,TResult? Function( ValidationFailure value)?  validation,TResult? Function( UnexpectedFailure value)?  unexpected,}){
 final _that = this;
 switch (_that) {
 case NetworkFailure() when network != null:
 return network(_that);case ServerFailure() when server != null:
 return server(_that);case UnauthorizedFailure() when unauthorized != null:
-return unauthorized(_that);case ValidationFailure() when validation != null:
+return unauthorized(_that);case AccountIncompleteFailure() when accountIncomplete != null:
+return accountIncomplete(_that);case ValidationFailure() when validation != null:
 return validation(_that);case UnexpectedFailure() when unexpected != null:
 return unexpected(_that);case _:
   return null;
@@ -159,12 +162,13 @@ return unexpected(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String message)?  network,TResult Function( String message,  int? statusCode,  String? code)?  server,TResult Function( String message)?  unauthorized,TResult Function( String message,  Map<String, dynamic>? details)?  validation,TResult Function( String message)?  unexpected,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String message)?  network,TResult Function( String message,  int? statusCode,  String? code)?  server,TResult Function( String message)?  unauthorized,TResult Function( String message)?  accountIncomplete,TResult Function( String message,  Map<String, dynamic>? details)?  validation,TResult Function( String message)?  unexpected,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case NetworkFailure() when network != null:
 return network(_that.message);case ServerFailure() when server != null:
 return server(_that.message,_that.statusCode,_that.code);case UnauthorizedFailure() when unauthorized != null:
-return unauthorized(_that.message);case ValidationFailure() when validation != null:
+return unauthorized(_that.message);case AccountIncompleteFailure() when accountIncomplete != null:
+return accountIncomplete(_that.message);case ValidationFailure() when validation != null:
 return validation(_that.message,_that.details);case UnexpectedFailure() when unexpected != null:
 return unexpected(_that.message);case _:
   return orElse();
@@ -184,12 +188,13 @@ return unexpected(_that.message);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String message)  network,required TResult Function( String message,  int? statusCode,  String? code)  server,required TResult Function( String message)  unauthorized,required TResult Function( String message,  Map<String, dynamic>? details)  validation,required TResult Function( String message)  unexpected,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String message)  network,required TResult Function( String message,  int? statusCode,  String? code)  server,required TResult Function( String message)  unauthorized,required TResult Function( String message)  accountIncomplete,required TResult Function( String message,  Map<String, dynamic>? details)  validation,required TResult Function( String message)  unexpected,}) {final _that = this;
 switch (_that) {
 case NetworkFailure():
 return network(_that.message);case ServerFailure():
 return server(_that.message,_that.statusCode,_that.code);case UnauthorizedFailure():
-return unauthorized(_that.message);case ValidationFailure():
+return unauthorized(_that.message);case AccountIncompleteFailure():
+return accountIncomplete(_that.message);case ValidationFailure():
 return validation(_that.message,_that.details);case UnexpectedFailure():
 return unexpected(_that.message);}
 }
@@ -205,12 +210,13 @@ return unexpected(_that.message);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String message)?  network,TResult? Function( String message,  int? statusCode,  String? code)?  server,TResult? Function( String message)?  unauthorized,TResult? Function( String message,  Map<String, dynamic>? details)?  validation,TResult? Function( String message)?  unexpected,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String message)?  network,TResult? Function( String message,  int? statusCode,  String? code)?  server,TResult? Function( String message)?  unauthorized,TResult? Function( String message)?  accountIncomplete,TResult? Function( String message,  Map<String, dynamic>? details)?  validation,TResult? Function( String message)?  unexpected,}) {final _that = this;
 switch (_that) {
 case NetworkFailure() when network != null:
 return network(_that.message);case ServerFailure() when server != null:
 return server(_that.message,_that.statusCode,_that.code);case UnauthorizedFailure() when unauthorized != null:
-return unauthorized(_that.message);case ValidationFailure() when validation != null:
+return unauthorized(_that.message);case AccountIncompleteFailure() when accountIncomplete != null:
+return accountIncomplete(_that.message);case ValidationFailure() when validation != null:
 return validation(_that.message,_that.details);case UnexpectedFailure() when unexpected != null:
 return unexpected(_that.message);case _:
   return null;
@@ -414,6 +420,72 @@ class _$UnauthorizedFailureCopyWithImpl<$Res>
 /// with the given fields replaced by the non-null parameter values.
 @override @pragma('vm:prefer-inline') $Res call({Object? message = null,}) {
   return _then(UnauthorizedFailure(
+null == message ? _self.message : message // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class AccountIncompleteFailure extends Failure {
+  const AccountIncompleteFailure([this.message = 'Complete your account setup to continue.']): super._();
+  
+
+@override@JsonKey() final  String message;
+
+/// Create a copy of Failure
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$AccountIncompleteFailureCopyWith<AccountIncompleteFailure> get copyWith => _$AccountIncompleteFailureCopyWithImpl<AccountIncompleteFailure>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AccountIncompleteFailure&&(identical(other.message, message) || other.message == message));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,message);
+
+@override
+String toString() {
+  return 'Failure.accountIncomplete(message: $message)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $AccountIncompleteFailureCopyWith<$Res> implements $FailureCopyWith<$Res> {
+  factory $AccountIncompleteFailureCopyWith(AccountIncompleteFailure value, $Res Function(AccountIncompleteFailure) _then) = _$AccountIncompleteFailureCopyWithImpl;
+@override @useResult
+$Res call({
+ String message
+});
+
+
+
+
+}
+/// @nodoc
+class _$AccountIncompleteFailureCopyWithImpl<$Res>
+    implements $AccountIncompleteFailureCopyWith<$Res> {
+  _$AccountIncompleteFailureCopyWithImpl(this._self, this._then);
+
+  final AccountIncompleteFailure _self;
+  final $Res Function(AccountIncompleteFailure) _then;
+
+/// Create a copy of Failure
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? message = null,}) {
+  return _then(AccountIncompleteFailure(
 null == message ? _self.message : message // ignore: cast_nullable_to_non_nullable
 as String,
   ));

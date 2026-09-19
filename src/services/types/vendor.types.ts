@@ -35,7 +35,12 @@ export interface VendorMeResponse {
   statusReason: string | null;
   businessName: string | null;
   emailVerified: boolean;
-  /** True when account was created via Google/Apple (use Forgot password to set email password). */
+  phone?: string | null;
+  phoneVerified?: boolean;
+  ownerName?: string | null;
+  authOnboardingComplete?: boolean;
+  needsAuthOnboarding?: boolean;
+  /** True when account was created via Google/Apple/phone-first (use Forgot password to set email password). */
   socialSignInOnly?: boolean;
 }
 

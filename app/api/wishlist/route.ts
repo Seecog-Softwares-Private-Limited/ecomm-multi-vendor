@@ -6,7 +6,7 @@ import {
   apiUnauthorized,
   apiForbidden,
 } from "@/lib/api";
-import { getSession } from "@/lib/auth";
+import { assertCustomerAuthComplete } from "@/lib/auth";
 import { getWishlistItems, addWishlistItem, clearWishlist } from "@/lib/data/wishlist";
 import { prisma } from "@/lib/prisma";
 import { resolveSkuRowForCart } from "@/lib/product-sku-variant";
@@ -15,9 +15,10 @@ import { resolveSkuRowForCart } from "@/lib/product-sku-variant";
  * GET /api/wishlist — list current user's wishlist with product details.
  */
 export const GET = withApiHandler(async (request: NextRequest) => {
-  const session = await getSession(request);
-  if (!session) return apiUnauthorized("Please log in to view your wishlist.");
-  if (session.role !== "CUSTOMER") return apiForbidden("Only customers have a wishlist.");
+  const session = await assertCustomerAuthComplete(request, {
+    unauthorizedMessage: "Please log in to view your wishlist.",
+    forbiddenMessage: "Only customers have a wishlist.",
+  });
 
   const user = await prisma.user.findUnique({
     where: { id: session.sub, deletedAt: null },
@@ -56,9 +57,10 @@ export const GET = withApiHandler(async (request: NextRequest) => {
  * Body: { productId: string, variantKey?: string | null }
  */
 export const POST = withApiHandler(async (request: NextRequest) => {
-  const session = await getSession(request);
-  if (!session) return apiUnauthorized("Please log in to add to wishlist.");
-  if (session.role !== "CUSTOMER") return apiForbidden("Only customers can add to wishlist.");
+  const session = await assertCustomerAuthComplete(request, {
+    unauthorizedMessage: "Please log in to add to wishlist.",
+    forbiddenMessage: "Only customers can add to wishlist.",
+  });
 
   let body: unknown;
   try {
@@ -116,9 +118,10 @@ export const POST = withApiHandler(async (request: NextRequest) => {
  * DELETE /api/wishlist — clear entire wishlist (no body).
  */
 export const DELETE = withApiHandler(async (request: NextRequest) => {
-  const session = await getSession(request);
-  if (!session) return apiUnauthorized("Please log in to manage wishlist.");
-  if (session.role !== "CUSTOMER") return apiForbidden("Only customers have a wishlist.");
+  const session = await assertCustomerAuthComplete(request, {
+    unauthorizedMessage: "Please log in to manage wishlist.",
+    forbiddenMessage: "Only customers have a wishlist.",
+  });
 
   const user = await prisma.user.findUnique({
     where: { id: session.sub, deletedAt: null },

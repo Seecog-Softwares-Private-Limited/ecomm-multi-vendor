@@ -6,18 +6,22 @@ import { copyVendorAppContextParams } from "@/lib/vendor-app-query";
 import {
   isAuthPage,
   isAuthRequiredPath,
+  isCustomerOnboardingPage,
   isSellerRoute,
   isAdminRoute,
   isSuperAdminRoute,
   isSellerLoginPage,
   isVendorLoginPage,
   isVendorPublicPage,
+  isVendorAuthOnboardingPage,
   isAdminLoginPage,
   isSuperAdminLoginPage,
   SELLER_ROLES,
   ADMIN_ROLE,
   VENDOR_LOGIN,
   ADMIN_LOGIN,
+  CUSTOMER_ONBOARDING_PATH,
+  VENDOR_AUTH_ONBOARDING_PATH,
 } from "@/lib/auth/middleware-routes";
 
 const LOGIN_PATH = "/login";
@@ -26,6 +30,7 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // CORS for Flutter/mobile clients calling /api/* from another origin (e.g. Flutter web).
+  // API authorization (including ACCOUNT_INCOMPLETE) is enforced in route handlers — not here.
   if (pathname.startsWith("/api/")) {
     if (request.method === "OPTIONS") {
       return apiCorsPreflight(request);
@@ -40,20 +45,45 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Pass through all public auth pages without a session check
+  // Pass through public auth + onboarding pages without completeness redirect
   if (
     isAuthPage(pathname) ||
     isSellerLoginPage(pathname) ||
     isVendorLoginPage(pathname) ||
-    isVendorPublicPage(pathname) ||
+    (isVendorPublicPage(pathname) && !isVendorAuthOnboardingPage(pathname)) ||
     isAdminLoginPage(pathname) ||
     isSuperAdminLoginPage(pathname)
   ) {
-    return passThrough(request, pathname);
+    // Onboarding pages still require a session when they are auth-gated below.
+    if (!isCustomerOnboardingPage(pathname)) {
+      return passThrough(request, pathname);
+    }
   }
 
   const cookieHeader = request.headers.get("cookie");
   const session = await getVerifiedSession(cookieHeader);
+
+  // /complete-profile — allow authenticated customers (complete or incomplete) without loop
+  if (isCustomerOnboardingPage(pathname)) {
+    if (!session) return redirectToLogin(request, pathname, LOGIN_PATH);
+    return passThrough(request, pathname);
+  }
+
+  // /vendor/complete-account — allow authenticated incomplete sellers without loop
+  if (isVendorAuthOnboardingPage(pathname)) {
+    if (!session) return redirectToLogin(request, pathname, VENDOR_LOGIN);
+    if (session.role !== "SELLER") {
+      return redirectToLogin(request, pathname, VENDOR_LOGIN);
+    }
+    // Complete sellers leave onboarding
+    const incomplete = await isSellerAuthIncomplete(request);
+    if (!incomplete) {
+      const url = new URL("/vendor", request.url);
+      copyVendorAppContextParams(request.nextUrl.searchParams, url.searchParams);
+      return NextResponse.redirect(url);
+    }
+    return passThrough(request, pathname);
+  }
 
   // /vendor and /seller routes
   if (
@@ -63,7 +93,6 @@ export async function middleware(request: NextRequest) {
   ) {
     if (!session) return redirectToLogin(request, pathname, VENDOR_LOGIN);
     if (!SELLER_ROLES.includes(session.role)) {
-      // Never send vendor-shell traffic to customer /login (Guideline 4.8).
       const url = new URL(VENDOR_LOGIN, request.url);
       url.searchParams.set(
         "error",
@@ -72,6 +101,18 @@ export async function middleware(request: NextRequest) {
       copyVendorAppContextParams(request.nextUrl.searchParams, url.searchParams);
       return NextResponse.redirect(url);
     }
+
+    // Incomplete vendors must finish auth onboarding before the vendor app.
+    if (session.role === "SELLER" && !isVendorAuthOnboardingPage(pathname)) {
+      const incomplete = await isSellerAuthIncomplete(request);
+      if (incomplete) {
+        const url = new URL(VENDOR_AUTH_ONBOARDING_PATH, request.url);
+        url.searchParams.set("callbackUrl", pathname);
+        copyVendorAppContextParams(request.nextUrl.searchParams, url.searchParams);
+        return NextResponse.redirect(url);
+      }
+    }
+
     return passThrough(request, pathname);
   }
 
@@ -93,10 +134,89 @@ export async function middleware(request: NextRequest) {
   // Customer-only authenticated routes (/profile, /cart, etc.)
   if (isAuthRequiredPath(pathname)) {
     if (!session) return redirectToLogin(request, pathname, LOGIN_PATH);
+
+    // Phase 4: incomplete Customers cannot use commerce pages until onboarding finishes.
+    // DB is authoritative — Edge middleware asks GET /api/auth/me (allowlisted).
+    if (session.role === "CUSTOMER") {
+      const incomplete = await isCustomerAuthIncomplete(request);
+      if (incomplete) {
+        const url = new URL(CUSTOMER_ONBOARDING_PATH, request.url);
+        url.searchParams.set("callbackUrl", pathname);
+        return NextResponse.redirect(url);
+      }
+    }
+
     return passThrough(request, pathname);
   }
 
   return passThrough(request, pathname);
+}
+
+/**
+ * Ask the allowlisted vendor session endpoint whether auth onboarding is incomplete.
+ * Fail open if /me is unreachable — APIs still enforce the gate.
+ */
+async function isSellerAuthIncomplete(request: NextRequest): Promise<boolean> {
+  try {
+    const meUrl = new URL("/api/vendor/me", request.nextUrl.origin);
+    const headers: HeadersInit = {
+      cookie: request.headers.get("cookie") ?? "",
+    };
+    const authorization = request.headers.get("authorization");
+    if (authorization) headers.authorization = authorization;
+
+    const res = await fetch(meUrl, {
+      method: "GET",
+      headers,
+      cache: "no-store",
+    });
+    if (!res.ok) return false;
+    const json = (await res.json()) as {
+      data?: {
+        authOnboardingComplete?: boolean;
+        needsAuthOnboarding?: boolean;
+      } | null;
+    };
+    const data = json?.data;
+    if (!data) return false;
+    if (data.authOnboardingComplete === false) return true;
+    if (data.needsAuthOnboarding === true) return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Ask the allowlisted session endpoint whether onboarding is incomplete.
+ * Fail open (allow page) if /me is unreachable — APIs still enforce the gate.
+ */
+async function isCustomerAuthIncomplete(request: NextRequest): Promise<boolean> {
+  try {
+    const meUrl = new URL("/api/auth/me", request.nextUrl.origin);
+    const headers: HeadersInit = {
+      cookie: request.headers.get("cookie") ?? "",
+    };
+    const authorization = request.headers.get("authorization");
+    if (authorization) headers.authorization = authorization;
+
+    const res = await fetch(meUrl, {
+      method: "GET",
+      headers,
+      cache: "no-store",
+    });
+    if (!res.ok) return false;
+    const json = (await res.json()) as {
+      data?: { user?: { authOnboardingComplete?: boolean; needsAuthOnboarding?: boolean } | null };
+    };
+    const user = json?.data?.user;
+    if (!user) return false;
+    if (user.authOnboardingComplete === false) return true;
+    if (user.needsAuthOnboarding === true) return true;
+    return false;
+  } catch {
+    return false;
+  }
 }
 
 /**

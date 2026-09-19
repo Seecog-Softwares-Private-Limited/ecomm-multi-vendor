@@ -6,14 +6,15 @@
  * SMS delivery uses BlackSMS OTP API (`POST https://blacksms.in/sms`).
  */
 
-import { randomBytes, randomUUID } from "crypto";
-import { NextResponse } from "next/server";
+import { randomUUID } from "crypto";
+import { NextRequest, NextResponse } from "next/server";
 import {
   apiSuccess,
   apiBadRequest,
   apiUnauthorized,
   apiValidationError,
   apiError,
+  apiConflict,
   Status,
 } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
@@ -21,13 +22,13 @@ import {
   validatePhoneOtpSend,
   validatePhoneOtpVerify,
   formatValidationDetails,
-  hashPassword,
   signToken,
   setAuthCookie,
+  getSession,
 } from "@/lib/auth";
 import {
   normalizeIndianPhone,
-  syntheticEmailForPhoneNorm,
+  placeholderEmailForPhoneNorm,
   INDIAN_MOBILE_HINT,
 } from "@/lib/auth/phone";
 import {
@@ -53,7 +54,11 @@ import {
   isMsg91OtpConfigured,
   PHONE_OTP_MSG91_MARKER,
 } from "@/lib/sms/msg91-otp";
-import { userNeedsProfileCompletion } from "@/lib/profile/needs-completion";
+import {
+  CUSTOMER_ONBOARDING_SELECT,
+  customerAuthStatusFields,
+  syncCustomerAuthOnboardingComplete,
+} from "@/lib/auth/customer-onboarding";
 
 export type SendOtpBody = { phone: string };
 export type VerifyOtpBody = { phone: string; otp?: string; code?: string };
@@ -75,8 +80,11 @@ export type VerifyOtpSuccess = {
     lastName: string | null;
     phone: string | null;
     role: "CUSTOMER";
+    phoneVerified: boolean;
     profileCompleted: boolean;
+    authOnboardingComplete: boolean;
     needsProfileCompletion: boolean;
+    needsAuthOnboarding: boolean;
   };
 };
 
@@ -230,14 +238,35 @@ export async function handleSendCustomerOtp(
   });
 }
 
+type CustomerAuthUser = {
+  id: string;
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+  phone: string | null;
+  phoneVerified: boolean;
+  emailVerified: boolean;
+  profileCompleted: boolean;
+  authOnboardingComplete: boolean;
+};
+
+async function loadCustomerAuthUser(id: string): Promise<CustomerAuthUser | null> {
+  return prisma.user.findFirst({
+    where: { id, deletedAt: null },
+    select: CUSTOMER_ONBOARDING_SELECT,
+  });
+}
+
 /**
  * POST /api/auth/verify-otp
- * 1. Validate phone + 6-digit OTP
+ * 1. Validate phone + OTP
  * 2. Verify against MSG91 if row is MSG91-backed; else local HMAC
- * 3. Issue JWT and set auth cookie
+ * 3. Resolve User by phone (or attach to logged-in Google/email user without phone)
+ * 4. Issue JWT — account may still be incomplete (authOnboardingComplete=false)
  */
 export async function handleVerifyCustomerOtp(
-  body: unknown
+  body: unknown,
+  request?: NextRequest
 ): Promise<NextResponse> {
   const validation = validatePhoneOtpVerify(body);
   if (!validation.success) {
@@ -289,49 +318,125 @@ export async function handleVerifyCustomerOtp(
 
   let user = await prisma.user.findFirst({
     where: { phone: phoneNorm, deletedAt: null },
-    orderBy: { createdAt: "asc" },
-    select: {
-      id: true,
-      email: true,
-      firstName: true,
-      lastName: true,
-      phone: true,
-      emailVerified: true,
-      profileCompleted: true,
-    },
+    select: CUSTOMER_ONBOARDING_SELECT,
   });
 
-  if (!user) {
-    const email = syntheticEmailForPhoneNorm(phoneNorm);
-    const passwordHash = await hashPassword(randomBytes(32).toString("hex"));
-    user = await prisma.user.create({
-      data: {
-        email,
-        passwordHash,
-        phone: phoneNorm,
-        emailVerified: true,
-        profileCompleted: true,
-      },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        phone: true,
-        emailVerified: true,
-        profileCompleted: true,
-      },
-    });
-  } else if (!user.emailVerified) {
+  const session = request ? await getSession(request) : null;
+
+  if (user) {
+    // Logged-in customer must not silently take over / merge into another phone account.
+    if (session?.role === "CUSTOMER" && session.sub !== user.id) {
+      return apiConflict(
+        "This phone number is already registered with another account. Please log in to that account."
+      );
+    }
+
+    // Returning / email-register / Google (phone already saved) — never auto-verify email.
     await prisma.user.update({
       where: { id: user.id },
       data: {
-        emailVerified: true,
-        verificationToken: null,
-        verificationTokenExpires: null,
+        phoneVerified: true,
+        // Keep legacy profileCompleted in sync when a verified phone is present.
+        profileCompleted: true,
       },
     });
-    user = { ...user, emailVerified: true };
+    await syncCustomerAuthOnboardingComplete(user.id);
+    user = await loadCustomerAuthUser(user.id);
+  } else {
+    // Phone not on any account: attach to logged-in customer without a verified phone
+    // (Google-first), otherwise create a new incomplete phone-first user.
+    if (session?.role === "CUSTOMER") {
+      const sessionUser = await prisma.user.findFirst({
+        where: { id: session.sub, deletedAt: null },
+        select: {
+          id: true,
+          phone: true,
+          phoneVerified: true,
+        },
+      });
+
+      if (sessionUser) {
+        if (sessionUser.phoneVerified && sessionUser.phone && sessionUser.phone !== phoneNorm) {
+          return apiConflict(
+            "Your verified phone cannot be changed here. Please log in with your existing number."
+          );
+        }
+
+        // Attach when no phone, or replace an unverified draft phone from complete-details.
+        if (!sessionUser.phone || !sessionUser.phoneVerified) {
+          try {
+            await prisma.user.update({
+              where: { id: sessionUser.id },
+              data: {
+                phone: phoneNorm,
+                phoneVerified: true,
+                profileCompleted: true,
+              },
+            });
+          } catch (e: unknown) {
+            const errCode =
+              e && typeof e === "object" && "code" in e
+                ? String((e as { code: unknown }).code)
+                : "";
+            if (errCode === "P2002") {
+              return apiConflict(
+                "This phone number is already registered with another account. Please log in to that account."
+              );
+            }
+            throw e;
+          }
+          await syncCustomerAuthOnboardingComplete(sessionUser.id);
+          user = await loadCustomerAuthUser(sessionUser.id);
+        }
+      }
+    }
+
+    if (!user) {
+      const email = placeholderEmailForPhoneNorm(phoneNorm);
+      try {
+        user = await prisma.user.create({
+          data: {
+            email,
+            passwordHash: null,
+            phone: phoneNorm,
+            phoneVerified: true,
+            emailVerified: false,
+            profileCompleted: false,
+            authOnboardingComplete: false,
+          },
+          select: CUSTOMER_ONBOARDING_SELECT,
+        });
+      } catch (e: unknown) {
+        const errCode =
+          e && typeof e === "object" && "code" in e
+            ? String((e as { code: unknown }).code)
+            : "";
+        if (errCode === "P2002") {
+          // Race: phone or placeholder email taken — resolve by phone again.
+          user = await prisma.user.findFirst({
+            where: { phone: phoneNorm, deletedAt: null },
+            select: CUSTOMER_ONBOARDING_SELECT,
+          });
+          if (!user) {
+            return apiConflict(
+              "Could not create account for this phone number. Please try again."
+            );
+          }
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { phoneVerified: true },
+          });
+          await syncCustomerAuthOnboardingComplete(user.id);
+          user = await loadCustomerAuthUser(user.id);
+        } else {
+          throw e;
+        }
+      }
+    }
+  }
+
+  if (!user) {
+    return apiError("Could not sign you in. Please try again.", Status.INTERNAL_SERVER_ERROR);
   }
 
   const token = await signToken({
@@ -340,6 +445,7 @@ export async function handleVerifyCustomerOtp(
     role: "CUSTOMER",
   });
 
+  const status = customerAuthStatusFields(user);
   const payload: VerifyOtpSuccess = {
     token,
     user: {
@@ -349,11 +455,7 @@ export async function handleVerifyCustomerOtp(
       lastName: user.lastName,
       phone: user.phone,
       role: "CUSTOMER",
-      profileCompleted: user.profileCompleted,
-      needsProfileCompletion: userNeedsProfileCompletion({
-        phone: user.phone,
-        profileCompleted: user.profileCompleted,
-      }),
+      ...status,
     },
   };
 

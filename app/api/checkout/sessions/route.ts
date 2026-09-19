@@ -6,7 +6,7 @@ import {
   apiUnauthorized,
   apiForbidden,
 } from "@/lib/api";
-import { getSession } from "@/lib/auth";
+import { assertCustomerAuthComplete } from "@/lib/auth";
 import {
   createCheckoutSession,
   type CreateCheckoutSessionInput,
@@ -20,9 +20,10 @@ import {
  *   { type: "REORDER", lines: [{ productId, variantKey?, quantity? }] }
  */
 export const POST = withApiHandler(async (request: NextRequest) => {
-  const session = await getSession(request);
-  if (!session) return apiUnauthorized("Please log in to checkout.");
-  if (session.role !== "CUSTOMER") return apiForbidden("Only customers can checkout.");
+  const session = await assertCustomerAuthComplete(request, {
+    unauthorizedMessage: "Please log in to checkout.",
+    forbiddenMessage: "Only customers can checkout.",
+  });
 
   let body: unknown;
   try {

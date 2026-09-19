@@ -58,6 +58,7 @@ export function VendorLoginPage() {
   const applePendingRef = useRef(false);
   const googleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { isAppMode } = useAppMode();
+  const [loginMode, setLoginMode] = useState<"email" | "phone">("email");
 
   const socialBusy = loading || appleLoading || googleLoading;
 
@@ -199,7 +200,14 @@ export function VendorLoginPage() {
       .then((json) => {
         if (cancelled) return;
         if (json?.success && json.data) {
-          router.replace(callbackUrl);
+          if (
+            json.data.needsAuthOnboarding === true ||
+            json.data.authOnboardingComplete === false
+          ) {
+            router.replace("/vendor/complete-account");
+          } else {
+            router.replace(callbackUrl);
+          }
         }
       })
       .catch(() => {
@@ -227,7 +235,16 @@ export function VendorLoginPage() {
         ),
       ]);
       await new Promise((r) => setTimeout(r, 50));
-      router.push(callbackUrl);
+      const meRes = await fetch("/api/vendor/me", { credentials: "include" });
+      const meJson = meRes.ok ? await meRes.json().catch(() => null) : null;
+      if (
+        meJson?.data?.needsAuthOnboarding === true ||
+        meJson?.data?.authOnboardingComplete === false
+      ) {
+        router.push("/vendor/complete-account");
+      } else {
+        router.push(callbackUrl);
+      }
       router.refresh();
     } catch (err) {
       setError(err instanceof ServiceError ? err.message : err instanceof Error ? err.message : "Login failed");
@@ -272,7 +289,16 @@ export function VendorLoginPage() {
         ),
       ]);
       await new Promise((r) => setTimeout(r, 50));
-      router.push(callbackUrl);
+      const meRes = await fetch("/api/vendor/me", { credentials: "include" });
+      const meJson = meRes.ok ? await meRes.json().catch(() => null) : null;
+      if (
+        meJson?.data?.needsAuthOnboarding === true ||
+        meJson?.data?.authOnboardingComplete === false
+      ) {
+        router.push("/vendor/complete-account");
+      } else {
+        router.push(callbackUrl);
+      }
       router.refresh();
     } catch (err) {
       // Rare: Apple withheld email so auto-create couldn't run. Don't dump into
@@ -418,6 +444,23 @@ export function VendorLoginPage() {
                 </div>
               )}
 
+              <p className="text-center text-sm text-slate-600">
+                Prefer phone?{" "}
+                <button
+                  type="button"
+                  className="font-semibold text-[#FF6A00] hover:underline"
+                  disabled={socialBusy}
+                  onClick={() => {
+                    setError(null);
+                    setLoginMode((m) => (m === "phone" ? "email" : "phone"));
+                  }}
+                >
+                  {loginMode === "phone" ? "Use email instead" : "Sign in with mobile OTP"}
+                </button>
+              </p>
+
+              {loginMode === "phone" ? null : (
+              <>
               <div>
                 <label
                   htmlFor="vendor-email"
@@ -493,7 +536,31 @@ export function VendorLoginPage() {
                   </>
                 )}
               </button>
+              </>
+              )}
             </form>
+
+            {loginMode === "phone" ? (
+              <div className="mt-2">
+                <VendorPhoneOtpLogin
+                  disabled={socialBusy}
+                  onError={setError}
+                  onSuccess={async () => {
+                    const meRes = await fetch("/api/vendor/me", { credentials: "include" });
+                    const meJson = meRes.ok ? await meRes.json().catch(() => null) : null;
+                    if (
+                      meJson?.data?.needsAuthOnboarding === true ||
+                      meJson?.data?.authOnboardingComplete === false
+                    ) {
+                      router.push("/vendor/complete-account");
+                    } else {
+                      router.push(callbackUrl);
+                    }
+                    router.refresh();
+                  }}
+                />
+              </div>
+            ) : null}
 
             <div className="mt-8">
               <div className="relative flex items-center gap-3">
@@ -616,5 +683,130 @@ export function VendorLoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function VendorPhoneOtpLogin({
+  disabled,
+  onError,
+  onSuccess,
+}: {
+  disabled?: boolean;
+  onError: (msg: string | null) => void;
+  onSuccess: () => void | Promise<void>;
+}) {
+  const [phone, setPhone] = useState("");
+  const [otp, setOtp] = useState("");
+  const [step, setStep] = useState<"number" | "otp">("number");
+  const [busy, setBusy] = useState(false);
+
+  async function sendOtp(e: React.FormEvent) {
+    e.preventDefault();
+    onError(null);
+    setBusy(true);
+    try {
+      const res = await fetch("/api/auth/vendor-phone-otp/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ phone: phone.trim() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        onError(data?.error?.message ?? "Could not send OTP.");
+        return;
+      }
+      setStep("otp");
+      setOtp("");
+    } catch {
+      onError("Something went wrong. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function verify(e: React.FormEvent) {
+    e.preventDefault();
+    onError(null);
+    setBusy(true);
+    try {
+      const res = await fetch("/api/auth/vendor-phone-otp/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ phone: phone.trim(), otp: otp.trim() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        onError(data?.error?.message ?? "Invalid or expired code.");
+        return;
+      }
+      await onSuccess();
+    } catch {
+      onError("Something went wrong. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (step === "number") {
+    return (
+      <form className="space-y-4" onSubmit={sendOtp}>
+        <label className="block text-sm font-semibold text-slate-700">
+          Mobile number
+          <input
+            className="mt-1.5 block w-full rounded-xl border border-slate-200 bg-slate-50/50 py-3 px-4"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="10-digit mobile"
+            inputMode="numeric"
+            disabled={disabled || busy}
+            required
+          />
+        </label>
+        <button
+          type="submit"
+          disabled={disabled || busy}
+          className="flex w-full items-center justify-center rounded-xl bg-[#FF6A00] py-3.5 text-sm font-semibold text-white disabled:opacity-60"
+        >
+          {busy ? "Sending…" : "Send OTP"}
+        </button>
+      </form>
+    );
+  }
+
+  return (
+    <form className="space-y-4" onSubmit={verify}>
+      <p className="text-sm text-slate-600">Enter the code sent to {phone}.</p>
+      <label className="block text-sm font-semibold text-slate-700">
+        OTP
+        <input
+          className="mt-1.5 block w-full rounded-xl border border-slate-200 py-3 px-4 tracking-widest text-center"
+          value={otp}
+          onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 9))}
+          inputMode="numeric"
+          disabled={disabled || busy}
+          required
+        />
+      </label>
+      <button
+        type="submit"
+        disabled={disabled || busy}
+        className="flex w-full items-center justify-center rounded-xl bg-[#FF6A00] py-3.5 text-sm font-semibold text-white disabled:opacity-60"
+      >
+        {busy ? "Verifying…" : "Verify & sign in"}
+      </button>
+      <button
+        type="button"
+        className="w-full text-sm text-slate-600 hover:underline"
+        onClick={() => {
+          setStep("number");
+          setOtp("");
+          onError(null);
+        }}
+      >
+        Change number
+      </button>
+    </form>
   );
 }

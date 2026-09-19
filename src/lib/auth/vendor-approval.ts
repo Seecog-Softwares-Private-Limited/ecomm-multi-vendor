@@ -1,6 +1,5 @@
 import { NextRequest } from "next/server";
 import { ApiRouteError, Status } from "@/lib/api";
-import { requireSession } from "./session";
 import type { JwtPayload } from "./jwt";
 import { prisma } from "@/lib/prisma";
 import { resolveDashboardDisplayName } from "@/lib/data/vendor-profile";
@@ -30,22 +29,17 @@ export function toVendorStatusDisplay(dbStatus: string): VendorStatusDisplay {
 }
 
 /**
- * Require vendor (SELLER) session and APPROVED status.
- * Use on all vendor-protected routes (dashboard, products, orders, finance, etc.).
- * Throws 403 "Account not approved" if status !== APPROVED.
+ * Require vendor (SELLER) session, auth onboarding complete, and APPROVED status.
+ * Order: Authentication → SELLER → authOnboardingComplete → APPROVED.
  * Only SELLER role is allowed; ADMIN cannot use vendor data routes.
  */
 export async function requireVendorApproved(
   request: NextRequest
 ): Promise<{ session: JwtPayload; sellerId: string }> {
-  const session = await requireSession(request);
-  if (session.role !== "SELLER") {
-    throw new ApiRouteError("Vendor access required", Status.FORBIDDEN, "FORBIDDEN");
-  }
-  const sellerId = session.sub?.trim() ?? "";
-  if (!sellerId) {
-    throw new ApiRouteError("Vendor not found", Status.NOT_FOUND, "NOT_FOUND");
-  }
+  const { assertSellerAuthComplete } = await import(
+    "@/lib/auth/assert-seller-auth-complete"
+  );
+  const { session, sellerId } = await assertSellerAuthComplete(request);
 
   const seller = await prisma.seller.findFirst({
     where: { id: sellerId, deletedAt: null },

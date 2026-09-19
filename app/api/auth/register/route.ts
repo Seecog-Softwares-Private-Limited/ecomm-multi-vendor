@@ -21,8 +21,12 @@ const VERIFICATION_TOKEN_BYTES = 32;
 const VERIFICATION_EXPIRY_HOURS = 72;
 
 /**
- * POST /api/auth/register — create customer account; sends email to confirm sign-up.
- * No session cookie until the user verifies via link (/verify-email?token=...).
+ * POST /api/auth/register — email/password registration.
+ *
+ * Requires name, email, password, phone.
+ * Creates an incomplete user (emailVerified=false, phoneVerified=false,
+ * authOnboardingComplete=false). Sends the existing email verification link.
+ * No session cookie until the customer verifies email and later verifies phone OTP.
  */
 export const POST = withApiHandler(async (request: NextRequest) => {
   let body: unknown;
@@ -39,45 +43,55 @@ export const POST = withApiHandler(async (request: NextRequest) => {
 
   const { email, password, firstName, lastName, phone } = validation.data;
 
-  let phoneNorm: string | null = null;
-  if (phone) {
-    phoneNorm = normalizeIndianPhone(phone);
-    if (!phoneNorm) {
-      return apiBadRequest(INDIAN_MOBILE_HINT);
-    }
-    const phoneTaken = await prisma.user.findFirst({
-      where: { phone: phoneNorm, deletedAt: null },
-      select: { id: true },
-    });
-    if (phoneTaken) {
-      return apiConflict(
-        "This phone number is already in use. Sign in with OTP or use a different number."
-      );
-    }
+  const phoneNorm = normalizeIndianPhone(phone);
+  if (!phoneNorm) {
+    return apiBadRequest(INDIAN_MOBILE_HINT);
+  }
+
+  const phoneTaken = await prisma.user.findFirst({
+    where: { phone: phoneNorm, deletedAt: null },
+    select: { id: true },
+  });
+  if (phoneTaken) {
+    return apiConflict(
+      "This phone number is already in use. Sign in with OTP or use a different number."
+    );
   }
 
   const passwordHash = await hashPassword(password);
   const verificationToken = randomBytes(VERIFICATION_TOKEN_BYTES).toString("hex");
-  const verificationTokenExpires = new Date(Date.now() + VERIFICATION_EXPIRY_HOURS * 60 * 60 * 1000);
+  const verificationTokenExpires = new Date(
+    Date.now() + VERIFICATION_EXPIRY_HOURS * 60 * 60 * 1000
+  );
 
   const existing = await prisma.user.findFirst({
     where: { email, deletedAt: null },
-    select: { id: true, emailVerified: true },
+    select: { id: true, emailVerified: true, passwordHash: true },
   });
 
   if (existing?.emailVerified) {
     return apiConflict("An account with this email already exists");
   }
 
+  // Unverified email/password draft: allow re-register to refresh credentials + phone.
+  // Do not overwrite a phone-first / Google account that happens to share an unverified placeholder path.
   if (existing && !existing.emailVerified) {
+    if (existing.passwordHash == null) {
+      return apiConflict(
+        "This email is already associated with another sign-in method. Please sign in with that method."
+      );
+    }
     await prisma.user.update({
       where: { id: existing.id },
       data: {
         passwordHash,
-        firstName: firstName ?? null,
-        lastName: lastName ?? null,
+        firstName,
+        lastName,
         phone: phoneNorm,
+        phoneVerified: false,
         emailVerified: false,
+        profileCompleted: false,
+        authOnboardingComplete: false,
         verificationToken,
         verificationTokenExpires,
       },
@@ -87,10 +101,13 @@ export const POST = withApiHandler(async (request: NextRequest) => {
       data: {
         email,
         passwordHash,
-        firstName: firstName ?? null,
-        lastName: lastName ?? null,
+        firstName,
+        lastName,
         phone: phoneNorm,
+        phoneVerified: false,
         emailVerified: false,
+        profileCompleted: false,
+        authOnboardingComplete: false,
         verificationToken,
         verificationTokenExpires,
       },
@@ -98,7 +115,9 @@ export const POST = withApiHandler(async (request: NextRequest) => {
   }
 
   const emailResult = await sendCustomerVerificationEmail(email, verificationToken);
-  const appUrl = emailConfig.appUrl.replace(/\/$/, "") || `http://localhost:${process.env.PORT ?? "3000"}`;
+  const appUrl =
+    emailConfig.appUrl.replace(/\/$/, "") ||
+    `http://localhost:${process.env.PORT ?? "3000"}`;
   const verificationLink = `${appUrl}/verify-email?token=${encodeURIComponent(verificationToken)}`;
 
   const payload: {
@@ -121,7 +140,7 @@ export const POST = withApiHandler(async (request: NextRequest) => {
   const { getSmsNotificationService } = await import("@/services/sms-notification.service");
   getSmsNotificationService().onCustomerRegistration({
     name: [firstName, lastName].filter(Boolean).join(" ") || email,
-    phone: phoneNorm ?? undefined,
+    phone: phoneNorm,
   });
 
   return apiSuccess(payload, Status.CREATED);

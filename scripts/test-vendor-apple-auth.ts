@@ -203,7 +203,7 @@ async function main() {
       byAppleSub: null,
       byEmail: existingPassword,
     }),
-    { action: "login", sellerId: "seller-password", linkApple: true }
+    { action: "conflict" }
   );
 
   assert.deepEqual(
@@ -213,7 +213,7 @@ async function main() {
       byAppleSub: null,
       byEmail: existingGoogle,
     }),
-    { action: "login", sellerId: "seller-google", linkApple: true }
+    { action: "conflict" }
   );
 
   assert.deepEqual(

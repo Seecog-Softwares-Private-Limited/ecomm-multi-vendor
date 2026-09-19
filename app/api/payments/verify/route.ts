@@ -7,7 +7,7 @@ import {
   apiForbidden,
   apiNotFound,
 } from "@/lib/api";
-import { getSession } from "@/lib/auth";
+import { assertCustomerAuthComplete } from "@/lib/auth";
 import { completeOrderAfterPayment } from "@/lib/commerce/order-placement.service";
 import { verifyPaymentSignature } from "@/lib/razorpay";
 import { logCommerceEvent } from "@/lib/commerce/logger";
@@ -18,9 +18,10 @@ import { prisma } from "@/lib/prisma";
  * Body: { orderId, razorpayPaymentId, razorpayOrderId, razorpaySignature, idempotencyKey? }
  */
 export const POST = withApiHandler(async (request: NextRequest) => {
-  const session = await getSession(request);
-  if (!session) return apiUnauthorized("Please log in.");
-  if (session.role !== "CUSTOMER") return apiForbidden("Only customers can verify payments.");
+  const session = await assertCustomerAuthComplete(request, {
+    unauthorizedMessage: "Please log in.",
+    forbiddenMessage: "Only customers can verify payments.",
+  });
 
   let body: unknown;
   try {
@@ -97,9 +98,10 @@ export const POST = withApiHandler(async (request: NextRequest) => {
  * GET /api/payments/verify?orderId= — payment recovery (check if order already paid).
  */
 export const GET = withApiHandler(async (request: NextRequest) => {
-  const session = await getSession(request);
-  if (!session) return apiUnauthorized("Please log in.");
-  if (session.role !== "CUSTOMER") return apiForbidden("Only customers can check payment status.");
+  const session = await assertCustomerAuthComplete(request, {
+    unauthorizedMessage: "Please log in.",
+    forbiddenMessage: "Only customers can check payment status.",
+  });
 
   const orderId = request.nextUrl.searchParams.get("orderId")?.trim() ?? "";
   if (!orderId) return apiBadRequest("orderId query parameter is required.");

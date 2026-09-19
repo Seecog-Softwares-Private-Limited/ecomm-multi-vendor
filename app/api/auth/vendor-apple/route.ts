@@ -16,6 +16,7 @@ import {
   verifyAppleIdentityToken,
 } from "@/lib/auth/apple";
 import { createSocialVendor, SocialVendorCreateError } from "@/lib/auth/create-social-vendor";
+import { syncSellerAuthOnboardingComplete, sellerAuthStatusFields } from "@/lib/auth/seller-onboarding";
 
 const NO_VENDOR_MESSAGE =
   "No vendor account exists for this Apple account. Please register as a vendor first.";
@@ -115,7 +116,7 @@ export const POST = withApiHandler(async (request: NextRequest) => {
 
   if (match.action === "conflict") {
     return apiUnauthorized(
-      "This vendor email is already linked to a different Apple ID. Use email and password or Google to sign in."
+      "This email is already registered with another account. Please log in to that account first. You can link Apple later."
     );
   }
 
@@ -144,6 +145,17 @@ export const POST = withApiHandler(async (request: NextRequest) => {
         appleUserId,
       });
 
+      const authOnboardingComplete = await syncSellerAuthOnboardingComplete(created.id);
+      const fresh = await prisma.seller.findFirst({
+        where: { id: created.id },
+        select: {
+          phone: true,
+          phoneVerified: true,
+          emailVerified: true,
+          authOnboardingComplete: true,
+        },
+      });
+
       const newToken = await signToken({
         sub: created.id,
         email: created.email,
@@ -157,6 +169,12 @@ export const POST = withApiHandler(async (request: NextRequest) => {
           ownerName: created.ownerName,
           status: created.status,
           role: "SELLER",
+          ...sellerAuthStatusFields({
+            phone: fresh?.phone ?? null,
+            phoneVerified: fresh?.phoneVerified ?? false,
+            emailVerified: fresh?.emailVerified ?? true,
+            authOnboardingComplete,
+          }),
         },
       });
       setAuthCookie(createdResponse, newToken);
@@ -170,9 +188,8 @@ export const POST = withApiHandler(async (request: NextRequest) => {
   }
 
   // match.action === "login" (conflict already returned above)
-  let seller = byAppleSub?.id === match.sellerId ? byAppleSub : byEmail;
+  let seller = byAppleSub;
   if (!seller || seller.id !== match.sellerId) {
-    // Defensive: should not happen when action is login.
     return apiError(NO_VENDOR_MESSAGE, Status.UNAUTHORIZED, NOT_REGISTERED_CODE, {
       email: accountEmail ?? "",
       name: composedName,
@@ -180,23 +197,24 @@ export const POST = withApiHandler(async (request: NextRequest) => {
   }
 
   const ownerName = composeOwnerName(record.fullName, seller.ownerName);
-  if (match.linkApple || ownerName) {
+  if (ownerName) {
     seller = await prisma.seller.update({
       where: { id: seller.id },
-      data: {
-        ...(match.linkApple
-          ? {
-              appleUserId,
-              emailVerified: true,
-              verificationToken: null,
-              verificationTokenExpires: null,
-            }
-          : {}),
-        ...(ownerName ? { ownerName } : {}),
-      },
+      data: { ownerName },
       select: sellerSelect,
     });
   }
+
+  const authOnboardingComplete = await syncSellerAuthOnboardingComplete(seller.id);
+  const freshFlags = await prisma.seller.findFirst({
+    where: { id: seller.id },
+    select: {
+      phone: true,
+      phoneVerified: true,
+      emailVerified: true,
+      authOnboardingComplete: true,
+    },
+  });
 
   const token = await signToken({
     sub: seller.id,
@@ -212,6 +230,12 @@ export const POST = withApiHandler(async (request: NextRequest) => {
       ownerName: seller.ownerName,
       status: seller.status,
       role: "SELLER",
+      ...sellerAuthStatusFields({
+        phone: freshFlags?.phone ?? null,
+        phoneVerified: freshFlags?.phoneVerified ?? false,
+        emailVerified: freshFlags?.emailVerified ?? false,
+        authOnboardingComplete,
+      }),
     },
   });
 

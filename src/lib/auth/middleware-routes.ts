@@ -36,7 +36,12 @@ export const AUTH_PAGES = [
   "/forgot-password",
   "/reset-password",
   "/otp-verification",
+  /** Incomplete customers finish onboarding here (Phase 4–5). */
+  "/complete-profile",
 ] as const;
+
+/** Customer onboarding pages — authenticated incomplete users must reach these. */
+export const CUSTOMER_ONBOARDING_PAGES = ["/complete-profile"] as const;
 
 /** Paths that are login pages per role (used to redirect after role check). */
 export const SELLER_LOGIN = "/seller/login";
@@ -49,7 +54,7 @@ export const SUPER_ADMIN_PREFIX = "/superadmin";
 /** Super Admin login page path. */
 export const SUPER_ADMIN_LOGIN = "/superadmin/login";
 
-/** Vendor auth pages that don't require session (login, register, forgot/reset password). */
+/** Vendor auth pages that don't require session (login, register, forgot/reset password, auth onboarding). */
 export function isVendorPublicPage(pathname: string): boolean {
   return (
     pathname === VENDOR_LOGIN ||
@@ -59,7 +64,22 @@ export function isVendorPublicPage(pathname: string): boolean {
     pathname === "/vendor/forgot-password" ||
     pathname.startsWith("/vendor/forgot-password/") ||
     pathname === "/vendor/reset-password" ||
-    pathname.startsWith("/vendor/reset-password/")
+    pathname.startsWith("/vendor/reset-password/") ||
+    pathname === "/vendor/verify" ||
+    pathname.startsWith("/vendor/verify/") ||
+    pathname === VENDOR_AUTH_ONBOARDING_PATH ||
+    pathname.startsWith(VENDOR_AUTH_ONBOARDING_PATH + "/")
+  );
+}
+
+/** Vendor auth-onboarding UI — incomplete sellers must stay here without redirect loops. */
+export const VENDOR_AUTH_ONBOARDING_PATH = "/vendor/complete-account";
+export const VENDOR_AUTH_ONBOARDING_PAGES = ["/vendor/complete-account"] as const;
+
+export function isVendorAuthOnboardingPage(pathname: string): boolean {
+  const p = normalizePath(pathname);
+  return (VENDOR_AUTH_ONBOARDING_PAGES as readonly string[]).some(
+    (page) => p === page || p.startsWith(page + "/")
   );
 }
 export const ADMIN_LOGIN = "/admin/login";
@@ -85,6 +105,17 @@ export function isAuthPage(pathname: string): boolean {
   const p = normalizePath(pathname);
   return (AUTH_PAGES as readonly string[]).includes(p);
 }
+
+/** Customer onboarding UI — must not redirect incomplete users away from these. */
+export function isCustomerOnboardingPage(pathname: string): boolean {
+  const p = normalizePath(pathname);
+  return (CUSTOMER_ONBOARDING_PAGES as readonly string[]).some(
+    (page) => p === page || p.startsWith(page + "/")
+  );
+}
+
+/** Default redirect target when an incomplete Customer hits a protected page. */
+export const CUSTOMER_ONBOARDING_PATH = "/complete-profile";
 
 export function isSellerRoute(pathname: string): boolean {
   return pathname === SELLER_PREFIX || pathname.startsWith(SELLER_PREFIX + "/") ||

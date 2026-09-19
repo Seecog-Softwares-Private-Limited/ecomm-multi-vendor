@@ -69,9 +69,31 @@ export function phoneNormToE164(phoneNorm: string): string {
   return `+${phoneNorm}`;
 }
 
-/** Placeholder email so password-based schema stays satisfied for phone-only signups. */
-export function syntheticEmailForPhoneNorm(phoneNorm: string): string {
+/** Domains reserved for phone-first placeholders (not a real customer email). */
+export const CUSTOMER_PLACEHOLDER_EMAIL_DOMAINS = [
+  "phone-otp.indovyapar.local",
+  "pending.indovyapar.local",
+] as const;
+
+/**
+ * DB placeholder email for phone-first accounts until a real email is collected
+ * (email column remains required by schema). Never treat as verified/real.
+ */
+export function placeholderEmailForPhoneNorm(phoneNorm: string): string {
   return `${phoneNorm}@phone-otp.indovyapar.local`;
+}
+
+/** @deprecated Use placeholderEmailForPhoneNorm — kept for call-site compatibility. */
+export function syntheticEmailForPhoneNorm(phoneNorm: string): string {
+  return placeholderEmailForPhoneNorm(phoneNorm);
+}
+
+export function isPlaceholderCustomerEmail(email: string): boolean {
+  const normalized = email.trim().toLowerCase();
+  const at = normalized.lastIndexOf("@");
+  if (at < 0) return false;
+  const domain = normalized.slice(at + 1);
+  return (CUSTOMER_PLACEHOLDER_EMAIL_DOMAINS as readonly string[]).includes(domain);
 }
 
 /** 10-digit national number from normalized `919876543210` (SMS APIs, Quick SMS). */

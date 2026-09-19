@@ -30,8 +30,26 @@ class AuthRemoteDataSource {
   }
 
   Future<Map<String, dynamic>> verifyOtp(String phone, String code) async {
-    final data = await _client.post(ApiEndpoints.verifyOtp, data: {'phone': phone, 'code': code});
+    final data = await _client.post(
+      ApiEndpoints.verifyOtp,
+      data: {'phone': phone, 'otp': code, 'code': code},
+    );
     return Map<String, dynamic>.from(data as Map);
+  }
+
+  Future<Map<String, dynamic>> submitOnboardingProfile({
+    required String name,
+    required String email,
+  }) async {
+    final data = await _client.post(
+      ApiEndpoints.onboardingProfile,
+      data: {'name': name, 'email': email},
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  Future<void> resendCustomerVerification(String email) async {
+    await _client.post(ApiEndpoints.resendCustomerVerification, data: {'email': email});
   }
 
   Future<String> forgotPassword(String email) async {

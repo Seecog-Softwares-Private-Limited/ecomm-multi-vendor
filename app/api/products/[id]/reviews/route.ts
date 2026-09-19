@@ -8,7 +8,7 @@ import {
   apiBadRequest,
   apiNotFound,
 } from "@/lib/api";
-import { getSession } from "@/lib/auth";
+import { assertCustomerAuthComplete } from "@/lib/auth";
 import { getProductReviews } from "@/lib/data/products";
 import { createProductReview } from "@/lib/data/reviews";
 import {
@@ -54,9 +54,10 @@ export const GET = withApiHandler(async (request: NextRequest, context?: RouteCo
  * POST /api/products/:id/reviews — create a review (delivered-order customers only).
  */
 export const POST = withApiHandler(async (request: NextRequest, context?: RouteContext) => {
-  const session = await getSession(request);
-  if (!session) return apiUnauthorized("Please log in to write a review.");
-  if (session.role !== "CUSTOMER") return apiForbidden("Only customers can write reviews.");
+  const session = await assertCustomerAuthComplete(request, {
+    unauthorizedMessage: "Please log in to write a review.",
+    forbiddenMessage: "Only customers can write reviews.",
+  });
 
   const params = context?.params ? await context.params : {};
   const rawId = { id: typeof params.id === "string" ? params.id : params.id?.[0] };

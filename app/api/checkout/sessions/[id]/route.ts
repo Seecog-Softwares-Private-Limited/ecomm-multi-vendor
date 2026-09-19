@@ -7,7 +7,7 @@ import {
   apiForbidden,
   type ApiRouteContext,
 } from "@/lib/api";
-import { getSession } from "@/lib/auth";
+import { assertCustomerAuthComplete } from "@/lib/auth";
 import {
   confirmCheckoutSessionPrices,
   getCheckoutSessionForUser,
@@ -19,9 +19,10 @@ import { cancelCheckoutSession } from "@/lib/commerce/order-placement.service";
  * Query: couponCode (optional)
  */
 export const GET = withApiHandler(async (request: NextRequest, context?: ApiRouteContext) => {
-  const session = await getSession(request);
-  if (!session) return apiUnauthorized("Please log in to view checkout.");
-  if (session.role !== "CUSTOMER") return apiForbidden("Only customers can checkout.");
+  const session = await assertCustomerAuthComplete(request, {
+    unauthorizedMessage: "Please log in to view checkout.",
+    forbiddenMessage: "Only customers can checkout.",
+  });
 
   const params = context ? await context.params : {};
   const id = typeof params.id === "string" ? params.id.trim() : "";
@@ -38,9 +39,10 @@ export const GET = withApiHandler(async (request: NextRequest, context?: ApiRout
  * Body: { action: "confirm_prices" }
  */
 export const PATCH = withApiHandler(async (request: NextRequest, context?: ApiRouteContext) => {
-  const session = await getSession(request);
-  if (!session) return apiUnauthorized("Please log in.");
-  if (session.role !== "CUSTOMER") return apiForbidden("Only customers can update checkout.");
+  const session = await assertCustomerAuthComplete(request, {
+    unauthorizedMessage: "Please log in.",
+    forbiddenMessage: "Only customers can update checkout.",
+  });
 
   const params = context ? await context.params : {};
   const id = typeof params.id === "string" ? params.id.trim() : "";

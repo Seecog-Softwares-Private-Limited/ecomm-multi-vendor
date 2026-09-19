@@ -6,7 +6,7 @@ import {
   apiUnauthorized,
   apiForbidden,
 } from "@/lib/api";
-import { getSession } from "@/lib/auth";
+import { assertCustomerAuthComplete } from "@/lib/auth";
 import { listCustomerOrders, type OrderListSort } from "@/lib/data/customer-orders";
 import {
   placeLegacyCartOrder,
@@ -22,9 +22,10 @@ const VALID_SORTS: OrderListSort[] = ["newest", "oldest", "amount_asc", "amount_
  * Optional query: page, limit, status, search, sort (backward compatible when omitted).
  */
 export const GET = withApiHandler(async (request: NextRequest) => {
-  const session = await getSession(request);
-  if (!session) return apiUnauthorized("Please log in to view orders.");
-  if (session.role !== "CUSTOMER") return apiForbidden("Only customers can view their orders.");
+  const session = await assertCustomerAuthComplete(request, {
+    unauthorizedMessage: "Please log in to view orders.",
+    forbiddenMessage: "Only customers can view their orders.",
+  });
 
   const { searchParams } = new URL(request.url);
   const pageRaw = searchParams.get("page");
@@ -67,9 +68,10 @@ export const GET = withApiHandler(async (request: NextRequest) => {
  * Backward compatible: if checkoutSessionId is omitted, creates a CART session from all cart items.
  */
 export const POST = withApiHandler(async (request: NextRequest) => {
-  const session = await getSession(request);
-  if (!session) return apiUnauthorized("Please log in to place an order.");
-  if (session.role !== "CUSTOMER") return apiForbidden("Only customers can place orders.");
+  const session = await assertCustomerAuthComplete(request, {
+    unauthorizedMessage: "Please log in to place an order.",
+    forbiddenMessage: "Only customers can place orders.",
+  });
 
   let body: unknown;
   try {

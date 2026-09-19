@@ -7,12 +7,16 @@ import {
   apiBadRequest,
   apiConflict,
 } from "@/lib/api";
-import { getSession, requireSession, verifyPassword, clearAuthCookie } from "@/lib/auth";
+import { getSession, verifyPassword, clearAuthCookie, assertCustomerAuthComplete } from "@/lib/auth";
 import { hardDeleteCustomerAccount } from "@/lib/auth/delete-customer-account";
 import { normalizeIndianPhone, INDIAN_MOBILE_HINT } from "@/lib/auth/phone";
 import { prisma } from "@/lib/prisma";
 import { getUserAvatarUrlSafe } from "@/lib/data/user-avatar";
-import { userNeedsProfileCompletion } from "@/lib/profile/needs-completion";
+import {
+  CUSTOMER_ONBOARDING_SELECT,
+  customerAuthStatusFields,
+  syncCustomerAuthOnboardingComplete,
+} from "@/lib/auth/customer-onboarding";
 
 const DELETE_CONFIRM_PHRASE = "DELETE";
 
@@ -31,14 +35,9 @@ export const GET = withApiHandler(async (request: NextRequest) => {
   const user = await prisma.user.findUnique({
     where: { id: session.sub },
     select: {
-      id: true,
-      email: true,
-      firstName: true,
-      lastName: true,
-      phone: true,
+      ...CUSTOMER_ONBOARDING_SELECT,
       deletedAt: true,
       passwordHash: true,
-      profileCompleted: true,
       oauthProvider: true,
     },
   });
@@ -47,16 +46,23 @@ export const GET = withApiHandler(async (request: NextRequest) => {
     return apiSuccess({ user: null });
   }
 
+  const authOnboardingComplete =
+    session.role === "CUSTOMER"
+      ? await syncCustomerAuthOnboardingComplete(user.id)
+      : user.authOnboardingComplete;
+
   const avatarUrl = await getUserAvatarUrlSafe(session.sub);
   const { deletedAt: _, passwordHash, ...rest } = user;
+  const status = customerAuthStatusFields({
+    phone: user.phone,
+    phoneVerified: user.phoneVerified,
+    profileCompleted: user.profileCompleted,
+    authOnboardingComplete,
+  });
   const safeUser = {
     ...rest,
     avatarUrl,
-    profileCompleted: user.profileCompleted,
-    needsProfileCompletion: userNeedsProfileCompletion({
-      phone: user.phone,
-      profileCompleted: user.profileCompleted,
-    }),
+    ...status,
     ...(session.role === "CUSTOMER" ? { hasPassword: Boolean(passwordHash) } : {}),
   };
   const payload: { user: typeof safeUser & { role: string }; stats?: { orderCount: number; wishlistCount: number; addressCount: number } } = {
@@ -80,9 +86,10 @@ export const GET = withApiHandler(async (request: NextRequest) => {
  * Body: { firstName?: string, lastName?: string, phone?: string }
  */
 export const PATCH = withApiHandler(async (request: NextRequest) => {
-  const session = await getSession(request);
-  if (!session) return apiUnauthorized("Not authenticated");
-  if (session.role !== "CUSTOMER") return apiForbidden("Only customers can update profile here.");
+  const session = await assertCustomerAuthComplete(request, {
+    unauthorizedMessage: "Not authenticated",
+    forbiddenMessage: "Only customers can update profile here.",
+  });
 
   let body: unknown;
   try {
@@ -97,12 +104,22 @@ export const PATCH = withApiHandler(async (request: NextRequest) => {
   const lastName = typeof b.lastName === "string" ? b.lastName.trim() || null : undefined;
   const phoneRaw = typeof b.phone === "string" ? b.phone.trim() || null : undefined;
 
-  const updateData: { firstName?: string | null; lastName?: string | null; phone?: string | null } = {};
+  const updateData: {
+    firstName?: string | null;
+    lastName?: string | null;
+    phone?: string | null;
+    phoneVerified?: boolean;
+    profileCompleted?: boolean;
+    authOnboardingComplete?: boolean;
+  } = {};
   if (firstName !== undefined) updateData.firstName = firstName;
   if (lastName !== undefined) updateData.lastName = lastName;
   if (phoneRaw !== undefined) {
     if (phoneRaw === null) {
       updateData.phone = null;
+      updateData.phoneVerified = false;
+      updateData.profileCompleted = false;
+      updateData.authOnboardingComplete = false;
     } else {
       const norm = normalizeIndianPhone(phoneRaw);
       if (!norm) {
@@ -115,7 +132,16 @@ export const PATCH = withApiHandler(async (request: NextRequest) => {
       if (taken) {
         return apiConflict("This phone number is already used by another account.");
       }
+      const current = await prisma.user.findFirst({
+        where: { id: session.sub, deletedAt: null },
+        select: { phone: true, phoneVerified: true },
+      });
       updateData.phone = norm;
+      // Changing phone requires a fresh OTP verification.
+      if (!current || current.phone !== norm || !current.phoneVerified) {
+        updateData.phoneVerified = false;
+        updateData.authOnboardingComplete = false;
+      }
     }
   }
 
@@ -128,6 +154,8 @@ export const PATCH = withApiHandler(async (request: NextRequest) => {
     data: updateData,
   });
 
+  await syncCustomerAuthOnboardingComplete(session.sub);
+
   return apiSuccess({ message: "Profile updated" });
 });
 
@@ -138,10 +166,10 @@ export const PATCH = withApiHandler(async (request: NextRequest) => {
  * - OAuth-only accounts: `confirm` must be "DELETE".
  */
 export const DELETE = withApiHandler(async (request: NextRequest) => {
-  const session = await requireSession(request);
-  if (session.role !== "CUSTOMER") {
-    return apiForbidden("Only customers can delete their account here.");
-  }
+  const session = await assertCustomerAuthComplete(request, {
+    unauthorizedMessage: "Not authenticated",
+    forbiddenMessage: "Only customers can delete their account here.",
+  });
 
   let body: unknown;
   try {

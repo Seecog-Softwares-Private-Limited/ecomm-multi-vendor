@@ -6,7 +6,7 @@ import {
   apiUnauthorized,
   apiForbidden,
 } from "@/lib/api";
-import { getSession } from "@/lib/auth";
+import { assertCustomerAuthComplete } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { AddressType } from "@prisma/client";
 
@@ -15,9 +15,10 @@ import { AddressType } from "@prisma/client";
  * Requires customer session.
  */
 export const GET = withApiHandler(async (request: NextRequest) => {
-  const session = await getSession(request);
-  if (!session) return apiUnauthorized("Please log in to view addresses.");
-  if (session.role !== "CUSTOMER") return apiForbidden("Only customers have addresses.");
+  const session = await assertCustomerAuthComplete(request, {
+    unauthorizedMessage: "Please log in to view addresses.",
+    forbiddenMessage: "Only customers have addresses.",
+  });
 
   const addresses = await prisma.address.findMany({
     where: { userId: session.sub, deletedAt: null },
@@ -59,9 +60,10 @@ export const GET = withApiHandler(async (request: NextRequest) => {
  * Body: { fullName, phone, line1, line2?, city, state, pincode, type?: "HOME"|"OFFICE"|"OTHER", isDefault?: boolean }
  */
 export const POST = withApiHandler(async (request: NextRequest) => {
-  const session = await getSession(request);
-  if (!session) return apiUnauthorized("Please log in to add an address.");
-  if (session.role !== "CUSTOMER") return apiForbidden("Only customers can add addresses.");
+  const session = await assertCustomerAuthComplete(request, {
+    unauthorizedMessage: "Please log in to add an address.",
+    forbiddenMessage: "Only customers can add addresses.",
+  });
 
   let body: unknown;
   try {

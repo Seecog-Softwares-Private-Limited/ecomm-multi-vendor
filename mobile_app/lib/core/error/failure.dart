@@ -24,6 +24,10 @@ sealed class Failure with _$Failure {
     @Default('Your session has expired. Please log in again.') String message,
   ]) = UnauthorizedFailure;
 
+  const factory Failure.accountIncomplete([
+    @Default('Complete your account setup to continue.') String message,
+  ]) = AccountIncompleteFailure;
+
   const factory Failure.validation({
     required String message,
     Map<String, dynamic>? details,
@@ -39,15 +43,19 @@ sealed class Failure with _$Failure {
         NetworkFailure(:final message) => message,
         ServerFailure(:final message) => message,
         UnauthorizedFailure(:final message) => message,
+        AccountIncompleteFailure(:final message) => message,
         ValidationFailure(:final message) => message,
         UnexpectedFailure(:final message) => message,
       };
 
   bool get isUnauthorized => this is UnauthorizedFailure;
 
+  bool get isAccountIncomplete => this is AccountIncompleteFailure;
+
   /// Maps a caught error into a [Failure].
   factory Failure.from(Object error) {
     if (error is UnauthorizedException) return Failure.unauthorized(error.message);
+    if (error is AccountIncompleteException) return Failure.accountIncomplete(error.message);
     if (error is ValidationException) {
       final details = error.details is Map ? Map<String, dynamic>.from(error.details as Map) : null;
       final detailMessage = _firstValidationDetail(details);
@@ -58,6 +66,9 @@ sealed class Failure with _$Failure {
     }
     if (error is NetworkException) return Failure.network(error.message);
     if (error is ServerException) {
+      if (error.code == 'ACCOUNT_INCOMPLETE') {
+        return Failure.accountIncomplete(error.message);
+      }
       return Failure.server(
         message: error.message,
         statusCode: error.statusCode,

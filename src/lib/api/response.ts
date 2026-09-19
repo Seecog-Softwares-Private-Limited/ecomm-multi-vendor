@@ -57,6 +57,18 @@ export function apiForbidden(message: string = "Forbidden"): ErrorResponse {
   return apiError(message, Status.FORBIDDEN, "FORBIDDEN");
 }
 
+/**
+ * 403 — authenticated Customer must finish onboarding before using this API.
+ * Machine-readable code: ACCOUNT_INCOMPLETE
+ */
+export function apiAccountIncomplete(
+  message: string = "Complete your account setup to continue."
+): ErrorResponse {
+  return apiError(message, Status.FORBIDDEN, "ACCOUNT_INCOMPLETE", {
+    needsAuthOnboarding: true,
+  });
+}
+
 /** 404 Not Found — resource does not exist. */
 export function apiNotFound(message: string = "Resource not found"): ErrorResponse {
   return apiError(message, Status.NOT_FOUND, "NOT_FOUND");

@@ -54,10 +54,12 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
             password: _password.text,
             firstName: _firstName.text.trim(),
             lastName: _lastName.text.trim(),
-            phone: phoneRaw.isEmpty ? null : phoneRaw,
+            phone: phoneRaw,
           );
       if (!mounted) return;
-      _showVerifyDialog(result.message);
+      _showVerifyDialog(
+        '${result.message} After email verification, sign in and verify your phone with OTP to finish setup.',
+      );
     } catch (error) {
       if (!mounted) return;
       context.showSnack(Failure.from(error).message, isError: true);
@@ -138,14 +140,14 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                     const SizedBox(height: AppSpacing.lg),
                     AppTextField(
                       controller: _phone,
-                      label: 'Mobile number (optional)',
+                      label: 'Mobile number',
                       hint: '10-digit mobile',
                       prefixIcon: Icons.phone_outlined,
                       keyboardType: TextInputType.phone,
                       textInputAction: TextInputAction.next,
                       maxLength: 10,
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                      validator: (v) => Validators.phone(v, optional: true),
+                      validator: Validators.phone,
                     ),
                     const SizedBox(height: AppSpacing.lg),
                     AppTextField(

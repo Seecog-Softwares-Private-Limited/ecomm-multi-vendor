@@ -18,11 +18,24 @@ abstract class AppUser with _$AppUser {
     String? phone,
     @Default('CUSTOMER') String role,
     String? avatarUrl,
+    String? oauthProvider,
     @Default(false) bool profileCompleted,
     @Default(false) bool needsProfileCompletion,
+    /// Backend source of truth for auth onboarding (defaults true when absent for legacy payloads).
+    @Default(true) bool authOnboardingComplete,
+    @Default(false) bool needsAuthOnboarding,
+    @Default(false) bool phoneVerified,
+    @Default(false) bool emailVerified,
   }) = _AppUser;
 
   factory AppUser.fromJson(Map<String, dynamic> json) => _$AppUserFromJson(json);
+
+  /// Prefer backend `needsAuthOnboarding` / `authOnboardingComplete`; fall back to legacy flag.
+  bool get requiresAuthOnboarding {
+    if (needsAuthOnboarding) return true;
+    if (!authOnboardingComplete) return true;
+    return needsProfileCompletion;
+  }
 
   String get displayName {
     final name = [firstName, lastName].where((e) => e != null && e.trim().isNotEmpty).join(' ');

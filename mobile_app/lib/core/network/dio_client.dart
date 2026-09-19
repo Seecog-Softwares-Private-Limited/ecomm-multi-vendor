@@ -98,6 +98,9 @@ class DioClient {
       final resolved = message ?? 'Request failed ($status).';
 
       if (status == 401) throw UnauthorizedException(resolved);
+      if (status == 403 && code == 'ACCOUNT_INCOMPLETE') {
+        throw AccountIncompleteException(resolved);
+      }
       if (status == 422) throw ValidationException(resolved, details: details);
       throw ServerException(resolved, statusCode: status, code: code, details: details);
     }

@@ -28,6 +28,13 @@ class UnauthorizedException extends AppException {
       : super(statusCode: 401);
 }
 
+/// 403 ACCOUNT_INCOMPLETE — authenticated but onboarding unfinished.
+class AccountIncompleteException extends AppException {
+  const AccountIncompleteException([
+    super.message = 'Complete your account setup to continue.',
+  ]) : super(statusCode: 403, code: 'ACCOUNT_INCOMPLETE');
+}
+
 /// 422 validation errors from the API.
 class ValidationException extends AppException {
   const ValidationException(super.message, {super.details}) : super(statusCode: 422);

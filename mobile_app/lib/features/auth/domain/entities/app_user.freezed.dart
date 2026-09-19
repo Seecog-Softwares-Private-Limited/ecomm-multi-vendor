@@ -15,7 +15,8 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$AppUser {
 
- String get id; String get email; String? get firstName; String? get lastName; String? get phone; String get role; String? get avatarUrl; bool get profileCompleted; bool get needsProfileCompletion;
+ String get id; String get email; String? get firstName; String? get lastName; String? get phone; String get role; String? get avatarUrl; String? get oauthProvider; bool get profileCompleted; bool get needsProfileCompletion;/// Backend source of truth for auth onboarding (defaults true when absent for legacy payloads).
+ bool get authOnboardingComplete; bool get needsAuthOnboarding; bool get phoneVerified; bool get emailVerified;
 /// Create a copy of AppUser
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +29,16 @@ $AppUserCopyWith<AppUser> get copyWith => _$AppUserCopyWithImpl<AppUser>(this as
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is AppUser&&(identical(other.id, id) || other.id == id)&&(identical(other.email, email) || other.email == email)&&(identical(other.firstName, firstName) || other.firstName == firstName)&&(identical(other.lastName, lastName) || other.lastName == lastName)&&(identical(other.phone, phone) || other.phone == phone)&&(identical(other.role, role) || other.role == role)&&(identical(other.avatarUrl, avatarUrl) || other.avatarUrl == avatarUrl)&&(identical(other.profileCompleted, profileCompleted) || other.profileCompleted == profileCompleted)&&(identical(other.needsProfileCompletion, needsProfileCompletion) || other.needsProfileCompletion == needsProfileCompletion));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AppUser&&(identical(other.id, id) || other.id == id)&&(identical(other.email, email) || other.email == email)&&(identical(other.firstName, firstName) || other.firstName == firstName)&&(identical(other.lastName, lastName) || other.lastName == lastName)&&(identical(other.phone, phone) || other.phone == phone)&&(identical(other.role, role) || other.role == role)&&(identical(other.avatarUrl, avatarUrl) || other.avatarUrl == avatarUrl)&&(identical(other.oauthProvider, oauthProvider) || other.oauthProvider == oauthProvider)&&(identical(other.profileCompleted, profileCompleted) || other.profileCompleted == profileCompleted)&&(identical(other.needsProfileCompletion, needsProfileCompletion) || other.needsProfileCompletion == needsProfileCompletion)&&(identical(other.authOnboardingComplete, authOnboardingComplete) || other.authOnboardingComplete == authOnboardingComplete)&&(identical(other.needsAuthOnboarding, needsAuthOnboarding) || other.needsAuthOnboarding == needsAuthOnboarding)&&(identical(other.phoneVerified, phoneVerified) || other.phoneVerified == phoneVerified)&&(identical(other.emailVerified, emailVerified) || other.emailVerified == emailVerified));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,email,firstName,lastName,phone,role,avatarUrl,profileCompleted,needsProfileCompletion);
+int get hashCode => Object.hash(runtimeType,id,email,firstName,lastName,phone,role,avatarUrl,oauthProvider,profileCompleted,needsProfileCompletion,authOnboardingComplete,needsAuthOnboarding,phoneVerified,emailVerified);
 
 @override
 String toString() {
-  return 'AppUser(id: $id, email: $email, firstName: $firstName, lastName: $lastName, phone: $phone, role: $role, avatarUrl: $avatarUrl, profileCompleted: $profileCompleted, needsProfileCompletion: $needsProfileCompletion)';
+  return 'AppUser(id: $id, email: $email, firstName: $firstName, lastName: $lastName, phone: $phone, role: $role, avatarUrl: $avatarUrl, oauthProvider: $oauthProvider, profileCompleted: $profileCompleted, needsProfileCompletion: $needsProfileCompletion, authOnboardingComplete: $authOnboardingComplete, needsAuthOnboarding: $needsAuthOnboarding, phoneVerified: $phoneVerified, emailVerified: $emailVerified)';
 }
 
 
@@ -48,7 +49,7 @@ abstract mixin class $AppUserCopyWith<$Res>  {
   factory $AppUserCopyWith(AppUser value, $Res Function(AppUser) _then) = _$AppUserCopyWithImpl;
 @useResult
 $Res call({
- String id, String email, String? firstName, String? lastName, String? phone, String role, String? avatarUrl, bool profileCompleted, bool needsProfileCompletion
+ String id, String email, String? firstName, String? lastName, String? phone, String role, String? avatarUrl, String? oauthProvider, bool profileCompleted, bool needsProfileCompletion, bool authOnboardingComplete, bool needsAuthOnboarding, bool phoneVerified, bool emailVerified
 });
 
 
@@ -65,7 +66,7 @@ class _$AppUserCopyWithImpl<$Res>
 
 /// Create a copy of AppUser
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? email = null,Object? firstName = freezed,Object? lastName = freezed,Object? phone = freezed,Object? role = null,Object? avatarUrl = freezed,Object? profileCompleted = null,Object? needsProfileCompletion = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? email = null,Object? firstName = freezed,Object? lastName = freezed,Object? phone = freezed,Object? role = null,Object? avatarUrl = freezed,Object? oauthProvider = freezed,Object? profileCompleted = null,Object? needsProfileCompletion = null,Object? authOnboardingComplete = null,Object? needsAuthOnboarding = null,Object? phoneVerified = null,Object? emailVerified = null,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,email: null == email ? _self.email : email // ignore: cast_nullable_to_non_nullable
@@ -74,8 +75,13 @@ as String?,lastName: freezed == lastName ? _self.lastName : lastName // ignore: 
 as String?,phone: freezed == phone ? _self.phone : phone // ignore: cast_nullable_to_non_nullable
 as String?,role: null == role ? _self.role : role // ignore: cast_nullable_to_non_nullable
 as String,avatarUrl: freezed == avatarUrl ? _self.avatarUrl : avatarUrl // ignore: cast_nullable_to_non_nullable
+as String?,oauthProvider: freezed == oauthProvider ? _self.oauthProvider : oauthProvider // ignore: cast_nullable_to_non_nullable
 as String?,profileCompleted: null == profileCompleted ? _self.profileCompleted : profileCompleted // ignore: cast_nullable_to_non_nullable
 as bool,needsProfileCompletion: null == needsProfileCompletion ? _self.needsProfileCompletion : needsProfileCompletion // ignore: cast_nullable_to_non_nullable
+as bool,authOnboardingComplete: null == authOnboardingComplete ? _self.authOnboardingComplete : authOnboardingComplete // ignore: cast_nullable_to_non_nullable
+as bool,needsAuthOnboarding: null == needsAuthOnboarding ? _self.needsAuthOnboarding : needsAuthOnboarding // ignore: cast_nullable_to_non_nullable
+as bool,phoneVerified: null == phoneVerified ? _self.phoneVerified : phoneVerified // ignore: cast_nullable_to_non_nullable
+as bool,emailVerified: null == emailVerified ? _self.emailVerified : emailVerified // ignore: cast_nullable_to_non_nullable
 as bool,
   ));
 }
@@ -161,10 +167,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String email,  String? firstName,  String? lastName,  String? phone,  String role,  String? avatarUrl,  bool profileCompleted,  bool needsProfileCompletion)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String email,  String? firstName,  String? lastName,  String? phone,  String role,  String? avatarUrl,  String? oauthProvider,  bool profileCompleted,  bool needsProfileCompletion,  bool authOnboardingComplete,  bool needsAuthOnboarding,  bool phoneVerified,  bool emailVerified)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _AppUser() when $default != null:
-return $default(_that.id,_that.email,_that.firstName,_that.lastName,_that.phone,_that.role,_that.avatarUrl,_that.profileCompleted,_that.needsProfileCompletion);case _:
+return $default(_that.id,_that.email,_that.firstName,_that.lastName,_that.phone,_that.role,_that.avatarUrl,_that.oauthProvider,_that.profileCompleted,_that.needsProfileCompletion,_that.authOnboardingComplete,_that.needsAuthOnboarding,_that.phoneVerified,_that.emailVerified);case _:
   return orElse();
 
 }
@@ -182,10 +188,10 @@ return $default(_that.id,_that.email,_that.firstName,_that.lastName,_that.phone,
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String email,  String? firstName,  String? lastName,  String? phone,  String role,  String? avatarUrl,  bool profileCompleted,  bool needsProfileCompletion)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String email,  String? firstName,  String? lastName,  String? phone,  String role,  String? avatarUrl,  String? oauthProvider,  bool profileCompleted,  bool needsProfileCompletion,  bool authOnboardingComplete,  bool needsAuthOnboarding,  bool phoneVerified,  bool emailVerified)  $default,) {final _that = this;
 switch (_that) {
 case _AppUser():
-return $default(_that.id,_that.email,_that.firstName,_that.lastName,_that.phone,_that.role,_that.avatarUrl,_that.profileCompleted,_that.needsProfileCompletion);case _:
+return $default(_that.id,_that.email,_that.firstName,_that.lastName,_that.phone,_that.role,_that.avatarUrl,_that.oauthProvider,_that.profileCompleted,_that.needsProfileCompletion,_that.authOnboardingComplete,_that.needsAuthOnboarding,_that.phoneVerified,_that.emailVerified);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -202,10 +208,10 @@ return $default(_that.id,_that.email,_that.firstName,_that.lastName,_that.phone,
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String email,  String? firstName,  String? lastName,  String? phone,  String role,  String? avatarUrl,  bool profileCompleted,  bool needsProfileCompletion)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String email,  String? firstName,  String? lastName,  String? phone,  String role,  String? avatarUrl,  String? oauthProvider,  bool profileCompleted,  bool needsProfileCompletion,  bool authOnboardingComplete,  bool needsAuthOnboarding,  bool phoneVerified,  bool emailVerified)?  $default,) {final _that = this;
 switch (_that) {
 case _AppUser() when $default != null:
-return $default(_that.id,_that.email,_that.firstName,_that.lastName,_that.phone,_that.role,_that.avatarUrl,_that.profileCompleted,_that.needsProfileCompletion);case _:
+return $default(_that.id,_that.email,_that.firstName,_that.lastName,_that.phone,_that.role,_that.avatarUrl,_that.oauthProvider,_that.profileCompleted,_that.needsProfileCompletion,_that.authOnboardingComplete,_that.needsAuthOnboarding,_that.phoneVerified,_that.emailVerified);case _:
   return null;
 
 }
@@ -217,7 +223,7 @@ return $default(_that.id,_that.email,_that.firstName,_that.lastName,_that.phone,
 @JsonSerializable()
 
 class _AppUser extends AppUser {
-  const _AppUser({required this.id, required this.email, this.firstName, this.lastName, this.phone, this.role = 'CUSTOMER', this.avatarUrl, this.profileCompleted = false, this.needsProfileCompletion = false}): super._();
+  const _AppUser({required this.id, required this.email, this.firstName, this.lastName, this.phone, this.role = 'CUSTOMER', this.avatarUrl, this.oauthProvider, this.profileCompleted = false, this.needsProfileCompletion = false, this.authOnboardingComplete = true, this.needsAuthOnboarding = false, this.phoneVerified = false, this.emailVerified = false}): super._();
   factory _AppUser.fromJson(Map<String, dynamic> json) => _$AppUserFromJson(json);
 
 @override final  String id;
@@ -227,8 +233,14 @@ class _AppUser extends AppUser {
 @override final  String? phone;
 @override@JsonKey() final  String role;
 @override final  String? avatarUrl;
+@override final  String? oauthProvider;
 @override@JsonKey() final  bool profileCompleted;
 @override@JsonKey() final  bool needsProfileCompletion;
+/// Backend source of truth for auth onboarding (defaults true when absent for legacy payloads).
+@override@JsonKey() final  bool authOnboardingComplete;
+@override@JsonKey() final  bool needsAuthOnboarding;
+@override@JsonKey() final  bool phoneVerified;
+@override@JsonKey() final  bool emailVerified;
 
 /// Create a copy of AppUser
 /// with the given fields replaced by the non-null parameter values.
@@ -243,16 +255,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _AppUser&&(identical(other.id, id) || other.id == id)&&(identical(other.email, email) || other.email == email)&&(identical(other.firstName, firstName) || other.firstName == firstName)&&(identical(other.lastName, lastName) || other.lastName == lastName)&&(identical(other.phone, phone) || other.phone == phone)&&(identical(other.role, role) || other.role == role)&&(identical(other.avatarUrl, avatarUrl) || other.avatarUrl == avatarUrl)&&(identical(other.profileCompleted, profileCompleted) || other.profileCompleted == profileCompleted)&&(identical(other.needsProfileCompletion, needsProfileCompletion) || other.needsProfileCompletion == needsProfileCompletion));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _AppUser&&(identical(other.id, id) || other.id == id)&&(identical(other.email, email) || other.email == email)&&(identical(other.firstName, firstName) || other.firstName == firstName)&&(identical(other.lastName, lastName) || other.lastName == lastName)&&(identical(other.phone, phone) || other.phone == phone)&&(identical(other.role, role) || other.role == role)&&(identical(other.avatarUrl, avatarUrl) || other.avatarUrl == avatarUrl)&&(identical(other.oauthProvider, oauthProvider) || other.oauthProvider == oauthProvider)&&(identical(other.profileCompleted, profileCompleted) || other.profileCompleted == profileCompleted)&&(identical(other.needsProfileCompletion, needsProfileCompletion) || other.needsProfileCompletion == needsProfileCompletion)&&(identical(other.authOnboardingComplete, authOnboardingComplete) || other.authOnboardingComplete == authOnboardingComplete)&&(identical(other.needsAuthOnboarding, needsAuthOnboarding) || other.needsAuthOnboarding == needsAuthOnboarding)&&(identical(other.phoneVerified, phoneVerified) || other.phoneVerified == phoneVerified)&&(identical(other.emailVerified, emailVerified) || other.emailVerified == emailVerified));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,email,firstName,lastName,phone,role,avatarUrl,profileCompleted,needsProfileCompletion);
+int get hashCode => Object.hash(runtimeType,id,email,firstName,lastName,phone,role,avatarUrl,oauthProvider,profileCompleted,needsProfileCompletion,authOnboardingComplete,needsAuthOnboarding,phoneVerified,emailVerified);
 
 @override
 String toString() {
-  return 'AppUser(id: $id, email: $email, firstName: $firstName, lastName: $lastName, phone: $phone, role: $role, avatarUrl: $avatarUrl, profileCompleted: $profileCompleted, needsProfileCompletion: $needsProfileCompletion)';
+  return 'AppUser(id: $id, email: $email, firstName: $firstName, lastName: $lastName, phone: $phone, role: $role, avatarUrl: $avatarUrl, oauthProvider: $oauthProvider, profileCompleted: $profileCompleted, needsProfileCompletion: $needsProfileCompletion, authOnboardingComplete: $authOnboardingComplete, needsAuthOnboarding: $needsAuthOnboarding, phoneVerified: $phoneVerified, emailVerified: $emailVerified)';
 }
 
 
@@ -263,7 +275,7 @@ abstract mixin class _$AppUserCopyWith<$Res> implements $AppUserCopyWith<$Res> {
   factory _$AppUserCopyWith(_AppUser value, $Res Function(_AppUser) _then) = __$AppUserCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String email, String? firstName, String? lastName, String? phone, String role, String? avatarUrl, bool profileCompleted, bool needsProfileCompletion
+ String id, String email, String? firstName, String? lastName, String? phone, String role, String? avatarUrl, String? oauthProvider, bool profileCompleted, bool needsProfileCompletion, bool authOnboardingComplete, bool needsAuthOnboarding, bool phoneVerified, bool emailVerified
 });
 
 
@@ -280,7 +292,7 @@ class __$AppUserCopyWithImpl<$Res>
 
 /// Create a copy of AppUser
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? email = null,Object? firstName = freezed,Object? lastName = freezed,Object? phone = freezed,Object? role = null,Object? avatarUrl = freezed,Object? profileCompleted = null,Object? needsProfileCompletion = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? email = null,Object? firstName = freezed,Object? lastName = freezed,Object? phone = freezed,Object? role = null,Object? avatarUrl = freezed,Object? oauthProvider = freezed,Object? profileCompleted = null,Object? needsProfileCompletion = null,Object? authOnboardingComplete = null,Object? needsAuthOnboarding = null,Object? phoneVerified = null,Object? emailVerified = null,}) {
   return _then(_AppUser(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,email: null == email ? _self.email : email // ignore: cast_nullable_to_non_nullable
@@ -289,8 +301,13 @@ as String?,lastName: freezed == lastName ? _self.lastName : lastName // ignore: 
 as String?,phone: freezed == phone ? _self.phone : phone // ignore: cast_nullable_to_non_nullable
 as String?,role: null == role ? _self.role : role // ignore: cast_nullable_to_non_nullable
 as String,avatarUrl: freezed == avatarUrl ? _self.avatarUrl : avatarUrl // ignore: cast_nullable_to_non_nullable
+as String?,oauthProvider: freezed == oauthProvider ? _self.oauthProvider : oauthProvider // ignore: cast_nullable_to_non_nullable
 as String?,profileCompleted: null == profileCompleted ? _self.profileCompleted : profileCompleted // ignore: cast_nullable_to_non_nullable
 as bool,needsProfileCompletion: null == needsProfileCompletion ? _self.needsProfileCompletion : needsProfileCompletion // ignore: cast_nullable_to_non_nullable
+as bool,authOnboardingComplete: null == authOnboardingComplete ? _self.authOnboardingComplete : authOnboardingComplete // ignore: cast_nullable_to_non_nullable
+as bool,needsAuthOnboarding: null == needsAuthOnboarding ? _self.needsAuthOnboarding : needsAuthOnboarding // ignore: cast_nullable_to_non_nullable
+as bool,phoneVerified: null == phoneVerified ? _self.phoneVerified : phoneVerified // ignore: cast_nullable_to_non_nullable
+as bool,emailVerified: null == emailVerified ? _self.emailVerified : emailVerified // ignore: cast_nullable_to_non_nullable
 as bool,
   ));
 }

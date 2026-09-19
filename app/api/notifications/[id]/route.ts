@@ -7,7 +7,7 @@ import {
   apiUnauthorized,
   type ApiRouteContext,
 } from "@/lib/api";
-import { getSession } from "@/lib/auth";
+import { assertCustomerAuthComplete } from "@/lib/auth";
 import {
   markCustomerNotificationRead,
   deleteCustomerNotification,
@@ -17,9 +17,10 @@ import {
  * PATCH /api/notifications/:id — mark one notification as read.
  */
 export const PATCH = withApiHandler(async (request: NextRequest, context?: ApiRouteContext) => {
-  const session = await getSession(request);
-  if (!session) return apiUnauthorized("Please log in to manage notifications.");
-  if (session.role !== "CUSTOMER") return apiForbidden("Only customers can manage notifications.");
+  const session = await assertCustomerAuthComplete(request, {
+    unauthorizedMessage: "Please log in to manage notifications.",
+    forbiddenMessage: "Only customers can manage notifications.",
+  });
 
   const params = context ? await context.params : {};
   const raw = params.id;
@@ -36,9 +37,10 @@ export const PATCH = withApiHandler(async (request: NextRequest, context?: ApiRo
  * DELETE /api/notifications/:id — soft delete notification.
  */
 export const DELETE = withApiHandler(async (request: NextRequest, context?: ApiRouteContext) => {
-  const session = await getSession(request);
-  if (!session) return apiUnauthorized("Please log in to manage notifications.");
-  if (session.role !== "CUSTOMER") return apiForbidden("Only customers can manage notifications.");
+  const session = await assertCustomerAuthComplete(request, {
+    unauthorizedMessage: "Please log in to manage notifications.",
+    forbiddenMessage: "Only customers can manage notifications.",
+  });
 
   const params = context ? await context.params : {};
   const raw = params.id;

@@ -9,7 +9,7 @@ import {
   apiBadRequest,
   type ApiRouteContext,
 } from "@/lib/api";
-import { getSession } from "@/lib/auth";
+import { assertCustomerAuthComplete } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { resolveProductImageUrl } from "@/lib/product-image";
 import {
@@ -104,9 +104,10 @@ async function buildCustomerOrderPayload(orderId: string, userId: string) {
  * GET /api/orders/[id] — get order details (customer's own order only).
  */
 export const GET = withApiHandler(async (request: NextRequest, context?: ApiRouteContext) => {
-  const session = await getSession(request);
-  if (!session) return apiUnauthorized("Please log in to view the order.");
-  if (session.role !== "CUSTOMER") return apiForbidden("Only customers can view their orders.");
+  const session = await assertCustomerAuthComplete(request, {
+    unauthorizedMessage: "Please log in to view the order.",
+    forbiddenMessage: "Only customers can view their orders.",
+  });
 
   const params = context ? await context.params : {};
   const id = typeof params.id === "string" ? params.id : undefined;
@@ -123,9 +124,10 @@ export const GET = withApiHandler(async (request: NextRequest, context?: ApiRout
  * Body: { "action": "cancel", "reason"?: string }
  */
 export const PATCH = withApiHandler(async (request: NextRequest, context?: ApiRouteContext) => {
-  const session = await getSession(request);
-  if (!session) return apiUnauthorized("Please log in.");
-  if (session.role !== "CUSTOMER") return apiForbidden("Only customers can update their orders.");
+  const session = await assertCustomerAuthComplete(request, {
+    unauthorizedMessage: "Please log in.",
+    forbiddenMessage: "Only customers can update their orders.",
+  });
 
   const params = context ? await context.params : {};
   const id = typeof params.id === "string" ? params.id?.trim() : "";

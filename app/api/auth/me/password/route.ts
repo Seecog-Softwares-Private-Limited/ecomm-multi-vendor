@@ -5,7 +5,7 @@ import {
   apiBadRequest,
   apiForbidden,
 } from "@/lib/api";
-import { requireSession } from "@/lib/auth";
+import { assertCustomerAuthComplete } from "@/lib/auth";
 import { hashPassword, verifyPassword } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -29,10 +29,10 @@ function validateNewPassword(p: string): string | null {
  * Body: { currentPassword: string, newPassword: string }
  */
 export const PATCH = withApiHandler(async (request: NextRequest) => {
-  const session = await requireSession(request);
-  if (session.role !== "CUSTOMER") {
-    return apiForbidden("Customer access required");
-  }
+  const session = await assertCustomerAuthComplete(request, {
+    unauthorizedMessage: "Not authenticated",
+    forbiddenMessage: "Customer access required",
+  });
 
   let body: unknown;
   try {

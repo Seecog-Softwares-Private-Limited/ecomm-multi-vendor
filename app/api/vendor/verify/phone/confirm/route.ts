@@ -62,5 +62,28 @@ export const POST = withApiHandler(async (request: NextRequest) => {
     },
   });
 
-  return apiSuccess({ verified: true, message: "Phone number verified successfully." });
+  const { syncSellerAuthOnboardingComplete, sellerAuthStatusFields } = await import(
+    "@/lib/auth/seller-onboarding"
+  );
+  const authOnboardingComplete = await syncSellerAuthOnboardingComplete(sellerId);
+  const fresh = await prisma.seller.findFirst({
+    where: { id: sellerId },
+    select: {
+      phone: true,
+      phoneVerified: true,
+      emailVerified: true,
+      authOnboardingComplete: true,
+    },
+  });
+
+  return apiSuccess({
+    verified: true,
+    message: "Phone number verified successfully.",
+    ...sellerAuthStatusFields({
+      phone: fresh?.phone ?? null,
+      phoneVerified: fresh?.phoneVerified ?? true,
+      emailVerified: fresh?.emailVerified ?? false,
+      authOnboardingComplete,
+    }),
+  });
 });

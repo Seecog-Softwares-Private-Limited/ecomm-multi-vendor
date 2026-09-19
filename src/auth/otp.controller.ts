@@ -16,8 +16,11 @@ export async function sendOtpController(body: unknown): Promise<NextResponse> {
 }
 
 /** POST /api/auth/verify-otp — body: { phone, otp | code } */
-export async function verifyOtpController(body: unknown): Promise<NextResponse> {
-  return handleVerifyCustomerOtp(body);
+export async function verifyOtpController(
+  body: unknown,
+  request?: NextRequest
+): Promise<NextResponse> {
+  return handleVerifyCustomerOtp(body, request);
 }
 
 export const POST_SEND_OTP = withApiHandler(async (request: NextRequest) => {
@@ -37,5 +40,5 @@ export const POST_VERIFY_OTP = withApiHandler(async (request: NextRequest) => {
   } catch {
     return apiBadRequest("Invalid JSON body");
   }
-  return verifyOtpController(body);
+  return verifyOtpController(body, request);
 });

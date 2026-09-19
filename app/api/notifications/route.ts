@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { withApiHandler, apiSuccess, apiForbidden, apiUnauthorized } from "@/lib/api";
-import { getSession } from "@/lib/auth";
+import { assertCustomerAuthComplete } from "@/lib/auth";
 import {
   listCustomerNotifications,
   markAllCustomerNotificationsRead,
@@ -12,9 +12,10 @@ import {
  * Returns { notifications, unreadCount }
  */
 export const GET = withApiHandler(async (request: NextRequest) => {
-  const session = await getSession(request);
-  if (!session) return apiUnauthorized("Please log in to view notifications.");
-  if (session.role !== "CUSTOMER") return apiForbidden("Only customers can view notifications.");
+  const session = await assertCustomerAuthComplete(request, {
+    unauthorizedMessage: "Please log in to view notifications.",
+    forbiddenMessage: "Only customers can view notifications.",
+  });
 
   const { searchParams } = new URL(request.url);
   const limit = Math.min(100, Math.max(1, Number(searchParams.get("limit") ?? "50")));
@@ -27,9 +28,10 @@ export const GET = withApiHandler(async (request: NextRequest) => {
  * PATCH /api/notifications — mark all notifications as read.
  */
 export const PATCH = withApiHandler(async (request: NextRequest) => {
-  const session = await getSession(request);
-  if (!session) return apiUnauthorized("Please log in to manage notifications.");
-  if (session.role !== "CUSTOMER") return apiForbidden("Only customers can manage notifications.");
+  const session = await assertCustomerAuthComplete(request, {
+    unauthorizedMessage: "Please log in to manage notifications.",
+    forbiddenMessage: "Only customers can manage notifications.",
+  });
 
   const updated = await markAllCustomerNotificationsRead(session.sub);
   return apiSuccess({ updated });

@@ -14,7 +14,11 @@ import {
   signToken,
   setAuthCookie,
 } from "@/lib/auth";
-import { userNeedsProfileCompletion } from "@/lib/profile/needs-completion";
+import {
+  CUSTOMER_ONBOARDING_SELECT,
+  customerAuthStatusFields,
+  syncCustomerAuthOnboardingComplete,
+} from "@/lib/auth/customer-onboarding";
 
 export const POST = withApiHandler(async (request: NextRequest) => {
   let body: unknown;
@@ -34,14 +38,8 @@ export const POST = withApiHandler(async (request: NextRequest) => {
   const user = await prisma.user.findFirst({
     where: { email, deletedAt: null },
     select: {
-      id: true,
-      email: true,
+      ...CUSTOMER_ONBOARDING_SELECT,
       passwordHash: true,
-      firstName: true,
-      lastName: true,
-      phone: true,
-      emailVerified: true,
-      profileCompleted: true,
     },
   });
 
@@ -51,7 +49,7 @@ export const POST = withApiHandler(async (request: NextRequest) => {
 
   if (!user.passwordHash) {
     return apiUnauthorized(
-      "This account was created with Google or Facebook. Please sign in using the social login button."
+      "This account was created with Google or phone OTP. Please sign in using that method."
     );
   }
 
@@ -66,10 +64,19 @@ export const POST = withApiHandler(async (request: NextRequest) => {
     );
   }
 
+  const authOnboardingComplete = await syncCustomerAuthOnboardingComplete(user.id);
+
   const token = await signToken({
     sub: user.id,
     email: user.email,
     role: "CUSTOMER",
+  });
+
+  const status = customerAuthStatusFields({
+    phone: user.phone,
+    phoneVerified: user.phoneVerified,
+    profileCompleted: user.profileCompleted,
+    authOnboardingComplete,
   });
 
   const response = apiSuccess({
@@ -80,11 +87,7 @@ export const POST = withApiHandler(async (request: NextRequest) => {
       lastName: user.lastName,
       phone: user.phone,
       role: "CUSTOMER",
-      profileCompleted: user.profileCompleted,
-      needsProfileCompletion: userNeedsProfileCompletion({
-        phone: user.phone,
-        profileCompleted: user.profileCompleted,
-      }),
+      ...status,
     },
     token,
   });

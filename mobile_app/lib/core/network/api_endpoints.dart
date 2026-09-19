@@ -10,6 +10,8 @@ abstract final class ApiEndpoints {
   static const String forgotPassword = '/api/auth/forgot-password';
   static const String sendOtp = '/api/auth/send-otp';
   static const String verifyOtp = '/api/auth/verify-otp';
+  static const String onboardingProfile = '/api/auth/onboarding/profile';
+  static const String resendCustomerVerification = '/api/auth/resend-customer-verification';
 
   // Profile
   static const String completeProfileDetails = '/api/profile/complete-details';

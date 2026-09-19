@@ -5,13 +5,21 @@ import {
   apiUnauthorized,
   apiForbidden,
   apiBadRequest,
+  apiConflict,
 } from "@/lib/api";
 import { getSession } from "@/lib/auth";
 import { completeProfileDetails } from "@/lib/profile/complete-details";
+import {
+  CUSTOMER_ONBOARDING_SELECT,
+  customerAuthStatusFields,
+  syncCustomerAuthOnboardingComplete,
+} from "@/lib/auth/customer-onboarding";
+import { prisma } from "@/lib/prisma";
 
 /**
  * POST /api/profile/complete-details
- * Saves the required mobile number and optional name fields after login.
+ * Saves a mobile number (unverified) and optional name fields after login.
+ * Does NOT mark phoneVerified — use phone OTP for verification (Phase 3).
  * Body: { phone: string, firstName?: string, lastName?: string, skipOptional?: boolean }
  */
 export const POST = withApiHandler(async (request: NextRequest) => {
@@ -41,7 +49,41 @@ export const POST = withApiHandler(async (request: NextRequest) => {
     lastName,
     skipOptional,
   });
-  if (error) return apiBadRequest(error);
+  if (error) {
+    if (error.includes("already registered") || error.includes("already used")) {
+      return apiConflict(error);
+    }
+    return apiBadRequest(error);
+  }
 
-  return apiSuccess({ message: "Profile saved", profileCompleted: true });
+  const authOnboardingComplete = await syncCustomerAuthOnboardingComplete(session.sub);
+  const user = await prisma.user.findFirst({
+    where: { id: session.sub, deletedAt: null },
+    select: CUSTOMER_ONBOARDING_SELECT,
+  });
+
+  return apiSuccess({
+    message: "Profile saved. Verify your phone with OTP to complete onboarding.",
+    profileCompleted: user?.profileCompleted ?? true,
+    phoneVerified: user?.phoneVerified ?? false,
+    authOnboardingComplete,
+    needsAuthOnboarding: !authOnboardingComplete,
+    ...(user
+      ? {
+          user: {
+            id: user.id,
+            email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            phone: user.phone,
+            ...customerAuthStatusFields({
+              phone: user.phone,
+              phoneVerified: user.phoneVerified,
+              profileCompleted: user.profileCompleted,
+              authOnboardingComplete,
+            }),
+          },
+        }
+      : {}),
+  });
 });

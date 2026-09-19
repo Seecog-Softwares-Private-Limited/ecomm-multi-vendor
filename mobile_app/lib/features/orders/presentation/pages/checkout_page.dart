@@ -6,6 +6,7 @@ import '../../../../app/routing/app_routes.dart';
 import '../../../../app/routing/shell_navigation.dart';
 import '../../../../core/di/providers.dart';
 import '../../../../core/error/failure.dart';
+import '../../../../core/network/account_incomplete_nav.dart';
 import '../../../../core/theme/app_adaptive_colors.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
@@ -155,7 +156,10 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         }
       }
     } catch (error) {
-      if (mounted) context.showSnack(Failure.from(error).message, isError: true);
+      if (!mounted) return;
+      if (await navigateIfAccountIncomplete(ref, context, error)) return;
+      if (!mounted) return;
+      context.showSnack(Failure.from(error).message, isError: true);
     } finally {
       if (mounted) setState(() => _sessionLoading = false);
     }
