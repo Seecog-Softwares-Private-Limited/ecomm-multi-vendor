@@ -7,11 +7,11 @@ class AuthSession {
   final ProfileStats? stats;
 }
 
-/// Result of registration (email verification flow).
+/// Result of registration (complete account after OTP proofs).
 class RegisterResult {
-  const RegisterResult({required this.message, this.verificationLink});
+  const RegisterResult({required this.message, this.needsOnboarding = false});
   final String message;
-  final String? verificationLink;
+  final bool needsOnboarding;
 }
 
 /// Contract for authentication + session operations.
@@ -20,9 +20,19 @@ abstract interface class AuthRepository {
 
   Future<AuthSession> loginWithGoogle({required String idToken});
 
+  Future<void> sendRegisterEmailOtp(String email, {bool resend});
+
+  Future<String> verifyRegisterEmailOtp({required String email, required String otp});
+
+  Future<void> sendRegisterPhoneOtp(String phone, {bool resend});
+
+  Future<String> verifyRegisterPhoneOtp({required String phone, required String otp});
+
   Future<RegisterResult> register({
     required String email,
     required String password,
+    required String emailProofToken,
+    required String phoneProofToken,
     String? firstName,
     String? lastName,
     String? phone,
@@ -31,6 +41,10 @@ abstract interface class AuthRepository {
   Future<void> sendOtp(String phone, {bool resend});
 
   Future<AuthSession> verifyOtp({required String phone, required String code});
+
+  Future<void> sendOnboardingEmailOtp(String email, {bool resend});
+
+  Future<AuthSession> verifyOnboardingEmailOtp({required String email, required String otp});
 
   Future<String> forgotPassword(String email);
 

@@ -7,11 +7,17 @@ abstract final class ApiEndpoints {
   static const String login = '/api/auth/login';
   static const String google = '/api/auth/google';
   static const String register = '/api/auth/register';
+  static const String registerEmailOtpSend = '/api/auth/register/email-otp/send';
+  static const String registerEmailOtpVerify = '/api/auth/register/email-otp/verify';
+  static const String registerPhoneOtpSend = '/api/auth/register/phone-otp/send';
+  static const String registerPhoneOtpVerify = '/api/auth/register/phone-otp/verify';
   static const String me = '/api/auth/me';
   static const String forgotPassword = '/api/auth/forgot-password';
   static const String sendOtp = '/api/auth/send-otp';
   static const String verifyOtp = '/api/auth/verify-otp';
   static const String onboardingProfile = '/api/auth/onboarding/profile';
+  static const String onboardingEmailOtpSend = '/api/auth/onboarding/email-otp/send';
+  static const String onboardingEmailOtpVerify = '/api/auth/onboarding/email-otp/verify';
   static const String resendCustomerVerification = '/api/auth/resend-customer-verification';
 
   // Profile
