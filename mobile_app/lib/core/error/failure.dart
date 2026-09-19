@@ -69,6 +69,22 @@ sealed class Failure with _$Failure {
       if (error.code == 'ACCOUNT_INCOMPLETE') {
         return Failure.accountIncomplete(error.message);
       }
+      if (error.statusCode == 409 || error.code == 'CONFLICT' || error.code == 'EMAIL_CONFLICT') {
+        return Failure.server(
+          message: error.message.trim().isNotEmpty
+              ? error.message
+              : 'This Google account is already associated with another account.',
+          statusCode: error.statusCode ?? 409,
+          code: error.code ?? 'CONFLICT',
+        );
+      }
+      if (error.statusCode == 401) {
+        return Failure.unauthorized(
+          error.message.trim().isNotEmpty
+              ? error.message
+              : 'Unable to sign in with Google. Please try again.',
+        );
+      }
       return Failure.server(
         message: error.message,
         statusCode: error.statusCode,

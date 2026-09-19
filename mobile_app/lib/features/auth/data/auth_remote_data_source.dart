@@ -13,6 +13,11 @@ class AuthRemoteDataSource {
     return Map<String, dynamic>.from(data as Map);
   }
 
+  Future<Map<String, dynamic>> loginWithGoogle(String idToken) async {
+    final data = await _client.post(ApiEndpoints.google, data: {'idToken': idToken});
+    return Map<String, dynamic>.from(data as Map);
+  }
+
   Future<Map<String, dynamic>> register(Map<String, dynamic> body) async {
     final data = await _client.post(ApiEndpoints.register, data: body);
     return Map<String, dynamic>.from(data as Map);

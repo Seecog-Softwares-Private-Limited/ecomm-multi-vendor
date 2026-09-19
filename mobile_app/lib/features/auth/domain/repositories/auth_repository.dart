@@ -18,6 +18,8 @@ class RegisterResult {
 abstract interface class AuthRepository {
   Future<AuthSession> login({required String email, required String password});
 
+  Future<AuthSession> loginWithGoogle({required String idToken});
+
   Future<RegisterResult> register({
     required String email,
     required String password,

@@ -4,11 +4,16 @@ import '../../../core/di/providers.dart';
 import '../../../core/error/failure.dart';
 import '../data/auth_remote_data_source.dart';
 import '../data/auth_repository_impl.dart';
+import '../data/google_auth_service.dart';
 import '../domain/entities/app_user.dart';
 import '../domain/repositories/auth_repository.dart';
 
 final authRemoteDataSourceProvider = Provider<AuthRemoteDataSource>(
   (ref) => AuthRemoteDataSource(ref.read(dioClientProvider)),
+);
+
+final googleAuthServiceProvider = Provider<GoogleAuthService>(
+  (ref) => GoogleAuthService(),
 );
 
 final authRepositoryProvider = Provider<AuthRepository>(
@@ -33,6 +38,7 @@ class AuthState {
 /// Holds the current session. `build` bootstraps from the persisted token.
 class AuthController extends AsyncNotifier<AuthState> {
   AuthRepository get _repo => ref.read(authRepositoryProvider);
+  GoogleAuthService get _googleAuth => ref.read(googleAuthServiceProvider);
 
   @override
   Future<AuthState> build() async {
@@ -69,6 +75,11 @@ class AuthController extends AsyncNotifier<AuthState> {
   Future<Failure?> login(String email, String password) =>
       _run(() => _repo.login(email: email.trim(), password: password));
 
+  Future<Failure?> loginWithGoogle() => _run(() async {
+        final idToken = await _googleAuth.getIdToken();
+        return _repo.loginWithGoogle(idToken: idToken);
+      });
+
   Future<Failure?> verifyOtp(String phone, String code) =>
       _run(() => _repo.verifyOtp(phone: phone, code: code));
 
@@ -83,6 +94,7 @@ class AuthController extends AsyncNotifier<AuthState> {
   }
 
   Future<void> logout() async {
+    await _googleAuth.signOut();
     await _repo.logout();
     state = const AsyncData(AuthState.guest);
   }

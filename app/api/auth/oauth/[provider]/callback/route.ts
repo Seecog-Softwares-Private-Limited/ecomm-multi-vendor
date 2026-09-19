@@ -10,13 +10,8 @@ import {
   oauthStateErrorMessage,
   type OAuthProvider,
 } from "@/lib/auth/oauth";
-import { signToken, setAuthCookie } from "@/lib/auth";
-import { queueGoogleOAuthWelcomeEmail } from "@/lib/email/oauth-google-welcome";
-import { prisma } from "@/lib/prisma";
-import {
-  CUSTOMER_ONBOARDING_SELECT,
-  syncCustomerAuthOnboardingComplete,
-} from "@/lib/auth/customer-onboarding";
+import { setAuthCookie } from "@/lib/auth";
+import { completeCustomerSocialLogin } from "@/lib/auth/complete-customer-google";
 import {
   completeVendorGoogleOAuth,
   vendorErrorRedirect,
@@ -120,124 +115,26 @@ export async function GET(request: NextRequest, context: ApiRouteContext) {
     return errorRedirect(appBase, "Failed to authenticate with " + provider);
   }
 
-  if (!oauthUser.email) {
-    return errorRedirect(
-      appBase,
-      "Your " + provider + " account has no email address. Use a different sign-in method."
-    );
-  }
-
-  if (!oauthUser.providerId) {
-    return errorRedirect(appBase, "Could not read your " + provider + " account id. Please try again.");
-  }
-
-  let isNewUser = false;
-
-  // 1) Primary resolution: stable provider ID
-  let user = await prisma.user.findFirst({
-    where: {
-      oauthProvider: provider,
-      oauthProviderId: oauthUser.providerId,
-      deletedAt: null,
-    },
-    select: CUSTOMER_ONBOARDING_SELECT,
+  const result = await completeCustomerSocialLogin(provider, {
+    providerId: oauthUser.providerId,
+    email: oauthUser.email,
+    firstName: oauthUser.firstName,
+    lastName: oauthUser.lastName,
+    avatarUrl: oauthUser.avatarUrl,
   });
 
-  if (user) {
-    // Returning social user — refresh profile fields without touching other identities.
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        emailVerified: true,
-        avatarUrl: oauthUser.avatarUrl ?? undefined,
-        firstName: user.firstName ?? oauthUser.firstName ?? undefined,
-        lastName: user.lastName ?? oauthUser.lastName ?? undefined,
-      },
-    });
-    await syncCustomerAuthOnboardingComplete(user.id);
-    user = await prisma.user.findFirst({
-      where: { id: user.id, deletedAt: null },
-      select: CUSTOMER_ONBOARDING_SELECT,
-    });
-  } else {
-    // 2) No provider link — never auto-merge onto an existing email account.
-    const emailOwner = await prisma.user.findFirst({
-      where: { email: oauthUser.email, deletedAt: null },
-      select: {
-        id: true,
-        oauthProvider: true,
-        oauthProviderId: true,
-      },
-    });
-
-    if (emailOwner) {
-      return errorRedirect(
-        appBase,
-        "This email is already registered with another account. Please log in with that account."
-      );
-    }
-
-    // 3) Create incomplete Google/Facebook-first customer (no password; phone OTP still required).
-    isNewUser = true;
-    try {
-      user = await prisma.user.create({
-        data: {
-          email: oauthUser.email,
-          passwordHash: null,
-          firstName: oauthUser.firstName,
-          lastName: oauthUser.lastName,
-          emailVerified: true,
-          phoneVerified: false,
-          profileCompleted: false,
-          authOnboardingComplete: false,
-          oauthProvider: provider,
-          oauthProviderId: oauthUser.providerId,
-          avatarUrl: oauthUser.avatarUrl,
-        },
-        select: CUSTOMER_ONBOARDING_SELECT,
-      });
-    } catch (e: unknown) {
-      const errCode =
-        e && typeof e === "object" && "code" in e
-          ? String((e as { code: unknown }).code)
-          : "";
-      if (errCode === "P2002") {
-        return errorRedirect(
-          appBase,
-          "This email is already registered with another account. Please log in with that account."
-        );
-      }
-      throw e;
-    }
+  if (!result.ok) {
+    return errorRedirect(appBase, result.error);
   }
-
-  if (!user) {
-    return errorRedirect(appBase, "Could not create your account. Please try again.");
-  }
-
-  if (provider === "google" && isNewUser) {
-    queueGoogleOAuthWelcomeEmail({
-      to: user.email,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      userId: user.id,
-    });
-  }
-
-  const token = await signToken({
-    sub: user.id,
-    email: user.email,
-    role: "CUSTOMER",
-  });
 
   // Incomplete until phone OTP (and any other onboarding fields) are satisfied.
   const destination =
-    !user.authOnboardingComplete || !user.phoneVerified
+    !result.user.authOnboardingComplete || !result.user.phoneVerified
       ? "/complete-profile"
       : returnUrl;
 
   const response = NextResponse.redirect(new URL(destination, appBase).toString());
-  setAuthCookie(response, token);
+  setAuthCookie(response, result.token);
   response.cookies.set(OAUTH_STATE_COOKIE, "", { maxAge: 0, path: "/" });
 
   return response;
