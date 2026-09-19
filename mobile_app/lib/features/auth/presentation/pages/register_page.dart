@@ -272,70 +272,56 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                       prefixIcon: Icons.person_outline,
                     ),
                     const SizedBox(height: AppSpacing.md),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: AppTextField(
-                            controller: _email,
-                            label: 'Email',
-                            prefixIcon: Icons.email_outlined,
-                            keyboardType: TextInputType.emailAddress,
-                            enabled: !_emailVerified,
-                            validator: Validators.email,
-                            onChanged: (_) {
-                              if (_emailVerified || _emailSent) {
-                                setState(() {
-                                  _emailVerified = false;
-                                  _emailProofToken = null;
-                                  _emailSent = false;
-                                  _emailOtp.clear();
-                                });
-                              }
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Padding(
-                          padding: const EdgeInsets.only(top: 28),
-                          child: AppButton(
-                            label: _emailVerified
-                                ? '✓'
-                                : _emailCooldown > 0
-                                    ? '${_emailCooldown}s'
-                                    : _emailSent
-                                        ? 'Resend'
-                                        : 'Send OTP',
-                            isLoading: _emailSendBusy,
-                            onPressed: _emailVerified || _emailCooldown > 0
-                                ? null
-                                : () => _sendEmailOtp(resend: _emailSent),
-                          ),
-                        ),
-                      ],
+                    AppTextField(
+                      controller: _email,
+                      label: 'Email',
+                      hint: 'you@gmail.com',
+                      prefixIcon: Icons.email_outlined,
+                      keyboardType: TextInputType.emailAddress,
+                      enabled: !_emailVerified,
+                      validator: Validators.email,
+                      onChanged: (_) {
+                        if (_emailVerified || _emailSent) {
+                          setState(() {
+                            _emailVerified = false;
+                            _emailProofToken = null;
+                            _emailSent = false;
+                            _emailOtp.clear();
+                          });
+                        }
+                      },
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    AppButton(
+                      label: _emailVerified
+                          ? 'Email verified'
+                          : _emailCooldown > 0
+                              ? 'Resend in ${_emailCooldown}s'
+                              : _emailSent
+                                  ? 'Resend OTP'
+                                  : 'Send email OTP',
+                      isLoading: _emailSendBusy,
+                      onPressed: _emailVerified || _emailCooldown > 0
+                          ? null
+                          : () => _sendEmailOtp(resend: _emailSent),
                     ),
                     if (_emailSent && !_emailVerified) ...[
                       const SizedBox(height: AppSpacing.md),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: AppTextField(
-                              controller: _emailOtp,
-                              label: 'Email OTP',
-                              keyboardType: TextInputType.number,
-                              inputFormatters: [
-                                FilteringTextInputFormatter.digitsOnly,
-                                LengthLimitingTextInputFormatter(6),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          AppButton(
-                            label: 'Verify',
-                            isLoading: _emailVerifyBusy,
-                            onPressed: _verifyEmailOtp,
-                          ),
+                      AppTextField(
+                        controller: _emailOtp,
+                        label: 'Email OTP',
+                        hint: '6-digit code',
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(6),
                         ],
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      AppButton(
+                        label: 'Verify email OTP',
+                        isLoading: _emailVerifyBusy,
+                        onPressed: _verifyEmailOtp,
                       ),
                     ],
                     if (_emailVerified)
@@ -361,70 +347,56 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                           v != _password.text ? 'Passwords do not match' : null,
                     ),
                     const SizedBox(height: AppSpacing.md),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: AppTextField(
-                            controller: _phone,
-                            label: 'Phone',
-                            prefixIcon: Icons.phone_outlined,
-                            keyboardType: TextInputType.phone,
-                            enabled: !_phoneVerified,
-                            validator: Validators.phone,
-                            onChanged: (_) {
-                              if (_phoneVerified || _phoneSent) {
-                                setState(() {
-                                  _phoneVerified = false;
-                                  _phoneProofToken = null;
-                                  _phoneSent = false;
-                                  _phoneOtp.clear();
-                                });
-                              }
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Padding(
-                          padding: const EdgeInsets.only(top: 28),
-                          child: AppButton(
-                            label: _phoneVerified
-                                ? '✓'
-                                : _phoneCooldown > 0
-                                    ? '${_phoneCooldown}s'
-                                    : _phoneSent
-                                        ? 'Resend'
-                                        : 'Send OTP',
-                            isLoading: _phoneSendBusy,
-                            onPressed: _phoneVerified || _phoneCooldown > 0
-                                ? null
-                                : () => _sendPhoneOtp(resend: _phoneSent),
-                          ),
-                        ),
-                      ],
+                    AppTextField(
+                      controller: _phone,
+                      label: 'Phone',
+                      hint: '10-digit mobile',
+                      prefixIcon: Icons.phone_outlined,
+                      keyboardType: TextInputType.phone,
+                      enabled: !_phoneVerified,
+                      validator: Validators.phone,
+                      onChanged: (_) {
+                        if (_phoneVerified || _phoneSent) {
+                          setState(() {
+                            _phoneVerified = false;
+                            _phoneProofToken = null;
+                            _phoneSent = false;
+                            _phoneOtp.clear();
+                          });
+                        }
+                      },
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    AppButton(
+                      label: _phoneVerified
+                          ? 'Phone verified'
+                          : _phoneCooldown > 0
+                              ? 'Resend in ${_phoneCooldown}s'
+                              : _phoneSent
+                                  ? 'Resend OTP'
+                                  : 'Send phone OTP',
+                      isLoading: _phoneSendBusy,
+                      onPressed: _phoneVerified || _phoneCooldown > 0
+                          ? null
+                          : () => _sendPhoneOtp(resend: _phoneSent),
                     ),
                     if (_phoneSent && !_phoneVerified) ...[
                       const SizedBox(height: AppSpacing.md),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: AppTextField(
-                              controller: _phoneOtp,
-                              label: 'Phone OTP',
-                              keyboardType: TextInputType.number,
-                              inputFormatters: [
-                                FilteringTextInputFormatter.digitsOnly,
-                                LengthLimitingTextInputFormatter(6),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          AppButton(
-                            label: 'Verify',
-                            isLoading: _phoneVerifyBusy,
-                            onPressed: _verifyPhoneOtp,
-                          ),
+                      AppTextField(
+                        controller: _phoneOtp,
+                        label: 'Phone OTP',
+                        hint: '6-digit code',
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(6),
                         ],
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      AppButton(
+                        label: 'Verify phone OTP',
+                        isLoading: _phoneVerifyBusy,
+                        onPressed: _verifyPhoneOtp,
                       ),
                     ],
                     if (_phoneVerified)
