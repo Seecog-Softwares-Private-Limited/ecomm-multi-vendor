@@ -2,9 +2,8 @@
  * Customer phone OTP handlers (send / verify).
  * Used by POST /api/auth/send-otp and POST /api/auth/verify-otp route aliases.
  *
- * Fast2SMS customer OTP: server-generated 6-digit code, HMAC in DB, 5-minute expiry.
- * SMS delivery uses Quick SMS (`POST /dev/bulkV2`, `route: q`) via `sendSMS()` — no FAST2SMS_OTP_ID required.
- * Optional DLT migration: use `sendOtpViaFast2Sms` + FAST2SMS_OTP_ID in `sms.service.ts` if you switch this flow later.
+ * Customer OTP: server-generated 6-digit code, HMAC in DB, 5-minute expiry.
+ * SMS delivery uses BlackSMS OTP API (`POST https://blacksms.in/sms`).
  */
 
 import { randomBytes, randomUUID } from "crypto";
@@ -86,7 +85,7 @@ export type VerifyOtpSuccess = {
  * 1. Validate Indian mobile
  * 2. Rate-limit (resend uses same limits — cooldown + hourly cap)
  * 3. Generate 6-digit OTP, hash & store (5 min expiry)
- * 4. Deliver via Fast2SMS Quick SMS (or MSG91 / dev console fallback)
+ * 4. Deliver via BlackSMS (or MSG91 / dev console fallback)
  */
 export async function handleSendCustomerOtp(
   body: unknown
@@ -126,8 +125,8 @@ export async function handleSendCustomerOtp(
   if (!provider) {
     return apiError(
       process.env.NODE_ENV === "production"
-        ? "SMS OTP is not configured. Set FAST2SMS_API_KEY (or MSG91_AUTH_KEY) on the server."
-        : "SMS OTP is not configured. Set FAST2SMS_API_KEY, MSG91_AUTH_KEY, or OTP_DEV_CONSOLE=true for local testing.",
+        ? "SMS OTP is not configured. Set BLACKSMS_API_KEY and BLACKSMS_SENDER_ID (or MSG91_AUTH_KEY) on the server."
+        : "SMS OTP is not configured. Set BLACKSMS_API_KEY and BLACKSMS_SENDER_ID, MSG91_AUTH_KEY, or OTP_DEV_CONSOLE=true for local testing.",
       Status.SERVICE_UNAVAILABLE,
       "SMS_NOT_CONFIGURED"
     );
@@ -135,7 +134,7 @@ export async function handleSendCustomerOtp(
 
   await invalidatePendingOtps(phoneNorm);
 
-  if (provider === "fast2sms" || provider === "dev_console") {
+  if (provider === "blacksms" || provider === "dev_console") {
     const plainOtp = generateOtpCode();
     await storeOtpHash(phoneNorm, plainOtp);
 
@@ -146,7 +145,7 @@ export async function handleSendCustomerOtp(
       if (!isSmsProviderConfigured()) {
         await invalidatePendingOtps(phoneNorm);
         return apiError(
-          "SMS is not configured. Add FAST2SMS_API_KEY to the server environment.",
+          "SMS is not configured. Add BLACKSMS_API_KEY and BLACKSMS_SENDER_ID to the server environment.",
           Status.SERVICE_UNAVAILABLE,
           "SMS_NOT_CONFIGURED"
         );
@@ -173,7 +172,7 @@ export async function handleSendCustomerOtp(
           process.env.NODE_ENV === "development" && sms.error
             ? `SMS failed: ${sms.error}`
             : "We could not send the verification code. Try again in a few minutes.";
-        console.error("[phone-otp] Fast2SMS Quick SMS failed:", sms.error);
+        console.error("[phone-otp] BlackSMS OTP send failed:", sms.error);
         return apiError(userMessage, Status.BAD_GATEWAY, "SMS_SEND_FAILED");
       }
 

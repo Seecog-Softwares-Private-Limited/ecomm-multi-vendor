@@ -24,7 +24,7 @@ export const OTP_MAX_SENDS_PER_HOUR = 8;
 
 export const OTP_LENGTH = 6;
 
-export type OtpProvider = "fast2sms" | "msg91" | "dev_console";
+export type OtpProvider = "blacksms" | "msg91" | "dev_console";
 
 /**
  * Cryptographically secure 6-digit OTP (100000–999999).
@@ -99,7 +99,7 @@ export type StoredOtpRow = {
 };
 
 /**
- * Persists hashed OTP with expiry. Caller must send SMS separately (Fast2SMS).
+ * Persists hashed OTP with expiry. Caller must send SMS separately (BlackSMS).
  */
 export async function storeOtpHash(phoneNorm: string, plainOtp: string): Promise<StoredOtpRow> {
   const expiresAt = new Date(Date.now() + OTP_EXPIRY_MS);
@@ -155,7 +155,7 @@ export type VerifyStoredOtpResult =
   | { valid: false; reason: "not_found" | "expired" | "max_attempts" | "wrong_code" | "wrong_provider" };
 
 /**
- * Verifies user-entered OTP against locally stored HMAC (Fast2SMS / dev-console flow).
+ * Verifies user-entered OTP against locally stored HMAC (BlackSMS / dev-console flow).
  */
 export function verifyStoredOtp(
   row: StoredOtpRow,
@@ -203,8 +203,9 @@ export function isDevConsoleOtpAllowed(): boolean {
 }
 
 export function resolveOtpProvider(): OtpProvider | null {
-  /** Quick SMS (`/dev/bulkV2`, route q): only FAST2SMS_API_KEY required. DLT OTP API is optional later. */
-  if (process.env.FAST2SMS_API_KEY?.trim()) return "fast2sms";
+  if (process.env.BLACKSMS_API_KEY?.trim() && process.env.BLACKSMS_SENDER_ID?.trim()) {
+    return "blacksms";
+  }
   if (process.env.MSG91_AUTH_KEY?.trim()) return "msg91";
   if (isDevConsoleOtpAllowed()) return "dev_console";
   return null;
