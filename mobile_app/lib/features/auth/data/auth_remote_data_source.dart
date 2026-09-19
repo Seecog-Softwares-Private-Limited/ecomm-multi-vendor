@@ -23,6 +23,61 @@ class AuthRemoteDataSource {
     return Map<String, dynamic>.from(data as Map);
   }
 
+  Future<void> sendRegisterEmailOtp(String email, {bool resend = false}) async {
+    await _client.post(
+      ApiEndpoints.registerEmailOtpSend,
+      data: {'email': email, 'resend': resend},
+    );
+  }
+
+  Future<String> verifyRegisterEmailOtp(String email, String otp) async {
+    final data = await _client.post(
+      ApiEndpoints.registerEmailOtpVerify,
+      data: {'email': email, 'otp': otp},
+    );
+    final map = Map<String, dynamic>.from(data as Map);
+    final token = map['emailProofToken']?.toString();
+    if (token == null || token.isEmpty) {
+      throw StateError('Email verification failed');
+    }
+    return token;
+  }
+
+  Future<void> sendRegisterPhoneOtp(String phone, {bool resend = false}) async {
+    await _client.post(
+      ApiEndpoints.registerPhoneOtpSend,
+      data: {'phone': phone, 'resend': resend},
+    );
+  }
+
+  Future<String> verifyRegisterPhoneOtp(String phone, String otp) async {
+    final data = await _client.post(
+      ApiEndpoints.registerPhoneOtpVerify,
+      data: {'phone': phone, 'otp': otp},
+    );
+    final map = Map<String, dynamic>.from(data as Map);
+    final token = map['phoneProofToken']?.toString();
+    if (token == null || token.isEmpty) {
+      throw StateError('Phone verification failed');
+    }
+    return token;
+  }
+
+  Future<void> sendOnboardingEmailOtp(String email, {bool resend = false}) async {
+    await _client.post(
+      ApiEndpoints.onboardingEmailOtpSend,
+      data: {'email': email, 'resend': resend},
+    );
+  }
+
+  Future<Map<String, dynamic>> verifyOnboardingEmailOtp(String email, String otp) async {
+    final data = await _client.post(
+      ApiEndpoints.onboardingEmailOtpVerify,
+      data: {'email': email, 'otp': otp},
+    );
+    return Map<String, dynamic>.from(data as Map);
+  }
+
   Future<Map<String, dynamic>?> me() async {
     final data = await _client.get(ApiEndpoints.me);
     final map = Map<String, dynamic>.from(data as Map);

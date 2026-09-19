@@ -12,6 +12,7 @@ import {
   ShieldCheck,
   Truck,
   ShoppingBag,
+  CheckCircle2,
 } from "lucide-react";
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -25,6 +26,9 @@ import { customerNeedsAuthOnboarding } from "@/lib/auth/customer-onboarding-clie
 
 const inputClass =
   "block w-full rounded-xl border border-slate-200 bg-slate-50/50 py-3 text-slate-900 placeholder:text-slate-400 transition focus:border-[#FF6A00] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6A00]/20";
+
+const btnSecondary =
+  "shrink-0 rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-semibold text-slate-800 transition hover:border-[#FF6A00]/40 hover:bg-orange-50/50 disabled:pointer-events-none disabled:opacity-50";
 
 /** Left marketing panel — matches customer LoginPage */
 function RegisterBrandPanel() {
@@ -80,6 +84,10 @@ function RegisterBrandPanel() {
   );
 }
 
+function isValidEmail(v: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
+}
+
 export function RegisterPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -96,27 +104,184 @@ export function RegisterPage() {
   const [agreeTerms, setAgreeTerms] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(false);
-  const [registeredEmail, setRegisteredEmail] = React.useState<string | null>(null);
-  const [registerInfo, setRegisterInfo] = React.useState<string | null>(null);
-  const [devVerifyLink, setDevVerifyLink] = React.useState<string | null>(null);
-  const [resendLoading, setResendLoading] = React.useState(false);
-  const [resendMessage, setResendMessage] = React.useState<string | null>(null);
-  const resendAbortRef = React.useRef<AbortController | null>(null);
 
-  /** Avoid stuck "Sending…" after refresh/HMR or a dropped request */
-  React.useEffect(() => {
-    if (registeredEmail) {
-      setResendLoading(false);
-      resendAbortRef.current?.abort();
-      resendAbortRef.current = null;
-    }
-  }, [registeredEmail]);
+  const [emailOtp, setEmailOtp] = React.useState("");
+  const [phoneOtp, setPhoneOtp] = React.useState("");
+  const [emailSent, setEmailSent] = React.useState(false);
+  const [phoneSent, setPhoneSent] = React.useState(false);
+  const [emailVerified, setEmailVerified] = React.useState(false);
+  const [phoneVerified, setPhoneVerified] = React.useState(false);
+  const [emailProofToken, setEmailProofToken] = React.useState<string | null>(null);
+  const [phoneProofToken, setPhoneProofToken] = React.useState<string | null>(null);
+  const [emailCooldown, setEmailCooldown] = React.useState(0);
+  const [phoneCooldown, setPhoneCooldown] = React.useState(0);
+  const [emailSendLoading, setEmailSendLoading] = React.useState(false);
+  const [emailVerifyLoading, setEmailVerifyLoading] = React.useState(false);
+  const [phoneSendLoading, setPhoneSendLoading] = React.useState(false);
+  const [phoneVerifyLoading, setPhoneVerifyLoading] = React.useState(false);
 
-  // Vendor hybrid app must not surface customer Google signup (Guideline 4.8 / 4).
   React.useEffect(() => {
     if (!isAppMode) return;
     router.replace("/vendor/login?app=1");
   }, [isAppMode, router]);
+
+  React.useEffect(() => {
+    if (emailCooldown <= 0) return;
+    const t = setInterval(() => setEmailCooldown((s) => (s > 0 ? s - 1 : 0)), 1000);
+    return () => clearInterval(t);
+  }, [emailCooldown]);
+
+  React.useEffect(() => {
+    if (phoneCooldown <= 0) return;
+    const t = setInterval(() => setPhoneCooldown((s) => (s > 0 ? s - 1 : 0)), 1000);
+    return () => clearInterval(t);
+  }, [phoneCooldown]);
+
+  const onEmailChange = (v: string) => {
+    setEmail(v);
+    if (emailVerified || emailProofToken || emailSent) {
+      setEmailVerified(false);
+      setEmailProofToken(null);
+      setEmailSent(false);
+      setEmailOtp("");
+    }
+  };
+
+  const onPhoneChange = (v: string) => {
+    setPhone(v);
+    if (phoneVerified || phoneProofToken || phoneSent) {
+      setPhoneVerified(false);
+      setPhoneProofToken(null);
+      setPhoneSent(false);
+      setPhoneOtp("");
+    }
+  };
+
+  const sendEmailOtp = async (isResend = false) => {
+    setError(null);
+    const trimmed = email.trim().toLowerCase();
+    if (!isValidEmail(trimmed)) {
+      setError("Enter a valid email address.");
+      return;
+    }
+    setEmailSendLoading(true);
+    try {
+      const res = await fetch("/api/auth/register/email-otp/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: trimmed, ...(isResend ? { resend: true } : {}) }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data?.error?.message ?? "Could not send email OTP.");
+        return;
+      }
+      setEmailSent(true);
+      setEmailVerified(false);
+      setEmailProofToken(null);
+      setEmailOtp("");
+      setEmailCooldown(60);
+    } catch {
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setEmailSendLoading(false);
+    }
+  };
+
+  const verifyEmailOtp = async () => {
+    setError(null);
+    if (!/^\d{6}$/.test(emailOtp.trim())) {
+      setError("Enter the 6-digit email OTP.");
+      return;
+    }
+    setEmailVerifyLoading(true);
+    try {
+      const res = await fetch("/api/auth/register/email-otp/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim().toLowerCase(), otp: emailOtp.trim() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data?.error?.message ?? "Invalid or expired email OTP.");
+        return;
+      }
+      const token = data?.data?.emailProofToken;
+      if (typeof token !== "string") {
+        setError("Email verification failed. Try again.");
+        return;
+      }
+      setEmailProofToken(token);
+      setEmailVerified(true);
+    } catch {
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setEmailVerifyLoading(false);
+    }
+  };
+
+  const sendPhoneOtp = async (isResend = false) => {
+    setError(null);
+    const trimmed = phone.trim();
+    if (!normalizeIndianPhone(trimmed)) {
+      setError(INDIAN_MOBILE_HINT);
+      return;
+    }
+    setPhoneSendLoading(true);
+    try {
+      const res = await fetch("/api/auth/register/phone-otp/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: trimmed, ...(isResend ? { resend: true } : {}) }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data?.error?.message ?? "Could not send phone OTP.");
+        return;
+      }
+      setPhoneSent(true);
+      setPhoneVerified(false);
+      setPhoneProofToken(null);
+      setPhoneOtp("");
+      setPhoneCooldown(60);
+    } catch {
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setPhoneSendLoading(false);
+    }
+  };
+
+  const verifyPhoneOtp = async () => {
+    setError(null);
+    if (!/^\d{6}$/.test(phoneOtp.trim())) {
+      setError("Enter the 6-digit phone OTP.");
+      return;
+    }
+    setPhoneVerifyLoading(true);
+    try {
+      const res = await fetch("/api/auth/register/phone-otp/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: phone.trim(), otp: phoneOtp.trim() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data?.error?.message ?? "Invalid or expired phone OTP.");
+        return;
+      }
+      const token = data?.data?.phoneProofToken;
+      if (typeof token !== "string") {
+        setError("Phone verification failed. Try again.");
+        return;
+      }
+      setPhoneProofToken(token);
+      setPhoneVerified(true);
+    } catch {
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setPhoneVerifyLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -126,16 +291,12 @@ export function RegisterPage() {
       setError("Full name is required.");
       return;
     }
-    if (!phone.trim()) {
-      setError("Mobile number is required.");
-      return;
-    }
-    if (!normalizeIndianPhone(phone.trim())) {
-      setError(INDIAN_MOBILE_HINT);
-      return;
-    }
-    if (!trimmedEmail) {
+    if (!trimmedEmail || !isValidEmail(trimmedEmail)) {
       setError("Email is required.");
+      return;
+    }
+    if (!emailVerified || !emailProofToken) {
+      setError("Please verify your email with OTP before creating an account.");
       return;
     }
     if (!password) {
@@ -148,6 +309,14 @@ export function RegisterPage() {
     }
     if (password.length < 8) {
       setError("Password must be at least 8 characters and contain uppercase, lowercase, and a number.");
+      return;
+    }
+    if (!phone.trim() || !normalizeIndianPhone(phone.trim())) {
+      setError(INDIAN_MOBILE_HINT);
+      return;
+    }
+    if (!phoneVerified || !phoneProofToken) {
+      setError("Please verify your phone with OTP before creating an account.");
       return;
     }
     if (!agreeTerms) {
@@ -170,27 +339,15 @@ export function RegisterPage() {
           firstName: firstName || undefined,
           lastName: lastName || undefined,
           phone: phone.trim(),
+          emailProofToken,
+          phoneProofToken,
         }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const msg = data?.error?.message ?? "Registration failed. Please try again.";
-        setError(msg);
+        setError(data?.error?.message ?? "Registration failed. Please try again.");
         return;
       }
-      if (data?.data?.needsEmailVerification) {
-        setRegisteredEmail(trimmedEmail);
-        setRegisterInfo(
-          (data.data.message ?? "Check your email to confirm your sign-up.") +
-            " After email verification, sign in and verify your phone with OTP to finish setup."
-        );
-        setDevVerifyLink(
-          typeof data.data.verificationLink === "string" ? data.data.verificationLink : null
-        );
-        setResendMessage(null);
-        return;
-      }
-      const returnUrl = searchParams?.get("returnUrl") ?? "/";
       const guestItems = getGuestCart();
       if (guestItems.length > 0) {
         for (const it of guestItems) {
@@ -222,72 +379,6 @@ export function RegisterPage() {
     }
   };
 
-  const RESEND_FETCH_MS = 25_000;
-
-  const handleResend = async () => {
-    if (!registeredEmail || resendLoading) return;
-    resendAbortRef.current?.abort();
-    const controller = new AbortController();
-    resendAbortRef.current = controller;
-    const timeoutId = window.setTimeout(() => controller.abort(), RESEND_FETCH_MS);
-
-    setResendLoading(true);
-    setResendMessage(null);
-    try {
-      const res = await fetch("/api/auth/resend-customer-verification", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ email: registeredEmail }),
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
-
-      let json: Record<string, unknown> = {};
-      const ct = res.headers.get("content-type") ?? "";
-      if (ct.includes("application/json")) {
-        try {
-          json = (await res.json()) as Record<string, unknown>;
-        } catch {
-          json = {};
-        }
-      }
-
-      const data = json?.data as { message?: string } | undefined;
-      const msgFromApi = typeof data?.message === "string" ? data.message : undefined;
-
-      if (res.ok) {
-        setResendMessage(
-          msgFromApi ??
-            "If this email has a pending account, we sent a new confirmation link. Check your inbox."
-        );
-      } else {
-        const errMsg =
-          (json?.error as { message?: string } | undefined)?.message ??
-          "Could not resend. Try again.";
-        setResendMessage(errMsg);
-      }
-    } catch (err) {
-      clearTimeout(timeoutId);
-      const aborted = err instanceof DOMException && err.name === "AbortError";
-      setResendMessage(
-        aborted
-          ? "Request timed out. Check your connection and try again."
-          : "Could not resend. Try again."
-      );
-    } finally {
-      clearTimeout(timeoutId);
-      if (resendAbortRef.current === controller) {
-        resendAbortRef.current = null;
-      }
-      setResendLoading(false);
-    }
-  };
-
-  const goToLogin = () => {
-    router.push("/login");
-  };
-
   if (isAppMode) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#F9FAFB]">
@@ -296,70 +387,8 @@ export function RegisterPage() {
     );
   }
 
-  if (registeredEmail) {
-    return (
-      <div className="min-h-screen flex bg-[#F9FAFB]">
-        <RegisterBrandPanel />
-        <div className="flex flex-1 flex-col items-center justify-center px-4 py-12 sm:px-6 lg:px-10 bg-[#F9FAFB]">
-          <div className="w-full max-w-[400px]">
-            <div className="lg:hidden flex flex-col items-center text-center mb-10">
-              <Link href="/">
-                <IndovyaparLogo fontSize={26} style={{ lineHeight: "32px" }} />
-              </Link>
-              <p className="mt-2 text-xs font-semibold uppercase tracking-widest text-slate-500">
-                Check your email
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200/80 bg-white p-8 shadow-xl shadow-slate-200/30 text-center">
-              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-orange-50 ring-1 ring-orange-100">
-                <Mail className="h-7 w-7 text-[#FF6A00]" aria-hidden />
-              </div>
-              <h1 className="text-2xl font-bold tracking-tight text-slate-900">Confirm your email</h1>
-              <p className="mt-3 text-sm text-slate-600">
-                We sent a message to{" "}
-                <strong className="text-slate-900">{registeredEmail}</strong>.
-              </p>
-              {registerInfo && <p className="mt-2 text-sm text-slate-500">{registerInfo}</p>}
-              <p className="mt-4 text-sm text-slate-600">
-                Open the link in that email to confirm you want to sign up. Then you can sign in.
-              </p>
-              {devVerifyLink && (
-                <div className="mt-5 rounded-xl bg-amber-50 p-3 text-left text-xs break-all ring-1 ring-amber-200/80">
-                  <strong className="text-amber-900">Dev only:</strong>{" "}
-                  <a href={devVerifyLink} className="font-medium text-[#FF6A00] underline hover:text-[#E55F00]">
-                    {devVerifyLink}
-                  </a>
-                </div>
-              )}
-              <button
-                type="button"
-                onClick={handleResend}
-                disabled={resendLoading}
-                className="mt-6 w-full rounded-xl border border-slate-200 bg-white py-3 text-sm font-semibold text-slate-800 transition hover:border-[#FF6A00]/40 hover:bg-orange-50/50 disabled:opacity-60"
-              >
-                {resendLoading ? "Sending…" : "Resend confirmation email"}
-              </button>
-              {resendMessage && <p className="mt-3 text-sm text-slate-500">{resendMessage}</p>}
-              <button
-                type="button"
-                onClick={goToLogin}
-                className="mt-6 w-full text-center text-sm font-semibold text-[#FF6A00] hover:text-[#E55F00] transition underline-offset-2 hover:underline"
-              >
-                Back to sign in
-              </button>
-            </div>
-
-            <p className="mt-8 text-center text-sm text-slate-500">
-              <Link href="/vendor/login" className="hover:text-slate-700 transition">
-                Are you a vendor? Sign in here
-              </Link>
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const emailFormatOk = isValidEmail(email);
+  const phoneFormatOk = Boolean(normalizeIndianPhone(phone.trim()));
 
   return (
     <div className="min-h-screen flex bg-[#F9FAFB]">
@@ -380,7 +409,7 @@ export function RegisterPage() {
             <div className="mb-8">
               <h1 className="text-2xl font-bold tracking-tight text-slate-900">Create account</h1>
               <p className="mt-1.5 text-sm text-slate-500">
-                Sign up for Indovyapar — we&apos;ll email you to confirm before you can sign in
+                Verify your email and phone with OTP, then create your Indovyapar account
               </p>
             </div>
 
@@ -395,13 +424,13 @@ export function RegisterPage() {
 
             <form className="space-y-5" onSubmit={handleSubmit}>
               <div>
-                <label htmlFor="reg-fullname" className="block text-sm font-semibold text-slate-700 mb-1.5">
+                <label htmlFor="reg-name" className="block text-sm font-semibold text-slate-700 mb-1.5">
                   Full name <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <UserIcon className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
                   <input
-                    id="reg-fullname"
+                    id="reg-name"
                     type="text"
                     name="fullName"
                     placeholder="Your name"
@@ -413,43 +442,76 @@ export function RegisterPage() {
                 </div>
               </div>
 
-              <div>
-                <label htmlFor="reg-email" className="block text-sm font-semibold text-slate-700 mb-1.5">
+              <div className="space-y-2">
+                <label htmlFor="reg-email" className="block text-sm font-semibold text-slate-700">
                   Email address <span className="text-red-500">*</span>
                 </label>
-                <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
-                  <input
-                    id="reg-email"
-                    type="email"
-                    name="email"
-                    placeholder="you@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    autoComplete="email"
-                    required
-                    className={`${inputClass} pl-12 pr-4`}
-                  />
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Mail className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                    <input
+                      id="reg-email"
+                      type="email"
+                      name="email"
+                      placeholder="you@example.com"
+                      value={email}
+                      onChange={(e) => onEmailChange(e.target.value)}
+                      autoComplete="email"
+                      disabled={emailVerified}
+                      required
+                      className={`${inputClass} pl-12 pr-4 disabled:opacity-70`}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    className={btnSecondary}
+                    disabled={
+                      emailVerified ||
+                      !emailFormatOk ||
+                      emailCooldown > 0 ||
+                      emailSendLoading
+                    }
+                    onClick={() => void sendEmailOtp(emailSent)}
+                  >
+                    {emailSendLoading
+                      ? "…"
+                      : emailVerified
+                        ? "Verified"
+                        : emailCooldown > 0
+                          ? `Resend in ${emailCooldown}s`
+                          : emailSent
+                            ? "Resend OTP"
+                            : "Send OTP"}
+                  </button>
                 </div>
-              </div>
-
-              <div>
-                <label htmlFor="reg-phone" className="block text-sm font-semibold text-slate-700 mb-1.5">
-                  Phone <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <Phone className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
-                  <input
-                    id="reg-phone"
-                    type="tel"
-                    name="phone"
-                    placeholder="10-digit mobile"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    autoComplete="tel"
-                    className={`${inputClass} pl-12 pr-4`}
-                  />
-                </div>
+                {emailSent && !emailVerified ? (
+                  <div className="flex gap-2 pt-1">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      placeholder="6-digit OTP"
+                      value={emailOtp}
+                      onChange={(e) =>
+                        setEmailOtp(e.target.value.replace(/\D/g, "").slice(0, 6))
+                      }
+                      className={`${inputClass} flex-1 px-4 tracking-widest`}
+                    />
+                    <button
+                      type="button"
+                      className={btnSecondary}
+                      disabled={emailOtp.length !== 6 || emailVerifyLoading || emailVerified}
+                      onClick={() => void verifyEmailOtp()}
+                    >
+                      {emailVerifyLoading ? "…" : "Verify OTP"}
+                    </button>
+                  </div>
+                ) : null}
+                {emailVerified ? (
+                  <p className="flex items-center gap-1.5 text-sm font-medium text-emerald-700">
+                    <CheckCircle2 className="h-4 w-4" /> Email verified
+                  </p>
+                ) : null}
               </div>
 
               <div>
@@ -508,6 +570,77 @@ export function RegisterPage() {
                 </div>
               </div>
 
+              <div className="space-y-2">
+                <label htmlFor="reg-phone" className="block text-sm font-semibold text-slate-700">
+                  Phone <span className="text-red-500">*</span>
+                </label>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Phone className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                    <input
+                      id="reg-phone"
+                      type="tel"
+                      name="phone"
+                      placeholder="10-digit mobile"
+                      value={phone}
+                      onChange={(e) => onPhoneChange(e.target.value)}
+                      autoComplete="tel"
+                      disabled={phoneVerified}
+                      className={`${inputClass} pl-12 pr-4 disabled:opacity-70`}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    className={btnSecondary}
+                    disabled={
+                      phoneVerified ||
+                      !phoneFormatOk ||
+                      phoneCooldown > 0 ||
+                      phoneSendLoading
+                    }
+                    onClick={() => void sendPhoneOtp(phoneSent)}
+                  >
+                    {phoneSendLoading
+                      ? "…"
+                      : phoneVerified
+                        ? "Verified"
+                        : phoneCooldown > 0
+                          ? `Resend in ${phoneCooldown}s`
+                          : phoneSent
+                            ? "Resend OTP"
+                            : "Send OTP"}
+                  </button>
+                </div>
+                {phoneSent && !phoneVerified ? (
+                  <div className="flex gap-2 pt-1">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      placeholder="6-digit OTP"
+                      value={phoneOtp}
+                      onChange={(e) =>
+                        setPhoneOtp(e.target.value.replace(/\D/g, "").slice(0, 6))
+                      }
+                      className={`${inputClass} flex-1 px-4 tracking-widest`}
+                    />
+                    <button
+                      type="button"
+                      className={btnSecondary}
+                      disabled={phoneOtp.length !== 6 || phoneVerifyLoading || phoneVerified}
+                      onClick={() => void verifyPhoneOtp()}
+                    >
+                      {phoneVerifyLoading ? "…" : "Verify OTP"}
+                    </button>
+                  </div>
+                ) : null}
+                {phoneVerified ? (
+                  <p className="flex items-center gap-1.5 text-sm font-medium text-emerald-700">
+                    <CheckCircle2 className="h-4 w-4" /> Phone verified
+                  </p>
+                ) : null}
+              </div>
+
               <label className="flex cursor-pointer items-start gap-3">
                 <input
                   type="checkbox"
@@ -529,7 +662,7 @@ export function RegisterPage() {
 
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || !emailVerified || !phoneVerified}
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#FF6A00] py-3.5 text-sm font-semibold text-white shadow-lg shadow-orange-500/25 transition hover:bg-[#E55F00] focus:outline-none focus:ring-2 focus:ring-[#FF6A00] focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-60"
               >
                 {loading ? (
@@ -577,19 +710,6 @@ export function RegisterPage() {
                   </svg>
                   Google
                 </button>
-
-                {/* Facebook sign-in — temporarily hidden; restore when Meta OAuth is ready
-                <button
-                  type="button"
-                  onClick={() => startOAuthLogin("facebook", returnUrl)}
-                  className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-3 text-sm font-semibold text-slate-800 transition hover:border-[#FF6A00]/30 hover:bg-slate-50/80"
-                >
-                  <svg className="h-5 w-5 shrink-0" fill="#1877F2" viewBox="0 0 24 24" aria-hidden>
-                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-                  </svg>
-                  Facebook
-                </button>
-                */}
               </div>
             </form>
 

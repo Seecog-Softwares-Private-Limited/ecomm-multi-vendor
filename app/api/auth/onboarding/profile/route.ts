@@ -81,13 +81,10 @@ export const POST = withApiHandler(async (request: NextRequest) => {
 
   const response = apiSuccess({
     message: result.needsEmailVerification
-      ? result.emailSent
-        ? "Check your email and confirm your address using the link we sent."
-        : "Profile saved. We could not send email (SMTP not configured). Use the verification link in development if shown."
+      ? "Profile saved. Enter the OTP we send to your email to verify your address."
       : "Profile updated.",
     needsEmailVerification: result.needsEmailVerification,
-    emailSent: result.emailSent,
-    ...(result.verificationLink ? { verificationLink: result.verificationLink } : {}),
+    emailSent: false,
     user: result.user,
     token,
   });

@@ -24,9 +24,11 @@ export function CompleteProfilePage() {
   const [fullName, setFullName] = React.useState("");
   const [email, setEmail] = React.useState("");
   const [submittingProfile, setSubmittingProfile] = React.useState(false);
-  const [resendLoading, setResendLoading] = React.useState(false);
-  const [devVerifyLink, setDevVerifyLink] = React.useState<string | null>(null);
-  const [emailAwaitMessage, setEmailAwaitMessage] = React.useState<string | null>(null);
+  const [emailOtp, setEmailOtp] = React.useState("");
+  const [emailOtpSent, setEmailOtpSent] = React.useState(false);
+  const [emailSendLoading, setEmailSendLoading] = React.useState(false);
+  const [emailVerifyLoading, setEmailVerifyLoading] = React.useState(false);
+  const [emailResendSeconds, setEmailResendSeconds] = React.useState(0);
 
   const [phone, setPhone] = React.useState("");
   const [otpCode, setOtpCode] = React.useState("");
@@ -80,6 +82,15 @@ export function CompleteProfilePage() {
     const t = setInterval(() => setResendSeconds((s) => (s > 0 ? s - 1 : 0)), 1000);
     return () => clearInterval(t);
   }, [resendSeconds]);
+
+  React.useEffect(() => {
+    if (emailResendSeconds <= 0) return;
+    const t = setInterval(
+      () => setEmailResendSeconds((s) => (s > 0 ? s - 1 : 0)),
+      1000
+    );
+    return () => clearInterval(t);
+  }, [emailResendSeconds]);
 
   const logout = async () => {
     await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
@@ -176,16 +187,11 @@ export function CompleteProfilePage() {
         setFormError(data?.error?.message ?? "Could not save your details.");
         return;
       }
-      if (data?.data?.verificationLink) {
-        setDevVerifyLink(data.data.verificationLink as string);
-      }
-      setEmailAwaitMessage(
-        data?.data?.message ??
-          "Check your email and confirm your address using the link we sent."
-      );
-      setStep("await_email_verification");
       setEmail(mail);
-      toast.success("Check your email to verify your address.");
+      setEmailOtp("");
+      setEmailOtpSent(false);
+      setStep("await_email_verification");
+      toast.success("Details saved. Send an OTP to verify your email.");
       await refreshMe();
     } catch {
       setFormError("Something went wrong. Please try again.");
@@ -194,27 +200,66 @@ export function CompleteProfilePage() {
     }
   };
 
-  const resendVerification = async () => {
-    const mail = email.trim() || user?.email;
+  const sendOnboardingEmailOtp = async (isResend = false) => {
+    setFormError(null);
+    const mail = email.trim().toLowerCase() || user?.email || "";
     if (!mail || mail.includes("@phone-otp.indovyapar.local")) {
-      toast.error("Enter your email first.");
+      setFormError("Enter your email first.");
       return;
     }
-    setResendLoading(true);
+    setEmailSendLoading(true);
     try {
-      const res = await fetch("/api/auth/resend-customer-verification", {
+      const res = await fetch("/api/auth/onboarding/email-otp/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: mail }),
+        credentials: "include",
+        body: JSON.stringify({ email: mail, ...(isResend ? { resend: true } : {}) }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        toast.error(data?.error?.message ?? "Could not resend email.");
+        setFormError(data?.error?.message ?? "Could not send email OTP.");
         return;
       }
-      toast.success(data?.data?.message ?? "If pending, a new link was sent.");
+      setEmailOtpSent(true);
+      setEmailOtp("");
+      setEmailResendSeconds(60);
+      toast.success("OTP sent to your email.");
+    } catch {
+      setFormError("Something went wrong. Please try again.");
     } finally {
-      setResendLoading(false);
+      setEmailSendLoading(false);
+    }
+  };
+
+  const verifyOnboardingEmailOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError(null);
+    if (!/^\d{6}$/.test(emailOtp.trim())) {
+      setFormError("Enter the 6-digit code from your email.");
+      return;
+    }
+    setEmailVerifyLoading(true);
+    try {
+      const res = await fetch("/api/auth/onboarding/email-otp/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          email: (email.trim() || user?.email || "").toLowerCase(),
+          otp: emailOtp.trim(),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setFormError(data?.error?.message ?? "Invalid or expired code.");
+        return;
+      }
+      toast.success("Email verified.");
+      await refreshMe();
+    } catch {
+      setFormError("Something went wrong. Please try again.");
+    } finally {
+      setEmailVerifyLoading(false);
     }
   };
 
@@ -230,15 +275,15 @@ export function CompleteProfilePage() {
     step === "phone_otp"
       ? "Verify your phone"
       : step === "await_email_verification"
-        ? "Check your email"
+        ? "Verify your email"
         : "Complete your account";
 
   const subtitle =
     step === "phone_otp"
       ? "Add and verify your phone number to finish setting up your account."
       : step === "await_email_verification"
-        ? "Email verification required. Open the link we sent to finish setup."
-        : "Your phone number has already been verified. Verify your email to finish setting up your account.";
+        ? "Enter the OTP sent to your email to finish setup."
+        : "Your phone number has already been verified. Add and verify your email to finish setting up your account.";
 
   return (
     <div className="min-h-screen bg-[#F5F7FA] flex flex-col">
@@ -394,32 +439,65 @@ export function CompleteProfilePage() {
           {step === "await_email_verification" ? (
             <div className="mt-6 space-y-4">
               <p className="text-sm text-slate-600">
-                {emailAwaitMessage ??
-                  `We sent a verification link to ${email || user?.email || "your email"}.`}
+                We&apos;ll send a one-time code to{" "}
+                <strong>{email || user?.email || "your email"}</strong>. OTP is only sent when
+                you tap Send OTP.
               </p>
-              {devVerifyLink ? (
-                <p className="text-xs break-all text-slate-500">
-                  Dev link:{" "}
-                  <a className="text-[#1B7A43] underline" href={devVerifyLink}>
-                    {devVerifyLink}
-                  </a>
-                </p>
-              ) : null}
+              {!emailOtpSent ? (
+                <button
+                  type="button"
+                  disabled={emailSendLoading || emailResendSeconds > 0}
+                  onClick={() => void sendOnboardingEmailOtp(false)}
+                  className="w-full py-3 rounded-xl bg-[#1B7A43] text-white font-semibold hover:bg-[#135C32] disabled:opacity-60 flex items-center justify-center gap-2"
+                >
+                  {emailSendLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
+                  Send OTP
+                </button>
+              ) : (
+                <form className="space-y-4" onSubmit={verifyOnboardingEmailOtp}>
+                  <label className="block text-sm font-medium text-slate-700">
+                    OTP
+                    <input
+                      className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5 tracking-widest text-center text-lg"
+                      value={emailOtp}
+                      onChange={(e) =>
+                        setEmailOtp(e.target.value.replace(/\D/g, "").slice(0, 6))
+                      }
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      disabled={emailVerifyLoading}
+                    />
+                  </label>
+                  <button
+                    type="submit"
+                    disabled={emailVerifyLoading || emailOtp.length !== 6}
+                    className="w-full py-3 rounded-xl bg-[#1B7A43] text-white font-semibold hover:bg-[#135C32] disabled:opacity-60 flex items-center justify-center gap-2"
+                  >
+                    {emailVerifyLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
+                    Verify OTP
+                  </button>
+                  <button
+                    type="button"
+                    disabled={emailResendSeconds > 0 || emailSendLoading}
+                    onClick={() => void sendOnboardingEmailOtp(true)}
+                    className="w-full py-3 rounded-xl border border-slate-300 text-slate-800 font-medium hover:bg-slate-50 disabled:opacity-60"
+                  >
+                    {emailResendSeconds > 0
+                      ? `Resend in ${emailResendSeconds}s`
+                      : "Resend OTP"}
+                  </button>
+                </form>
+              )}
               <button
                 type="button"
-                disabled={resendLoading}
-                onClick={() => void resendVerification()}
-                className="w-full py-3 rounded-xl border border-slate-300 text-slate-800 font-medium hover:bg-slate-50 disabled:opacity-60 flex items-center justify-center gap-2"
+                onClick={() => {
+                  setStep("name_email");
+                  setEmailOtpSent(false);
+                  setEmailOtp("");
+                }}
+                className="w-full text-sm text-slate-600 hover:underline"
               >
-                {resendLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
-                Resend verification email
-              </button>
-              <button
-                type="button"
-                onClick={() => void refreshMe()}
-                className="w-full py-3 rounded-xl bg-[#1B7A43] text-white font-semibold hover:bg-[#135C32]"
-              >
-                I&apos;ve verified my email
+                Change email
               </button>
             </div>
           ) : null}

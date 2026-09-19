@@ -1,9 +1,8 @@
 /**
  * Phone-first customer onboarding: replace placeholder email with a real email
- * and set name. Reuses the existing email verification link flow.
+ * and set name. Email verification is completed via email OTP (not a link).
  */
 
-import { randomBytes } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { isPlaceholderCustomerEmail } from "@/lib/auth/phone";
 import {
@@ -12,10 +11,6 @@ import {
   customerHasRealEmail,
   syncCustomerAuthOnboardingComplete,
 } from "@/lib/auth/customer-onboarding";
-import { emailConfig, sendCustomerVerificationEmail } from "@/lib/email";
-
-const VERIFICATION_TOKEN_BYTES = 32;
-const VERIFICATION_EXPIRY_HOURS = 72;
 
 export const EMAIL_ALREADY_REGISTERED_MESSAGE =
   "This email is already registered with another account. Please log in to that account instead.";
@@ -34,7 +29,6 @@ export type CompletePhoneFirstOnboardingResult =
       ok: true;
       needsEmailVerification: boolean;
       emailSent: boolean;
-      verificationLink?: string;
       user: {
         id: string;
         email: string;
@@ -54,16 +48,10 @@ export type CompletePhoneFirstOnboardingResult =
   | { ok: false; kind: "email_conflict"; message: string }
   | { ok: false; kind: "invalid"; message: string };
 
-function buildVerificationLink(token: string): string {
-  const appUrl =
-    emailConfig.appUrl.replace(/\/$/, "") ||
-    `http://localhost:${process.env.PORT ?? "3000"}`;
-  return `${appUrl}/verify-email?token=${encodeURIComponent(token)}`;
-}
-
 /**
  * Authenticated phone-first (or phone-verified incomplete) customer submits
  * name + real email. Does not accept password or phone changes.
+ * Does not send an email link — client must call onboarding email OTP next.
  */
 export async function completePhoneFirstOnboarding(
   userId: string,
@@ -123,7 +111,6 @@ export async function completePhoneFirstOnboarding(
   const needsNewVerification =
     emailChanging || !user.emailVerified || currentIsPlaceholder;
 
-  // Already on this real email and verified — only refresh name / sync flags.
   if (!needsNewVerification && !emailChanging) {
     await prisma.user.update({
       where: { id: userId },
@@ -159,11 +146,6 @@ export async function completePhoneFirstOnboarding(
     };
   }
 
-  const verificationToken = randomBytes(VERIFICATION_TOKEN_BYTES).toString("hex");
-  const verificationTokenExpires = new Date(
-    Date.now() + VERIFICATION_EXPIRY_HOURS * 60 * 60 * 1000
-  );
-
   try {
     await prisma.user.update({
       where: { id: userId },
@@ -173,8 +155,8 @@ export async function completePhoneFirstOnboarding(
         email,
         emailVerified: false,
         authOnboardingComplete: false,
-        verificationToken,
-        verificationTokenExpires,
+        verificationToken: null,
+        verificationTokenExpires: null,
       },
     });
   } catch (e: unknown) {
@@ -192,7 +174,6 @@ export async function completePhoneFirstOnboarding(
     throw e;
   }
 
-  const emailResult = await sendCustomerVerificationEmail(email, verificationToken);
   await syncCustomerAuthOnboardingComplete(userId);
 
   const updated = await prisma.user.findFirst({
@@ -201,7 +182,6 @@ export async function completePhoneFirstOnboarding(
   });
   if (!updated) return { ok: false, kind: "not_found" };
 
-  // Sanity: placeholder must be gone after successful replace.
   if (!customerHasRealEmail(updated.email) || isPlaceholderCustomerEmail(updated.email)) {
     return {
       ok: false,
@@ -210,10 +190,10 @@ export async function completePhoneFirstOnboarding(
     };
   }
 
-  const payload: CompletePhoneFirstOnboardingResult = {
+  return {
     ok: true,
     needsEmailVerification: true,
-    emailSent: emailResult.sent,
+    emailSent: false,
     user: {
       id: updated.id,
       email: updated.email,
@@ -229,10 +209,4 @@ export async function completePhoneFirstOnboarding(
       }),
     },
   };
-
-  if (!emailResult.sent && process.env.NODE_ENV === "development") {
-    payload.verificationLink = buildVerificationLink(verificationToken);
-  }
-
-  return payload;
 }

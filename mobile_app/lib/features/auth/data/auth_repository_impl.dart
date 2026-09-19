@@ -35,9 +35,33 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  Future<void> sendRegisterEmailOtp(String email, {bool resend = false}) =>
+      _remote.sendRegisterEmailOtp(email, resend: resend);
+
+  @override
+  Future<String> verifyRegisterEmailOtp({
+    required String email,
+    required String otp,
+  }) =>
+      _remote.verifyRegisterEmailOtp(email, otp);
+
+  @override
+  Future<void> sendRegisterPhoneOtp(String phone, {bool resend = false}) =>
+      _remote.sendRegisterPhoneOtp(phone, resend: resend);
+
+  @override
+  Future<String> verifyRegisterPhoneOtp({
+    required String phone,
+    required String otp,
+  }) =>
+      _remote.verifyRegisterPhoneOtp(phone, otp);
+
+  @override
   Future<RegisterResult> register({
     required String email,
     required String password,
+    required String emailProofToken,
+    required String phoneProofToken,
     String? firstName,
     String? lastName,
     String? phone,
@@ -45,13 +69,21 @@ class AuthRepositoryImpl implements AuthRepository {
     final data = await _remote.register({
       'email': email,
       'password': password,
+      'emailProofToken': emailProofToken,
+      'phoneProofToken': phoneProofToken,
       if (firstName != null && firstName.isNotEmpty) 'firstName': firstName,
       if (lastName != null && lastName.isNotEmpty) 'lastName': lastName,
       if (phone != null && phone.isNotEmpty) 'phone': phone,
     });
+    // New flow signs the user in immediately when proofs are valid.
+    if (data['token'] != null && data['user'] != null) {
+      await _persistSession(data);
+    }
     return RegisterResult(
-      message: data['message']?.toString() ?? 'Account created. Please verify your email.',
-      verificationLink: data['verificationLink']?.toString(),
+      message: data['message']?.toString() ?? 'Account created successfully.',
+      needsOnboarding: data['user'] is Map
+          ? (data['user'] as Map)['authOnboardingComplete'] == false
+          : false,
     );
   }
 
@@ -62,6 +94,20 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<AuthSession> verifyOtp({required String phone, required String code}) async {
     final data = await _remote.verifyOtp(phone, code);
+    await _persistSession(data);
+    return (await currentSession()) ?? await _persistSession(data);
+  }
+
+  @override
+  Future<void> sendOnboardingEmailOtp(String email, {bool resend = false}) =>
+      _remote.sendOnboardingEmailOtp(email, resend: resend);
+
+  @override
+  Future<AuthSession> verifyOnboardingEmailOtp({
+    required String email,
+    required String otp,
+  }) async {
+    final data = await _remote.verifyOnboardingEmailOtp(email, otp);
     await _persistSession(data);
     return (await currentSession()) ?? await _persistSession(data);
   }

@@ -1,4 +1,3 @@
-import { randomBytes } from "crypto";
 import { NextRequest } from "next/server";
 import {
   withApiHandler,
@@ -6,6 +5,7 @@ import {
   apiBadRequest,
   apiConflict,
   apiValidationError,
+  apiUnauthorized,
   Status,
 } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
@@ -13,20 +13,22 @@ import {
   validateRegister,
   formatValidationDetails,
   hashPassword,
+  signToken,
+  setAuthCookie,
 } from "@/lib/auth";
 import { normalizeIndianPhone, INDIAN_MOBILE_HINT } from "@/lib/auth/phone";
-import { emailConfig, sendCustomerVerificationEmail } from "@/lib/email";
-
-const VERIFICATION_TOKEN_BYTES = 32;
-const VERIFICATION_EXPIRY_HOURS = 72;
+import {
+  verifyEmailRegistrationProof,
+  verifyPhoneRegistrationProof,
+} from "@/lib/auth/registration-proof";
+import { syncCustomerAuthOnboardingComplete } from "@/lib/auth/customer-onboarding";
+import { z } from "zod";
 
 /**
- * POST /api/auth/register — email/password registration.
+ * POST /api/auth/register — email/password registration after email+phone OTP proofs.
  *
- * Requires name, email, password, phone.
- * Creates an incomplete user (emailVerified=false, phoneVerified=false,
- * authOnboardingComplete=false). Sends the existing email verification link.
- * No session cookie until the customer verifies email and later verifies phone OTP.
+ * Requires name, email, password, phone, emailProofToken, phoneProofToken.
+ * Creates a complete customer (emailVerified, phoneVerified, authOnboardingComplete).
  */
 export const POST = withApiHandler(async (request: NextRequest) => {
   let body: unknown;
@@ -41,11 +43,39 @@ export const POST = withApiHandler(async (request: NextRequest) => {
     return apiValidationError("Validation failed", formatValidationDetails(validation.errors));
   }
 
+  const proofParse = z
+    .object({
+      emailProofToken: z.string().min(10, "Verify your email with OTP first"),
+      phoneProofToken: z.string().min(10, "Verify your phone with OTP first"),
+    })
+    .safeParse(body);
+  if (!proofParse.success) {
+    return apiValidationError(
+      "Email and phone must be verified with OTP before creating an account",
+      formatValidationDetails(proofParse.error.issues)
+    );
+  }
+
   const { email, password, firstName, lastName, phone } = validation.data;
+  const { emailProofToken, phoneProofToken } = proofParse.data;
 
   const phoneNorm = normalizeIndianPhone(phone);
   if (!phoneNorm) {
     return apiBadRequest(INDIAN_MOBILE_HINT);
+  }
+
+  const emailProof = await verifyEmailRegistrationProof(emailProofToken, email);
+  if (!emailProof.ok) {
+    return apiUnauthorized(
+      "Email verification expired or invalid. Please verify your email OTP again."
+    );
+  }
+
+  const phoneProof = await verifyPhoneRegistrationProof(phoneProofToken, phoneNorm);
+  if (!phoneProof.ok) {
+    return apiUnauthorized(
+      "Phone verification expired or invalid. Please verify your phone OTP again."
+    );
   }
 
   const phoneTaken = await prisma.user.findFirst({
@@ -59,10 +89,6 @@ export const POST = withApiHandler(async (request: NextRequest) => {
   }
 
   const passwordHash = await hashPassword(password);
-  const verificationToken = randomBytes(VERIFICATION_TOKEN_BYTES).toString("hex");
-  const verificationTokenExpires = new Date(
-    Date.now() + VERIFICATION_EXPIRY_HOURS * 60 * 60 * 1000
-  );
 
   const existing = await prisma.user.findFirst({
     where: { email, deletedAt: null },
@@ -73,8 +99,6 @@ export const POST = withApiHandler(async (request: NextRequest) => {
     return apiConflict("An account with this email already exists");
   }
 
-  // Unverified email/password draft: allow re-register to refresh credentials + phone.
-  // Do not overwrite a phone-first / Google account that happens to share an unverified placeholder path.
   if (existing && !existing.emailVerified) {
     if (existing.passwordHash == null) {
       return apiConflict(
@@ -88,12 +112,12 @@ export const POST = withApiHandler(async (request: NextRequest) => {
         firstName,
         lastName,
         phone: phoneNorm,
-        phoneVerified: false,
-        emailVerified: false,
-        profileCompleted: false,
-        authOnboardingComplete: false,
-        verificationToken,
-        verificationTokenExpires,
+        phoneVerified: true,
+        emailVerified: true,
+        profileCompleted: true,
+        authOnboardingComplete: true,
+        verificationToken: null,
+        verificationTokenExpires: null,
       },
     });
   } else {
@@ -104,38 +128,42 @@ export const POST = withApiHandler(async (request: NextRequest) => {
         firstName,
         lastName,
         phone: phoneNorm,
-        phoneVerified: false,
-        emailVerified: false,
-        profileCompleted: false,
-        authOnboardingComplete: false,
-        verificationToken,
-        verificationTokenExpires,
+        phoneVerified: true,
+        emailVerified: true,
+        profileCompleted: true,
+        authOnboardingComplete: true,
+        verificationToken: null,
+        verificationTokenExpires: null,
       },
     });
   }
 
-  const emailResult = await sendCustomerVerificationEmail(email, verificationToken);
-  const appUrl =
-    emailConfig.appUrl.replace(/\/$/, "") ||
-    `http://localhost:${process.env.PORT ?? "3000"}`;
-  const verificationLink = `${appUrl}/verify-email?token=${encodeURIComponent(verificationToken)}`;
-
-  const payload: {
-    needsEmailVerification: true;
-    message: string;
-    emailSent: boolean;
-    verificationLink?: string;
-  } = {
-    needsEmailVerification: true,
-    message: emailResult.sent
-      ? "Check your email and confirm your sign-up using the link we sent."
-      : "Account created. We could not send email (SMTP not configured). Use the verification link shown below in development.",
-    emailSent: emailResult.sent,
-  };
-
-  if (!emailResult.sent && process.env.NODE_ENV === "development") {
-    payload.verificationLink = verificationLink;
+  const user = await prisma.user.findFirst({
+    where: { email, deletedAt: null },
+    select: {
+      id: true,
+      email: true,
+      firstName: true,
+      lastName: true,
+      phone: true,
+      phoneVerified: true,
+      emailVerified: true,
+      profileCompleted: true,
+      authOnboardingComplete: true,
+    },
+  });
+  if (!user) {
+    return apiBadRequest("Could not create account. Please try again.");
   }
+
+  // Ensure flag matches computed rules (should already be true).
+  const authOnboardingComplete = await syncCustomerAuthOnboardingComplete(user.id);
+
+  const token = await signToken({
+    sub: user.id,
+    email: user.email,
+    role: "CUSTOMER",
+  });
 
   const { getSmsNotificationService } = await import("@/services/sms-notification.service");
   getSmsNotificationService().onCustomerRegistration({
@@ -143,5 +171,26 @@ export const POST = withApiHandler(async (request: NextRequest) => {
     phone: phoneNorm,
   });
 
-  return apiSuccess(payload, Status.CREATED);
+  const response = apiSuccess(
+    {
+      message: "Account created successfully.",
+      needsEmailVerification: false,
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        phone: user.phone,
+        phoneVerified: true,
+        emailVerified: true,
+        profileCompleted: true,
+        authOnboardingComplete,
+        role: "CUSTOMER" as const,
+      },
+      token,
+    },
+    Status.CREATED
+  );
+  setAuthCookie(response, token);
+  return response;
 });

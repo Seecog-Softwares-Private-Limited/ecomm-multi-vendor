@@ -35,15 +35,18 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
   final _email = TextEditingController();
   final _phone = TextEditingController();
   final _otp = TextEditingController();
+  final _emailOtp = TextEditingController();
 
   CustomerOnboardingStep _step = CustomerOnboardingStep.done;
   bool _phoneOtpSent = false;
+  bool _emailOtpSent = false;
   bool _busy = false;
   bool _resendBusy = false;
   int _resendIn = 0;
+  int _emailResendIn = 0;
   Timer? _timer;
+  Timer? _emailTimer;
   String? _formError;
-  String? _emailAwaitMessage;
   bool _hydrated = false;
 
   @override
@@ -55,10 +58,12 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
   @override
   void dispose() {
     _timer?.cancel();
+    _emailTimer?.cancel();
     _fullName.dispose();
     _email.dispose();
     _phone.dispose();
     _otp.dispose();
+    _emailOtp.dispose();
     super.dispose();
   }
 
@@ -157,6 +162,19 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
     _applyUser();
   }
 
+  void _startEmailResendCountdown() {
+    _emailTimer?.cancel();
+    setState(() => _emailResendIn = 60);
+    _emailTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (_emailResendIn <= 1) {
+        t.cancel();
+        if (mounted) setState(() => _emailResendIn = 0);
+      } else if (mounted) {
+        setState(() => _emailResendIn--);
+      }
+    });
+  }
+
   Future<void> _submitNameEmail() async {
     FocusScope.of(context).unfocus();
     if (!_nameEmailFormKey.currentState!.validate()) return;
@@ -165,23 +183,22 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
       _formError = null;
     });
     try {
-      final data = await ref.read(dioClientProvider).post(
+      await ref.read(dioClientProvider).post(
         ApiEndpoints.onboardingProfile,
         data: {
           'name': _fullName.text.trim(),
           'email': _email.text.trim().toLowerCase(),
         },
       );
-      final map = data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{};
       setState(() {
-        _emailAwaitMessage = map['message']?.toString() ??
-            'Check your email and confirm your address using the link we sent.';
+        _emailOtpSent = false;
+        _emailOtp.clear();
         _step = CustomerOnboardingStep.awaitEmailVerification;
       });
       await ref.read(authControllerProvider.notifier).refresh();
       if (!mounted) return;
       _applyUser();
-      context.showSnack('Check your email to verify your address.');
+      context.showSnack('Details saved. Send an OTP to verify your email.');
     } catch (error) {
       if (!mounted) return;
       setState(() => _formError = Failure.from(error).message);
@@ -190,36 +207,62 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
     }
   }
 
-  Future<void> _resendVerification() async {
+  Future<void> _sendEmailOtp({bool resend = false}) async {
     final mail = _email.text.trim().isNotEmpty
-        ? _email.text.trim()
+        ? _email.text.trim().toLowerCase()
         : (ref.read(authControllerProvider).value?.user?.email ?? '');
     if (mail.isEmpty || isPlaceholderCustomerEmail(mail)) {
       context.showSnack('Enter your email first.', isError: true);
       return;
     }
-    setState(() => _resendBusy = true);
+    setState(() {
+      _resendBusy = true;
+      _formError = null;
+    });
     try {
-      await ref.read(dioClientProvider).post(
-        ApiEndpoints.resendCustomerVerification,
-        data: {'email': mail},
-      );
+      await ref.read(authRepositoryProvider).sendOnboardingEmailOtp(mail, resend: resend);
       if (!mounted) return;
-      context.showSnack('If pending, a new verification link was sent.');
+      setState(() {
+        _emailOtpSent = true;
+        _emailOtp.clear();
+      });
+      _startEmailResendCountdown();
+      context.showSnack('OTP sent to your email.');
     } catch (error) {
       if (!mounted) return;
-      context.showSnack(Failure.from(error).message, isError: true);
+      setState(() => _formError = Failure.from(error).message);
     } finally {
       if (mounted) setState(() => _resendBusy = false);
     }
   }
 
-  Future<void> _refreshAfterEmailVerify() async {
-    setState(() => _busy = true);
+  Future<void> _verifyEmailOtp() async {
+    FocusScope.of(context).unfocus();
+    final otp = _emailOtp.text.trim();
+    if (otp.length != 6) {
+      setState(() => _formError = 'Enter the 6-digit code from your email.');
+      return;
+    }
+    final mail = _email.text.trim().isNotEmpty
+        ? _email.text.trim().toLowerCase()
+        : (ref.read(authControllerProvider).value?.user?.email ?? '');
+    setState(() {
+      _busy = true;
+      _formError = null;
+    });
     try {
+      await ref.read(authRepositoryProvider).verifyOnboardingEmailOtp(
+            email: mail,
+            otp: otp,
+          );
+      if (!mounted) return;
+      context.showSnack('Email verified.');
       await ref.read(authControllerProvider.notifier).refresh();
       if (!mounted) return;
       _applyUser();
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _formError = Failure.from(error).message);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -236,14 +279,14 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
 
     final title = switch (_step) {
       CustomerOnboardingStep.phoneOtp => 'Verify your phone',
-      CustomerOnboardingStep.awaitEmailVerification => 'Check your email',
+      CustomerOnboardingStep.awaitEmailVerification => 'Verify your email',
       _ => 'Complete your account',
     };
     final subtitle = switch (_step) {
       CustomerOnboardingStep.phoneOtp =>
         'Add and verify your phone number to finish setting up your account.',
       CustomerOnboardingStep.awaitEmailVerification =>
-        'Email verification required. Open the link we sent to finish setup.',
+        'Enter the OTP sent to your email to finish setup. OTP is only sent when you tap Send OTP.',
       _ =>
         'Your phone number has already been verified. Verify your email to finish setting up your account.',
     };
@@ -393,22 +436,54 @@ class _CompleteProfilePageState extends ConsumerState<CompleteProfilePage> {
                       ),
                     if (_step == CustomerOnboardingStep.awaitEmailVerification) ...[
                       Text(
-                        _emailAwaitMessage ??
-                            'We sent a verification link to ${_email.text.isNotEmpty ? _email.text : user.email}.',
+                        'We will send a one-time code to ${_email.text.isNotEmpty ? _email.text : user.email}.',
                         style: theme.textTheme.bodyMedium,
                       ),
                       const SizedBox(height: AppSpacing.xl),
-                      AppButton(
-                        label: 'Resend verification email',
-                        variant: AppButtonVariant.secondary,
-                        isLoading: _resendBusy,
-                        onPressed: _resendVerification,
-                      ),
+                      if (!_emailOtpSent)
+                        AppButton(
+                          label: 'Send OTP',
+                          isLoading: _resendBusy,
+                          onPressed: () => _sendEmailOtp(),
+                        )
+                      else ...[
+                        AppTextField(
+                          controller: _emailOtp,
+                          label: 'Email OTP',
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                            LengthLimitingTextInputFormatter(6),
+                          ],
+                        ),
+                        const SizedBox(height: AppSpacing.lg),
+                        AppButton(
+                          label: 'Verify OTP',
+                          isLoading: _busy,
+                          onPressed: _verifyEmailOtp,
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        AppButton(
+                          label: _emailResendIn > 0
+                              ? 'Resend in ${_emailResendIn}s'
+                              : 'Resend OTP',
+                          variant: AppButtonVariant.secondary,
+                          isLoading: _resendBusy,
+                          onPressed: _emailResendIn > 0
+                              ? null
+                              : () => _sendEmailOtp(resend: true),
+                        ),
+                      ],
                       const SizedBox(height: AppSpacing.md),
-                      AppButton(
-                        label: "I've verified my email",
-                        isLoading: _busy,
-                        onPressed: _refreshAfterEmailVerify,
+                      TextButton(
+                        onPressed: _busy
+                            ? null
+                            : () => setState(() {
+                                  _step = CustomerOnboardingStep.nameEmail;
+                                  _emailOtpSent = false;
+                                  _emailOtp.clear();
+                                }),
+                        child: const Text('Change email'),
                       ),
                     ],
                   ],
