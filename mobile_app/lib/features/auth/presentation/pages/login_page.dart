@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/routing/app_routes.dart';
 import '../../../../core/di/providers.dart';
+import '../../../../core/error/failure.dart';
 import '../../../../core/theme/app_adaptive_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/utils/validators.dart';
@@ -27,6 +28,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   bool _rememberMe = true;
   bool _submitting = false;
+  bool _googleSubmitting = false;
 
   @override
   void initState() {
@@ -66,6 +68,32 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     } else {
       context.showSnack(failure.message, isError: true);
     }
+  }
+
+  Future<void> _googleSignIn() async {
+    FocusScope.of(context).unfocus();
+    setState(() => _googleSubmitting = true);
+    final failure = await ref.read(authControllerProvider.notifier).loginWithGoogle();
+    if (!mounted) return;
+    setState(() => _googleSubmitting = false);
+
+    if (failure == null) {
+      final needsOnboarding =
+          ref.read(authControllerProvider).value?.user?.requiresAuthOnboarding ?? false;
+      context.go(AppRoutes.afterAuth(needsAuthOnboarding: needsOnboarding));
+      return;
+    }
+
+    if (failure.isAccountIncomplete) {
+      await ref.read(authControllerProvider.notifier).refresh();
+      if (mounted) context.go(AppRoutes.completeProfile);
+      return;
+    }
+
+    // Soft UX for cancel — stay on login without treating it as a hard error.
+    final isCancel = failure is UnexpectedFailure &&
+        failure.message.toLowerCase().contains('cancelled');
+    context.showSnack(failure.message, isError: !isCancel);
   }
 
   @override
@@ -142,11 +170,29 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       ],
                     ),
                     const SizedBox(height: AppSpacing.lg),
-                    AppButton(
-                      label: 'Sign in with OTP',
-                      icon: Icons.sms_outlined,
-                      variant: AppButtonVariant.secondary,
-                      onPressed: () => context.push(AppRoutes.otpLogin),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: AppButton(
+                            label: 'OTP',
+                            icon: Icons.sms_outlined,
+                            variant: AppButtonVariant.secondary,
+                            onPressed: _submitting || _googleSubmitting
+                                ? null
+                                : () => context.push(AppRoutes.otpLogin),
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: AppButton(
+                            label: 'Google',
+                            icon: Icons.g_mobiledata,
+                            variant: AppButtonVariant.secondary,
+                            isLoading: _googleSubmitting,
+                            onPressed: _submitting || _googleSubmitting ? null : _googleSignIn,
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: AppSpacing.xl),
                     Row(

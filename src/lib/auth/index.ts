@@ -14,6 +14,19 @@ export {
   type AppleVendorMatch,
 } from "./apple";
 export {
+  verifyGoogleIdToken,
+  isGoogleIdTokenAuthConfigured,
+  getGoogleIdTokenAudiences,
+  GoogleAuthError,
+  GOOGLE_ISSUERS,
+  type GoogleIdentityClaims,
+} from "./google-id-token";
+export {
+  completeCustomerSocialLogin,
+  type CustomerSocialProfile,
+  type CompleteCustomerSocialResult,
+} from "./complete-customer-google";
+export {
   registerSchema,
   registerPasswordOnlySchema,
   loginSchema,

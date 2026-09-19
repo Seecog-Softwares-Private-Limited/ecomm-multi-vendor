@@ -5,6 +5,7 @@ abstract final class ApiEndpoints {
 
   // Auth
   static const String login = '/api/auth/login';
+  static const String google = '/api/auth/google';
   static const String register = '/api/auth/register';
   static const String me = '/api/auth/me';
   static const String forgotPassword = '/api/auth/forgot-password';

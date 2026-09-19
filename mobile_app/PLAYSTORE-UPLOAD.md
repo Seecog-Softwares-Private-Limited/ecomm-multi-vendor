@@ -73,7 +73,9 @@ flutter build appbundle --release --dart-define=APP_FLAVOR=prod
 
 - ~~Online payment (Razorpay) UI exists but in-app payment flow not wired — COD works~~
 - **Razorpay (UPI/card)** wired in checkout — requires server `RAZORPAY_*` keys in production `.env`
-- No Google sign-in in app — email/password + OTP work
+- **Google Sign-in** in the customer app: needs an Android OAuth client in Google Cloud
+  (`com.seecogg.indovyapar` + debug/upload SHA-1), web `GOOGLE_CLIENT_ID` on the server,
+  and matching `GOOGLE_SERVER_CLIENT_ID` in `mobile_app/assets/env/.env.*`
 - App icon is default Flutter launcher — replace before marketing release
 
 ---

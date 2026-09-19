@@ -47,4 +47,16 @@ abstract final class EnvConfig {
 
   static bool get logNetwork =>
       _read('LOG_NETWORK', fallback: kDebugMode ? 'true' : 'false').toLowerCase() == 'true';
+
+  /// Web OAuth client ID used as `serverClientId` so Google returns a
+  /// backend-verifiable ID token (`aud` = this value).
+  static const String _googleServerClientIdOverride =
+      String.fromEnvironment('GOOGLE_SERVER_CLIENT_ID');
+
+  static String get googleServerClientId {
+    if (_googleServerClientIdOverride.isNotEmpty) {
+      return _googleServerClientIdOverride;
+    }
+    return _read('GOOGLE_SERVER_CLIENT_ID', fallback: '');
+  }
 }
