@@ -1221,7 +1221,7 @@ export function VendorProfile() {
                       isVerified={formData.mobileVerified}
                       disabled={kycLocked}
                       placeholder="10-digit mobile number"
-                      helperText="We'll send an OTP via MSG91 to this number."
+                      helperText="We'll send an OTP via SMS to this number."
                       onSendOtp={async () => {
                         await handleSaveDraft();
                         return vendorService.sendPhoneOtp();

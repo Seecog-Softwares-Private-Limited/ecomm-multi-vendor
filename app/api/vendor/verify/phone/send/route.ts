@@ -11,19 +11,21 @@ import {
 import { requireSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { normalizeIndianPhone, INDIAN_MOBILE_HINT } from "@/lib/auth/phone";
+import { hashPhoneOtp } from "@/lib/auth/phone-otp-hash";
 import {
-  sendOtp,
-  isMsg91OtpConfigured,
-  PHONE_OTP_MSG91_MARKER,
-} from "@/lib/sms/msg91-otp";
+  generateOtpCode,
+  OTP_EXPIRY_MS,
+  resolveOtpProvider,
+} from "@/lib/auth/otp.service";
+import { isSmsProviderConfigured } from "@/lib/sendSMS";
+import { deliverCustomerLoginOtp } from "@/sms/otp-delivery";
 import { findActiveSellerByPhoneNorm } from "@/lib/auth/seller-onboarding";
 
 const RESEND_COOLDOWN_MS = 60_000;
-const OTP_WINDOW_MS = 10 * 60_000;
 
 /**
  * POST /api/vendor/verify/phone/send
- * MSG91 OTP for authenticated vendor.
+ * BlackSMS OTP for authenticated vendor (same provider as Customer).
  * Body optional: { phone?, resend? } — phone allowed when incomplete and not yet verified.
  */
 export const POST = withApiHandler(async (request: NextRequest) => {
@@ -75,7 +77,7 @@ export const POST = withApiHandler(async (request: NextRequest) => {
 
   if (
     seller.phoneOtpExpires &&
-    seller.phoneOtpExpires.getTime() > Date.now() + OTP_WINDOW_MS - RESEND_COOLDOWN_MS
+    seller.phoneOtpExpires.getTime() > Date.now() + OTP_EXPIRY_MS - RESEND_COOLDOWN_MS
   ) {
     return apiError(
       "Please wait a minute before requesting another code.",
@@ -84,32 +86,64 @@ export const POST = withApiHandler(async (request: NextRequest) => {
     );
   }
 
-  if (!isMsg91OtpConfigured()) {
+  const provider = resolveOtpProvider();
+  if (provider !== "blacksms" && provider !== "dev_console") {
     return apiError(
-      "SMS OTP is not configured on this server. Set MSG91_AUTH_KEY in the environment used by the Node process.",
+      process.env.NODE_ENV === "production"
+        ? "SMS OTP is not configured. Set BLACKSMS_API_KEY and BLACKSMS_SENDER_ID on the server."
+        : "SMS OTP is not configured. Set BLACKSMS_API_KEY and BLACKSMS_SENDER_ID, or OTP_DEV_CONSOLE=true for local testing.",
       Status.SERVICE_UNAVAILABLE,
       "SMS_NOT_CONFIGURED"
     );
   }
 
-  const out = await sendOtp(phoneNorm);
-  if (!out.success) {
-    return apiError(
-      process.env.NODE_ENV === "development" && out.error
-        ? out.error
-        : "SMS could not be sent. Check MSG91 template and account.",
-      Status.BAD_GATEWAY,
-      "SMS_SEND_FAILED"
+  const plainOtp = generateOtpCode();
+  const codeHash = hashPhoneOtp(phoneNorm, plainOtp);
+  const expiresAt = new Date(Date.now() + OTP_EXPIRY_MS);
+
+  if (provider === "dev_console") {
+    console.info(
+      `[vendor-verify-phone][DEV] OTP for ***${phoneNorm.slice(-4)}: ${plainOtp}`
     );
+  } else {
+    if (!isSmsProviderConfigured()) {
+      return apiError(
+        "SMS is not configured. Add BLACKSMS_API_KEY and BLACKSMS_SENDER_ID to the server environment.",
+        Status.SERVICE_UNAVAILABLE,
+        "SMS_NOT_CONFIGURED"
+      );
+    }
+    let sms: { success: boolean; error?: string };
+    try {
+      sms = await deliverCustomerLoginOtp(phoneNorm, plainOtp);
+    } catch (e) {
+      console.error("[vendor-verify-phone] Unexpected SMS error", e);
+      return apiError(
+        process.env.NODE_ENV === "development"
+          ? `SMS failed: ${e instanceof Error ? e.message : String(e)}`
+          : "We could not send the verification code. Try again in a few minutes.",
+        Status.BAD_GATEWAY,
+        "SMS_SEND_FAILED"
+      );
+    }
+    if (!sms.success) {
+      console.error("[vendor-verify-phone] BlackSMS failed:", sms.error);
+      return apiError(
+        process.env.NODE_ENV === "development" && sms.error
+          ? `SMS failed: ${sms.error}`
+          : "We could not send the verification code. Try again in a few minutes.",
+        Status.BAD_GATEWAY,
+        "SMS_SEND_FAILED"
+      );
+    }
   }
 
-  const expiresAt = new Date(Date.now() + OTP_WINDOW_MS);
   await prisma.seller.update({
     where: { id: sellerId },
     data: {
       phone: phoneNorm,
       phoneVerified: false,
-      phoneOtpCode: PHONE_OTP_MSG91_MARKER,
+      phoneOtpCode: codeHash,
       phoneOtpExpires: expiresAt,
     },
   });
@@ -119,7 +153,7 @@ export const POST = withApiHandler(async (request: NextRequest) => {
 
   return apiSuccess({
     message: `Verification code sent to ${masked}.`,
-    expiresInSeconds: Math.floor(OTP_WINDOW_MS / 1000),
-    smsSent: true as const,
+    expiresInSeconds: Math.floor(OTP_EXPIRY_MS / 1000),
+    smsSent: provider !== "dev_console",
   });
 });
