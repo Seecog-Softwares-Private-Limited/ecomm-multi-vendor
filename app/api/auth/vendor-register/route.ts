@@ -41,12 +41,24 @@ export const POST = withApiHandler(async (request: NextRequest) => {
 
   const { email, password, businessName, ownerName, phone } = validation.data;
 
+  const { normalizeIndianPhone, INDIAN_MOBILE_HINT } = await import("@/lib/auth/phone");
+  const phoneNorm = normalizeIndianPhone(phone);
+  if (!phoneNorm) {
+    return apiValidationError("Validation failed", { phone: INDIAN_MOBILE_HINT });
+  }
+
   const existing = await prisma.seller.findFirst({
     where: { email, deletedAt: null },
     select: { id: true },
   });
   if (existing) {
     return apiConflict("A vendor account with this email already exists");
+  }
+
+  const { findActiveSellerByPhoneNorm } = await import("@/lib/auth/seller-onboarding");
+  const phoneOwner = await findActiveSellerByPhoneNorm(phoneNorm);
+  if (phoneOwner) {
+    return apiConflict("This phone number is already registered with another vendor account.");
   }
 
   const passwordHash = await hashPassword(password);
@@ -59,9 +71,11 @@ export const POST = withApiHandler(async (request: NextRequest) => {
       passwordHash,
       businessName,
       ownerName,
-      phone: phone ?? null,
+      phone: phoneNorm,
       status: SellerStatus.PENDING_VERIFICATION,
       emailVerified: false,
+      phoneVerified: false,
+      authOnboardingComplete: false,
       verificationToken,
       verificationTokenExpires,
     },

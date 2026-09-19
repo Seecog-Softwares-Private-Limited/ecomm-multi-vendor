@@ -164,7 +164,8 @@ export type AppleVendorMatch =
 /**
  * Decide how an Apple identity maps to an existing Vendor.
  * Never uses private-relay email as a merge key.
- * Callers auto-create when action is "register" and an email is available.
+ * Never auto-links Apple to an existing email account (no silent merge).
+ * Callers create when action is "register" and an email is available.
  */
 export function resolveAppleVendorMatch(input: {
   appleUserId: string;
@@ -172,19 +173,16 @@ export function resolveAppleVendorMatch(input: {
   byAppleSub: SellerAppleLookup | null;
   byEmail: SellerAppleLookup | null;
 }): AppleVendorMatch {
-  const { appleUserId, verifiedRealEmail, byAppleSub, byEmail } = input;
+  const { verifiedRealEmail, byAppleSub, byEmail } = input;
 
   if (byAppleSub) {
     return { action: "login", sellerId: byAppleSub.id, linkApple: false };
   }
 
-  if (!verifiedRealEmail || !byEmail) {
-    return { action: "register" };
-  }
-
-  if (byEmail.appleUserId && byEmail.appleUserId !== appleUserId) {
+  // Real email already belongs to another Seller — conflict (no auto-link).
+  if (verifiedRealEmail && byEmail) {
     return { action: "conflict" };
   }
 
-  return { action: "login", sellerId: byEmail.id, linkApple: !byEmail.appleUserId };
+  return { action: "register" };
 }

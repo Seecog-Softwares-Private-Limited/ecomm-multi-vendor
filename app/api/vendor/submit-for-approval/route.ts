@@ -6,7 +6,7 @@ import {
   apiNotFound,
   apiBadRequest,
 } from "@/lib/api";
-import { requireSession } from "@/lib/auth";
+import { assertSellerAuthComplete } from "@/lib/auth";
 import { getVendorProfile, updateVendorProfile } from "@/lib/data/vendor-profile";
 import { prisma } from "@/lib/prisma";
 import {
@@ -23,12 +23,7 @@ import {
  * Returns 400 with a specific list of missing sections if validation fails.
  */
 export const POST = withApiHandler(async (request: NextRequest) => {
-  const session = await requireSession(request);
-  if (session.role !== "SELLER" && session.role !== "ADMIN") {
-    return apiForbidden("Vendor access required");
-  }
-  const sellerId = session.role === "SELLER" ? session.sub : undefined;
-  if (!sellerId) return apiNotFound("Vendor not found");
+  const { sellerId } = await assertSellerAuthComplete(request);
 
   const profile = await getVendorProfile(sellerId);
   if (!profile) return apiNotFound("Profile not found");

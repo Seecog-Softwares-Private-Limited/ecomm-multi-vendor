@@ -15,6 +15,7 @@ export {
 } from "./apple";
 export {
   registerSchema,
+  registerPasswordOnlySchema,
   loginSchema,
   vendorRegisterSchema,
   validateRegister,
@@ -22,22 +23,60 @@ export {
   validateVendorRegister,
   validatePhoneOtpSend,
   validatePhoneOtpVerify,
+  validateCustomerOnboardingProfile,
   formatValidationDetails,
   type RegisterInput,
   type LoginInput,
   type VendorRegisterInput,
   type PhoneOtpSendInput,
   type PhoneOtpVerifyInput,
+  type CustomerOnboardingProfileInput,
   type ValidationResult,
   type ValidationError,
 } from "./validation";
+export {
+  computeAuthOnboardingComplete,
+  syncCustomerAuthOnboardingComplete,
+  customerAuthStatusFields,
+  customerHasName,
+  customerHasRealEmail,
+  CUSTOMER_ONBOARDING_SELECT,
+} from "./customer-onboarding";
+export {
+  normalizeIndianPhone,
+  placeholderEmailForPhoneNorm,
+  syntheticEmailForPhoneNorm,
+  isPlaceholderCustomerEmail,
+  INDIAN_MOBILE_HINT,
+} from "./phone";
+export {
+  completePhoneFirstOnboarding,
+  EMAIL_ALREADY_REGISTERED_MESSAGE,
+} from "./complete-phone-onboarding";
 export { getSession, requireSession } from "./session";
+export {
+  assertCustomerAuthComplete,
+  requireCompleteCustomerSession,
+  ACCOUNT_INCOMPLETE_MESSAGE,
+} from "./assert-customer-auth-complete";
 export {
   requireVendorApproved,
   getVendorStatus,
   toVendorStatusDisplay,
   type VendorStatusDisplay,
 } from "./vendor-approval";
+export {
+  assertSellerAuthComplete,
+  SELLER_ACCOUNT_INCOMPLETE_MESSAGE,
+} from "./assert-seller-auth-complete";
+export {
+  computeSellerAuthOnboardingComplete,
+  syncSellerAuthOnboardingComplete,
+  sellerAuthStatusFields,
+  isPlaceholderVendorEmail,
+  placeholderEmailForVendorPhoneNorm,
+  findActiveSellerByPhoneNorm,
+} from "./seller-onboarding";
 export { getVerifiedSession } from "./middleware-auth";
 export {
   isAuthPage,
@@ -45,8 +84,14 @@ export {
   isAdminRoute,
   isAuthRequiredPath,
   isVendorLoginPage,
+  isCustomerOnboardingPage,
+  isVendorAuthOnboardingPage,
   requiresAuth,
   AUTH_REQUIRED_PATHS,
+  CUSTOMER_ONBOARDING_PATH,
+  CUSTOMER_ONBOARDING_PAGES,
+  VENDOR_AUTH_ONBOARDING_PATH,
+  VENDOR_AUTH_ONBOARDING_PAGES,
   SELLER_PREFIX,
   ADMIN_PREFIX,
   SELLER_LOGIN,

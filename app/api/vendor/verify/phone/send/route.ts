@@ -5,6 +5,7 @@ import {
   apiBadRequest,
   apiError,
   apiForbidden,
+  apiConflict,
   Status,
 } from "@/lib/api";
 import { requireSession } from "@/lib/auth";
@@ -15,32 +16,62 @@ import {
   isMsg91OtpConfigured,
   PHONE_OTP_MSG91_MARKER,
 } from "@/lib/sms/msg91-otp";
+import { findActiveSellerByPhoneNorm } from "@/lib/auth/seller-onboarding";
 
 const RESEND_COOLDOWN_MS = 60_000;
 const OTP_WINDOW_MS = 10 * 60_000;
 
 /**
  * POST /api/vendor/verify/phone/send
- * Sends an OTP to the phone number on the seller profile (MSG91 — OTP not stored server-side).
+ * MSG91 OTP for authenticated vendor.
+ * Body optional: { phone?, resend? } — phone allowed when incomplete and not yet verified.
  */
 export const POST = withApiHandler(async (request: NextRequest) => {
   const session = await requireSession(request);
   if (session.role !== "SELLER") return apiForbidden("Vendor access required");
   const sellerId = session.sub;
 
+  let body: Record<string, unknown> = {};
+  try {
+    const raw = await request.json();
+    if (raw && typeof raw === "object") body = raw as Record<string, unknown>;
+  } catch {
+    /* empty body ok */
+  }
+
   const seller = await prisma.seller.findFirst({
     where: { id: sellerId, deletedAt: null },
-    select: { phone: true, phoneOtpExpires: true },
+    select: {
+      phone: true,
+      phoneVerified: true,
+      phoneOtpExpires: true,
+      authOnboardingComplete: true,
+    },
   });
   if (!seller) return apiBadRequest("Vendor not found");
 
-  const phoneRaw = seller.phone?.trim();
+  let phoneRaw = seller.phone?.trim() ?? "";
+  const bodyPhone = typeof body.phone === "string" ? body.phone.trim() : "";
+  if (bodyPhone) {
+    if (seller.phoneVerified && seller.phone?.trim()) {
+      return apiBadRequest("Phone is already verified. Contact support to change it.");
+    }
+    phoneRaw = bodyPhone;
+  }
+
   if (!phoneRaw) {
-    return apiBadRequest("Please save a mobile number in your profile before verifying.");
+    return apiBadRequest("Please enter a mobile number to verify.");
   }
 
   const phoneNorm = normalizeIndianPhone(phoneRaw);
   if (!phoneNorm) return apiBadRequest(INDIAN_MOBILE_HINT);
+
+  const other = await findActiveSellerByPhoneNorm(phoneNorm);
+  if (other && other.id !== sellerId) {
+    return apiConflict(
+      "This phone number is already registered with another vendor account."
+    );
+  }
 
   if (
     seller.phoneOtpExpires &&
@@ -76,6 +107,8 @@ export const POST = withApiHandler(async (request: NextRequest) => {
   await prisma.seller.update({
     where: { id: sellerId },
     data: {
+      phone: phoneNorm,
+      phoneVerified: false,
       phoneOtpCode: PHONE_OTP_MSG91_MARKER,
       phoneOtpExpires: expiresAt,
     },

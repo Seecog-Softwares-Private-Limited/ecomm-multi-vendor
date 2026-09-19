@@ -22,6 +22,10 @@ import { syncCustomerDefaultAddressToDeliveryLocation } from "@/lib/delivery-loc
 import { dispatchCartUpdated } from "@/contexts/CartDrawerContext";
 import { startOAuthLogin } from "@/lib/auth/start-oauth";
 import { useAppMode } from "@/contexts/AppModeContext";
+import {
+  customerNeedsAuthOnboarding,
+  redirectIfAccountIncomplete,
+} from "@/lib/auth/customer-onboarding-client";
 
 type LoginMode = "email" | "phone";
 type PhoneStep = "number" | "otp";
@@ -34,7 +38,7 @@ const SEED_CUSTOMER_PASSWORD = "Customer@123";
  * Set to `true` later to show Mobile OTP ↔ Email toggle and phone OTP login.
  * When false, only the email form (+ Google) is shown; OTP UI/handlers stay in code.
  */
-const SHOW_PHONE_OTP_LOGIN = false;
+const SHOW_PHONE_OTP_LOGIN = true;
 
 export function LoginPage() {
   const router = useRouter();
@@ -89,7 +93,7 @@ export function LoginPage() {
     const guestItems = getGuestCart();
     if (guestItems.length > 0) {
       for (const it of guestItems) {
-        await fetch("/api/cart/items", {
+        const cartRes = await fetch("/api/cart/items", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
@@ -99,6 +103,10 @@ export function LoginPage() {
             variantKey: it.variantKey ?? null,
           }),
         });
+        const cartData = await cartRes.json().catch(() => ({}));
+        if (redirectIfAccountIncomplete(cartData, (p) => router.push(p))) {
+          return;
+        }
       }
       clearGuestCart();
       dispatchCartUpdated();
@@ -107,8 +115,9 @@ export function LoginPage() {
     await new Promise((r) => setTimeout(r, 50));
     const meRes = await fetch("/api/auth/me", { credentials: "include" });
     const meData = meRes.ok ? await meRes.json().catch(() => null) : null;
-    const needsProfile = meData?.data?.user?.needsProfileCompletion === true;
-    router.push(needsProfile ? "/complete-profile" : returnUrl);
+    const meUser = meData?.data?.user;
+    const needsOnboarding = customerNeedsAuthOnboarding(meUser);
+    router.push(needsOnboarding ? "/complete-profile" : returnUrl);
   }, [router, returnUrl]);
 
   React.useEffect(() => {

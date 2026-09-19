@@ -6,7 +6,7 @@ import {
   apiUnauthorized,
   apiForbidden,
 } from "@/lib/api";
-import { getSession } from "@/lib/auth";
+import { assertCustomerAuthComplete } from "@/lib/auth";
 import { addToCart, getCartItems } from "@/lib/data/cart";
 import { getCartVersion } from "@/lib/commerce/cart-version";
 import { prisma } from "@/lib/prisma";
@@ -14,16 +14,13 @@ import { resolveSkuRowForCart, skuVariantsRequireExplicitKey } from "@/lib/produ
 
 /**
  * GET /api/cart/items — list current user's cart items with product details.
- * Requires customer session.
+ * Requires complete customer account.
  */
 export const GET = withApiHandler(async (request: NextRequest) => {
-  const session = await getSession(request);
-  if (!session) {
-    return apiUnauthorized("Please log in to view your cart.");
-  }
-  if (session.role !== "CUSTOMER") {
-    return apiForbidden("Only customers have a cart.");
-  }
+  const session = await assertCustomerAuthComplete(request, {
+    unauthorizedMessage: "Please log in to view your cart.",
+    forbiddenMessage: "Only customers have a cart.",
+  });
   const user = await prisma.user.findUnique({
     where: { id: session.sub, deletedAt: null },
     select: { id: true },
@@ -37,16 +34,13 @@ export const GET = withApiHandler(async (request: NextRequest) => {
 /**
  * POST /api/cart/items — add a product to the current user's cart.
  * Body: { productId: string, quantity?: number, variantKey?: string | null }
- * Requires customer session.
+ * Requires complete customer account.
  */
 export const POST = withApiHandler(async (request: NextRequest) => {
-  const session = await getSession(request);
-  if (!session) {
-    return apiUnauthorized("Please log in to add items to your cart.");
-  }
-  if (session.role !== "CUSTOMER") {
-    return apiForbidden("Only customers can add items to the cart.");
-  }
+  const session = await assertCustomerAuthComplete(request, {
+    unauthorizedMessage: "Please log in to add items to your cart.",
+    forbiddenMessage: "Only customers can add items to the cart.",
+  });
 
   let body: unknown;
   try {

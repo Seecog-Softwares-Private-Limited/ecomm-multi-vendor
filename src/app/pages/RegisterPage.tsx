@@ -20,6 +20,8 @@ import { IndovyaparLogo } from "@/components/IndovyaparLogo";
 import { dispatchCartUpdated } from "@/contexts/CartDrawerContext";
 import { startOAuthLogin } from "@/lib/auth/start-oauth";
 import { useAppMode } from "@/contexts/AppModeContext";
+import { normalizeIndianPhone, INDIAN_MOBILE_HINT } from "@/lib/auth/phone";
+import { customerNeedsAuthOnboarding } from "@/lib/auth/customer-onboarding-client";
 
 const inputClass =
   "block w-full rounded-xl border border-slate-200 bg-slate-50/50 py-3 text-slate-900 placeholder:text-slate-400 transition focus:border-[#FF6A00] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6A00]/20";
@@ -120,6 +122,18 @@ export function RegisterPage() {
     e.preventDefault();
     setError(null);
     const trimmedEmail = email.trim().toLowerCase();
+    if (!fullName.trim()) {
+      setError("Full name is required.");
+      return;
+    }
+    if (!phone.trim()) {
+      setError("Mobile number is required.");
+      return;
+    }
+    if (!normalizeIndianPhone(phone.trim())) {
+      setError(INDIAN_MOBILE_HINT);
+      return;
+    }
     if (!trimmedEmail) {
       setError("Email is required.");
       return;
@@ -155,7 +169,7 @@ export function RegisterPage() {
           password,
           firstName: firstName || undefined,
           lastName: lastName || undefined,
-          phone: phone.trim() || undefined,
+          phone: phone.trim(),
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -166,7 +180,10 @@ export function RegisterPage() {
       }
       if (data?.data?.needsEmailVerification) {
         setRegisteredEmail(trimmedEmail);
-        setRegisterInfo(data.data.message ?? "Check your email to confirm your sign-up.");
+        setRegisterInfo(
+          (data.data.message ?? "Check your email to confirm your sign-up.") +
+            " After email verification, sign in and verify your phone with OTP to finish setup."
+        );
         setDevVerifyLink(
           typeof data.data.verificationLink === "string" ? data.data.verificationLink : null
         );
@@ -190,6 +207,12 @@ export function RegisterPage() {
         }
         clearGuestCart();
         dispatchCartUpdated();
+      }
+      const meRes = await fetch("/api/auth/me", { credentials: "include" });
+      const meData = meRes.ok ? await meRes.json().catch(() => null) : null;
+      if (customerNeedsAuthOnboarding(meData?.data?.user)) {
+        router.push("/complete-profile");
+        return;
       }
       router.push(returnUrl);
     } catch {
@@ -373,7 +396,7 @@ export function RegisterPage() {
             <form className="space-y-5" onSubmit={handleSubmit}>
               <div>
                 <label htmlFor="reg-fullname" className="block text-sm font-semibold text-slate-700 mb-1.5">
-                  Full name
+                  Full name <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <UserIcon className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
@@ -392,7 +415,7 @@ export function RegisterPage() {
 
               <div>
                 <label htmlFor="reg-email" className="block text-sm font-semibold text-slate-700 mb-1.5">
-                  Email address
+                  Email address <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <Mail className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
@@ -412,7 +435,7 @@ export function RegisterPage() {
 
               <div>
                 <label htmlFor="reg-phone" className="block text-sm font-semibold text-slate-700 mb-1.5">
-                  Phone <span className="font-normal text-slate-400">(optional)</span>
+                  Phone <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <Phone className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />

@@ -50,13 +50,24 @@ export const GET = withApiHandler(async (request: NextRequest) => {
       data: {
         emailVerified: true,
         status: SellerStatus.DRAFT,
+        verificationToken: null,
+        verificationTokenExpires: null,
       },
     });
+
+    const { syncSellerAuthOnboardingComplete } = await import(
+      "@/lib/auth/seller-onboarding"
+    );
+    const authOnboardingComplete = await syncSellerAuthOnboardingComplete(seller.id);
 
     return apiSuccess({
       verified: true,
       accountType: "vendor",
-      message: "Email verified. Complete your profile & KYC, then submit for approval.",
+      authOnboardingComplete,
+      needsAuthOnboarding: !authOnboardingComplete,
+      message: authOnboardingComplete
+        ? "Email verified. Your vendor account authentication is complete."
+        : "Email verified. Complete phone verification if needed, then continue profile & KYC.",
     });
   }
 
@@ -98,9 +109,20 @@ export const GET = withApiHandler(async (request: NextRequest) => {
     },
   });
 
+  // Keep auth onboarding flag accurate after email verification (link flow unchanged).
+  // Does not create a password.
+  const { syncCustomerAuthOnboardingComplete } = await import(
+    "@/lib/auth/customer-onboarding"
+  );
+  const authOnboardingComplete = await syncCustomerAuthOnboardingComplete(user.id);
+
   return apiSuccess({
     verified: true,
     accountType: "customer",
-    message: "Email confirmed. You can sign in to your account.",
+    authOnboardingComplete,
+    needsAuthOnboarding: !authOnboardingComplete,
+    message: authOnboardingComplete
+      ? "Email confirmed. Your account is ready."
+      : "Email confirmed. Complete any remaining onboarding steps to finish your account.",
   });
 });

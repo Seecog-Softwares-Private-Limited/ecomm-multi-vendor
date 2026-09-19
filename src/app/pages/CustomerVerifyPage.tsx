@@ -5,16 +5,22 @@ import { useSearchParams } from "next/navigation";
 import { Link } from "../components/Link";
 import { CheckCircle, XCircle, Loader2 } from "lucide-react";
 import { IndovyaparLogo } from "@/components/IndovyaparLogo";
+import {
+  customerNeedsAuthOnboarding,
+  type CustomerAuthMeUser,
+} from "@/lib/auth/customer-onboarding-client";
 
 type State = "loading" | "success" | "error" | "missing";
 
 /**
- * Customer email confirmation after register — /verify-email?token=...
+ * Customer email confirmation after register / phone-first onboarding — /verify-email?token=...
  */
 export function CustomerVerifyPage() {
   const searchParams = useSearchParams();
   const [state, setState] = React.useState<State>("loading");
   const [message, setMessage] = React.useState("");
+  const [needsOnboarding, setNeedsOnboarding] = React.useState(false);
+  const [accountComplete, setAccountComplete] = React.useState(false);
 
   React.useEffect(() => {
     const token = searchParams.get("token");
@@ -40,8 +46,37 @@ export function CustomerVerifyPage() {
           return;
         }
         if (res.ok && json?.success && json?.data?.verified && json?.data?.accountType === "customer") {
+          const complete = json.data.authOnboardingComplete === true;
+          const stillNeeds =
+            json.data.needsAuthOnboarding === true || json.data.authOnboardingComplete === false;
+
+          // Refresh session flags when the browser already has a Customer cookie.
+          let meNeeds = stillNeeds;
+          let meComplete = complete;
+          try {
+            const meRes = await fetch("/api/auth/me", { credentials: "include" });
+            const meJson = meRes.ok ? await meRes.json().catch(() => null) : null;
+            const meUser = meJson?.data?.user as CustomerAuthMeUser | null | undefined;
+            if (meUser) {
+              meNeeds = customerNeedsAuthOnboarding(meUser);
+              meComplete = !meNeeds;
+            }
+          } catch {
+            /* ignore — verify response is enough */
+          }
+
+          if (cancelled) return;
+          setNeedsOnboarding(meNeeds);
+          setAccountComplete(meComplete);
           setState("success");
-          setMessage(json.data.message ?? "Email confirmed. You can sign in.");
+          setMessage(
+            meComplete
+              ? (json.data.message ?? "Email confirmed. Your account is ready.")
+              : meNeeds
+                ? (json.data.message ??
+                  "Email confirmed. Finish the remaining setup steps to use your account.")
+                : (json.data.message ?? "Email confirmed. You can sign in.")
+          );
           return;
         }
         setState("error");
@@ -79,14 +114,32 @@ export function CustomerVerifyPage() {
         {state === "success" && (
           <>
             <CheckCircle className="mx-auto mb-4 h-14 w-14 text-[#166534]" />
-            <h1 className="mb-2 text-xl font-bold tracking-tight text-slate-900">You&apos;re all set</h1>
+            <h1 className="mb-2 text-xl font-bold tracking-tight text-slate-900">
+              {accountComplete ? "You're all set" : "Email confirmed"}
+            </h1>
             <p className="mb-6 text-sm text-slate-600">{message}</p>
-            <Link
-              href="/login"
-              className="inline-block w-full rounded-xl bg-[#FF6A00] py-3.5 text-sm font-semibold text-white shadow-lg shadow-orange-500/25 transition hover:bg-[#E55F00]"
-            >
-              Sign in
-            </Link>
+            {needsOnboarding ? (
+              <Link
+                href="/complete-profile"
+                className="inline-block w-full rounded-xl bg-[#FF6A00] py-3.5 text-sm font-semibold text-white shadow-lg shadow-orange-500/25 transition hover:bg-[#E55F00]"
+              >
+                Continue setup
+              </Link>
+            ) : accountComplete ? (
+              <Link
+                href="/"
+                className="inline-block w-full rounded-xl bg-[#FF6A00] py-3.5 text-sm font-semibold text-white shadow-lg shadow-orange-500/25 transition hover:bg-[#E55F00]"
+              >
+                Continue shopping
+              </Link>
+            ) : (
+              <Link
+                href="/login"
+                className="inline-block w-full rounded-xl bg-[#FF6A00] py-3.5 text-sm font-semibold text-white shadow-lg shadow-orange-500/25 transition hover:bg-[#E55F00]"
+              >
+                Sign in
+              </Link>
+            )}
           </>
         )}
         {(state === "error" || state === "missing") && (

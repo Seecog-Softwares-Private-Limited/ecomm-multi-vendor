@@ -9,14 +9,52 @@ const password = z
   .regex(/[a-z]/, "Password must contain at least one lowercase letter")
   .regex(/\d/, "Password must contain at least one number");
 
-/** Body for POST /api/auth/register */
+/** Body for POST /api/auth/register — email/password path requires name + phone.
+ * Exported as a plain ZodObject so clients can `.pick({ password: true })`.
+ */
 export const registerSchema = z.object({
   email,
   password,
   firstName: z.string().max(100).trim().optional(),
   lastName: z.string().max(100).trim().optional(),
-  phone: z.string().max(20).trim().optional(),
+  /** Full name from clients that send a single `name` field. */
+  name: z.string().max(200).trim().optional(),
+  phone: z.string().min(10, "Mobile number is required").max(20).trim(),
 });
+
+/** Password-only parse for reset-password. */
+export const registerPasswordOnlySchema = registerSchema.pick({ password: true });
+
+const registerParsedSchema = registerSchema
+  .superRefine((data, ctx) => {
+    const first = data.firstName?.trim() ?? "";
+    const last = data.lastName?.trim() ?? "";
+    const fullName = data.name?.trim() ?? "";
+    if (!first && !last && !fullName) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Name is required",
+        path: ["firstName"],
+      });
+    }
+  })
+  .transform((data) => {
+    let firstName = data.firstName?.trim() || "";
+    let lastName = data.lastName?.trim() || "";
+    const fullName = data.name?.trim() || "";
+    if (!firstName && !lastName && fullName) {
+      const parts = fullName.split(/\s+/).filter(Boolean);
+      firstName = parts[0] ?? "";
+      lastName = parts.slice(1).join(" ");
+    }
+    return {
+      email: data.email,
+      password: data.password,
+      firstName: firstName || null,
+      lastName: lastName || null,
+      phone: data.phone.trim(),
+    };
+  });
 
 /** Body for POST /api/auth/login */
 export const loginSchema = z.object({
@@ -30,10 +68,10 @@ export const vendorRegisterSchema = z.object({
   password,
   businessName: z.string().min(1, "Business name is required").max(255).trim(),
   ownerName: z.string().min(1, "Owner name is required").max(255).trim(),
-  phone: z.string().max(20).trim().optional(),
+  phone: z.string().min(10, "Mobile number is required").max(20).trim(),
 });
 
-export type RegisterInput = z.infer<typeof registerSchema>;
+export type RegisterInput = z.infer<typeof registerParsedSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type VendorRegisterInput = z.infer<typeof vendorRegisterSchema>;
 
@@ -50,7 +88,7 @@ export interface ValidationError {
 export function validateRegister(
   body: unknown
 ): ValidationResult<RegisterInput> | ValidationError {
-  const result = registerSchema.safeParse(body);
+  const result = registerParsedSchema.safeParse(body);
   if (result.success) return { success: true, data: result.data };
   return { success: false, errors: result.error.issues };
 }
@@ -112,6 +150,52 @@ export function validatePhoneOtpVerify(
   body: unknown
 ): ValidationResult<PhoneOtpVerifyInput> | ValidationError {
   const result = phoneOtpVerifySchema.safeParse(body);
+  if (result.success) return { success: true, data: result.data };
+  return { success: false, errors: result.error.issues };
+}
+
+/** Body for POST /api/auth/onboarding/profile — phone-first name + real email. */
+export const customerOnboardingProfileSchema = z
+  .object({
+    email,
+    firstName: z.string().max(100).trim().optional(),
+    lastName: z.string().max(100).trim().optional(),
+    name: z.string().max(200).trim().optional(),
+  })
+  .superRefine((data, ctx) => {
+    const first = data.firstName?.trim() ?? "";
+    const last = data.lastName?.trim() ?? "";
+    const fullName = data.name?.trim() ?? "";
+    if (!first && !last && !fullName) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Name is required",
+        path: ["name"],
+      });
+    }
+  })
+  .transform((data) => {
+    let firstName = data.firstName?.trim() || "";
+    let lastName = data.lastName?.trim() || "";
+    const fullName = data.name?.trim() || "";
+    if (!firstName && !lastName && fullName) {
+      const parts = fullName.split(/\s+/).filter(Boolean);
+      firstName = parts[0] ?? "";
+      lastName = parts.slice(1).join(" ");
+    }
+    return {
+      email: data.email,
+      firstName: firstName || null,
+      lastName: lastName || null,
+    };
+  });
+
+export type CustomerOnboardingProfileInput = z.infer<typeof customerOnboardingProfileSchema>;
+
+export function validateCustomerOnboardingProfile(
+  body: unknown
+): ValidationResult<CustomerOnboardingProfileInput> | ValidationError {
+  const result = customerOnboardingProfileSchema.safeParse(body);
   if (result.success) return { success: true, data: result.data };
   return { success: false, errors: result.error.issues };
 }

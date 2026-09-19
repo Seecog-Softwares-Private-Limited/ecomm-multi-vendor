@@ -8,7 +8,7 @@ import {
   apiNotFound,
   type ApiRouteContext,
 } from "@/lib/api";
-import { getSession } from "@/lib/auth";
+import { assertCustomerAuthComplete } from "@/lib/auth";
 import { updateCartItemQuantity, removeCartItem, setCartItemSavedForLater } from "@/lib/data/cart";
 import { prisma } from "@/lib/prisma";
 
@@ -23,12 +23,13 @@ function segmentParam(raw: string | string[] | undefined): string | undefined {
 /**
  * PATCH /api/cart/items/[id] — update cart item quantity.
  * Body: { quantity: number }
- * Requires customer session.
+ * Requires complete customer account.
  */
 export const PATCH = withApiHandler(async (request: NextRequest, context?: ApiRouteContext) => {
-  const session = await getSession(request);
-  if (!session) return apiUnauthorized("Please log in to update your cart.");
-  if (session.role !== "CUSTOMER") return apiForbidden("Only customers can update the cart.");
+  const session = await assertCustomerAuthComplete(request, {
+    unauthorizedMessage: "Please log in to update your cart.",
+    forbiddenMessage: "Only customers can update the cart.",
+  });
 
   const params = context ? await context.params : {};
   const id = segmentParam(params.id);
@@ -86,9 +87,10 @@ export const PATCH = withApiHandler(async (request: NextRequest, context?: ApiRo
  * Requires customer session.
  */
 export const DELETE = withApiHandler(async (request: NextRequest, context?: ApiRouteContext) => {
-  const session = await getSession(request);
-  if (!session) return apiUnauthorized("Please log in to update your cart.");
-  if (session.role !== "CUSTOMER") return apiForbidden("Only customers can update the cart.");
+  const session = await assertCustomerAuthComplete(request, {
+    unauthorizedMessage: "Please log in to update your cart.",
+    forbiddenMessage: "Only customers can update the cart.",
+  });
 
   const params = context ? await context.params : {};
   const id = segmentParam(params.id);

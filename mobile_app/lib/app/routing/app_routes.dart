@@ -69,6 +69,6 @@ abstract final class AppRoutes {
     return Uri(path: supportFaqs, queryParameters: params).toString();
   }
 
-  static String afterAuth({required bool needsProfileCompletion}) =>
-      needsProfileCompletion ? completeProfile : home;
+  static String afterAuth({required bool needsAuthOnboarding}) =>
+      needsAuthOnboarding ? completeProfile : home;
 }

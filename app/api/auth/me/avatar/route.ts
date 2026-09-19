@@ -11,7 +11,7 @@ import {
   apiError,
   Status,
 } from "@/lib/api";
-import { getSession } from "@/lib/auth";
+import { assertCustomerAuthComplete } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
   resolveImageMimeWithBuffer,
@@ -45,9 +45,10 @@ function isStorageError(err: unknown): boolean {
  * Returns { avatarUrl: string }
  */
 export const POST = withApiHandler(async (request: NextRequest) => {
-  const session = await getSession(request);
-  if (!session) return apiUnauthorized("Not authenticated");
-  if (session.role !== "CUSTOMER") return apiForbidden("Only customers can upload an avatar here.");
+  const session = await assertCustomerAuthComplete(request, {
+    unauthorizedMessage: "Not authenticated",
+    forbiddenMessage: "Only customers can upload an avatar here.",
+  });
 
   let formData;
   try {

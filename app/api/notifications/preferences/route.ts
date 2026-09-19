@@ -6,7 +6,7 @@ import {
   apiForbidden,
   apiUnauthorized,
 } from "@/lib/api";
-import { getSession } from "@/lib/auth";
+import { assertCustomerAuthComplete } from "@/lib/auth";
 import {
   getNotificationPreferences,
   updateNotificationPreferences,
@@ -16,9 +16,10 @@ import {
  * GET /api/notifications/preferences
  */
 export const GET = withApiHandler(async (request: NextRequest) => {
-  const session = await getSession(request);
-  if (!session) return apiUnauthorized("Please log in.");
-  if (session.role !== "CUSTOMER") return apiForbidden("Only customers can view preferences.");
+  const session = await assertCustomerAuthComplete(request, {
+    unauthorizedMessage: "Please log in.",
+    forbiddenMessage: "Only customers can view preferences.",
+  });
 
   const preferences = await getNotificationPreferences(session.sub);
   return apiSuccess({ preferences });
@@ -29,9 +30,10 @@ export const GET = withApiHandler(async (request: NextRequest) => {
  * Body: partial preference toggles
  */
 export const PATCH = withApiHandler(async (request: NextRequest) => {
-  const session = await getSession(request);
-  if (!session) return apiUnauthorized("Please log in.");
-  if (session.role !== "CUSTOMER") return apiForbidden("Only customers can update preferences.");
+  const session = await assertCustomerAuthComplete(request, {
+    unauthorizedMessage: "Please log in.",
+    forbiddenMessage: "Only customers can update preferences.",
+  });
 
   let body: unknown;
   try {

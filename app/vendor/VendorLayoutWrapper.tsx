@@ -24,7 +24,11 @@ function isVendorAuthPage(path: string | null) {
     path === "/vendor/forgot-password" ||
     path.startsWith("/vendor/forgot-password/") ||
     path === "/vendor/reset-password" ||
-    path.startsWith("/vendor/reset-password/")
+    path.startsWith("/vendor/reset-password/") ||
+    path === "/vendor/complete-account" ||
+    path.startsWith("/vendor/complete-account/") ||
+    path === "/vendor/verify" ||
+    path.startsWith("/vendor/verify/")
   );
 }
 
@@ -60,6 +64,8 @@ type MeData = {
   rawStatus: string | null;
   statusReason: string | null;
   businessName: string | null;
+  authOnboardingComplete?: boolean;
+  needsAuthOnboarding?: boolean;
 };
 
 const VENDOR_ME_TIMEOUT_MS = 20_000;
@@ -153,6 +159,10 @@ export function VendorLayoutWrapper({
   /** Never call router.replace during render — it can break navigation and leave the shell stuck loading. */
   useEffect(() => {
     if (!authChecked || isVendorAuthPage(pathname ?? null)) return;
+    if (me?.needsAuthOnboarding === true || me?.authOnboardingComplete === false) {
+      routerRef.current.replace("/vendor/complete-account");
+      return;
+    }
     const approved = me?.status === "approved";
     if (approved) return;
     if (!isAllowedWhenNotApproved(pathname)) {

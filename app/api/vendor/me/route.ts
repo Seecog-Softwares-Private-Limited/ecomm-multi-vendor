@@ -24,8 +24,17 @@ export const GET = withApiHandler(async (request: NextRequest) => {
     select: {
       oauthProvider: true,
       appleUserId: true,
+      phone: true,
+      phoneVerified: true,
+      emailVerified: true,
+      authOnboardingComplete: true,
+      passwordHash: true,
+      ownerName: true,
     },
   });
+
+  const authOnboardingComplete = seller?.authOnboardingComplete === true;
+  const hasUsablePassword = Boolean(seller?.passwordHash && seller.passwordHash.trim().length >= 20);
 
   return apiSuccess({
     vendorId: sellerId,
@@ -36,9 +45,13 @@ export const GET = withApiHandler(async (request: NextRequest) => {
     statusReason: statusInfo?.statusReason ?? null,
     businessName: statusInfo?.businessName ?? null,
     emailVerified: statusInfo?.emailVerified ?? false,
-    // Social-created vendors should use Forgot password to set an email password
-    // (Change Password "current password" will never match the random hash).
-    socialSignInOnly: Boolean(seller?.oauthProvider || seller?.appleUserId),
+    phone: seller?.phone ?? null,
+    phoneVerified: seller?.phoneVerified === true,
+    ownerName: seller?.ownerName ?? null,
+    authOnboardingComplete,
+    needsAuthOnboarding: !authOnboardingComplete,
+    // Social / phone-first vendors have no password until they set one via forgot-password.
+    socialSignInOnly: Boolean(seller?.oauthProvider || seller?.appleUserId) || !hasUsablePassword,
   });
 });
 

@@ -60,9 +60,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     setState(() => _submitting = false);
 
     if (failure == null) {
-      final needsProfile =
-          ref.read(authControllerProvider).value?.user?.needsProfileCompletion ?? false;
-      context.go(AppRoutes.afterAuth(needsProfileCompletion: needsProfile));
+      final needsOnboarding =
+          ref.read(authControllerProvider).value?.user?.requiresAuthOnboarding ?? false;
+      context.go(AppRoutes.afterAuth(needsAuthOnboarding: needsOnboarding));
     } else {
       context.showSnack(failure.message, isError: true);
     }

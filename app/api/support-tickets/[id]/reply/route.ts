@@ -8,7 +8,7 @@ import {
   apiNotFound,
   type ApiRouteContext,
 } from "@/lib/api";
-import { getSession } from "@/lib/auth";
+import { assertCustomerAuthComplete } from "@/lib/auth";
 import { addCustomerSupportTicketReply } from "@/lib/data/support-ticket-messages";
 import { sanitizePlainText } from "@/lib/text-sanitize";
 import { uuid, parseWithDetails } from "@/lib/validation";
@@ -18,9 +18,10 @@ import { uuid, parseWithDetails } from "@/lib/validation";
  * Body: { message: string }
  */
 export const POST = withApiHandler(async (request: NextRequest, context?: ApiRouteContext) => {
-  const session = await getSession(request);
-  if (!session) return apiUnauthorized("Please log in to reply.");
-  if (session.role !== "CUSTOMER") return apiForbidden("Only customers can reply to tickets.");
+  const session = await assertCustomerAuthComplete(request, {
+    unauthorizedMessage: "Please log in to reply.",
+    forbiddenMessage: "Only customers can reply to tickets.",
+  });
 
   const params = context?.params ? await context.params : {};
   const rawId = typeof params.id === "string" ? params.id : params.id?.[0];

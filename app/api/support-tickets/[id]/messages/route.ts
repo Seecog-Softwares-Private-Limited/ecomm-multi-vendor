@@ -8,7 +8,7 @@ import {
   apiNotFound,
   type ApiRouteContext,
 } from "@/lib/api";
-import { getSession } from "@/lib/auth";
+import { assertCustomerAuthComplete } from "@/lib/auth";
 import { getSupportTicketMessagesForCustomer } from "@/lib/data/support-ticket-messages";
 import { uuid, parseWithDetails } from "@/lib/validation";
 
@@ -16,9 +16,10 @@ import { uuid, parseWithDetails } from "@/lib/validation";
  * GET /api/support-tickets/:id/messages — full conversation thread.
  */
 export const GET = withApiHandler(async (request: NextRequest, context?: ApiRouteContext) => {
-  const session = await getSession(request);
-  if (!session) return apiUnauthorized("Please log in to view support tickets.");
-  if (session.role !== "CUSTOMER") return apiForbidden("Only customers can view their tickets.");
+  const session = await assertCustomerAuthComplete(request, {
+    unauthorizedMessage: "Please log in to view support tickets.",
+    forbiddenMessage: "Only customers can view their tickets.",
+  });
 
   const params = context?.params ? await context.params : {};
   const rawId = typeof params.id === "string" ? params.id : params.id?.[0];

@@ -68,26 +68,28 @@ class _AuthRouterNotifier extends ChangeNotifier {
     }
 
     final authenticated = auth.value?.isAuthenticated ?? false;
-    final needsProfile = auth.value?.user?.needsProfileCompletion ?? false;
+    final needsOnboarding = auth.value?.user?.requiresAuthOnboarding ?? false;
     final onboardingDone = _ref.read(preferencesProvider).onboardingComplete;
 
     if (location == AppRoutes.splash) {
       if (authenticated) {
-        return needsProfile ? AppRoutes.completeProfile : AppRoutes.home;
+        return needsOnboarding ? AppRoutes.completeProfile : AppRoutes.home;
       }
       return onboardingDone ? AppRoutes.login : AppRoutes.onboarding;
     }
 
-    if (authenticated && needsProfile && location != AppRoutes.completeProfile) {
+    if (authenticated && needsOnboarding && location != AppRoutes.completeProfile) {
       return AppRoutes.completeProfile;
     }
-    if (authenticated && !needsProfile && location == AppRoutes.completeProfile) {
+    if (authenticated && !needsOnboarding && location == AppRoutes.completeProfile) {
       return AppRoutes.home;
     }
 
     final isPublic = _publicRoutes.contains(location);
     if (!authenticated && !isPublic) return AppRoutes.login;
-    if (authenticated && isPublic && location != AppRoutes.splash) return AppRoutes.home;
+    if (authenticated && isPublic && location != AppRoutes.splash) {
+      return needsOnboarding ? AppRoutes.completeProfile : AppRoutes.home;
+    }
     return null;
   }
 }

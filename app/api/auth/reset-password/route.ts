@@ -6,7 +6,7 @@ import {
   apiValidationError,
 } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
-import { hashPassword, registerSchema, formatValidationDetails } from "@/lib/auth";
+import { hashPassword, registerPasswordOnlySchema, formatValidationDetails } from "@/lib/auth";
 
 function validateBody(
   body: unknown
@@ -23,7 +23,7 @@ function validateBody(
   if (Object.keys(errors).length) {
     return { success: false, errors };
   }
-  const pwd = registerSchema.pick({ password: true }).safeParse({ password: newPassword });
+  const pwd = registerPasswordOnlySchema.safeParse({ password: newPassword });
   if (!pwd.success) {
     return { success: false, errors: formatValidationDetails(pwd.error.issues) };
   }

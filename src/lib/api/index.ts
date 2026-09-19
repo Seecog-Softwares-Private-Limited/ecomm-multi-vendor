@@ -34,6 +34,7 @@ export {
   apiBadRequest,
   apiUnauthorized,
   apiForbidden,
+  apiAccountIncomplete,
   apiNotFound,
   apiMethodNotAllowed,
   apiConflict,

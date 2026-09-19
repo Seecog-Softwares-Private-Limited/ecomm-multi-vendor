@@ -50,6 +50,14 @@ export function VendorRegisterPage() {
     setError(null);
     setSuccess(false);
     setVerificationLink(null);
+    if (!ownerName.trim()) {
+      setError("Owner name is required.");
+      return;
+    }
+    if (!phone.trim()) {
+      setError("Mobile number is required.");
+      return;
+    }
     setLoading(true);
     try {
       const data = await authService.vendorRegister({
@@ -57,7 +65,7 @@ export function VendorRegisterPage() {
         password,
         businessName: businessName.trim(),
         ownerName: ownerName.trim(),
-        phone: phone.trim() || undefined,
+        phone: phone.trim(),
       });
       setSuccess(true);
       if (data.verificationLink) setVerificationLink(data.verificationLink);
@@ -268,7 +276,7 @@ export function VendorRegisterPage() {
 
                   <div>
                     <label htmlFor="reg-phone" className="block text-sm font-medium text-slate-700 mb-1.5">
-                      Phone <span className="font-normal text-slate-400">(optional)</span>
+                      Phone <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
                       <div className={iconWrap}>

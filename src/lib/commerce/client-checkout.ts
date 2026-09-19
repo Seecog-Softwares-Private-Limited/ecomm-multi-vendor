@@ -1,5 +1,30 @@
 /** Browser helpers for checkout session flow. */
 
+import { isAccountIncompleteApiError, CUSTOMER_ONBOARDING_PATH } from "@/lib/auth/customer-onboarding-client";
+
+class AccountIncompleteError extends Error {
+  constructor(message = "Complete your account setup to continue.") {
+    super(message);
+    this.name = "AccountIncompleteError";
+  }
+}
+
+function throwIfIncomplete(res: Response, data: unknown): void {
+  if (isAccountIncompleteApiError(data)) {
+    if (typeof window !== "undefined") {
+      window.location.assign(CUSTOMER_ONBOARDING_PATH);
+    }
+    throw new AccountIncompleteError(
+      (data as { error?: { message?: string } })?.error?.message
+    );
+  }
+  if (!res.ok) {
+    throw new Error(
+      (data as { error?: { message?: string } })?.error?.message ?? "Request failed."
+    );
+  }
+}
+
 export type CheckoutSessionPreview = {
   session: {
     id: string;
@@ -64,9 +89,7 @@ export async function createBuyNowSession(
     }),
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error(data?.error?.message ?? "Could not start checkout.");
-  }
+  throwIfIncomplete(res, data);
   return { sessionId: data.data.sessionId as string };
 }
 
@@ -80,9 +103,7 @@ export async function createCartCheckoutSession(
     body: JSON.stringify({ type: "CART", cartItemIds }),
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error(data?.error?.message ?? "Could not start checkout.");
-  }
+  throwIfIncomplete(res, data);
   return { sessionId: data.data.sessionId as string };
 }
 
@@ -95,9 +116,7 @@ export async function fetchCheckoutSession(
     credentials: "include",
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error(data?.error?.message ?? "Could not load checkout.");
-  }
+  throwIfIncomplete(res, data);
   return data.data as CheckoutSessionPreview;
 }
 
@@ -109,9 +128,7 @@ export async function confirmCheckoutPrices(sessionId: string): Promise<void> {
     body: JSON.stringify({ action: "confirm_prices" }),
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error(data?.error?.message ?? "Could not confirm prices.");
-  }
+  throwIfIncomplete(res, data);
 }
 
 export async function mergeGuestCart(

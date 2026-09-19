@@ -8,7 +8,7 @@ import {
   apiBadRequest,
   type ApiRouteContext,
 } from "@/lib/api";
-import { getSession } from "@/lib/auth";
+import { assertCustomerAuthComplete } from "@/lib/auth";
 import { toggleReviewHelpfulVote } from "@/lib/data/reviews";
 import { uuid, parseWithDetails } from "@/lib/validation";
 
@@ -18,9 +18,10 @@ type RouteContext = { params?: Promise<Record<string, string | string[]>> };
  * POST /api/reviews/:id/helpful — toggle helpful vote.
  */
 export const POST = withApiHandler(async (request: NextRequest, context?: RouteContext) => {
-  const session = await getSession(request);
-  if (!session) return apiUnauthorized("Please log in.");
-  if (session.role !== "CUSTOMER") return apiForbidden("Only customers can vote on reviews.");
+  const session = await assertCustomerAuthComplete(request, {
+    unauthorizedMessage: "Please log in.",
+    forbiddenMessage: "Only customers can vote on reviews.",
+  });
 
   const params = context?.params ? await context.params : {};
   const rawId = typeof params.id === "string" ? params.id : params.id?.[0];

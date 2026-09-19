@@ -10,12 +10,18 @@ datasource db {
 model User {
   id                       String            @id @default(uuid()) @db.Char(36)
   email                    String            @unique @db.VarChar(255)
+  /// Nullable: phone-first and Google-first customers have no password.
   passwordHash             String?           @map("password_hash") @db.VarChar(255)
   firstName                String?           @map("first_name") @db.VarChar(100)
   lastName                 String?           @map("last_name") @db.VarChar(100)
-  phone                    String?           @db.VarChar(20)
+  /// Nullable unique: multiple NULL phones allowed; non-null phones must be unique.
+  phone                    String?           @unique @db.VarChar(20)
+  /// True when this phone was verified via OTP. Not consumed by auth code yet (Phase 1).
+  phoneVerified            Boolean           @default(false) @map("phone_verified")
   /// True once the user has saved a mobile number via the post-login profile step.
   profileCompleted         Boolean           @default(false) @map("profile_completed")
+  /// Future auth/onboarding gate. Additive; not consumed by auth code yet (Phase 1).
+  authOnboardingComplete   Boolean           @default(false) @map("auth_onboarding_complete")
   createdAt                DateTime          @default(now()) @map("created_at")
   updatedAt                DateTime          @updatedAt @map("updated_at")
   deletedAt                DateTime?         @map("deleted_at")
@@ -44,8 +50,7 @@ model User {
   cartVersion              Int               @default(0) @map("cart_version")
 
   @@index([email])
-  @@index([phone])
-  @@index([oauthProvider, oauthProviderId])
+  @@unique([oauthProvider, oauthProviderId])
   @@index([deletedAt])
   @@map("users")
 }
@@ -126,7 +131,8 @@ model AdminAuditLog {
 model Seller {
   id                         String                     @id @default(uuid()) @db.Char(36)
   email                      String                     @unique @db.VarChar(255)
-  passwordHash               String                     @map("password_hash") @db.VarChar(255)
+  /// Null for phone-first / Google / Apple vendors (no synthetic password).
+  passwordHash               String?                    @map("password_hash") @db.VarChar(255)
   businessName               String                     @map("business_name") @db.VarChar(255)
   ownerName                  String                     @map("owner_name") @db.VarChar(255)
   phone                      String?                    @db.VarChar(20)
@@ -154,6 +160,8 @@ model Seller {
   phoneOtpCode               String?                    @map("phone_otp_code") @db.VarChar(100)
   phoneOtpExpires            DateTime?                  @map("phone_otp_expires")
   phoneVerified              Boolean                    @default(false) @map("phone_verified")
+  /// Auth identity onboarding complete (separate from KYC / admin approval).
+  authOnboardingComplete     Boolean                    @default(false) @map("auth_onboarding_complete")
   bankAccounts               BankAccount[]
   kycDocuments               KYCDocument[]
   notifications              Notification[]
@@ -171,7 +179,7 @@ model Seller {
   @@index([email])
   @@index([status])
   @@index([deletedAt])
-  @@index([oauthProvider, oauthProviderId])
+  @@unique([oauthProvider, oauthProviderId])
   @@index([primaryCategoryId])
   @@map("sellers")
 }

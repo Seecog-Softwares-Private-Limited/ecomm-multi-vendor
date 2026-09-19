@@ -6,7 +6,7 @@ import {
   apiUnauthorized,
   apiForbidden,
 } from "@/lib/api";
-import { getSession } from "@/lib/auth";
+import { assertCustomerAuthComplete } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { SupportTicketStatus } from "@prisma/client";
 import { listCustomerSupportTicketsForUser } from "@/lib/data/support-ticket-customer-read";
@@ -19,9 +19,10 @@ const VALID_STATUSES: SupportTicketStatus[] = ["OPEN", "IN_PROGRESS", "RESOLVED"
  * Query: ?status=OPEN|IN_PROGRESS|RESOLVED|CLOSED (optional)
  */
 export const GET = withApiHandler(async (request: NextRequest) => {
-  const session = await getSession(request);
-  if (!session) return apiUnauthorized("Please log in to view support tickets.");
-  if (session.role !== "CUSTOMER") return apiForbidden("Only customers can view their support tickets.");
+  const session = await assertCustomerAuthComplete(request, {
+    unauthorizedMessage: "Please log in to view support tickets.",
+    forbiddenMessage: "Only customers can view their support tickets.",
+  });
 
   const { searchParams } = new URL(request.url);
   const statusParam = searchParams.get("status")?.trim().toUpperCase();
@@ -41,9 +42,10 @@ export const GET = withApiHandler(async (request: NextRequest) => {
  * Body: { subject: string, orderId?: string }
  */
 export const POST = withApiHandler(async (request: NextRequest) => {
-  const session = await getSession(request);
-  if (!session) return apiUnauthorized("Please log in to create a support ticket.");
-  if (session.role !== "CUSTOMER") return apiForbidden("Only customers can create support tickets.");
+  const session = await assertCustomerAuthComplete(request, {
+    unauthorizedMessage: "Please log in to create a support ticket.",
+    forbiddenMessage: "Only customers can create support tickets.",
+  });
 
   let body: unknown;
   try {

@@ -12,15 +12,13 @@ import { prisma } from "@/lib/prisma";
 import {
   createSocialVendor,
   SocialVendorCreateError,
+  SOCIAL_EMAIL_CONFLICT_MESSAGE,
   type CreatedSocialVendor,
 } from "@/lib/auth/create-social-vendor";
+import { syncSellerAuthOnboardingComplete } from "@/lib/auth/seller-onboarding";
 
-/**
- * Custom URL scheme the native app registers (see vendor-app `scheme`).
- * ASWebAuthenticationSession / Chrome Custom Tabs deliver this callback URL
- * privately back to the app that started the session.
- */
 const NATIVE_OAUTH_CALLBACK = "vendorapp://google-auth";
+const VENDOR_AUTH_ONBOARDING_PATH = "/vendor/complete-account";
 
 function vendorErrorRedirect(
   baseUrl: string,
@@ -50,8 +48,8 @@ function clearOAuthStateCookies(response: NextResponse): void {
 }
 
 /**
- * Completes vendor Google OAuth after Google redirects to the shared
- * `/api/auth/oauth/google/callback` (registered in Google Cloud Console).
+ * Completes vendor Google OAuth after Google redirects.
+ * Identity: oauthProvider=google + oauthProviderId (Google sub). Never merge by email alone.
  */
 export async function completeVendorGoogleOAuth(opts: {
   provider: OAuthProvider;
@@ -64,9 +62,6 @@ export async function completeVendorGoogleOAuth(opts: {
 }): Promise<NextResponse> {
   const { provider, code, requestBase, appBase, returnUrl, native } = opts;
 
-  // Native errors must return to the custom scheme so the auth session closes
-  // and control returns to the app; an https redirect would strand the user
-  // inside the ASWebAuthenticationSession / Custom Tab sheet.
   const fail = (message: string): NextResponse => {
     if (native) {
       const url = new URL(NATIVE_OAUTH_CALLBACK);
@@ -79,7 +74,6 @@ export async function completeVendorGoogleOAuth(opts: {
   let oauthUser = opts.oauthUser;
   if (!oauthUser) {
     try {
-      // Use "customer" redirect_uri path (shared with customer Google login).
       oauthUser = await exchangeOAuthCode(provider, code, requestBase, "customer");
     } catch (e) {
       console.error(`[Vendor OAuth] ${provider} code exchange failed:`, e);
@@ -92,29 +86,52 @@ export async function completeVendorGoogleOAuth(opts: {
       "Your Google account has no email address. Use email and password instead."
     );
   }
+  if (!oauthUser.providerId?.trim()) {
+    return fail("Google identity is missing. Please try again.");
+  }
+
+  const providerId = oauthUser.providerId.trim();
+  const email = oauthUser.email.trim().toLowerCase();
 
   let seller: CreatedSocialVendor | null = await prisma.seller.findFirst({
-    where: { email: oauthUser.email.trim().toLowerCase(), deletedAt: null },
+    where: {
+      deletedAt: null,
+      oauthProvider: "google",
+      oauthProviderId: providerId,
+    },
     select: {
       id: true,
       email: true,
       businessName: true,
       ownerName: true,
       status: true,
+      authOnboardingComplete: true,
+      phoneVerified: true,
+      emailVerified: true,
     },
   });
 
   if (!seller) {
-    // No vendor account yet → auto-create one and sign in (Guideline 2.1 — social
-    // sign-in must not dead-end). Lands in onboarding/KYC; a real business name is
-    // required before approval to sell.
+    const emailOwner = await prisma.seller.findFirst({
+      where: { email, deletedAt: null },
+      select: {
+        id: true,
+        oauthProvider: true,
+        oauthProviderId: true,
+      },
+    });
+    if (emailOwner) {
+      // Do not auto-link or overwrite provider IDs.
+      return fail(SOCIAL_EMAIL_CONFLICT_MESSAGE);
+    }
+
     const fullName = `${oauthUser.firstName ?? ""} ${oauthUser.lastName ?? ""}`.trim();
     try {
       seller = await createSocialVendor({
-        email: oauthUser.email,
+        email,
         name: fullName,
         provider: "google",
-        oauthProviderId: oauthUser.providerId,
+        oauthProviderId: providerId,
       });
     } catch (err) {
       if (err instanceof SocialVendorCreateError) {
@@ -125,31 +142,45 @@ export async function completeVendorGoogleOAuth(opts: {
     }
   }
 
+  // Never overwrite a different provider ID on an existing seller.
+  const existingLink = await prisma.seller.findFirst({
+    where: { id: seller.id, deletedAt: null },
+    select: { oauthProviderId: true, oauthProvider: true },
+  });
+  if (
+    existingLink?.oauthProviderId &&
+    existingLink.oauthProvider === "google" &&
+    existingLink.oauthProviderId !== providerId
+  ) {
+    return fail("This vendor account is linked to a different Google identity.");
+  }
+
   try {
     await prisma.seller.update({
       where: { id: seller.id },
       data: {
         emailVerified: true,
-        oauthProvider: provider,
-        oauthProviderId: oauthUser.providerId,
+        ...(existingLink?.oauthProviderId
+          ? {}
+          : { oauthProvider: "google", oauthProviderId: providerId }),
         verificationToken: null,
         verificationTokenExpires: null,
       },
     });
   } catch (e) {
-    // oauthProvider columns may be missing on older DBs — still issue session.
     console.error("[Vendor OAuth] seller OAuth link update failed (non-fatal):", e);
   }
 
-  // Native flow: the auth session's cookie store is separate from the WebView,
-  // so return a one-time hand-off token via the custom scheme. The app redeems
-  // it through /api/auth/vendor-oauth/native-complete inside the WebView, which
-  // sets the auth cookie in the WebView's own cookie store.
+  const authComplete = await syncSellerAuthOnboardingComplete(seller.id);
+
   if (native) {
     const handoff = signVendorNativeHandoff({ sub: seller.id, email: seller.email });
     const url = new URL(NATIVE_OAUTH_CALLBACK);
     url.searchParams.set("token", handoff);
-    url.searchParams.set("returnUrl", returnUrl || "/vendor");
+    url.searchParams.set(
+      "returnUrl",
+      authComplete ? returnUrl || "/vendor" : VENDOR_AUTH_ONBOARDING_PATH
+    );
     const response = NextResponse.redirect(url.toString());
     clearOAuthStateCookies(response);
     return response;
@@ -161,7 +192,10 @@ export async function completeVendorGoogleOAuth(opts: {
     role: "SELLER",
   });
 
-  const dest = new URL(returnUrl || "/vendor", appBase);
+  const destPath = authComplete
+    ? returnUrl || "/vendor"
+    : `${VENDOR_AUTH_ONBOARDING_PATH}?callbackUrl=${encodeURIComponent(returnUrl || "/vendor")}`;
+  const dest = new URL(destPath, appBase);
   if (!dest.searchParams.has("app") && returnUrl.includes("app=")) {
     try {
       const fromReturn = new URL(returnUrl, appBase);

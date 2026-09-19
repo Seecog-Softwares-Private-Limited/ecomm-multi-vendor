@@ -6,7 +6,7 @@ import {
   apiUnauthorized,
   apiForbidden,
 } from "@/lib/api";
-import { getSession } from "@/lib/auth";
+import { assertCustomerAuthComplete } from "@/lib/auth";
 import { addToCart } from "@/lib/data/cart";
 import { prisma } from "@/lib/prisma";
 import { resolveSkuRowForCart, skuVariantsRequireExplicitKey } from "@/lib/product-sku-variant";
@@ -23,9 +23,10 @@ type GuestCartLine = {
  * Body: { items: [{ productId, quantity, variantKey? }] }
  */
 export const POST = withApiHandler(async (request: NextRequest) => {
-  const session = await getSession(request);
-  if (!session) return apiUnauthorized("Please log in to merge your cart.");
-  if (session.role !== "CUSTOMER") return apiForbidden("Only customers have a cart.");
+  const session = await assertCustomerAuthComplete(request, {
+    unauthorizedMessage: "Please log in to merge your cart.",
+    forbiddenMessage: "Only customers have a cart.",
+  });
 
   let body: unknown;
   try {
