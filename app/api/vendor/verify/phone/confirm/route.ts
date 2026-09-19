@@ -9,11 +9,12 @@ import {
 import { requireSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { normalizeIndianPhone, INDIAN_MOBILE_HINT } from "@/lib/auth/phone";
-import { verifyOtp, PHONE_OTP_MSG91_MARKER } from "@/lib/sms/msg91-otp";
+import { verifyPhoneOtp } from "@/lib/auth/phone-otp-hash";
+import { isSixDigitOtp } from "@/lib/auth/otp.service";
 
 /**
  * POST /api/vendor/verify/phone/confirm
- * Body: { code: string } — verified with MSG91, not a DB-stored hash.
+ * Body: { code: string } — verified against HMAC stored on Seller (BlackSMS flow).
  */
 export const POST = withApiHandler(async (request: NextRequest) => {
   const session = await requireSession(request);
@@ -27,8 +28,8 @@ export const POST = withApiHandler(async (request: NextRequest) => {
     return apiBadRequest("Invalid JSON body");
   }
   const { code } = body as { code?: unknown };
-  if (typeof code !== "string" || !/^\d{4,9}$/.test(code.trim())) {
-    return apiBadRequest("Enter the verification code you received by SMS.");
+  if (typeof code !== "string" || !isSixDigitOtp(code.trim())) {
+    return apiBadRequest("Enter the 6-digit verification code you received by SMS.");
   }
 
   const seller = await prisma.seller.findFirst({
@@ -44,12 +45,11 @@ export const POST = withApiHandler(async (request: NextRequest) => {
     return apiUnauthorized("Code expired or not requested. Please send a new OTP first.");
   }
 
-  if (seller.phoneOtpCode !== PHONE_OTP_MSG91_MARKER) {
+  if (!seller.phoneOtpCode || seller.phoneOtpCode === "__msg91_sendotp__") {
     return apiUnauthorized("Please request a new verification code and try again.");
   }
 
-  const v = await verifyOtp(phoneNorm, code.trim());
-  if (!v.success) {
+  if (!verifyPhoneOtp(phoneNorm, code.trim(), seller.phoneOtpCode)) {
     return apiUnauthorized("Incorrect code. Try again.");
   }
 
