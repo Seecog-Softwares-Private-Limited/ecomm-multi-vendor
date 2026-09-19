@@ -46,8 +46,8 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
               ScaleTransition(
                 scale: _scale,
                 child: Container(
-                  width: 104,
-                  height: 104,
+                  width: 112,
+                  height: 112,
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(28),
@@ -59,7 +59,19 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
                       ),
                     ],
                   ),
-                  child: const Icon(Icons.storefront, size: 54, color: AppColors.primary),
+                  clipBehavior: Clip.antiAlias,
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Image.asset(
+                      'assets/images/app_icon.png',
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, _, _) => const Icon(
+                        Icons.storefront,
+                        size: 54,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(height: AppSpacing.xl),
