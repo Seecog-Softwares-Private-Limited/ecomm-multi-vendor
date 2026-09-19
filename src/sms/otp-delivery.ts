@@ -1,13 +1,15 @@
 /**
- * Customer login OTP — Quick SMS (no DLT). Uses plain text OTP message on Fast2SMS route `q`.
+ * Customer login OTP delivery via BlackSMS OTP API.
+ * App still generates and stores the OTP; BlackSMS only sends `variables_values`.
  */
 
-import { sendSMS, type SendSmsResult } from "@/lib/sendSMS";
-import { formatCustomerOtpQuickSms } from "@/lib/auth/otp.service";
+import { toIndianMobile10Digits } from "@/lib/auth/phone";
+import { sendBlackSmsOtp, type BlackSmsResult } from "@/sms/blacksms.client";
 
 export async function deliverCustomerLoginOtp(
   phoneNorm: string,
   plainOtp: string
-): Promise<SendSmsResult> {
-  return sendSMS(phoneNorm, formatCustomerOtpQuickSms(plainOtp));
+): Promise<BlackSmsResult> {
+  const mobile10 = toIndianMobile10Digits(phoneNorm);
+  return sendBlackSmsOtp(mobile10, plainOtp);
 }

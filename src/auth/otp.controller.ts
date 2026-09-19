@@ -1,6 +1,6 @@
 /**
  * OTP HTTP handlers — POST /api/auth/send-otp and POST /api/auth/verify-otp.
- * Delegates to existing auth.controller (DB OTP, 5 min expiry). SMS uses Fast2SMS via otp-delivery.
+ * Delegates to existing auth.controller (DB OTP, 5 min expiry). SMS uses BlackSMS via otp-delivery.
  */
 
 import { NextRequest, NextResponse } from "next/server";
