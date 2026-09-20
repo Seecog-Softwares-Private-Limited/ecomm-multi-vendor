@@ -10,9 +10,10 @@ import {
   Menu,
   Heart,
   User,
-  LogIn,
   LogOut,
   LifeBuoy,
+  Lock,
+  ArrowRight,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -324,8 +325,8 @@ export function MobileBottomNav() {
                 </>
               )}
 
-              <div className="mt-4 space-y-2 border-t border-slate-200 pt-4">
-                {isLoggedIn === true ? (
+              {isLoggedIn === true ? (
+                <div className="mt-4 space-y-2 border-t border-slate-200 pt-4">
                   <button
                     type="button"
                     onClick={handleLogout}
@@ -335,18 +336,60 @@ export function MobileBottomNav() {
                     <LogOut size={22} />
                     <span>Logout</span>
                   </button>
-                ) : (
+                </div>
+              ) : (
+                <div
+                  className={`${visibleMenuLinks.length > 0 ? "mt-4 border-t border-slate-200 pt-5" : "pt-2"} flex flex-col items-center px-1 pb-2 text-center`}
+                >
+                  <div className="mb-3 flex items-center justify-center gap-2">
+                    <span
+                      className="flex h-10 w-10 items-center justify-center rounded-full"
+                      style={{ background: "linear-gradient(135deg, #FFF5EF 0%, #FFE4CC 100%)" }}
+                      aria-hidden
+                    >
+                      <Lock size={20} color="#FF6A00" />
+                    </span>
+                    <h2
+                      className="text-lg font-bold text-slate-900"
+                      style={{ fontFamily: "'Manrope', sans-serif" }}
+                    >
+                      Login to continue
+                    </h2>
+                  </div>
+
+                  <p
+                    className="mb-5 max-w-[280px] text-sm leading-relaxed text-slate-500"
+                    style={{ fontFamily: "'Manrope', sans-serif" }}
+                  >
+                    Sign in to continue shopping and access your account
+                  </p>
+
                   <Link
                     href="/login"
                     onClick={() => setMenuOpen(false)}
-                    className="flex items-center gap-3 rounded-2xl bg-[#FF6A00] px-4 py-3.5 text-white shadow-md transition active:scale-[0.99]"
+                    className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#FF6A00] px-4 py-3.5 text-white shadow-md transition active:scale-[0.99] hover:bg-[#E55F00]"
                     style={{ fontFamily: "'Manrope', sans-serif", fontWeight: 700 }}
                   >
-                    <LogIn size={22} />
-                    <span>Login</span>
+                    <ArrowRight size={20} aria-hidden />
+                    <span>Login to Continue</span>
                   </Link>
-                )}
-              </div>
+
+                  <p
+                    className="mt-5 text-sm text-slate-500"
+                    style={{ fontFamily: "'Manrope', sans-serif" }}
+                  >
+                    Don&apos;t have an account?
+                  </p>
+                  <Link
+                    href="/register"
+                    onClick={() => setMenuOpen(false)}
+                    className="mt-1 text-sm font-bold text-[#FF6A00] transition hover:text-[#E55F00]"
+                    style={{ fontFamily: "'Manrope', sans-serif" }}
+                  >
+                    Sign Up
+                  </Link>
+                </div>
+              )}
             </div>
           </div>
         </div>
