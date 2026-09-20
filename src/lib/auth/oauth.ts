@@ -40,6 +40,8 @@ export interface OAuthUserInfo {
   firstName: string | null;
   lastName: string | null;
   avatarUrl: string | null;
+  /** From Google userinfo `email_verified`. Facebook leaves this unset. */
+  emailVerified?: boolean;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -410,6 +412,7 @@ export async function exchangeGoogleCode(
     given_name?: string;
     family_name?: string;
     picture?: string;
+    email_verified?: boolean | string;
   };
 
   if (!u.sub || !u.email) throw new Error("Google did not return required user fields");
@@ -420,6 +423,7 @@ export async function exchangeGoogleCode(
     firstName: u.given_name ?? null,
     lastName: u.family_name ?? null,
     avatarUrl: u.picture ?? null,
+    emailVerified: u.email_verified === true || u.email_verified === "true",
   };
 }
 

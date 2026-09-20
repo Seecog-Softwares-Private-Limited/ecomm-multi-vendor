@@ -55,9 +55,9 @@ export const POST = withApiHandler(async (request: NextRequest) => {
     return apiConflict("A vendor account with this email already exists");
   }
 
-  const { findActiveSellerByPhoneNorm } = await import("@/lib/auth/seller-onboarding");
-  const phoneOwner = await findActiveSellerByPhoneNorm(phoneNorm);
-  if (phoneOwner) {
+  const { findActiveSellersByPhoneNorm } = await import("@/lib/auth/seller-onboarding");
+  const phoneOwners = await findActiveSellersByPhoneNorm(phoneNorm);
+  if (phoneOwners.length > 0) {
     return apiConflict("This phone number is already registered with another vendor account.");
   }
 
