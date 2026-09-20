@@ -26,12 +26,19 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
-	<!-- Allow local HTTP API (127.0.0.1) during debug against the host machine. -->
+	<!-- Production uses HTTPS only. No arbitrary insecure HTTP exception. -->
 	<key>NSAppTransportSecurity</key>
 	<dict>
-		<key>NSAllowsLocalNetworking</key>
-		<true/>
+		<key>NSAllowsArbitraryLoads</key>
+		<false/>
 	</dict>
+	<!-- WKWebView file / photo picker for website <input type="file"> -->
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Indovyapar needs photo access when you upload images on the website.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Indovyapar needs camera access when you capture photos on the website.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Indovyapar needs microphone access only when the website requests it for media capture.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -76,5 +83,17 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>https</string>
+		<string>http</string>
+		<string>tel</string>
+		<string>mailto</string>
+		<string>sms</string>
+		<string>upi</string>
+		<string>phonepe</string>
+		<string>gpay</string>
+		<string>paytmmp</string>
+	</array>
 </dict>
 </plist>
