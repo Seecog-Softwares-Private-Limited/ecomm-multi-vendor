@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { SellerStatus } from "@prisma/client";
+import { VENDOR_GOOGLE_EMAIL_EXISTS_MESSAGE } from "@/lib/auth/link-vendor-google";
 
 export type SocialVendorProvider = "apple" | "google";
 
@@ -36,8 +37,7 @@ export class SocialVendorCreateError extends Error {
   }
 }
 
-export const SOCIAL_EMAIL_CONFLICT_MESSAGE =
-  "This email is already registered with another account. Please log in to that account first. You can link Google later.";
+export const SOCIAL_EMAIL_CONFLICT_MESSAGE = VENDOR_GOOGLE_EMAIL_EXISTS_MESSAGE;
 
 export const SOCIAL_APPLE_EMAIL_CONFLICT_MESSAGE =
   "This email is already registered with another account. Please log in to that account first. You can link Apple later.";

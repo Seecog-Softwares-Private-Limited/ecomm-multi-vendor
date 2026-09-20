@@ -1,11 +1,11 @@
 "use client";
 
-import { Lock, User, CreditCard, Save, Eye, EyeOff, Trash2 } from "lucide-react";
+import { Lock, User, CreditCard, Save, Eye, EyeOff, Trash2, Link2 } from "lucide-react";
 import { Button, Input, Card, Alert, Modal } from "../components/UIComponents";
 import { vendorService } from "@/services/vendor.service";
 import { useApi } from "@/lib/hooks/useApi";
 import { ServiceError } from "@/services/errors";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Link } from "@/app/components/Link";
 import * as React from "react";
 
@@ -14,7 +14,8 @@ const DELETE_CONFIRM_PHRASE = "DELETE";
 
 export function VendorSettings() {
   const router = useRouter();
-  const { data: me, isLoading: meLoading } = useApi(() => vendorService.getMe());
+  const searchParams = useSearchParams();
+  const { data: me, isLoading: meLoading, refetch: refetchMe } = useApi(() => vendorService.getMe());
   const {
     data: profile,
     isLoading: profileLoading,
@@ -23,6 +24,30 @@ export function VendorSettings() {
   const [activeTab, setActiveTab] = React.useState("profile");
 
   const socialSignInOnly = Boolean(me?.socialSignInOnly);
+  const googleLinked = Boolean(me?.googleLinked);
+  const hasPassword = Boolean(me?.hasPassword);
+
+  const [linkBanner, setLinkBanner] = React.useState<{ type: "success" | "error"; message: string } | null>(
+    null
+  );
+
+  React.useEffect(() => {
+    const linked = searchParams.get("googleLinked");
+    const linkError = searchParams.get("googleLinkError");
+    if (linked === "1") {
+      setLinkBanner({
+        type: "success",
+        message: "Google connected successfully. You can sign in with Google or email and password.",
+      });
+      setActiveTab("accounts");
+      void refetchMe();
+      router.replace("/vendor/settings", { scroll: false });
+    } else if (linkError) {
+      setLinkBanner({ type: "error", message: linkError });
+      setActiveTab("accounts");
+      router.replace("/vendor/settings", { scroll: false });
+    }
+  }, [searchParams, refetchMe, router]);
 
   const [currentPassword, setCurrentPassword] = React.useState("");
   const [newPassword, setNewPassword] = React.useState("");
@@ -71,7 +96,13 @@ export function VendorSettings() {
   const tabs = [
     { id: "password", label: "Change Password", icon: Lock },
     { id: "profile", label: "Profile Info", icon: User },
+    { id: "accounts", label: "Connected Accounts", icon: Link2 },
   ];
+
+  const handleConnectGoogle = () => {
+    const returnUrl = encodeURIComponent("/vendor/settings");
+    window.location.assign(`/api/auth/vendor-oauth/google?link=1&returnUrl=${returnUrl}`);
+  };
 
   const handleChangePassword = async () => {
     setPasswordError(null);
@@ -253,6 +284,10 @@ export function VendorSettings() {
         </p>
       </div>
 
+      {linkBanner && (
+        <Alert type={linkBanner.type === "success" ? "success" : "error"} message={linkBanner.message} />
+      )}
+
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:gap-2">
         {tabs.map((tab) => {
           const Icon = tab.icon;
@@ -342,6 +377,57 @@ export function VendorSettings() {
                 <Save className="w-5 h-5" />
                 {passwordBusy ? "Updating…" : "Update Password"}
               </Button>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {activeTab === "accounts" && (
+        <Card title="Connected Accounts">
+          <div className="space-y-6">
+            <Alert
+              type="info"
+              message="Connect Google while signed in to use either Google or email and password for the same Vendor account. Customer accounts with the same email stay separate."
+            />
+
+            <div className="rounded-xl border border-[#E2E8F0] bg-white p-4">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="font-semibold text-[#1E293B]">Email &amp; Password</p>
+                  <p className="text-sm text-[#64748B]">
+                    {hasPassword ? "Connected" : "Not set — use Forgot password to create one"}
+                  </p>
+                </div>
+                <span
+                  className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold ${
+                    hasPassword ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"
+                  }`}
+                >
+                  {hasPassword ? "✓ Connected" : "Not connected"}
+                </span>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-[#E2E8F0] bg-white p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="font-semibold text-[#1E293B]">Google</p>
+                  <p className="text-sm text-[#64748B]">
+                    {googleLinked
+                      ? "Connected — you can sign in with Google"
+                      : "Not connected"}
+                  </p>
+                </div>
+                {googleLinked ? (
+                  <span className="inline-flex w-fit rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+                    ✓ Connected
+                  </span>
+                ) : (
+                  <Button variant="primary" onClick={handleConnectGoogle} disabled={meLoading}>
+                    Connect Google
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         </Card>

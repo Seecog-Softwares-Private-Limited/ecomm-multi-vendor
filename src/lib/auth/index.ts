@@ -27,6 +27,12 @@ export {
   type CompleteCustomerSocialResult,
 } from "./complete-customer-google";
 export {
+  linkGoogleToVendorSeller,
+  VendorGoogleLinkError,
+  VENDOR_GOOGLE_EMAIL_EXISTS_MESSAGE,
+  GOOGLE_IDENTITY_ALREADY_LINKED_MESSAGE,
+} from "./link-vendor-google";
+export {
   registerSchema,
   registerPasswordOnlySchema,
   loginSchema,

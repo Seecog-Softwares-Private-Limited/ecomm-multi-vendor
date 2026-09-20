@@ -151,6 +151,11 @@ export interface OAuthState {
    * setting the auth cookie in the browser store.
    */
   native?: boolean;
+  /**
+   * When set, Vendor Google OAuth is a post-login "link Google" flow for this
+   * Seller id (must match the authenticated session that started OAuth).
+   */
+  linkSellerId?: string;
 }
 
 interface SignedOAuthPayload extends OAuthState {
@@ -186,6 +191,11 @@ function parseOAuthStateFields(parsed: unknown): OAuthState | null {
       returnUrl: (parsed as SignedOAuthPayload).returnUrl,
       flow,
       native: (parsed as SignedOAuthPayload).native === true,
+      linkSellerId:
+        typeof (parsed as SignedOAuthPayload).linkSellerId === "string" &&
+        (parsed as SignedOAuthPayload).linkSellerId!.trim()
+          ? (parsed as SignedOAuthPayload).linkSellerId!.trim()
+          : undefined,
     };
   }
   return null;
@@ -194,9 +204,12 @@ function parseOAuthStateFields(parsed: unknown): OAuthState | null {
 export function generateOAuthState(
   returnUrl: string,
   flow: OAuthFlow = "customer",
-  native = false
+  native = false,
+  linkSellerId?: string
 ): OAuthState {
-  return { state: randomBytes(16).toString("hex"), returnUrl, flow, native };
+  const link =
+    typeof linkSellerId === "string" && linkSellerId.trim() ? linkSellerId.trim() : undefined;
+  return { state: randomBytes(16).toString("hex"), returnUrl, flow, native, linkSellerId: link };
 }
 
 // ─── Native session hand-off token ───────────────────────────────────────────
