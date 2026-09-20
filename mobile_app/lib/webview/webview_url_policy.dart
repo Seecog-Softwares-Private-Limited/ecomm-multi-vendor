@@ -59,16 +59,14 @@ class WebViewUrlPolicy {
   }
 
   /// Whether this navigation should remain inside the WebView.
+  ///
+  /// Any http(s) URL stays in-WebView. Razorpay card/UPI flows redirect to
+  /// bank ACS and other third-party hosts; those must not leave the WebView
+  /// or payment completion (`handler` → `/api/payments/verify`) never runs.
   bool shouldStayInWebView(Uri uri) {
     final scheme = uri.scheme.toLowerCase();
     if (scheme != 'http' && scheme != 'https') return false;
-
-    final host = uri.host.toLowerCase();
-    if (isAllowedHost(host)) return true;
-    if (isOAuthHost(host)) return true;
-    if (isPaymentHost(host)) return true;
-
-    return false;
+    return true;
   }
 
   /// Schemes that should be handed to another app (phone, mail, maps, etc.).
