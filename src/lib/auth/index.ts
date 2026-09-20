@@ -33,6 +33,12 @@ export {
   GOOGLE_IDENTITY_ALREADY_LINKED_MESSAGE,
 } from "./link-vendor-google";
 export {
+  resolveVendorGoogleMatch,
+  applyVendorGoogleLogin,
+  type VendorGoogleMatch,
+  type SellerGoogleLookup,
+} from "./resolve-vendor-google-login";
+export {
   registerSchema,
   registerPasswordOnlySchema,
   loginSchema,
@@ -95,6 +101,13 @@ export {
   isPlaceholderVendorEmail,
   placeholderEmailForVendorPhoneNorm,
   findActiveSellerByPhoneNorm,
+  findActiveSellersByPhoneNorm,
+  resolveActiveSellerByPhoneNorm,
+  ensureSellerForVendorPhoneOtp,
+  markSellerPhoneOtpVerified,
+  sellerStoredPhoneMatchesNorm,
+  PHONE_ACCOUNT_CONFLICT_CODE,
+  PHONE_ACCOUNT_CONFLICT_MESSAGE,
 } from "./seller-onboarding";
 export { getVerifiedSession } from "./middleware-auth";
 export {

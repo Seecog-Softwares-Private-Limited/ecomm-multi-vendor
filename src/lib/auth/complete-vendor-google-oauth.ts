@@ -9,16 +9,8 @@ import {
 } from "@/lib/auth/oauth";
 import { signToken, setAuthCookie } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import {
-  createSocialVendor,
-  SocialVendorCreateError,
-  type CreatedSocialVendor,
-} from "@/lib/auth/create-social-vendor";
-import {
-  linkGoogleToVendorSeller,
-  VendorGoogleLinkError,
-  VENDOR_GOOGLE_EMAIL_EXISTS_MESSAGE,
-} from "@/lib/auth/link-vendor-google";
+import { applyVendorGoogleLogin } from "@/lib/auth/resolve-vendor-google-login";
+import { linkGoogleToVendorSeller, VendorGoogleLinkError } from "@/lib/auth/link-vendor-google";
 import { syncSellerAuthOnboardingComplete } from "@/lib/auth/seller-onboarding";
 
 const NATIVE_OAUTH_CALLBACK = "vendorapp://google-auth";
@@ -53,7 +45,9 @@ function clearOAuthStateCookies(response: NextResponse): void {
 
 /**
  * Completes vendor Google OAuth after Google redirects.
- * Identity: oauthProvider=google + oauthProviderId (Google sub). Never merge by email alone.
+ * Identity key is Google `sub` (`oauthProviderId`). A verified Google email may
+ * attach that `sub` to an existing Seller whose email is already verified —
+ * never by trusting a frontend email or sellerId, and never by querying User.
  */
 export async function completeVendorGoogleOAuth(opts: {
   provider: OAuthProvider;
@@ -100,6 +94,9 @@ export async function completeVendorGoogleOAuth(opts: {
 
   // Authenticated "Connect Google" flow — attach sub to current Seller only.
   if (linkSellerId?.trim()) {
+    // #region agent log
+    fetch('http://127.0.0.1:7456/ingest/072b8280-cbe0-406c-9e62-41143fb8780b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'337f7e'},body:JSON.stringify({sessionId:'337f7e',runId:'pre-fix',hypothesisId:'D',location:'complete-vendor-google-oauth.ts:link-branch',message:'Entered authenticated linkSellerId branch (not login resolver)',data:{hasLinkSellerId:true},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
     try {
       await linkGoogleToVendorSeller(linkSellerId.trim(), providerId);
     } catch (err) {
@@ -123,83 +120,36 @@ export async function completeVendorGoogleOAuth(opts: {
   }
 
   const email = oauthUser.email.trim().toLowerCase();
-
-  let seller: CreatedSocialVendor | null = await prisma.seller.findFirst({
-    where: {
-      deletedAt: null,
-      oauthProvider: "google",
-      oauthProviderId: providerId,
-    },
-    select: {
-      id: true,
-      email: true,
-      businessName: true,
-      ownerName: true,
-      status: true,
-      authOnboardingComplete: true,
-      phoneVerified: true,
-      emailVerified: true,
-    },
+  // #region agent log
+  fetch('http://127.0.0.1:7456/ingest/072b8280-cbe0-406c-9e62-41143fb8780b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'337f7e'},body:JSON.stringify({sessionId:'337f7e',runId:'pre-fix',hypothesisId:'B',location:'complete-vendor-google-oauth.ts:pre-apply',message:'Vendor Google login inputs before applyVendorGoogleLogin',data:{emailDomain:email.split('@')[1]??null,emailLen:email.length,googleEmailVerified:oauthUser.emailVerified===true,hasProviderId:Boolean(providerId),linkSellerIdPresent:Boolean(linkSellerId),native:Boolean(native)},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
+  const applied = await applyVendorGoogleLogin({
+    googleSub: providerId,
+    email,
+    googleEmailVerified: oauthUser.emailVerified === true,
+    name: `${oauthUser.firstName ?? ""} ${oauthUser.lastName ?? ""}`.trim(),
   });
 
-  if (!seller) {
-    const emailOwner = await prisma.seller.findFirst({
-      where: { email, deletedAt: null },
-      select: {
-        id: true,
-        oauthProvider: true,
-        oauthProviderId: true,
-      },
-    });
-    if (emailOwner) {
-      // Do not auto-link or overwrite provider IDs.
-      return fail(VENDOR_GOOGLE_EMAIL_EXISTS_MESSAGE);
-    }
+  // #region agent log
+  fetch('http://127.0.0.1:7456/ingest/072b8280-cbe0-406c-9e62-41143fb8780b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'337f7e'},body:JSON.stringify({sessionId:'337f7e',runId:'pre-fix',hypothesisId:'C',location:'complete-vendor-google-oauth.ts:post-apply',message:'applyVendorGoogleLogin result',data:{ok:applied.ok,code:applied.ok?null:applied.code,failMessagePrefix:applied.ok?null:String(applied.message).slice(0,80),isNew:applied.ok?applied.isNew:null,sellerIdPrefix:applied.ok?String(applied.seller.id).slice(0,8):null},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
 
-    const fullName = `${oauthUser.firstName ?? ""} ${oauthUser.lastName ?? ""}`.trim();
-    try {
-      seller = await createSocialVendor({
-        email,
-        name: fullName,
-        provider: "google",
-        oauthProviderId: providerId,
-      });
-    } catch (err) {
-      if (err instanceof SocialVendorCreateError) {
-        return fail(err.message);
-      }
-      console.error("[Vendor OAuth] social vendor create failed:", err);
-      return fail("Could not create your vendor account. Please try again.");
-    }
+  if (!applied.ok) {
+    return fail(applied.message);
   }
 
-  // Never overwrite a different provider ID on an existing seller.
-  const existingLink = await prisma.seller.findFirst({
-    where: { id: seller.id, deletedAt: null },
-    select: { oauthProviderId: true, oauthProvider: true },
-  });
-  if (
-    existingLink?.oauthProviderId &&
-    existingLink.oauthProvider === "google" &&
-    existingLink.oauthProviderId !== providerId
-  ) {
-    return fail("This vendor account is linked to a different Google identity.");
-  }
+  const seller = applied.seller;
 
   try {
     await prisma.seller.update({
       where: { id: seller.id },
       data: {
-        emailVerified: true,
-        ...(existingLink?.oauthProviderId
-          ? {}
-          : { oauthProvider: "google", oauthProviderId: providerId }),
         verificationToken: null,
         verificationTokenExpires: null,
       },
     });
   } catch (e) {
-    console.error("[Vendor OAuth] seller OAuth link update failed (non-fatal):", e);
+    console.error("[Vendor OAuth] could not clear verification token (non-fatal):", e);
   }
 
   const authComplete = await syncSellerAuthOnboardingComplete(seller.id);
