@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
@@ -38,10 +40,31 @@ abstract final class EnvConfig {
     return fallback;
   }
 
+  /// Optional global override: `--dart-define=BASE_URL=...`
   static const String _baseUrlOverride = String.fromEnvironment('BASE_URL');
+
+  /// Platform-specific overrides: `--dart-define=BASE_URL_IOS=...` / `BASE_URL_ANDROID=...`
+  static const String _baseUrlIosOverride = String.fromEnvironment('BASE_URL_IOS');
+  static const String _baseUrlAndroidOverride = String.fromEnvironment('BASE_URL_ANDROID');
 
   static String get baseUrl {
     if (_baseUrlOverride.isNotEmpty) return _baseUrlOverride;
+
+    if (!kIsWeb) {
+      try {
+        if (Platform.isIOS || Platform.isMacOS) {
+          if (_baseUrlIosOverride.isNotEmpty) return _baseUrlIosOverride;
+          return _read('BASE_URL_IOS', fallback: 'http://127.0.0.1:3005');
+        }
+        if (Platform.isAndroid) {
+          if (_baseUrlAndroidOverride.isNotEmpty) return _baseUrlAndroidOverride;
+          return _read('BASE_URL_ANDROID', fallback: 'http://10.0.2.2:3005');
+        }
+      } catch (_) {
+        // Platform can throw in some test environments.
+      }
+    }
+
     return _read('BASE_URL', fallback: 'https://indovyapar.com');
   }
 
