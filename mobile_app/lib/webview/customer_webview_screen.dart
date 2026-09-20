@@ -188,10 +188,11 @@ class _CustomerWebViewScreenState extends State<CustomerWebViewScreen> {
       return NavigationDecision.prevent;
     }
 
-    // Unknown https host — open externally rather than trapping the user.
+    // Keep ALL http(s) navigations in the WebView — including bank ACS / 3DS
+    // hosts used by Razorpay. Opening those externally breaks the return path
+    // so checkout.handler never runs and payment never verifies.
     if (uri.scheme == 'http' || uri.scheme == 'https') {
-      await _openExternal(uri);
-      return NavigationDecision.prevent;
+      return NavigationDecision.navigate;
     }
 
     return NavigationDecision.prevent;
