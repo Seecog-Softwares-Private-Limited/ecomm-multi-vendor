@@ -311,10 +311,10 @@ export function VendorProductForm({ productId = "", onBack, onSave }: VendorProd
   };
 
   const removeImage = (index: number) => {
-    setFormData({
-      ...formData,
-      images: formData.images.filter((_, i) => i !== index),
-    });
+    setFormData((prev) => ({
+      ...prev,
+      images: prev.images.filter((_, i) => i !== index),
+    }));
   };
 
   return (
@@ -595,7 +595,7 @@ export function VendorProductForm({ productId = "", onBack, onSave }: VendorProd
           {/* Image Grid */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             {(formData.images ?? []).map((image, index) => (
-              <div key={image || index} className="relative group">
+              <div key={`${image}-${index}`} className="relative">
                 <img
                   src={image}
                   alt={`Product ${index + 1}`}
@@ -614,8 +614,14 @@ export function VendorProductForm({ productId = "", onBack, onSave }: VendorProd
                   Image unavailable
                 </div>
                 <button
-                  onClick={() => removeImage(index)}
-                  className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    removeImage(index);
+                  }}
+                  aria-label={`Remove product photo ${index + 1}`}
+                  className="absolute top-1.5 right-1.5 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-red-500 text-white shadow-md"
                 >
                   <X className="w-4 h-4" />
                 </button>
