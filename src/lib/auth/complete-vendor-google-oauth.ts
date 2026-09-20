@@ -12,9 +12,13 @@ import { prisma } from "@/lib/prisma";
 import {
   createSocialVendor,
   SocialVendorCreateError,
-  SOCIAL_EMAIL_CONFLICT_MESSAGE,
   type CreatedSocialVendor,
 } from "@/lib/auth/create-social-vendor";
+import {
+  linkGoogleToVendorSeller,
+  VendorGoogleLinkError,
+  VENDOR_GOOGLE_EMAIL_EXISTS_MESSAGE,
+} from "@/lib/auth/link-vendor-google";
 import { syncSellerAuthOnboardingComplete } from "@/lib/auth/seller-onboarding";
 
 const NATIVE_OAUTH_CALLBACK = "vendorapp://google-auth";
@@ -59,13 +63,20 @@ export async function completeVendorGoogleOAuth(opts: {
   returnUrl: string;
   native?: boolean;
   oauthUser?: OAuthUserInfo;
+  /** When set, link Google to this authenticated Seller instead of login/create. */
+  linkSellerId?: string;
 }): Promise<NextResponse> {
-  const { provider, code, requestBase, appBase, returnUrl, native } = opts;
+  const { provider, code, requestBase, appBase, returnUrl, native, linkSellerId } = opts;
 
   const fail = (message: string): NextResponse => {
     if (native) {
       const url = new URL(NATIVE_OAUTH_CALLBACK);
       url.searchParams.set("error", message);
+      return NextResponse.redirect(url.toString());
+    }
+    if (linkSellerId) {
+      const url = new URL(returnUrl || "/vendor/settings", appBase);
+      url.searchParams.set("googleLinkError", message);
       return NextResponse.redirect(url.toString());
     }
     return vendorErrorRedirect(appBase, message, returnUrl);
@@ -81,16 +92,36 @@ export async function completeVendorGoogleOAuth(opts: {
     }
   }
 
-  if (!oauthUser.email) {
-    return fail(
-      "Your Google account has no email address. Use email and password instead."
-    );
-  }
   if (!oauthUser.providerId?.trim()) {
     return fail("Google identity is missing. Please try again.");
   }
 
   const providerId = oauthUser.providerId.trim();
+
+  // Authenticated "Connect Google" flow — attach sub to current Seller only.
+  if (linkSellerId?.trim()) {
+    try {
+      await linkGoogleToVendorSeller(linkSellerId.trim(), providerId);
+    } catch (err) {
+      if (err instanceof VendorGoogleLinkError) {
+        return fail(err.message);
+      }
+      console.error("[Vendor OAuth] link Google failed:", err);
+      return fail("Could not connect Google. Please try again.");
+    }
+    const dest = new URL(returnUrl || "/vendor/settings", appBase);
+    dest.searchParams.set("googleLinked", "1");
+    const response = NextResponse.redirect(dest.toString());
+    clearOAuthStateCookies(response);
+    return response;
+  }
+
+  if (!oauthUser.email) {
+    return fail(
+      "Your Google account has no email address. Use email and password instead."
+    );
+  }
+
   const email = oauthUser.email.trim().toLowerCase();
 
   let seller: CreatedSocialVendor | null = await prisma.seller.findFirst({
@@ -122,7 +153,7 @@ export async function completeVendorGoogleOAuth(opts: {
     });
     if (emailOwner) {
       // Do not auto-link or overwrite provider IDs.
-      return fail(SOCIAL_EMAIL_CONFLICT_MESSAGE);
+      return fail(VENDOR_GOOGLE_EMAIL_EXISTS_MESSAGE);
     }
 
     const fullName = `${oauthUser.firstName ?? ""} ${oauthUser.lastName ?? ""}`.trim();

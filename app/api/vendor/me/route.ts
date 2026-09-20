@@ -35,6 +35,7 @@ export const GET = withApiHandler(async (request: NextRequest) => {
 
   const authOnboardingComplete = seller?.authOnboardingComplete === true;
   const hasUsablePassword = Boolean(seller?.passwordHash && seller.passwordHash.trim().length >= 20);
+  const googleLinked = seller?.oauthProvider === "google";
 
   return apiSuccess({
     vendorId: sellerId,
@@ -52,6 +53,8 @@ export const GET = withApiHandler(async (request: NextRequest) => {
     needsAuthOnboarding: !authOnboardingComplete,
     // Social / phone-first vendors have no password until they set one via forgot-password.
     socialSignInOnly: Boolean(seller?.oauthProvider || seller?.appleUserId) || !hasUsablePassword,
+    googleLinked,
+    hasPassword: hasUsablePassword,
   });
 });
 

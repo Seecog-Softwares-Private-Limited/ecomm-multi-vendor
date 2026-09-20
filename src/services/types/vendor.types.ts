@@ -42,6 +42,10 @@ export interface VendorMeResponse {
   needsAuthOnboarding?: boolean;
   /** True when account was created via Google/Apple/phone-first (use Forgot password to set email password). */
   socialSignInOnly?: boolean;
+  /** True when this Seller has Google oauthProvider linked. */
+  googleLinked?: boolean;
+  /** True when Seller has a usable password hash. */
+  hasPassword?: boolean;
 }
 
 /** Payload for creating a product (POST /api/vendor/products). */
