@@ -10,6 +10,7 @@ const encoder = new TextEncoder();
 
 export const REG_PROOF_EMAIL = "customer_reg_email";
 export const REG_PROOF_PHONE = "customer_reg_phone";
+export const REG_PROOF_VENDOR_PHONE = "vendor_reg_phone";
 
 /** Proofs remain valid long enough to finish the registration form. */
 export const REG_PROOF_EXPIRES = "30m";
@@ -22,6 +23,12 @@ type EmailProofPayload = {
 
 type PhoneProofPayload = {
   purpose: typeof REG_PROOF_PHONE;
+  phone: string;
+  otpId: string;
+};
+
+type VendorPhoneProofPayload = {
+  purpose: typeof REG_PROOF_VENDOR_PHONE;
   phone: string;
   otpId: string;
 };
@@ -63,6 +70,21 @@ export async function signPhoneRegistrationProof(
     .sign(secretKey());
 }
 
+export async function signVendorPhoneRegistrationProof(
+  phoneNorm: string,
+  otpId: string
+): Promise<string> {
+  return new jose.SignJWT({
+    purpose: REG_PROOF_VENDOR_PHONE,
+    phone: phoneNorm,
+    otpId,
+  } satisfies VendorPhoneProofPayload)
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime(REG_PROOF_EXPIRES)
+    .sign(secretKey());
+}
+
 export async function verifyEmailRegistrationProof(
   token: string,
   expectedEmail: string
@@ -89,6 +111,23 @@ export async function verifyPhoneRegistrationProof(
   try {
     const { payload } = await jose.jwtVerify(token, secretKey());
     if (payload.purpose !== REG_PROOF_PHONE) return { ok: false };
+    if (typeof payload.phone !== "string" || typeof payload.otpId !== "string") {
+      return { ok: false };
+    }
+    if (payload.phone !== expectedPhoneNorm) return { ok: false };
+    return { ok: true, otpId: payload.otpId };
+  } catch {
+    return { ok: false };
+  }
+}
+
+export async function verifyVendorPhoneRegistrationProof(
+  token: string,
+  expectedPhoneNorm: string
+): Promise<{ ok: true; otpId: string } | { ok: false }> {
+  try {
+    const { payload } = await jose.jwtVerify(token, secretKey());
+    if (payload.purpose !== REG_PROOF_VENDOR_PHONE) return { ok: false };
     if (typeof payload.phone !== "string" || typeof payload.otpId !== "string") {
       return { ok: false };
     }

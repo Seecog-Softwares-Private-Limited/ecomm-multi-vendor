@@ -69,6 +69,7 @@ export const vendorRegisterSchema = z.object({
   businessName: z.string().min(1, "Business name is required").max(255).trim(),
   ownerName: z.string().min(1, "Owner name is required").max(255).trim(),
   phone: z.string().min(10, "Mobile number is required").max(20).trim(),
+  phoneProofToken: z.string().min(10, "Verify your phone with OTP first"),
 });
 
 export type RegisterInput = z.infer<typeof registerParsedSchema>;

@@ -309,7 +309,7 @@ export function LoginPage() {
           <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xl shadow-slate-200/30 sm:p-8">
             <div className="mb-5">
               <h2 className="text-2xl font-bold tracking-tight text-slate-900">
-                Welcome back
+                Welcome back to Indovyapar
               </h2>
               <p className="mt-1.5 text-sm text-slate-500">
                 Sign in to your Indovyapar account to continue
