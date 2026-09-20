@@ -19,7 +19,7 @@ import {
 } from "@/lib/auth/otp.service";
 import { isSmsProviderConfigured } from "@/lib/sendSMS";
 import { deliverCustomerLoginOtp } from "@/sms/otp-delivery";
-import { findActiveSellerByPhoneNorm } from "@/lib/auth/seller-onboarding";
+import { findActiveSellersByPhoneNorm, PHONE_ACCOUNT_CONFLICT_CODE, PHONE_ACCOUNT_CONFLICT_MESSAGE } from "@/lib/auth/seller-onboarding";
 
 const RESEND_COOLDOWN_MS = 60_000;
 
@@ -68,8 +68,17 @@ export const POST = withApiHandler(async (request: NextRequest) => {
   const phoneNorm = normalizeIndianPhone(phoneRaw);
   if (!phoneNorm) return apiBadRequest(INDIAN_MOBILE_HINT);
 
-  const other = await findActiveSellerByPhoneNorm(phoneNorm);
-  if (other && other.id !== sellerId) {
+  const others = (await findActiveSellersByPhoneNorm(phoneNorm)).filter(
+    (s) => s.id !== sellerId
+  );
+  if (others.length > 1) {
+    return apiError(
+      PHONE_ACCOUNT_CONFLICT_MESSAGE,
+      Status.CONFLICT,
+      PHONE_ACCOUNT_CONFLICT_CODE
+    );
+  }
+  if (others.length === 1) {
     return apiConflict(
       "This phone number is already registered with another vendor account."
     );

@@ -6,8 +6,6 @@
  */
 
 import { NextRequest } from "next/server";
-import { Prisma } from "@prisma/client";
-import { SellerStatus } from "@prisma/client";
 import {
   withApiHandler,
   apiSuccess,
@@ -28,7 +26,6 @@ import { normalizeIndianPhone, INDIAN_MOBILE_HINT } from "@/lib/auth/phone";
 import { hashPhoneOtp, verifyPhoneOtp } from "@/lib/auth/phone-otp-hash";
 import {
   generateOtpCode,
-  isDevConsoleOtpAllowed,
   isSixDigitOtp,
   OTP_EXPIRY_MS,
   resolveOtpProvider,
@@ -37,56 +34,15 @@ import { isSmsProviderConfigured } from "@/lib/sendSMS";
 import { deliverCustomerLoginOtp } from "@/sms/otp-delivery";
 import { prisma } from "@/lib/prisma";
 import {
-  findActiveSellerByPhoneNorm,
-  placeholderEmailForVendorPhoneNorm,
+  ensureSellerForVendorPhoneOtp,
+  markSellerPhoneOtpVerified,
+  resolveActiveSellerByPhoneNorm,
   sellerAuthStatusFields,
-  syncSellerAuthOnboardingComplete,
+  PHONE_ACCOUNT_CONFLICT_CODE,
+  PHONE_ACCOUNT_CONFLICT_MESSAGE,
 } from "@/lib/auth/seller-onboarding";
 
 const RESEND_COOLDOWN_MS = 60_000;
-
-async function ensureIncompleteSellerForPhone(phoneNorm: string) {
-  const existing = await findActiveSellerByPhoneNorm(phoneNorm);
-  if (existing) return existing;
-
-  const email = placeholderEmailForVendorPhoneNorm(phoneNorm);
-  try {
-    return await prisma.seller.create({
-      data: {
-        email,
-        passwordHash: null,
-        businessName: "Pending",
-        ownerName: "Pending",
-        phone: phoneNorm,
-        status: SellerStatus.DRAFT,
-        emailVerified: false,
-        phoneVerified: false,
-        authOnboardingComplete: false,
-      },
-      select: {
-        id: true,
-        email: true,
-        ownerName: true,
-        businessName: true,
-        phone: true,
-        phoneVerified: true,
-        emailVerified: true,
-        authOnboardingComplete: true,
-        oauthProvider: true,
-        oauthProviderId: true,
-        appleUserId: true,
-        passwordHash: true,
-        status: true,
-      },
-    });
-  } catch (err) {
-    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
-      const raced = await findActiveSellerByPhoneNorm(phoneNorm);
-      if (raced) return raced;
-    }
-    throw err;
-  }
-}
 
 function blacksmsReady(): boolean {
   const provider = resolveOtpProvider();
@@ -120,7 +76,15 @@ export const POST_VENDOR_SEND_OTP = withApiHandler(async (request: NextRequest) 
     );
   }
 
-  const seller = await ensureIncompleteSellerForPhone(phoneNorm);
+  const ensured = await ensureSellerForVendorPhoneOtp(phoneNorm);
+  if (ensured.kind === "conflict") {
+    return apiError(
+      PHONE_ACCOUNT_CONFLICT_MESSAGE,
+      Status.CONFLICT,
+      PHONE_ACCOUNT_CONFLICT_CODE
+    );
+  }
+  const seller = ensured.seller;
 
   const row = await prisma.seller.findFirst({
     where: { id: seller.id },
@@ -184,7 +148,6 @@ export const POST_VENDOR_SEND_OTP = withApiHandler(async (request: NextRequest) 
   await prisma.seller.update({
     where: { id: seller.id },
     data: {
-      phone: phoneNorm,
       phoneOtpCode: codeHash,
       phoneOtpExpires: expiresAt,
     },
@@ -224,10 +187,19 @@ export const POST_VENDOR_VERIFY_OTP = withApiHandler(async (request: NextRequest
     return apiBadRequest("Enter the 6-digit OTP from your SMS.");
   }
 
-  const seller = await findActiveSellerByPhoneNorm(phoneNorm);
-  if (!seller) {
+  const resolved = await resolveActiveSellerByPhoneNorm(phoneNorm);
+  if (resolved.kind === "conflict") {
+    return apiError(
+      PHONE_ACCOUNT_CONFLICT_MESSAGE,
+      Status.CONFLICT,
+      PHONE_ACCOUNT_CONFLICT_CODE
+    );
+  }
+  if (resolved.kind === "none") {
     return apiBadRequest("Please request an OTP first.");
   }
+
+  const seller = resolved.seller;
 
   const row = await prisma.seller.findFirst({
     where: { id: seller.id, deletedAt: null },
@@ -259,17 +231,7 @@ export const POST_VENDOR_VERIFY_OTP = withApiHandler(async (request: NextRequest
     return apiUnauthorized("Incorrect code. Try again.");
   }
 
-  await prisma.seller.update({
-    where: { id: row.id },
-    data: {
-      phone: phoneNorm,
-      phoneVerified: true,
-      phoneOtpCode: null,
-      phoneOtpExpires: null,
-    },
-  });
-
-  const authOnboardingComplete = await syncSellerAuthOnboardingComplete(row.id);
+  const authOnboardingComplete = await markSellerPhoneOtpVerified(row.id, phoneNorm);
   const fresh = await prisma.seller.findFirst({
     where: { id: row.id },
     select: {
