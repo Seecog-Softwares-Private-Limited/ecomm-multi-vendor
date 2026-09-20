@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Link } from "../../components/Link";
 import {
@@ -16,6 +16,7 @@ import { authService } from "@/services/auth.service";
 import { ServiceError } from "@/services/errors";
 import { IndovyaparLogo } from "@/components/IndovyaparLogo";
 import { useAppMode } from "@/contexts/AppModeContext";
+import { normalizeIndianPhone, INDIAN_MOBILE_HINT } from "@/lib/auth/phone";
 
 const primaryBtnClass =
   "flex w-full items-center justify-center gap-2 rounded-xl bg-[#FF6A00] py-3.5 text-sm font-semibold text-white shadow-lg shadow-orange-500/25 transition hover:bg-[#E55F00] focus:outline-none focus:ring-2 focus:ring-[#FF6A00] focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-60";
@@ -26,12 +27,11 @@ const iconWrap = "pointer-events-none absolute inset-y-0 left-0 flex items-cente
 
 /**
  * Vendor registration page at /vendor/register.
- * Submits to POST /api/auth/vendor-register and redirects to /vendor on success.
+ * Requires phone OTP verify, then POST /api/auth/vendor-register.
  */
 export function VendorRegisterPage() {
   const { isAppMode } = useAppMode();
   const searchParams = useSearchParams();
-  // Prefill when the user arrives from Apple/Google sign-in without a vendor account.
   const socialProvider = searchParams.get("social");
   const socialLabel =
     socialProvider === "apple" ? "Apple" : socialProvider === "google" ? "Google" : null;
@@ -40,10 +40,97 @@ export function VendorRegisterPage() {
   const [businessName, setBusinessName] = useState("");
   const [ownerName, setOwnerName] = useState(() => searchParams.get("name") ?? "");
   const [phone, setPhone] = useState("");
+  const [phoneOtp, setPhoneOtp] = useState("");
+  const [phoneSent, setPhoneSent] = useState(false);
+  const [phoneVerified, setPhoneVerified] = useState(false);
+  const [phoneProofToken, setPhoneProofToken] = useState<string | null>(null);
+  const [phoneCooldown, setPhoneCooldown] = useState(0);
+  const [phoneSendLoading, setPhoneSendLoading] = useState(false);
+  const [phoneVerifyLoading, setPhoneVerifyLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [verificationLink, setVerificationLink] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (phoneCooldown <= 0) return;
+    const t = setInterval(() => setPhoneCooldown((s) => (s > 0 ? s - 1 : 0)), 1000);
+    return () => clearInterval(t);
+  }, [phoneCooldown]);
+
+  useEffect(() => {
+    if (phoneVerified || phoneProofToken || phoneSent) {
+      setPhoneVerified(false);
+      setPhoneProofToken(null);
+      setPhoneSent(false);
+      setPhoneOtp("");
+    }
+    // Reset OTP state when phone number changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phone]);
+
+  const phoneFormatOk = Boolean(normalizeIndianPhone(phone.trim()));
+
+  async function sendPhoneOtp(isResend = false) {
+    setError(null);
+    const trimmed = phone.trim();
+    if (!normalizeIndianPhone(trimmed)) {
+      setError(INDIAN_MOBILE_HINT);
+      return;
+    }
+    setPhoneSendLoading(true);
+    try {
+      const res = await fetch("/api/auth/vendor-register/phone-otp/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: trimmed, ...(isResend ? { resend: true } : {}) }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data?.error?.message ?? "Could not send phone OTP.");
+        return;
+      }
+      setPhoneSent(true);
+      setPhoneOtp("");
+      setPhoneCooldown(60);
+    } catch {
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setPhoneSendLoading(false);
+    }
+  }
+
+  async function verifyPhoneOtp() {
+    setError(null);
+    if (!/^\d{6}$/.test(phoneOtp.trim())) {
+      setError("Enter the 6-digit phone OTP.");
+      return;
+    }
+    setPhoneVerifyLoading(true);
+    try {
+      const res = await fetch("/api/auth/vendor-register/phone-otp/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: phone.trim(), otp: phoneOtp.trim() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data?.error?.message ?? "Invalid or expired phone OTP.");
+        return;
+      }
+      const token = data?.data?.phoneProofToken;
+      if (typeof token !== "string" || !token) {
+        setError("Phone verification succeeded but proof was missing. Please try again.");
+        return;
+      }
+      setPhoneProofToken(token);
+      setPhoneVerified(true);
+    } catch {
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setPhoneVerifyLoading(false);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -54,8 +141,12 @@ export function VendorRegisterPage() {
       setError("Owner name is required.");
       return;
     }
-    if (!phone.trim()) {
-      setError("Mobile number is required.");
+    if (!phone.trim() || !normalizeIndianPhone(phone.trim())) {
+      setError(INDIAN_MOBILE_HINT);
+      return;
+    }
+    if (!phoneVerified || !phoneProofToken) {
+      setError("Please verify your phone with OTP before creating an account.");
       return;
     }
     setLoading(true);
@@ -66,6 +157,7 @@ export function VendorRegisterPage() {
         businessName: businessName.trim(),
         ownerName: ownerName.trim(),
         phone: phone.trim(),
+        phoneProofToken,
       });
       setSuccess(true);
       if (data.verificationLink) setVerificationLink(data.verificationLink);
@@ -90,7 +182,6 @@ export function VendorRegisterPage() {
 
   return (
     <div className="min-h-screen flex">
-      {/* Left panel — brand (hidden on small screens) */}
       <div className="hidden lg:flex lg:w-[44%] xl:w-[48%] flex-col justify-between bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 p-10 xl:p-14">
         <div>
           <IndovyaparLogo variant="light" style={{ fontSize: 28, lineHeight: "32px" }} />
@@ -111,10 +202,8 @@ export function VendorRegisterPage() {
         <p className="text-sm text-slate-500">© Vendor Center</p>
       </div>
 
-      {/* Right panel — form */}
       <div className="flex flex-1 flex-col items-center justify-center px-4 py-12 sm:px-6 lg:px-10 bg-slate-50/80 overflow-y-auto">
         <div className="w-full max-w-[420px] my-8">
-          {/* Mobile logo */}
           <div className="lg:hidden flex flex-col items-center text-center mb-8">
             <IndovyaparLogo fontSize={26} style={{ lineHeight: "32px" }} />
             <p className="mt-2 text-xs font-semibold uppercase tracking-widest text-slate-500">
@@ -147,10 +236,7 @@ export function VendorRegisterPage() {
                     </a>
                   </div>
                 )}
-                <Link
-                  href="/vendor/login"
-                  className={primaryBtnClass}
-                >
+                <Link href="/vendor/login" className={primaryBtnClass}>
                   Go to sign in
                   <ArrowRight className="h-4 w-4" />
                 </Link>
@@ -162,7 +248,7 @@ export function VendorRegisterPage() {
                     Create account
                   </h2>
                   <p className="mt-1.5 text-sm text-slate-500">
-                    Fill in your details to register as a vendor
+                    Verify your phone with OTP, then create your vendor account
                   </p>
                 </div>
 
@@ -289,14 +375,66 @@ export function VendorRegisterPage() {
                         placeholder="10-digit mobile"
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
+                        disabled={phoneVerified}
                         className={inputBase}
                       />
                     </div>
+                    <div className="mt-2 flex gap-2">
+                      <button
+                        type="button"
+                        disabled={
+                          phoneVerified ||
+                          !phoneFormatOk ||
+                          phoneCooldown > 0 ||
+                          phoneSendLoading
+                        }
+                        onClick={() => void sendPhoneOtp(phoneSent)}
+                        className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50 disabled:opacity-50"
+                      >
+                        {phoneSendLoading
+                          ? "Sending…"
+                          : phoneVerified
+                            ? "Verified"
+                            : phoneCooldown > 0
+                              ? `Resend in ${phoneCooldown}s`
+                              : phoneSent
+                                ? "Resend OTP"
+                                : "Send OTP"}
+                      </button>
+                    </div>
+                    {phoneSent && !phoneVerified ? (
+                      <div className="mt-3 flex gap-2">
+                        <input
+                          className="flex-1 rounded-xl border border-slate-200 px-3 py-2.5 tracking-widest text-center"
+                          placeholder="6-digit OTP"
+                          value={phoneOtp}
+                          onChange={(e) =>
+                            setPhoneOtp(e.target.value.replace(/\D/g, "").slice(0, 6))
+                          }
+                          inputMode="numeric"
+                          autoComplete="one-time-code"
+                          disabled={phoneVerifyLoading}
+                        />
+                        <button
+                          type="button"
+                          disabled={phoneOtp.length !== 6 || phoneVerifyLoading}
+                          onClick={() => void verifyPhoneOtp()}
+                          className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+                        >
+                          {phoneVerifyLoading ? "…" : "Verify OTP"}
+                        </button>
+                      </div>
+                    ) : null}
+                    {phoneVerified ? (
+                      <p className="mt-2 text-sm font-medium text-emerald-700">
+                        Phone verified
+                      </p>
+                    ) : null}
                   </div>
 
                   <button
                     type="submit"
-                    disabled={loading}
+                    disabled={loading || !phoneVerified}
                     className={primaryBtnClass}
                   >
                     {loading ? (

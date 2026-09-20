@@ -39,12 +39,18 @@ export const POST = withApiHandler(async (request: NextRequest) => {
     );
   }
 
-  const { email, password, businessName, ownerName, phone } = validation.data;
+  const { email, password, businessName, ownerName, phone, phoneProofToken } = validation.data;
 
   const { normalizeIndianPhone, INDIAN_MOBILE_HINT } = await import("@/lib/auth/phone");
   const phoneNorm = normalizeIndianPhone(phone);
   if (!phoneNorm) {
     return apiValidationError("Validation failed", { phone: INDIAN_MOBILE_HINT });
+  }
+
+  const { verifyVendorPhoneRegistrationProof } = await import("@/lib/auth/registration-proof");
+  const phoneProof = await verifyVendorPhoneRegistrationProof(phoneProofToken, phoneNorm);
+  if (!phoneProof.ok) {
+    return apiBadRequest("Verify your phone with OTP before creating an account.");
   }
 
   const existing = await prisma.seller.findFirst({
@@ -74,7 +80,7 @@ export const POST = withApiHandler(async (request: NextRequest) => {
       phone: phoneNorm,
       status: SellerStatus.PENDING_VERIFICATION,
       emailVerified: false,
-      phoneVerified: false,
+      phoneVerified: true,
       authOnboardingComplete: false,
       verificationToken,
       verificationTokenExpires,

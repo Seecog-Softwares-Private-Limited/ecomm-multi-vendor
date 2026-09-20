@@ -40,7 +40,8 @@ export interface VendorRegisterPayload {
   password: string;
   businessName: string;
   ownerName: string;
-  phone?: string;
+  phone: string;
+  phoneProofToken: string;
 }
 
 export interface VendorSessionResponse {
