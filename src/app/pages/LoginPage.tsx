@@ -21,7 +21,6 @@ import { normalizeIndianPhone, INDIAN_MOBILE_HINT } from "@/lib/auth/phone";
 import { syncCustomerDefaultAddressToDeliveryLocation } from "@/lib/delivery-location";
 import { dispatchCartUpdated } from "@/contexts/CartDrawerContext";
 import { startOAuthLogin } from "@/lib/auth/start-oauth";
-import { useAppMode } from "@/contexts/AppModeContext";
 import {
   customerNeedsAuthOnboarding,
   redirectIfAccountIncomplete,
@@ -43,7 +42,6 @@ const SHOW_PHONE_OTP_LOGIN = true;
 export function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { isAppMode } = useAppMode();
   const isDev = process.env.NODE_ENV === "development";
   const [loginMode, setLoginMode] = React.useState<LoginMode>(
     SHOW_PHONE_OTP_LOGIN ? (isDev ? "email" : "phone") : "email",
@@ -64,11 +62,21 @@ export function LoginPage() {
   const returnUrl =
     searchParams?.get("returnUrl") ?? searchParams?.get("callbackUrl") ?? "/";
 
-  // Vendor hybrid app must not surface customer Google login (Guideline 4.8 / 4).
+  // Customer /login must always show Google on web/iPad Safari.
+  // Only the vendor Expo shell (injects __INDOVYAPAR_NATIVE__) is sent to vendor login.
+  // Sticky sessionStorage app=1 was blanking this page (spinner, no Google) on iOS.
   React.useEffect(() => {
-    if (!isAppMode) return;
-    router.replace("/vendor/login?app=1");
-  }, [isAppMode, router]);
+    if (typeof window === "undefined") return;
+    if (window.__INDOVYAPAR_NATIVE__) {
+      router.replace("/vendor/login?app=1");
+      return;
+    }
+    try {
+      window.sessionStorage.removeItem("indovyapar-app-mode");
+    } catch {
+      /* ignore */
+    }
+  }, [router]);
 
   React.useEffect(() => {
     const fromUrl = searchParams?.get("email")?.trim();
@@ -125,14 +133,6 @@ export function LoginPage() {
     const t = setInterval(() => setResendSeconds((s) => (s > 0 ? s - 1 : 0)), 1000);
     return () => clearInterval(t);
   }, [resendSeconds]);
-
-  if (isAppMode) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-[#F9FAFB]">
-        <span className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-[#FF6A00] border-t-transparent" />
-      </div>
-    );
-  }
 
   const requestOtp = async (isResend = false) => {
     setError(null);

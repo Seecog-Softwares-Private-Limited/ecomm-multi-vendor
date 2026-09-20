@@ -20,7 +20,6 @@ import { getGuestCart, clearGuestCart } from "@/lib/guest-cart";
 import { IndovyaparLogo } from "@/components/IndovyaparLogo";
 import { dispatchCartUpdated } from "@/contexts/CartDrawerContext";
 import { startOAuthLogin } from "@/lib/auth/start-oauth";
-import { useAppMode } from "@/contexts/AppModeContext";
 import { normalizeIndianPhone, INDIAN_MOBILE_HINT } from "@/lib/auth/phone";
 import { customerNeedsAuthOnboarding } from "@/lib/auth/customer-onboarding-client";
 
@@ -91,7 +90,6 @@ function isValidEmail(v: string): boolean {
 export function RegisterPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { isAppMode } = useAppMode();
   const returnUrl =
     searchParams?.get("returnUrl") ?? searchParams?.get("callbackUrl") ?? "/";
   const [showPassword, setShowPassword] = React.useState(false);
@@ -120,10 +118,20 @@ export function RegisterPage() {
   const [phoneSendLoading, setPhoneSendLoading] = React.useState(false);
   const [phoneVerifyLoading, setPhoneVerifyLoading] = React.useState(false);
 
+  // Customer register must stay on customer flow (Google visible).
+  // Sticky app=1 was blanking this page for Safari/iPad after vendor WebView visits.
   React.useEffect(() => {
-    if (!isAppMode) return;
-    router.replace("/vendor/login?app=1");
-  }, [isAppMode, router]);
+    if (typeof window === "undefined") return;
+    if (window.__INDOVYAPAR_NATIVE__) {
+      router.replace("/vendor/login?app=1");
+      return;
+    }
+    try {
+      window.sessionStorage.removeItem("indovyapar-app-mode");
+    } catch {
+      /* ignore */
+    }
+  }, [router]);
 
   React.useEffect(() => {
     if (emailCooldown <= 0) return;
@@ -378,14 +386,6 @@ export function RegisterPage() {
       setLoading(false);
     }
   };
-
-  if (isAppMode) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-[#F9FAFB]">
-        <span className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-[#FF6A00] border-t-transparent" />
-      </div>
-    );
-  }
 
   const emailFormatOk = isValidEmail(email);
   const phoneFormatOk = Boolean(normalizeIndianPhone(phone.trim()));
