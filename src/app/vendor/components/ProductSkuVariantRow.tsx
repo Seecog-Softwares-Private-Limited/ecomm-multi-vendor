@@ -104,15 +104,20 @@ export function ProductSkuVariantRow({
         {value.images.length > 0 ? (
           <div className="flex flex-wrap gap-2 mb-3">
             {value.images.map((url, i) => (
-              <div key={`${url}-${i}`} className="relative group rounded-lg border border-[#E2E8F0] overflow-hidden w-20 h-20 bg-white">
+              <div key={`${url}-${i}`} className="relative rounded-lg border border-[#E2E8F0] overflow-hidden w-20 h-20 bg-white">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={url} alt="" className="w-full h-full object-cover" />
                 <button
                   type="button"
-                  onClick={() => removeImageAt(i)}
-                  className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs font-medium"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    removeImageAt(i);
+                  }}
+                  aria-label={`Remove variant photo ${i + 1}`}
+                  className="absolute top-0.5 right-0.5 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-red-500 text-white shadow-md"
                 >
-                  Remove
+                  <X className="w-3.5 h-3.5" />
                 </button>
               </div>
             ))}
