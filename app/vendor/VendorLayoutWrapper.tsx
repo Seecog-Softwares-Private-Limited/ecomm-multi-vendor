@@ -9,6 +9,10 @@ import { authService } from "@/services/auth.service";
 import { LogOut } from "lucide-react";
 import type { VendorStatusDisplay } from "@/lib/auth";
 import { buildVendorLoginPath } from "@/lib/vendor-app-query";
+import {
+  vendorNeedsAuthOnboarding,
+  VENDOR_AUTH_ONBOARDING_PATH,
+} from "@/lib/auth/vendor-onboarding-client";
 
 const VENDOR_LOGIN_PATH = "/vendor/login";
 const VENDOR_REGISTER_PATH = "/vendor/register";
@@ -156,11 +160,13 @@ export function VendorLayoutWrapper({
     };
   }, [pathname]);
 
+  const needsAuthOnboarding = vendorNeedsAuthOnboarding(me);
+
   /** Never call router.replace during render — it can break navigation and leave the shell stuck loading. */
   useEffect(() => {
     if (!authChecked || isVendorAuthPage(pathname ?? null)) return;
-    if (me?.needsAuthOnboarding === true || me?.authOnboardingComplete === false) {
-      routerRef.current.replace("/vendor/complete-account");
+    if (needsAuthOnboarding) {
+      routerRef.current.replace(VENDOR_AUTH_ONBOARDING_PATH);
       return;
     }
     const approved = me?.status === "approved";
@@ -168,7 +174,7 @@ export function VendorLayoutWrapper({
     if (!isAllowedWhenNotApproved(pathname)) {
       routerRef.current.replace(VENDOR_STATUS_PATH);
     }
-  }, [authChecked, pathname, me]);
+  }, [authChecked, pathname, me, needsAuthOnboarding]);
 
   // When not approved, refetch status on tab focus and every 20s so vendor sees approval without manual refresh
   const approved = me?.status === "approved";
@@ -226,6 +232,30 @@ export function VendorLayoutWrapper({
           Refresh page
         </button>
       </div>
+    );
+  }
+
+  // Auth Stage 1 incomplete: never render dashboard/commerce shell (avoids
+  // ACCOUNT_INCOMPLETE → DataState "Try again" dead-end while redirect settles).
+  if (needsAuthOnboarding) {
+    return (
+      <VendorAppNavProvider enabled={false}>
+        <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#F8FAFC] px-6 text-center">
+          <p className="max-w-md text-base font-semibold text-[#1E293B]">
+            Complete your account setup
+          </p>
+          <p className="max-w-md text-sm text-[#64748B]">
+            Verify your email and phone to continue to Vendor verification.
+          </p>
+          <button
+            type="button"
+            className="rounded-xl bg-[#1B7A43] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#135C32]"
+            onClick={() => routerRef.current.push(VENDOR_AUTH_ONBOARDING_PATH)}
+          >
+            Complete account
+          </button>
+        </div>
+      </VendorAppNavProvider>
     );
   }
 

@@ -112,6 +112,18 @@ async function main() {
     "name_email"
   );
   assert.equal(
+    resolveVendorOnboardingStep({
+      authOnboardingComplete: false,
+      needsAuthOnboarding: true,
+      phoneVerified: true,
+      phone: phoneNorm,
+      email: "ready@example.com",
+      emailVerified: true,
+      ownerName: "Ready Vendor",
+    }),
+    "done"
+  );
+  assert.equal(
     vendorNeedsAuthOnboarding({ authOnboardingComplete: true, needsAuthOnboarding: false }),
     false
   );

@@ -3,6 +3,7 @@ import { withApiHandler, apiSuccess, apiBadRequest, apiUnauthorized, apiForbidde
 import { requireSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { verifyPhoneOtp } from "@/lib/auth/phone-otp-hash";
+import { syncSellerAuthOnboardingComplete } from "@/lib/auth/seller-onboarding";
 
 /**
  * POST /api/vendor/verify/email/confirm
@@ -39,5 +40,12 @@ export const POST = withApiHandler(async (request: NextRequest) => {
     data: { emailVerified: true, emailOtpCode: null, emailOtpExpires: null },
   });
 
-  return apiSuccess({ verified: true, message: "Email address verified successfully." });
+  const authOnboardingComplete = await syncSellerAuthOnboardingComplete(sellerId);
+
+  return apiSuccess({
+    verified: true,
+    message: "Email address verified successfully.",
+    authOnboardingComplete,
+    needsAuthOnboarding: !authOnboardingComplete,
+  });
 });

@@ -59,7 +59,8 @@ export function resolveVendorOnboardingStep(
 
   if (!hasRealEmail || !hasName) return "name_email";
   if (v.emailVerified !== true) return "await_email_verification";
-  return "name_email";
+  // Fields satisfied — refreshMe / syncSellerAuthOnboardingComplete will flip the flag.
+  return "done";
 }
 
 export function isVendorAccountIncompleteApiError(payload: unknown): boolean {
@@ -70,6 +71,10 @@ export function isVendorAccountIncompleteApiError(payload: unknown): boolean {
 }
 
 export const VENDOR_AUTH_ONBOARDING_PATH = "/vendor/complete-account";
+
+/** Matches assertSellerAuthComplete / apiAccountIncomplete message. */
+export const SELLER_ACCOUNT_INCOMPLETE_MESSAGE =
+  "Complete your account setup to continue.";
 
 export function redirectIfVendorAccountIncomplete(
   payload: unknown,
