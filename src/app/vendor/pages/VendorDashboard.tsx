@@ -3,7 +3,12 @@
 import { useApi } from "@/lib/hooks/useApi";
 import { vendorService } from "@/services/vendor.service";
 import { isVendorApproved } from "@/lib/vendor-onboarding";
+import {
+  vendorNeedsAuthOnboarding,
+  VENDOR_AUTH_ONBOARDING_PATH,
+} from "@/lib/auth/vendor-onboarding-client";
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import {
   ShoppingBag,
   Clock,
@@ -89,9 +94,16 @@ function ApprovedDashboardContent() {
 }
 
 export function VendorDashboard() {
+  const router = useRouter();
   const { data: me, error: meError, isLoading: meLoading } = useApi(() =>
     vendorService.getMe()
   );
+
+  React.useEffect(() => {
+    if (me && vendorNeedsAuthOnboarding(me)) {
+      router.replace(VENDOR_AUTH_ONBOARDING_PATH);
+    }
+  }, [me, router]);
 
   if (meLoading) {
     return (
@@ -111,12 +123,31 @@ export function VendorDashboard() {
     );
   }
 
+  if (vendorNeedsAuthOnboarding(me)) {
+    return (
+      <div className="flex min-h-[280px] flex-col items-center justify-center gap-4 rounded-xl border border-slate-200 bg-white p-8 text-center">
+        <p className="text-lg font-semibold text-slate-900">Complete your account setup</p>
+        <p className="max-w-md text-sm text-slate-600">
+          Verify your email and phone before Vendor verification (KYC / GST).
+        </p>
+        <a
+          href={VENDOR_AUTH_ONBOARDING_PATH}
+          className="rounded-xl bg-[#1B7A43] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#135C32]"
+        >
+          Complete account
+        </a>
+      </div>
+    );
+  }
+
   if (!isVendorApproved(me.status)) {
     return (
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Dashboard</h1>
-          <p className="mt-1 text-slate-600">Complete onboarding to access your full dashboard</p>
+          <p className="mt-1 text-slate-600">
+            Complete Vendor verification to access your full dashboard
+          </p>
         </div>
         <OnboardingCard
           emailVerified={me.emailVerified}
