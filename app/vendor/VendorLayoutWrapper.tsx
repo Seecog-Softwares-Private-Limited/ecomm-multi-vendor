@@ -166,7 +166,9 @@ export function VendorLayoutWrapper({
   useEffect(() => {
     if (!authChecked || isVendorAuthPage(pathname ?? null)) return;
     if (needsAuthOnboarding) {
-      routerRef.current.replace(VENDOR_AUTH_ONBOARDING_PATH);
+      // Soft Next.js navigation often no-ops in the Expo WebView shell — use a
+      // full load so Incomplete vendors actually reach /vendor/complete-account.
+      window.location.replace(VENDOR_AUTH_ONBOARDING_PATH);
       return;
     }
     const approved = me?.status === "approved";
@@ -247,13 +249,12 @@ export function VendorLayoutWrapper({
           <p className="max-w-md text-sm text-[#64748B]">
             Verify your email and phone to continue to Vendor verification.
           </p>
-          <button
-            type="button"
+          <a
+            href={VENDOR_AUTH_ONBOARDING_PATH}
             className="rounded-xl bg-[#1B7A43] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#135C32]"
-            onClick={() => routerRef.current.push(VENDOR_AUTH_ONBOARDING_PATH)}
           >
             Complete account
-          </button>
+          </a>
         </div>
       </VendorAppNavProvider>
     );
