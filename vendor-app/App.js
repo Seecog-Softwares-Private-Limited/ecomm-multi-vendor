@@ -21,7 +21,7 @@ import {
 } from 'react-native-safe-area-context';
 
 /** Bump with each store release — busts CDN/WebView cache for HTML on first load. */
-const APP_RELEASE = '1.0.0.8';
+const APP_RELEASE = '1.0.0.9';
 
 /**
  * Vendor home — middleware sends unauthenticated users to /vendor/login;
@@ -41,6 +41,9 @@ const NATIVE_OAUTH_CALLBACK_URL = `${NATIVE_OAUTH_CALLBACK_SCHEME}://google-auth
 /** Redeems the one-time hand-off token inside the WebView (sets session cookie there). */
 const NATIVE_OAUTH_COMPLETE_URL =
   'https://www.indovyapar.com/api/auth/vendor-oauth/native-complete';
+/** Canonical vendor Google OAuth *start* (never reopen a raw accounts.google.com URL). */
+const VENDOR_GOOGLE_OAUTH_START_URL =
+  'https://www.indovyapar.com/api/auth/vendor-oauth/google';
 
 // Finish auth sessions that return to this app (iOS ASWebAuthenticationSession).
 WebBrowser.maybeCompleteAuthSession();
@@ -117,16 +120,30 @@ function isGoogleOAuthAuthorizeUrl(url) {
   try {
     const parsed = new URL(url);
     const host = parsed.hostname.toLowerCase();
-    if (!host.includes('accounts.google.com')) return false;
-    const path = parsed.pathname.toLowerCase();
-    return (
-      path.includes('/o/oauth2') ||
-      path.includes('/signin/oauth') ||
-      path.includes('/servicelogin')
-    );
+    // Match ANY Google accounts host (incl. /v3/signin/... interstitials) —
+    // path-based checks miss the modern sign-in pages where users type
+    // email/password before the truncated authorize URL 400s.
+    if (host === 'accounts.google.com' || host === 'accounts.youtube.com') {
+      return true;
+    }
+    return host.endsWith('.google.com') && host.includes('accounts');
   } catch {
     return false;
   }
+}
+
+/**
+ * Clean native OAuth start for CCT / ASWebAuthenticationSession.
+ * Never reopen a raw accounts.google.com URL — Android redirect races often
+ * truncate query params and Google then shows Error 400 after email/password.
+ */
+function buildVendorNativeOAuthRestartUrl(returnUrl = '/vendor?app=1') {
+  const u = new URL(VENDOR_GOOGLE_OAUTH_START_URL);
+  u.searchParams.set('returnUrl', returnUrl);
+  u.searchParams.set('native', '1');
+  u.searchParams.set('app', '1');
+  u.searchParams.set('v', APP_RELEASE);
+  return u.toString();
 }
 
 function randomAppleNonce(length = 32) {
@@ -548,12 +565,17 @@ function VendorScreen() {
         // Flag the flow as native so the server returns a one-time hand-off token
         // via the custom scheme instead of setting the cookie in the auth-session
         // browser (whose cookie store the WebView cannot read).
+        // Never open accounts.google.com directly — always go through vendor-oauth start.
         let authStartUrl = startUrl;
         try {
-          const u = new URL(startUrl);
-          if (/^\/api\/auth\/vendor-oauth\//i.test(u.pathname)) {
-            u.searchParams.set('native', '1');
-            authStartUrl = u.toString();
+          if (isGoogleOAuthAuthorizeUrl(startUrl)) {
+            authStartUrl = buildVendorNativeOAuthRestartUrl();
+          } else {
+            const u = new URL(startUrl);
+            if (/^\/api\/auth\/vendor-oauth\//i.test(u.pathname)) {
+              u.searchParams.set('native', '1');
+              authStartUrl = u.toString();
+            }
           }
         } catch {}
 
@@ -644,9 +666,11 @@ function VendorScreen() {
         return false;
       }
 
-      // Fallback: Google authorize URL if vendor-oauth redirect still hits WebView.
+      // Fallback: if a Google authorize URL still hits WebView (Android redirect race),
+      // restart a *clean* vendor-oauth start — do NOT reopen the Google URL itself
+      // (truncated redirect_uri/client_id → Google Error 400 after password).
       if (isGoogleOAuthAuthorizeUrl(url)) {
-        startGoogleAuthSession(url);
+        startGoogleAuthSession(buildVendorNativeOAuthRestartUrl());
         return false;
       }
 
@@ -706,8 +730,14 @@ function VendorScreen() {
           return;
         }
         if (isGoogleOAuthAuthorizeUrl(navState.url)) {
-          startGoogleAuthSession(navState.url);
+          startGoogleAuthSession(buildVendorNativeOAuthRestartUrl());
           webRef.current?.stopLoading?.();
+          // Pull the WebView off any half-loaded Google page so the user can
+          // never type email/password against a truncated authorize URL.
+          const dest = JSON.stringify(VENDOR_LOGIN_URI);
+          webRef.current?.injectJavaScript?.(
+            `try { window.location.replace(${dest}); } catch (e) {} true;`
+          );
         }
       }}
       onLoadStart={onLoadStart}
