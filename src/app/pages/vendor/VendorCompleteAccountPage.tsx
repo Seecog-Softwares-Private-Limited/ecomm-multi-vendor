@@ -1,10 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { Loader2, Mail, Phone, User, LogOut } from "lucide-react";
+import { Loader2, Mail, Phone, User, LogOut, ArrowLeft } from "lucide-react";
 import { IndovyaparLogo } from "@/components/IndovyaparLogo";
 import { toast } from "sonner";
-import { normalizeIndianPhone, INDIAN_MOBILE_HINT } from "@/lib/auth/phone";
+import { normalizeIndianPhone, INDIAN_MOBILE_HINT, toMobileInputDigits, isIndianMobile10Digits } from "@/lib/auth/phone";
 import {
   type VendorAuthMe,
   type VendorOnboardingStep,
@@ -72,6 +72,8 @@ export function VendorCompleteAccountPage({
   const [verifyOtpLoading, setVerifyOtpLoading] = React.useState(false);
   const [resendSeconds, setResendSeconds] = React.useState(0);
   const [formError, setFormError] = React.useState<string | null>(null);
+  /** Stay on name/email edit even if /me still says await_email_verification. */
+  const [editingEmail, setEditingEmail] = React.useState(false);
 
   const refreshMe = React.useCallback(async (): Promise<VendorAuthMe | null> => {
     const res = await fetch("/api/vendor/me", { credentials: "include" });
@@ -80,19 +82,26 @@ export function VendorCompleteAccountPage({
     if (!data) return null;
     setMe(data);
     const next = resolveVendorOnboardingStep(data);
+    if (editingEmail && next === "await_email_verification") {
+      return data;
+    }
     setStep(next);
     if (next === "done") {
-      // Hard nav — Next soft replace is unreliable inside the Expo WebView.
       hardNavigate("/vendor/status");
     }
     return data;
-  }, []);
+  }, [editingEmail]);
 
+  // Seed once from parent session — do NOT re-run when parent passes a new `me` object
+  // reference (interval refetch). That was resetting OTP UI and swallowing Verify taps.
+  const didSeedRef = React.useRef(false);
   React.useEffect(() => {
+    if (didSeedRef.current) return;
+    didSeedRef.current = true;
+
     if (initialMe && vendorNeedsAuthOnboarding(initialMe)) {
       applyMeToFormState(initialMe, { setFullName, setEmail, setPhone });
       setLoading(false);
-      // Background refresh only — never bounce to login while we already have session data.
       void refreshMe().catch(() => {
         /* keep seeded form */
       });
@@ -278,6 +287,8 @@ export function VendorCompleteAccountPage({
           "We saved your details. Enter the verification code sent to your email."
       );
       setEmailOtpCode("");
+      setEmailOtpResendSeconds(0);
+      setEditingEmail(false);
       setStep("await_email_verification");
       setEmail(mail);
       toast.success("Check your email for a verification code.");
@@ -296,13 +307,14 @@ export function VendorCompleteAccountPage({
     await sendEmailOtp();
   };
 
-  const verifyEmailOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const verifyEmailOtp = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     setFormError(null);
     if (!/^\d{6}$/.test(emailOtpCode.trim())) {
       setFormError("Enter the 6-digit code from your email.");
       return;
     }
+    if (verifyEmailOtpLoading) return;
     setVerifyEmailOtpLoading(true);
     try {
       const res = await fetch("/api/vendor/verify/email/confirm", {
@@ -317,11 +329,37 @@ export function VendorCompleteAccountPage({
         return;
       }
       toast.success("Email verified.");
+      // Prefer API payload — don't wait on a second /me that can fail in WebView.
+      if (
+        data?.data?.authOnboardingComplete === true ||
+        data?.data?.needsAuthOnboarding === false
+      ) {
+        hardNavigate("/vendor/status");
+        return;
+      }
       await refreshMe();
     } catch {
       setFormError("Something went wrong. Please try again.");
     } finally {
       setVerifyEmailOtpLoading(false);
+    }
+  };
+
+  const startChangeEmail = () => {
+    setEditingEmail(true);
+    setEmailOtpCode("");
+    setEmailOtpResendSeconds(0);
+    setDevEmailOtp(null);
+    setDevVerifyLink(null);
+    setFormError(null);
+    emailOtpAutoSentRef.current = false;
+  };
+
+  const cancelChangeEmail = () => {
+    setEditingEmail(false);
+    setFormError(null);
+    if (me?.email && !isPlaceholderVendorEmailClient(me.email)) {
+      setEmail(me.email);
     }
   };
 
@@ -333,19 +371,27 @@ export function VendorCompleteAccountPage({
     );
   }
 
+  const uiStep: VendorOnboardingStep = editingEmail ? "name_email" : step;
+
   const title =
-    step === "phone_otp"
+    uiStep === "phone_otp"
       ? "Verify your phone"
-      : step === "await_email_verification"
+      : uiStep === "await_email_verification"
         ? "Check your email"
-        : "Complete your account";
+        : editingEmail
+          ? "Update your email"
+          : "Complete your account";
 
   const subtitle =
-    step === "phone_otp"
+    uiStep === "phone_otp"
       ? "Add and verify your phone number to finish setting up your vendor account."
-      : step === "await_email_verification"
+      : uiStep === "await_email_verification"
         ? "Enter the 6-digit code we emailed you to verify your address."
-        : "Your phone number has already been verified. Add your name and email to finish setup.";
+        : editingEmail
+          ? "Correct your email address, then we'll send a new verification code."
+          : "Your phone number has already been verified. Add your name and email to finish setup.";
+
+  const displayEmail = email || me?.email || "";
 
   return (
     <div className="min-h-screen bg-[#F5F7FA] flex flex-col">
@@ -374,7 +420,7 @@ export function VendorCompleteAccountPage({
             </p>
           ) : null}
 
-          {step === "phone_otp" && phonePhase === "number" ? (
+          {uiStep === "phone_otp" && phonePhase === "number" ? (
             <form
               className="mt-6 space-y-4"
               onSubmit={(e) => {
@@ -389,17 +435,18 @@ export function VendorCompleteAccountPage({
                   <input
                     className="w-full rounded-lg border border-slate-300 pl-10 pr-3 py-2.5"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    onChange={(e) => setPhone(toMobileInputDigits(e.target.value, 10))}
                     placeholder="10-digit mobile number"
                     inputMode="numeric"
                     autoComplete="tel"
+                    maxLength={10}
                     disabled={sendOtpLoading}
                   />
                 </div>
               </label>
               <button
                 type="submit"
-                disabled={sendOtpLoading}
+                disabled={sendOtpLoading || !isIndianMobile10Digits(phone)}
                 className="w-full py-3 rounded-xl bg-[#1B7A43] text-white font-semibold hover:bg-[#135C32] disabled:opacity-60 flex items-center justify-center gap-2"
               >
                 {sendOtpLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
@@ -408,7 +455,7 @@ export function VendorCompleteAccountPage({
             </form>
           ) : null}
 
-          {step === "phone_otp" && phonePhase === "otp" ? (
+          {uiStep === "phone_otp" && phonePhase === "otp" ? (
             <form className="mt-6 space-y-4" onSubmit={verifyOtp}>
               <p className="text-sm text-slate-600">
                 Enter the code sent to <strong>{phone}</strong>.
@@ -456,8 +503,18 @@ export function VendorCompleteAccountPage({
             </form>
           ) : null}
 
-          {step === "name_email" ? (
+          {uiStep === "name_email" ? (
             <form className="mt-6 space-y-4" onSubmit={submitNameEmail}>
+              {editingEmail ? (
+                <button
+                  type="button"
+                  onClick={cancelChangeEmail}
+                  className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-slate-900"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  Back to verification
+                </button>
+              ) : null}
               <label className="block text-sm font-medium text-slate-700">
                 Full name <span className="text-red-500">*</span>
                 <div className="relative mt-1">
@@ -484,6 +541,7 @@ export function VendorCompleteAccountPage({
                     type="email"
                     autoComplete="email"
                     disabled={submittingProfile}
+                    autoFocus={editingEmail}
                   />
                 </div>
               </label>
@@ -493,16 +551,38 @@ export function VendorCompleteAccountPage({
                 className="w-full py-3 rounded-xl bg-[#1B7A43] text-white font-semibold hover:bg-[#135C32] disabled:opacity-60 flex items-center justify-center gap-2"
               >
                 {submittingProfile ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
-                Continue
+                {editingEmail ? "Save & send new code" : "Continue"}
               </button>
             </form>
           ) : null}
 
-          {step === "await_email_verification" ? (
-            <form className="mt-6 space-y-4" onSubmit={verifyEmailOtp}>
+          {uiStep === "await_email_verification" ? (
+            <form
+              className="mt-6 space-y-4"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void verifyEmailOtp(e);
+              }}
+            >
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                  Code sent to
+                </p>
+                <p className="mt-1 break-all text-sm font-semibold text-slate-900">
+                  {displayEmail || "your email"}
+                </p>
+                <button
+                  type="button"
+                  onClick={startChangeEmail}
+                  className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-[#1B7A43] hover:text-[#135C32]"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  Wrong email? Change it
+                </button>
+              </div>
               <p className="text-sm text-slate-600">
                 {emailAwaitMessage ??
-                  `We sent a verification code to ${email || me?.email || "your email"}.`}
+                  "Enter the 6-digit code from that inbox to verify your address."}
               </p>
               {devEmailOtp ? (
                 <p className="text-xs text-slate-500">
@@ -531,8 +611,9 @@ export function VendorCompleteAccountPage({
                 />
               </label>
               <button
-                type="submit"
-                disabled={verifyEmailOtpLoading}
+                type="button"
+                disabled={verifyEmailOtpLoading || emailOtpCode.trim().length !== 6}
+                onClick={() => void verifyEmailOtp()}
                 className="w-full py-3 rounded-xl bg-[#1B7A43] text-white font-semibold hover:bg-[#135C32] disabled:opacity-60 flex items-center justify-center gap-2"
               >
                 {verifyEmailOtpLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : null}

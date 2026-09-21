@@ -19,6 +19,7 @@ import {
   type AppleAuthResultPayload,
 } from "@/lib/native-bridge";
 import { useAppMode } from "@/contexts/AppModeContext";
+import { toMobileInputDigits, isIndianMobile10Digits } from "@/lib/auth/phone";
 
 const APPLE_AUTH_TIMEOUT_MS = 45_000;
 
@@ -757,16 +758,17 @@ function VendorPhoneOtpLogin({
           <input
             className="mt-1.5 block w-full rounded-xl border border-slate-200 bg-slate-50/50 py-3 px-4"
             value={phone}
-            onChange={(e) => setPhone(e.target.value)}
+            onChange={(e) => setPhone(toMobileInputDigits(e.target.value, 10))}
             placeholder="10-digit mobile"
             inputMode="numeric"
+            maxLength={10}
             disabled={disabled || busy}
             required
           />
         </label>
         <button
           type="submit"
-          disabled={disabled || busy}
+          disabled={disabled || busy || !isIndianMobile10Digits(phone)}
           className="flex w-full items-center justify-center rounded-xl bg-[#FF6A00] py-3.5 text-sm font-semibold text-white disabled:opacity-60"
         >
           {busy ? "Sending…" : "Send OTP"}

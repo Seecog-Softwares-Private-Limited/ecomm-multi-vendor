@@ -16,7 +16,7 @@ import { authService } from "@/services/auth.service";
 import { ServiceError } from "@/services/errors";
 import { IndovyaparLogo } from "@/components/IndovyaparLogo";
 import { useAppMode } from "@/contexts/AppModeContext";
-import { normalizeIndianPhone, INDIAN_MOBILE_HINT } from "@/lib/auth/phone";
+import { normalizeIndianPhone, INDIAN_MOBILE_HINT, toMobileInputDigits } from "@/lib/auth/phone";
 
 const primaryBtnClass =
   "flex w-full items-center justify-center gap-2 rounded-xl bg-[#FF6A00] py-3.5 text-sm font-semibold text-white shadow-lg shadow-orange-500/25 transition hover:bg-[#E55F00] focus:outline-none focus:ring-2 focus:ring-[#FF6A00] focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-60";
@@ -372,9 +372,11 @@ export function VendorRegisterPage() {
                         id="reg-phone"
                         type="tel"
                         autoComplete="tel"
+                        inputMode="numeric"
                         placeholder="10-digit mobile"
+                        maxLength={10}
                         value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
+                        onChange={(e) => setPhone(toMobileInputDigits(e.target.value, 10))}
                         disabled={phoneVerified}
                         className={inputBase}
                       />

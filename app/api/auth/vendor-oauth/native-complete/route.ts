@@ -6,6 +6,7 @@ import {
 } from "@/lib/auth/oauth";
 import { signToken, setAuthCookie } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { htmlRedirectWithCookie } from "@/lib/auth/html-redirect-with-cookie";
 
 /**
  * GET /api/auth/vendor-oauth/native-complete?token=<handoff>&returnUrl=/vendor
@@ -39,10 +40,9 @@ export async function GET(request: NextRequest) {
     return loginRedirect("Google sign-in link expired. Please try again.");
   }
 
-  // Confirm the vendor still exists and is active before issuing a session.
   const seller = await prisma.seller.findFirst({
     where: { id: handoff.sub, email: handoff.email, deletedAt: null },
-    select: { id: true, email: true },
+    select: { id: true, email: true, authOnboardingComplete: true },
   });
   if (!seller) {
     return loginRedirect("Vendor account not found. Please try again.");
@@ -54,10 +54,14 @@ export async function GET(request: NextRequest) {
     role: "SELLER",
   });
 
-  const dest = new URL(returnUrl, appBase);
+  let destinationPath = returnUrl;
+  if (!seller.authOnboardingComplete) {
+    destinationPath = "/vendor/complete-account";
+  }
+  const dest = new URL(destinationPath, appBase);
   if (!dest.searchParams.has("app")) dest.searchParams.set("app", "1");
 
-  const response = NextResponse.redirect(dest.toString());
+  const response = htmlRedirectWithCookie(dest.toString());
   setAuthCookie(response, token);
   return response;
 }
