@@ -4,7 +4,7 @@ publish_to: 'none'
 
 # Play Store version — SINGLE SOURCE OF TRUTH for Android & iOS.
 # Format: versionName+versionCode  (e.g. 1.0.3+7 → name 1.0.3, code 7)
-version: 1.0.8+12
+version: 1.1.0+14
 
 environment:
   sdk: ^3.12.2
@@ -25,6 +25,7 @@ dependencies:
 
   # Android WebView <input type="file"> chooser
   file_picker: ^10.3.2
+  flutter_web_auth_2: ^5.1.0
 
 dev_dependencies:
   flutter_test:

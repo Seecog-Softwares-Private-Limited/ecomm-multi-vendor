@@ -10,21 +10,27 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
 
+import 'google_oauth_bridge.dart';
 import 'webview_url_policy.dart';
 
 /// Full-screen WebView that hosts the IndoVyapar Customer Website.
 ///
 /// This is the only customer-facing UI in the mobile app. Authentication,
 /// catalog, cart, checkout, and payments are owned by the website.
+/// Google Sign-In is the only native exception (system auth session).
 class CustomerWebViewScreen extends StatefulWidget {
   const CustomerWebViewScreen({
     super.key,
     this.initialUrl = WebViewUrlPolicy.productionUrl,
     this.urlPolicy = const WebViewUrlPolicy(),
+    this.oauthBridge = const GoogleOAuthBridge(),
   });
 
   final String initialUrl;
   final WebViewUrlPolicy urlPolicy;
+
+  /// Injectable for tests; production uses [GoogleOAuthBridge].
+  final GoogleOAuthBridge oauthBridge;
 
   @override
   State<CustomerWebViewScreen> createState() => _CustomerWebViewScreenState();
@@ -36,6 +42,7 @@ class _CustomerWebViewScreenState extends State<CustomerWebViewScreen> {
   var _hasError = false;
   String? _errorMessage;
   var _progress = 0;
+  var _googleAuthInFlight = false;
 
   @override
   void initState() {
@@ -99,27 +106,7 @@ class _CustomerWebViewScreenState extends State<CustomerWebViewScreen> {
         ),
       );
 
-    // Prefer a standard mobile Chrome UA so Google OAuth is less likely to
-    // reject the embedded WebView (Google blocks the default "; wv" UA).
-    // Cookies / session still stay in this WebView cookie jar.
-    if (!kIsWeb) {
-      unawaited(_applyMobileChromeUserAgent(controller));
-    }
-
     return controller;
-  }
-
-  Future<void> _applyMobileChromeUserAgent(WebViewController controller) async {
-    try {
-      final current = await controller.getUserAgent();
-      if (current == null || current.isEmpty) return;
-      final cleaned = current
-          .replaceAll(RegExp(r'\s*;?\s*wv\b'), '')
-          .replaceAll('Version/4.0 ', '');
-      await controller.setUserAgent(cleaned);
-    } catch (_) {
-      // Non-fatal — default UA still works for normal browsing.
-    }
   }
 
   Future<void> _configurePlatformFeatures() async {
@@ -179,6 +166,17 @@ class _CustomerWebViewScreenState extends State<CustomerWebViewScreen> {
       return NavigationDecision.navigate;
     }
 
+    // Google OAuth start → system auth session (not embedded WebView).
+    if (widget.oauthBridge.isGoogleOAuthStart(uri)) {
+      unawaited(_startGoogleOAuth(uri));
+      return NavigationDecision.prevent;
+    }
+
+    // Never keep Google's authorize UI inside the WebView.
+    if (widget.oauthBridge.isGoogleAuthorizationHost(uri)) {
+      return NavigationDecision.prevent;
+    }
+
     if (widget.urlPolicy.shouldStayInWebView(uri)) {
       return NavigationDecision.navigate;
     }
@@ -198,10 +196,59 @@ class _CustomerWebViewScreenState extends State<CustomerWebViewScreen> {
     return NavigationDecision.prevent;
   }
 
+  Future<void> _startGoogleOAuth(Uri startUri) async {
+    if (_googleAuthInFlight) return;
+    _googleAuthInFlight = true;
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+        _hasError = false;
+        _errorMessage = null;
+      });
+    }
+
+    try {
+      final redeemUrl = await widget.oauthBridge.authenticate(
+        oauthStartUri: startUri,
+      );
+      if (redeemUrl == null) {
+        // User cancelled — stay on current login page in WebView.
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+        return;
+      }
+
+      await _controller.loadRequest(redeemUrl);
+    } on GoogleOAuthBridgeException catch (e) {
+      if (!mounted) return;
+      // Surface error via website login page when possible.
+      final loginError = Uri.parse(
+        '${widget.oauthBridge.siteOrigin}/login',
+      ).replace(queryParameters: {'error': e.message});
+      await _controller.loadRequest(loginError);
+    } catch (_) {
+      if (!mounted) return;
+      final loginError = Uri.parse(
+        '${widget.oauthBridge.siteOrigin}/login',
+      ).replace(
+        queryParameters: {
+          'error': 'Google sign-in failed. Please try again.',
+        },
+      );
+      await _controller.loadRequest(loginError);
+    } finally {
+      _googleAuthInFlight = false;
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
   Future<void> _openExternal(Uri uri) async {
     try {
-      // Android intent:// URLs (UPI / Razorpay bank apps) — rewrite to a
-      // launchable https/package form when possible.
       if (uri.scheme == 'intent') {
         await _launchAndroidIntent(uri);
         return;
@@ -217,7 +264,6 @@ class _CustomerWebViewScreenState extends State<CustomerWebViewScreen> {
   }
 
   Future<void> _launchAndroidIntent(Uri uri) async {
-    // intent://host/path#Intent;scheme=https;package=...;end
     final raw = uri.toString();
     final schemeMatch = RegExp(r'scheme=([^;]+)').firstMatch(raw);
     final fallbackMatch = RegExp(
@@ -272,7 +318,6 @@ class _CustomerWebViewScreenState extends State<CustomerWebViewScreen> {
         if (didPop) return;
         final shouldExit = await _handleBack();
         if (shouldExit && context.mounted) {
-          // Exit the app when WebView history is empty (Android back).
           if (Platform.isAndroid) {
             SystemNavigator.pop();
           }

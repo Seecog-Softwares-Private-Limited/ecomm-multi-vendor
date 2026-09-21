@@ -41,8 +41,13 @@ export async function GET(request: NextRequest, context: ApiRouteContext) {
 
   const { searchParams } = new URL(request.url);
   const returnUrl = searchParams.get("returnUrl") ?? "/";
+  // Customer Flutter app opens this start URL in Chrome Custom Tabs /
+  // ASWebAuthenticationSession. native=1 → callback returns a one-time
+  // hand-off token via custom scheme instead of setting the auth cookie
+  // in the system browser (which the WebView cannot read).
+  const isNative = searchParams.get("native") === "1";
 
-  const stateObj = generateOAuthState(returnUrl);
+  const stateObj = generateOAuthState(returnUrl, "customer", isNative);
   const stateStr = encodeOAuthState(stateObj);
 
   const oauthBaseUrl = resolveOAuthBaseUrlFromRequest(request);

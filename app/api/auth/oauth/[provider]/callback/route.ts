@@ -8,6 +8,7 @@ import {
   resolveOAuthBaseUrlFromRequest,
   validateOAuthCallbackState,
   oauthStateErrorMessage,
+  signVendorNativeHandoff,
   type OAuthProvider,
 } from "@/lib/auth/oauth";
 import { setAuthCookie } from "@/lib/auth";
@@ -19,8 +20,17 @@ import {
 
 const SUPPORTED_PROVIDERS: OAuthProvider[] = ["google", "facebook"];
 
+/** Custom-scheme callback registered by the Flutter Customer App. */
+const CUSTOMER_NATIVE_OAUTH_CALLBACK = "indovyaparcustomer://google-auth";
+
 function errorRedirect(baseUrl: string, message: string): NextResponse {
   const url = new URL("/login", baseUrl);
+  url.searchParams.set("error", message);
+  return NextResponse.redirect(url.toString());
+}
+
+function customerNativeErrorRedirect(message: string): NextResponse {
+  const url = new URL(CUSTOMER_NATIVE_OAUTH_CALLBACK);
   url.searchParams.set("error", message);
   return NextResponse.redirect(url.toString());
 }
@@ -58,6 +68,8 @@ export async function GET(request: NextRequest, context: ApiRouteContext) {
   const stateObjEarly = stateFromQuery ? decodeOAuthState(stateFromQuery) : null;
   const isVendorFlow = stateObjEarly?.flow === "vendor";
 
+  const isCustomerNative = !isVendorFlow && stateObjEarly?.native === true;
+
   if (oauthError) {
     if (isVendorFlow) {
       return vendorErrorRedirect(
@@ -66,10 +78,10 @@ export async function GET(request: NextRequest, context: ApiRouteContext) {
         stateObjEarly?.returnUrl
       );
     }
-    return errorRedirect(
-      appBase,
-      oauthError === "access_denied" ? "Login was cancelled" : "OAuth error"
-    );
+    const msg =
+      oauthError === "access_denied" ? "Login was cancelled" : "OAuth error";
+    if (isCustomerNative) return customerNativeErrorRedirect(msg);
+    return errorRedirect(appBase, msg);
   }
 
   if (!code) {
@@ -80,6 +92,9 @@ export async function GET(request: NextRequest, context: ApiRouteContext) {
         stateObjEarly?.returnUrl
       );
     }
+    if (isCustomerNative) {
+      return customerNativeErrorRedirect("Missing authorization code");
+    }
     return errorRedirect(appBase, "Missing authorization code");
   }
 
@@ -89,6 +104,7 @@ export async function GET(request: NextRequest, context: ApiRouteContext) {
     if (isVendorFlow) {
       return vendorErrorRedirect(appBase, message, stateObjEarly?.returnUrl);
     }
+    if (isCustomerNative) return customerNativeErrorRedirect(message);
     return errorRedirect(appBase, message);
   }
 
@@ -107,13 +123,16 @@ export async function GET(request: NextRequest, context: ApiRouteContext) {
   }
 
   const returnUrl = stateObj.returnUrl || "/";
+  const native = stateObj.native === true;
 
   let oauthUser;
   try {
     oauthUser = await exchangeOAuthCode(provider, code, requestBase);
   } catch (e) {
     console.error(`[OAuth] ${provider} code exchange failed:`, e);
-    return errorRedirect(appBase, "Failed to authenticate with " + provider);
+    const msg = "Failed to authenticate with " + provider;
+    if (native) return customerNativeErrorRedirect(msg);
+    return errorRedirect(appBase, msg);
   }
 
   const result = await completeCustomerSocialLogin(provider, {
@@ -125,6 +144,7 @@ export async function GET(request: NextRequest, context: ApiRouteContext) {
   });
 
   if (!result.ok) {
+    if (native) return customerNativeErrorRedirect(result.error);
     return errorRedirect(appBase, result.error);
   }
 
@@ -133,6 +153,22 @@ export async function GET(request: NextRequest, context: ApiRouteContext) {
     !result.user.authOnboardingComplete || !result.user.phoneVerified
       ? "/complete-profile"
       : returnUrl;
+
+  // Native Customer App: do NOT set the auth cookie in Chrome Custom Tabs /
+  // ASWebAuthenticationSession — that cookie store is not shared with WebView.
+  // Hand a one-time token back via custom scheme; WebView redeems it.
+  if (native) {
+    const handoff = signVendorNativeHandoff({
+      sub: result.user.id,
+      email: result.user.email,
+    });
+    const url = new URL(CUSTOMER_NATIVE_OAUTH_CALLBACK);
+    url.searchParams.set("token", handoff);
+    url.searchParams.set("returnUrl", destination);
+    const response = NextResponse.redirect(url.toString());
+    response.cookies.set(OAUTH_STATE_COOKIE, "", { maxAge: 0, path: "/" });
+    return response;
+  }
 
   const response = NextResponse.redirect(new URL(destination, appBase).toString());
   setAuthCookie(response, result.token);
