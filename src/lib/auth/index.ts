@@ -69,6 +69,8 @@ export {
 } from "./customer-onboarding";
 export {
   normalizeIndianPhone,
+  toMobileInputDigits,
+  isIndianMobile10Digits,
   placeholderEmailForPhoneNorm,
   syntheticEmailForPhoneNorm,
   isPlaceholderCustomerEmail,

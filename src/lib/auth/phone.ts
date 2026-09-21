@@ -43,6 +43,10 @@ function extractAsciiDigits(s: string): string {
 
 export function normalizeIndianPhone(input: string): string | null {
   const cleaned = sanitizePhoneInput(input);
+  // Reject punctuation like "." that used to be stripped so "98765.43210" looked valid.
+  if (/[^0-9+\s\-()]/.test(cleaned)) {
+    return null;
+  }
   const digits = extractAsciiDigits(cleaned);
 
   if (digits.length === 10 && MOBILE_FIRST.test(digits)) {
@@ -59,6 +63,16 @@ export function normalizeIndianPhone(input: string): string | null {
     return `91${digits.slice(1)}`;
   }
   return null;
+}
+
+/** Digits-only national mobile for controlled inputs (max 10). */
+export function toMobileInputDigits(raw: string, maxLen = 10): string {
+  return extractAsciiDigits(sanitizePhoneInput(raw)).slice(0, maxLen);
+}
+
+/** True when value is exactly a valid 10-digit Indian mobile (6–9…). */
+export function isIndianMobile10Digits(input: string): boolean {
+  return MOBILE_FIRST.test(extractAsciiDigits(sanitizePhoneInput(input)));
 }
 
 /** User-facing hint when normalization fails. */

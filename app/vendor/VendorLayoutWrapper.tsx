@@ -186,10 +186,11 @@ export function VendorLayoutWrapper({
     }
   }, [authChecked, pathname, me, needsAuthOnboarding]);
 
-  // When not approved, refetch status on tab focus and every 20s so vendor sees approval without manual refresh
+  // When not approved, refetch status on tab focus and every 20s so vendor sees approval without manual refresh.
+  // Skip while auth-onboarding form is open — remounting/resyncing that form makes OTP submit look dead.
   const approved = me?.status === "approved";
   useEffect(() => {
-    if (!me || approved || isVendorAuthPage(pathname ?? null)) return;
+    if (!me || approved || needsAuthOnboarding || isVendorAuthPage(pathname ?? null)) return;
     const onVisible = () => {
       fetchMe(); // setMe() in fetchMe updates state; no router.refresh() to avoid extra request
     };
@@ -199,7 +200,7 @@ export function VendorLayoutWrapper({
       clearInterval(id);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [me, approved, pathname, fetchMe]);
+  }, [me, approved, needsAuthOnboarding, pathname, fetchMe]);
 
   const handleLogout = async () => {
     try {

@@ -110,7 +110,14 @@ export function validateVendorRegister(
 
 /** Body for POST /api/auth/phone-otp/send (optional `resend` for UX / logging after OTP step). */
 export const phoneOtpSendSchema = z.object({
-  phone: z.string().min(10, "Enter a valid mobile number").max(32).trim(),
+  phone: z
+    .string()
+    .min(10, "Enter a valid mobile number")
+    .max(32)
+    .trim()
+    .refine((v) => !/[^\d+\s\-()]/.test(v), {
+      message: "Mobile number can only contain digits",
+    }),
   resend: z.boolean().optional(),
 });
 

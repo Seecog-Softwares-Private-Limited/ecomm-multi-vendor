@@ -2,10 +2,10 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Mail, Phone, User, LogOut } from "lucide-react";
+import { Loader2, Mail, Phone, User, LogOut, ArrowLeft } from "lucide-react";
 import { IndovyaparLogo } from "@/components/IndovyaparLogo";
 import { toast } from "sonner";
-import { normalizeIndianPhone, INDIAN_MOBILE_HINT } from "@/lib/auth/phone";
+import { normalizeIndianPhone, INDIAN_MOBILE_HINT, toMobileInputDigits, isIndianMobile10Digits } from "@/lib/auth/phone";
 import {
   type CustomerAuthMeUser,
   type CustomerOnboardingStep,
@@ -37,6 +37,8 @@ export function CompleteProfilePage() {
   const [verifyOtpLoading, setVerifyOtpLoading] = React.useState(false);
   const [resendSeconds, setResendSeconds] = React.useState(0);
   const [formError, setFormError] = React.useState<string | null>(null);
+  /** Lets the user leave the email-OTP step to fix a mistyped address without /me snapping them back. */
+  const [editingEmail, setEditingEmail] = React.useState(false);
 
   const refreshMe = React.useCallback(async (): Promise<CustomerAuthMeUser | null> => {
     const res = await fetch("/api/auth/me", { credentials: "include" });
@@ -45,12 +47,15 @@ export function CompleteProfilePage() {
     if (!me) return null;
     setUser(me);
     const next = resolveCustomerOnboardingStep(me);
+    if (editingEmail && next === "await_email_verification") {
+      return me;
+    }
     setStep(next);
     if (next === "done") {
       router.replace("/");
     }
     return me;
-  }, [router]);
+  }, [router, editingEmail]);
 
   React.useEffect(() => {
     (async () => {
@@ -190,6 +195,8 @@ export function CompleteProfilePage() {
       setEmail(mail);
       setEmailOtp("");
       setEmailOtpSent(false);
+      setEmailResendSeconds(0);
+      setEditingEmail(false);
       setStep("await_email_verification");
       toast.success("Details saved. Send an OTP to verify your email.");
       await refreshMe();
@@ -231,13 +238,14 @@ export function CompleteProfilePage() {
     }
   };
 
-  const verifyOnboardingEmailOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const verifyOnboardingEmailOtp = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     setFormError(null);
     if (!/^\d{6}$/.test(emailOtp.trim())) {
       setFormError("Enter the 6-digit code from your email.");
       return;
     }
+    if (emailVerifyLoading) return;
     setEmailVerifyLoading(true);
     try {
       const res = await fetch("/api/auth/onboarding/email-otp/verify", {
@@ -263,6 +271,22 @@ export function CompleteProfilePage() {
     }
   };
 
+  const startChangeEmail = () => {
+    setEditingEmail(true);
+    setEmailOtpSent(false);
+    setEmailOtp("");
+    setEmailResendSeconds(0);
+    setFormError(null);
+  };
+
+  const cancelChangeEmail = () => {
+    setEditingEmail(false);
+    setFormError(null);
+    if (user?.email && !user.email.includes("@phone-otp.indovyapar.local")) {
+      setEmail(user.email);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F5F7FA]">
@@ -271,19 +295,27 @@ export function CompleteProfilePage() {
     );
   }
 
+  const uiStep: CustomerOnboardingStep = editingEmail ? "name_email" : step;
+
   const title =
-    step === "phone_otp"
+    uiStep === "phone_otp"
       ? "Verify your phone"
-      : step === "await_email_verification"
+      : uiStep === "await_email_verification"
         ? "Verify your email"
-        : "Complete your account";
+        : editingEmail
+          ? "Update your email"
+          : "Complete your account";
 
   const subtitle =
-    step === "phone_otp"
+    uiStep === "phone_otp"
       ? "Add and verify your phone number to finish setting up your account."
-      : step === "await_email_verification"
+      : uiStep === "await_email_verification"
         ? "Enter the OTP sent to your email to finish setup."
-        : "Your phone number has already been verified. Add and verify your email to finish setting up your account.";
+        : editingEmail
+          ? "Correct your email address, then we’ll send a new verification code."
+          : "Your phone number has already been verified. Add and verify your email to finish setting up your account.";
+
+  const displayEmail = email || user?.email || "";
 
   return (
     <div className="min-h-screen bg-[#F5F7FA] flex flex-col">
@@ -312,7 +344,7 @@ export function CompleteProfilePage() {
             </p>
           ) : null}
 
-          {step === "phone_otp" && phonePhase === "number" ? (
+          {uiStep === "phone_otp" && phonePhase === "number" ? (
             <form
               className="mt-6 space-y-4"
               onSubmit={(e) => {
@@ -327,17 +359,18 @@ export function CompleteProfilePage() {
                   <input
                     className="w-full rounded-lg border border-slate-300 pl-10 pr-3 py-2.5"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    onChange={(e) => setPhone(toMobileInputDigits(e.target.value, 10))}
                     placeholder="10-digit mobile number"
                     inputMode="numeric"
                     autoComplete="tel"
+                    maxLength={10}
                     disabled={sendOtpLoading}
                   />
                 </div>
               </label>
               <button
                 type="submit"
-                disabled={sendOtpLoading}
+                disabled={sendOtpLoading || !isIndianMobile10Digits(phone)}
                 className="w-full py-3 rounded-xl bg-[#1B7A43] text-white font-semibold hover:bg-[#135C32] disabled:opacity-60 flex items-center justify-center gap-2"
               >
                 {sendOtpLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
@@ -346,7 +379,7 @@ export function CompleteProfilePage() {
             </form>
           ) : null}
 
-          {step === "phone_otp" && phonePhase === "otp" ? (
+          {uiStep === "phone_otp" && phonePhase === "otp" ? (
             <form className="mt-6 space-y-4" onSubmit={verifyOtp}>
               <p className="text-sm text-slate-600">
                 Enter the 6-digit code sent to <strong>{phone}</strong>.
@@ -394,8 +427,18 @@ export function CompleteProfilePage() {
             </form>
           ) : null}
 
-          {step === "name_email" ? (
+          {uiStep === "name_email" ? (
             <form className="mt-6 space-y-4" onSubmit={submitNameEmail}>
+              {editingEmail ? (
+                <button
+                  type="button"
+                  onClick={cancelChangeEmail}
+                  className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-slate-900"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  Back to verification
+                </button>
+              ) : null}
               <label className="block text-sm font-medium text-slate-700">
                 Full name <span className="text-red-500">*</span>
                 <div className="relative mt-1">
@@ -422,6 +465,7 @@ export function CompleteProfilePage() {
                     type="email"
                     autoComplete="email"
                     disabled={submittingProfile}
+                    autoFocus={editingEmail}
                   />
                 </div>
               </label>
@@ -431,17 +475,31 @@ export function CompleteProfilePage() {
                 className="w-full py-3 rounded-xl bg-[#1B7A43] text-white font-semibold hover:bg-[#135C32] disabled:opacity-60 flex items-center justify-center gap-2"
               >
                 {submittingProfile ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
-                Continue
+                {editingEmail ? "Save & send new code" : "Continue"}
               </button>
             </form>
           ) : null}
 
-          {step === "await_email_verification" ? (
+          {uiStep === "await_email_verification" ? (
             <div className="mt-6 space-y-4">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                  Code will be sent to
+                </p>
+                <p className="mt-1 break-all text-sm font-semibold text-slate-900">
+                  {displayEmail || "your email"}
+                </p>
+                <button
+                  type="button"
+                  onClick={startChangeEmail}
+                  className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-[#1B7A43] hover:text-[#135C32]"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  Wrong email? Change it
+                </button>
+              </div>
               <p className="text-sm text-slate-600">
-                We&apos;ll send a one-time code to{" "}
-                <strong>{email || user?.email || "your email"}</strong>. OTP is only sent when
-                you tap Send OTP.
+                OTP is only sent when you tap Send OTP.
               </p>
               {!emailOtpSent ? (
                 <button
@@ -469,8 +527,9 @@ export function CompleteProfilePage() {
                     />
                   </label>
                   <button
-                    type="submit"
+                    type="button"
                     disabled={emailVerifyLoading || emailOtp.length !== 6}
+                    onClick={() => void verifyOnboardingEmailOtp()}
                     className="w-full py-3 rounded-xl bg-[#1B7A43] text-white font-semibold hover:bg-[#135C32] disabled:opacity-60 flex items-center justify-center gap-2"
                   >
                     {emailVerifyLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
@@ -488,17 +547,6 @@ export function CompleteProfilePage() {
                   </button>
                 </form>
               )}
-              <button
-                type="button"
-                onClick={() => {
-                  setStep("name_email");
-                  setEmailOtpSent(false);
-                  setEmailOtp("");
-                }}
-                className="w-full text-sm text-slate-600 hover:underline"
-              >
-                Change email
-              </button>
             </div>
           ) : null}
         </div>

@@ -20,7 +20,7 @@ import { getGuestCart, clearGuestCart } from "@/lib/guest-cart";
 import { IndovyaparLogo } from "@/components/IndovyaparLogo";
 import { dispatchCartUpdated } from "@/contexts/CartDrawerContext";
 import { startOAuthLogin } from "@/lib/auth/start-oauth";
-import { normalizeIndianPhone, INDIAN_MOBILE_HINT } from "@/lib/auth/phone";
+import { normalizeIndianPhone, INDIAN_MOBILE_HINT, toMobileInputDigits } from "@/lib/auth/phone";
 import { customerNeedsAuthOnboarding } from "@/lib/auth/customer-onboarding-client";
 
 const inputClass =
@@ -156,7 +156,7 @@ export function RegisterPage() {
   };
 
   const onPhoneChange = (v: string) => {
-    setPhone(v);
+    setPhone(toMobileInputDigits(v, 10));
     if (phoneVerified || phoneProofToken || phoneSent) {
       setPhoneVerified(false);
       setPhoneProofToken(null);
@@ -585,6 +585,8 @@ export function RegisterPage() {
                       value={phone}
                       onChange={(e) => onPhoneChange(e.target.value)}
                       autoComplete="tel"
+                      inputMode="numeric"
+                      maxLength={10}
                       disabled={phoneVerified}
                       className={`${inputClass} pl-12 pr-4 disabled:opacity-70`}
                     />

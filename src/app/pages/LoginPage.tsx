@@ -17,7 +17,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import * as React from "react";
 import { IndovyaparLogo } from "@/components/IndovyaparLogo";
 import { getGuestCart, clearGuestCart } from "@/lib/guest-cart";
-import { normalizeIndianPhone, INDIAN_MOBILE_HINT } from "@/lib/auth/phone";
+import { normalizeIndianPhone, INDIAN_MOBILE_HINT, toMobileInputDigits, isIndianMobile10Digits } from "@/lib/auth/phone";
 import { syncCustomerDefaultAddressToDeliveryLocation } from "@/lib/delivery-location";
 import { dispatchCartUpdated } from "@/contexts/CartDrawerContext";
 import { startOAuthLogin } from "@/lib/auth/start-oauth";
@@ -510,21 +510,21 @@ export function LoginPage() {
                       type="tel"
                       inputMode="numeric"
                       autoComplete="tel"
-                      placeholder="98765 43210"
+                      placeholder="9876543210"
+                      maxLength={10}
                       value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
+                      onChange={(e) => setPhone(toMobileInputDigits(e.target.value, 10))}
                       className="block w-full rounded-xl border border-slate-200 bg-slate-50/50 py-3 pl-12 pr-4 text-slate-900 placeholder:text-slate-400 transition focus:border-[#FF6A00] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6A00]/20"
                     />
                   </div>
                   <p className="mt-2 text-xs text-slate-500">
-                    We&apos;ll send a one-time code by SMS. Enter 10 digits starting with 6–9 (e.g.
-                    9876543210). +91 optional.
+                    Enter a 10-digit mobile number starting with 6–9 (e.g. 9876543210). Digits only.
                   </p>
                 </div>
 
                 <button
                   type="submit"
-                  disabled={sendOtpLoading}
+                  disabled={sendOtpLoading || !isIndianMobile10Digits(phone)}
                   className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#FF6A00] py-3.5 text-sm font-semibold text-white shadow-lg shadow-orange-500/25 transition hover:bg-[#E55F00] focus:outline-none focus:ring-2 focus:ring-[#FF6A00] focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-60"
                 >
                   {sendOtpLoading ? (

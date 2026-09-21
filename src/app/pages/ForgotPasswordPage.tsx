@@ -193,13 +193,13 @@ export function ForgotPasswordPage() {
                 Use a different email
               </button>
 
-              <Link
+              <a
                 href="/login"
                 className="mt-5 sm:mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#FF6A00] py-3.5 text-sm font-semibold text-white shadow-lg shadow-orange-500/25 transition hover:bg-[#E55F00] focus:outline-none focus:ring-2 focus:ring-[#FF6A00] focus:ring-offset-2"
               >
                 <ArrowLeft className="h-4 w-4 shrink-0" />
                 Back to sign in
-              </Link>
+              </a>
             </div>
 
             <p className="mt-6 sm:mt-8 text-center text-xs sm:text-sm text-slate-500 px-1">

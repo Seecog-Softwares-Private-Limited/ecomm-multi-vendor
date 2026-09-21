@@ -6,6 +6,7 @@ import {
 } from "@/lib/auth/oauth";
 import { signToken, setAuthCookie } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { htmlRedirectWithCookie } from "@/lib/auth/html-redirect-with-cookie";
 
 /**
  * GET /api/auth/oauth/native-complete?token=<handoff>&returnUrl=/
@@ -39,7 +40,12 @@ export async function GET(request: NextRequest) {
 
   const user = await prisma.user.findFirst({
     where: { id: handoff.sub, email: handoff.email, deletedAt: null },
-    select: { id: true, email: true },
+    select: {
+      id: true,
+      email: true,
+      authOnboardingComplete: true,
+      phoneVerified: true,
+    },
   });
   if (!user) {
     return loginRedirect("Account not found. Please try again.");
@@ -51,8 +57,14 @@ export async function GET(request: NextRequest) {
     role: "CUSTOMER",
   });
 
-  const dest = new URL(returnUrl, appBase);
-  const response = NextResponse.redirect(dest.toString());
+  // Prefer onboarding when incomplete — avoids / → middleware → /login races
+  // when the session cookie is still settling in the WebView.
+  let destinationPath = returnUrl;
+  if (!user.authOnboardingComplete || !user.phoneVerified) {
+    destinationPath = "/complete-profile";
+  }
+  const dest = new URL(destinationPath, appBase);
+  const response = htmlRedirectWithCookie(dest.toString());
   setAuthCookie(response, token);
   return response;
 }

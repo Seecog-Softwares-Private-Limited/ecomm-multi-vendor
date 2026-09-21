@@ -102,13 +102,13 @@ export function VendorForgotPasswordPage() {
                   </button>
                 </p>
               )}
-              <Link
+              <a
                 href="/vendor/login"
                 className="mt-8 inline-flex items-center gap-2 text-sm font-medium text-indigo-600 hover:text-indigo-700"
               >
                 <ArrowLeft className="h-4 w-4" />
                 Back to sign in
-              </Link>
+              </a>
             </div>
           </div>
         </div>
