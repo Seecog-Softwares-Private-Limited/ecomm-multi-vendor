@@ -6,6 +6,7 @@ import { DataState } from "../../components/DataState";
 import { Link } from "../../components/Link";
 import { useApi } from "@/lib/hooks/useApi";
 import { vendorService } from "@/services/vendor.service";
+import { downloadCsvFile, escapeCsvCell } from "@/lib/download-csv";
 import * as React from "react";
 
 function formatInr(amount: number): string {
@@ -15,12 +16,6 @@ function formatInr(amount: number): string {
     maximumFractionDigits: 2,
     minimumFractionDigits: 0,
   }).format(amount);
-}
-
-function escapeCsvCell(value: string | number): string {
-  const s = String(value);
-  if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
-  return s;
 }
 
 function defaultDateFrom(): string {
@@ -125,14 +120,10 @@ export function VendorEarnings() {
         .map(escapeCsvCell)
         .join(","),
     ];
-    const csv = "\uFEFF" + lines.join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `vendor-earnings-${dateFrom}_to_${dateTo}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadCsvFile(
+      `vendor-earnings-${dateFrom}_to_${dateTo}.csv`,
+      lines.join("\n")
+    );
   };
 
   return (

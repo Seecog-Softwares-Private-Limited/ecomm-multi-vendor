@@ -4,6 +4,7 @@ import {
   BackHandler,
   Linking,
   Platform,
+  Share,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -21,7 +22,7 @@ import {
 } from 'react-native-safe-area-context';
 
 /** Bump with each store release — busts CDN/WebView cache for HTML on first load. */
-const APP_RELEASE = '1.0.0.9';
+const APP_RELEASE = '1.0.0.10';
 
 /**
  * Vendor home — middleware sends unauthenticated users to /vendor/login;
@@ -478,6 +479,22 @@ function VendorScreen() {
       const msg = JSON.parse(event.nativeEvent.data);
       if (msg?.type === 'custom' && msg?.name === 'VENDOR_NAV_EXIT') {
         BackHandler.exitApp();
+        return;
+      }
+      if (msg?.type === 'custom' && msg?.name === 'DOWNLOAD_CSV') {
+        const payload = msg.payload && typeof msg.payload === 'object' ? msg.payload : {};
+        const filename =
+          typeof payload.filename === 'string' && payload.filename.trim()
+            ? payload.filename.trim()
+            : 'report.csv';
+        const csv = typeof payload.csv === 'string' ? payload.csv : '';
+        if (!csv) return;
+        // RN WebView blocks blob: downloads — share the CSV so the user can Save/Open.
+        Share.share(
+          Platform.OS === 'ios'
+            ? { url: `data:text/csv;base64,${payload.base64 || ''}`, title: filename }
+            : { message: csv, title: filename }
+        ).catch(() => {});
         return;
       }
       if (
