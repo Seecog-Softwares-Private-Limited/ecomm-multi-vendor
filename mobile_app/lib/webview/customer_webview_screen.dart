@@ -11,6 +11,7 @@ import 'package:webview_flutter_android/webview_flutter_android.dart';
 import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
 
 import 'google_oauth_bridge.dart';
+import 'google_oauth_debug.dart';
 import 'webview_url_policy.dart';
 
 /// Full-screen WebView that hosts the IndoVyapar Customer Website.
@@ -43,6 +44,9 @@ class _CustomerWebViewScreenState extends State<CustomerWebViewScreen> {
   String? _errorMessage;
   var _progress = 0;
   var _googleAuthInFlight = false;
+
+  /// TEMPORARY: active OAuth attempt id while Auth Tab is open (debug only).
+  String? _activeGoogleOAuthRequestId;
 
   @override
   void initState() {
@@ -83,7 +87,16 @@ class _CustomerWebViewScreenState extends State<CustomerWebViewScreen> {
             // Catch Google hosts here and restart a clean native OAuth start
             // instead of letting a truncated authorize URL show Error 400.
             final uri = Uri.tryParse(url);
-            if (uri != null && widget.oauthBridge.isGoogleAuthorizationHost(uri)) {
+            if (uri != null &&
+                widget.oauthBridge.isGoogleAuthorizationHost(uri)) {
+              GoogleOAuthDebug.log(
+                'page_started_google',
+                requestId: _activeGoogleOAuthRequestId,
+                uri: uri,
+                inflightBefore: _googleAuthInFlight,
+                inflightAfter: _googleAuthInFlight,
+                extra: 'willCallIntercept=true',
+              );
               unawaited(_interceptGoogleAuthorizationHost(uri));
             }
           },
@@ -175,6 +188,14 @@ class _CustomerWebViewScreenState extends State<CustomerWebViewScreen> {
 
     // Google OAuth start → system auth session (not embedded WebView).
     if (widget.oauthBridge.isGoogleOAuthStart(uri)) {
+      GoogleOAuthDebug.log(
+        'nav_oauth_start',
+        requestId: _activeGoogleOAuthRequestId,
+        uri: uri,
+        inflightBefore: _googleAuthInFlight,
+        inflightAfter: _googleAuthInFlight,
+        extra: 'navigationPrevented=true willCallStart=true',
+      );
       unawaited(_startGoogleOAuth(uri));
       return NavigationDecision.prevent;
     }
@@ -184,6 +205,16 @@ class _CustomerWebViewScreenState extends State<CustomerWebViewScreen> {
     // URL → Google 400), restart a clean native OAuth start instead of
     // showing Google's error page in-app.
     if (widget.oauthBridge.isGoogleAuthorizationHost(uri)) {
+      GoogleOAuthDebug.log(
+        'nav_google_host',
+        requestId: _activeGoogleOAuthRequestId,
+        uri: uri,
+        inflightBefore: _googleAuthInFlight,
+        inflightAfter: _googleAuthInFlight,
+        extra:
+            'navigationPrevented=true willCallIntercept=true '
+            'willCallStart=${!_googleAuthInFlight}',
+      );
       unawaited(_interceptGoogleAuthorizationHost(uri));
       return NavigationDecision.prevent;
     }
@@ -208,6 +239,17 @@ class _CustomerWebViewScreenState extends State<CustomerWebViewScreen> {
   }
 
   Future<void> _interceptGoogleAuthorizationHost(Uri googleUri) async {
+    GoogleOAuthDebug.log(
+      'intercept_google_host',
+      requestId: _activeGoogleOAuthRequestId,
+      uri: googleUri,
+      inflightBefore: _googleAuthInFlight,
+      inflightAfter: _googleAuthInFlight,
+      extra:
+          'willCallStart=${!_googleAuthInFlight} '
+          'navigationPrevented=true',
+    );
+
     // Pull WebView off Google immediately so the user cannot submit email/password
     // against a truncated authorize URL (Google Error 400). loadRequest cancels
     // the in-flight Google navigation (WebViewController has no stopLoading).
@@ -222,8 +264,31 @@ class _CustomerWebViewScreenState extends State<CustomerWebViewScreen> {
   }
 
   Future<void> _startGoogleOAuth(Uri startUri) async {
-    if (_googleAuthInFlight) return;
+    final inflightBefore = _googleAuthInFlight;
+    if (_googleAuthInFlight) {
+      GoogleOAuthDebug.log(
+        'auth_skip_inflight',
+        requestId: _activeGoogleOAuthRequestId,
+        uri: startUri,
+        inflightBefore: inflightBefore,
+        inflightAfter: true,
+        extra: 'willCallStart=false',
+      );
+      return;
+    }
+
+    final requestId = GoogleOAuthDebug.nextRequestId();
+    _activeGoogleOAuthRequestId = requestId;
     _googleAuthInFlight = true;
+    GoogleOAuthDebug.log(
+      'auth_start',
+      requestId: requestId,
+      uri: startUri,
+      inflightBefore: inflightBefore,
+      inflightAfter: true,
+      extra: 'willCallStart=true',
+    );
+
     if (mounted) {
       setState(() {
         _isLoading = true;
@@ -236,8 +301,16 @@ class _CustomerWebViewScreenState extends State<CustomerWebViewScreen> {
       // Bridge coerces Google authorize URLs → clean /api/auth/oauth/google?native=1.
       final redeemUrl = await widget.oauthBridge.authenticate(
         oauthStartUri: startUri,
+        debugRequestId: requestId,
       );
       if (redeemUrl == null) {
+        GoogleOAuthDebug.log(
+          'auth_cancelled',
+          requestId: requestId,
+          uri: startUri,
+          inflightBefore: true,
+          inflightAfter: true,
+        );
         // User cancelled — stay on current login page in WebView.
         if (mounted) {
           setState(() {
@@ -247,15 +320,40 @@ class _CustomerWebViewScreenState extends State<CustomerWebViewScreen> {
         return;
       }
 
+      GoogleOAuthDebug.log(
+        'auth_completed',
+        requestId: requestId,
+        uri: redeemUrl,
+        inflightBefore: true,
+        inflightAfter: true,
+        extra: 'redeemPathOnly=true',
+      );
       await _controller.loadRequest(redeemUrl);
     } on GoogleOAuthBridgeException catch (e) {
+      GoogleOAuthDebug.log(
+        'auth_error',
+        requestId: requestId,
+        uri: startUri,
+        inflightBefore: true,
+        inflightAfter: true,
+        extra: 'errorType=GoogleOAuthBridgeException',
+      );
       if (!mounted) return;
       // Surface error via website login page when possible.
+      // Do not log e.message — may echo provider error text.
       final loginError = Uri.parse(
         '${widget.oauthBridge.siteOrigin}/login',
       ).replace(queryParameters: {'error': e.message});
       await _controller.loadRequest(loginError);
     } catch (_) {
+      GoogleOAuthDebug.log(
+        'auth_error',
+        requestId: requestId,
+        uri: startUri,
+        inflightBefore: true,
+        inflightAfter: true,
+        extra: 'errorType=unknown',
+      );
       if (!mounted) return;
       final loginError = Uri.parse(
         '${widget.oauthBridge.siteOrigin}/login',
@@ -266,7 +364,15 @@ class _CustomerWebViewScreenState extends State<CustomerWebViewScreen> {
       );
       await _controller.loadRequest(loginError);
     } finally {
+      final beforeClear = _googleAuthInFlight;
       _googleAuthInFlight = false;
+      GoogleOAuthDebug.log(
+        'auth_inflight_cleared',
+        requestId: requestId,
+        inflightBefore: beforeClear,
+        inflightAfter: false,
+      );
+      _activeGoogleOAuthRequestId = null;
       if (mounted) {
         setState(() => _isLoading = false);
       }

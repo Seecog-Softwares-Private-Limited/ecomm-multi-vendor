@@ -1,5 +1,7 @@
 import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 
+import 'google_oauth_debug.dart';
+
 /// Native Google OAuth bridge for the Customer WebView app.
 ///
 /// The website still owns OAuth (`/api/auth/oauth/google`). This bridge only:
@@ -82,9 +84,19 @@ class GoogleOAuthBridge {
   /// Runs system auth UI; returns the WebView redeem URL, or null if cancelled.
   ///
   /// Throws [GoogleOAuthBridgeException] on auth failure (non-cancel).
-  Future<Uri?> authenticate({required Uri oauthStartUri}) async {
+  ///
+  /// [debugRequestId] is TEMPORARY diagnostic only — does not change OAuth.
+  Future<Uri?> authenticate({
+    required Uri oauthStartUri,
+    String? debugRequestId,
+  }) async {
     // Defense in depth: never pass accounts.google.com into the auth session.
     final start = resolveNativeStartUrl(oauthStartUri);
+    GoogleOAuthDebug.log(
+      'auth_tab_begin',
+      requestId: debugRequestId,
+      uri: start,
+    );
     late final String resultUrl;
     try {
       resultUrl = await FlutterWebAuth2.authenticate(
@@ -96,8 +108,19 @@ class GoogleOAuthBridge {
       if (msg.contains('cancel') ||
           msg.contains('cancelled') ||
           msg.contains('canceled')) {
+        GoogleOAuthDebug.log(
+          'auth_tab_cancel',
+          requestId: debugRequestId,
+          uri: start,
+        );
         return null;
       }
+      GoogleOAuthDebug.log(
+        'auth_tab_error',
+        requestId: debugRequestId,
+        uri: start,
+        extra: 'errorType=${e.runtimeType}',
+      );
       throw GoogleOAuthBridgeException(
         'Google sign-in failed. Please try again.',
         cause: e,
@@ -106,18 +129,43 @@ class GoogleOAuthBridge {
 
     final returned = Uri.tryParse(resultUrl);
     if (returned == null) {
+      GoogleOAuthDebug.log(
+        'auth_tab_error',
+        requestId: debugRequestId,
+        uri: start,
+        extra: 'reason=unparseable_callback',
+      );
       throw GoogleOAuthBridgeException(
         'Google sign-in did not complete. Please try again.',
       );
     }
 
+    // Callback URL may contain a handoff token — log names only, never values.
+    GoogleOAuthDebug.log(
+      'auth_tab_return',
+      requestId: debugRequestId,
+      uri: returned,
+    );
+
     final error = returned.queryParameters['error'];
     if (error != null && error.isNotEmpty) {
+      GoogleOAuthDebug.log(
+        'auth_tab_error',
+        requestId: debugRequestId,
+        uri: returned,
+        extra: 'reason=callback_error_param',
+      );
       throw GoogleOAuthBridgeException(error);
     }
 
     final token = returned.queryParameters['token'];
     if (token == null || token.isEmpty) {
+      GoogleOAuthDebug.log(
+        'auth_tab_error',
+        requestId: debugRequestId,
+        uri: returned,
+        extra: 'reason=missing_token',
+      );
       throw GoogleOAuthBridgeException(
         'Google sign-in did not complete. Please try again.',
       );
