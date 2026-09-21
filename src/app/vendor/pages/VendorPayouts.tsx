@@ -5,6 +5,7 @@ import { Button, Card, Alert, Input } from "../components/UIComponents";
 import { DataState } from "../../components/DataState";
 import { useApi } from "@/lib/hooks/useApi";
 import { vendorService } from "@/services/vendor.service";
+import { downloadCsvFile, escapeCsvCell } from "@/lib/download-csv";
 import * as React from "react";
 
 function formatInr(amount: number): string {
@@ -14,12 +15,6 @@ function formatInr(amount: number): string {
     maximumFractionDigits: 2,
     minimumFractionDigits: 0,
   }).format(amount);
-}
-
-function escapeCsvCell(value: string | number): string {
-  const s = String(value);
-  if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
-  return s;
 }
 
 function defaultPayoutDateFrom(): string {
@@ -97,14 +92,10 @@ export function VendorPayouts() {
           .join(",")
       ),
     ];
-    const csv = "\uFEFF" + lines.join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `vendor-payouts-${dateFrom}_to_${dateTo}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadCsvFile(
+      `vendor-payouts-${dateFrom}_to_${dateTo}.csv`,
+      lines.join("\n")
+    );
   };
 
   const scrollToPayoutHistory = React.useCallback(() => {

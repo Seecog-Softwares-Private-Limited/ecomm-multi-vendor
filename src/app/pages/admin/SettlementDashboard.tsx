@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Download, DollarSign, TrendingUp, Clock, CheckCircle, FileText } from "lucide-react";
+import { downloadCsvFile, escapeCsvCell } from "@/lib/download-csv";
 
 const PAGE_SIZE = 10;
 const statsConfig = [
@@ -117,6 +118,81 @@ export function SettlementDashboard() {
     fetchSettlements(1);
   };
 
+  const [downloading, setDownloading] = useState(false);
+
+  /** Download filtered settlements as CSV (all pages matching current filters). */
+  const handleDownloadReport = async () => {
+    if (downloading) return;
+    setDownloading(true);
+    setError(null);
+    try {
+      const exportPageSize = 50;
+      const all: SettlementRow[] = [];
+      let exportPage = 1;
+      let exportTotalPages = 1;
+
+      do {
+        const params = new URLSearchParams();
+        params.set("page", String(exportPage));
+        params.set("pageSize", String(exportPageSize));
+        if (statusFilter) params.set("status", statusFilter);
+        if (dateFrom) params.set("dateFrom", dateFrom);
+        if (dateTo) params.set("dateTo", dateTo);
+
+        const res = await fetch(`/api/admin/settlements?${params.toString()}`, {
+          credentials: "include",
+        });
+        const json = await res.json();
+        if (!res.ok) {
+          setError(json?.error?.message ?? "Failed to download report");
+          return;
+        }
+        const rows = (json?.data?.settlements ?? []) as SettlementRow[];
+        all.push(...rows);
+        const meta = json?.meta as { totalPages?: number } | undefined;
+        exportTotalPages = meta?.totalPages ?? 1;
+        exportPage += 1;
+      } while (exportPage <= exportTotalPages);
+
+      if (all.length === 0) {
+        setError("No settlements to download for the current filters.");
+        return;
+      }
+
+      const headers = [
+        "Settlement ID",
+        "Seller Name",
+        "Total Revenue",
+        "Commission",
+        "Payout Amount",
+        "Status",
+        "Settlement Date",
+      ];
+      const lines = [
+        headers.map(escapeCsvCell).join(","),
+        ...all.map((s) =>
+          [
+            s.id,
+            s.seller,
+            s.revenue,
+            s.commission,
+            s.payout,
+            statusToDisplay(s.status),
+            s.date,
+          ]
+            .map(escapeCsvCell)
+            .join(",")
+        ),
+      ];
+      const stamp = new Date().toISOString().slice(0, 10);
+      downloadCsvFile(`settlements-report-${stamp}.csv`, lines.join("\n"));
+    } catch {
+      setError("Failed to download report");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   const startItem = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
   const endItem = Math.min(page * PAGE_SIZE, total);
 
@@ -135,10 +211,12 @@ export function SettlementDashboard() {
           </div>
           <button
             type="button"
-            className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-slate-900/25 transition hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2"
+            onClick={handleDownloadReport}
+            disabled={downloading}
+            className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-slate-900/25 transition hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 disabled:opacity-60"
           >
             <Download className="h-4 w-4" />
-            Download Report
+            {downloading ? "Downloading…" : "Download Report"}
           </button>
         </div>
 

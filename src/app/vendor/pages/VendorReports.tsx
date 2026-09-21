@@ -7,6 +7,7 @@ import { Link } from "../../components/Link";
 import { useApi } from "@/lib/hooks/useApi";
 import { vendorService } from "@/services/vendor.service";
 import { getStartOfCurrentMonthIsoDate } from "@/lib/vendor/date-ranges";
+import { downloadCsvFile, escapeCsvCell } from "@/lib/download-csv";
 import * as React from "react";
 
 function orderDisplayId(id: string): string {
@@ -14,13 +15,17 @@ function orderDisplayId(id: string): string {
   return `#ORD-${id.slice(-6).toUpperCase()}`;
 }
 
+function todayIsoDate(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
 export function VendorReports() {
-  const [ordersDateFrom, setOrdersDateFrom] = React.useState("2026-02-01");
-  const [ordersDateTo, setOrdersDateTo] = React.useState("2026-02-25");
-  const [productsDateFrom, setProductsDateFrom] = React.useState("2026-02-01");
-  const [productsDateTo, setProductsDateTo] = React.useState("2026-02-25");
-  const [earningsDateFrom, setEarningsDateFrom] = React.useState("2026-02-01");
-  const [earningsDateTo, setEarningsDateTo] = React.useState("2026-02-25");
+  const [ordersDateFrom, setOrdersDateFrom] = React.useState(getStartOfCurrentMonthIsoDate);
+  const [ordersDateTo, setOrdersDateTo] = React.useState(todayIsoDate);
+  const [productsDateFrom, setProductsDateFrom] = React.useState(getStartOfCurrentMonthIsoDate);
+  const [productsDateTo, setProductsDateTo] = React.useState(todayIsoDate);
+  const [earningsDateFrom, setEarningsDateFrom] = React.useState(getStartOfCurrentMonthIsoDate);
+  const [earningsDateTo, setEarningsDateTo] = React.useState(todayIsoDate);
   const [downloading, setDownloading] = React.useState<"orders" | "products" | "earnings" | null>(null);
 
   const { data: summary, error, isLoading, refetch } = useApi(() =>
@@ -34,6 +39,10 @@ export function VendorReports() {
         dateFrom: ordersDateFrom,
         dateTo: ordersDateTo,
       });
+      if (orders.length === 0) {
+        alert("No orders found for the selected date range.");
+        return;
+      }
       const headers = [
         "Order ID",
         "Date",
@@ -44,26 +53,27 @@ export function VendorReports() {
         "Payment Mode",
         "Status",
       ];
-      const rows = orders.map((o) =>
-        [
-          orderDisplayId(o.id),
-          o.date,
-          o.customer,
-          o.phone,
-          o.itemsCount,
-          o.amount,
-          o.paymentMode,
-          o.status,
-        ].join(",")
+      const lines = [
+        headers.map(escapeCsvCell).join(","),
+        ...orders.map((o) =>
+          [
+            orderDisplayId(o.id),
+            o.date,
+            o.customer,
+            o.phone,
+            o.itemsCount,
+            o.amount,
+            o.paymentMode,
+            o.status,
+          ]
+            .map(escapeCsvCell)
+            .join(",")
+        ),
+      ];
+      downloadCsvFile(
+        `orders-report-${ordersDateFrom}-${ordersDateTo}.csv`,
+        lines.join("\n")
       );
-      const csv = [headers.join(","), ...rows].join("\n");
-      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `orders-report-${ordersDateFrom}-${ordersDateTo}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
     } catch (e) {
       console.error(e);
       alert(e instanceof Error ? e.message : "Failed to download orders report");
@@ -79,6 +89,10 @@ export function VendorReports() {
         dateFrom: productsDateFrom,
         dateTo: productsDateTo,
       });
+      if (products.length === 0) {
+        alert("No products found for the selected date range.");
+        return;
+      }
       const headers = [
         "Product Name",
         "SKU",
@@ -88,17 +102,18 @@ export function VendorReports() {
         "Status",
         "Last Updated",
       ];
-      const rows = products.map((p) =>
-        [p.name, p.sku, p.category, p.price, p.stock, p.status, p.lastUpdated].join(",")
+      const lines = [
+        headers.map(escapeCsvCell).join(","),
+        ...products.map((p) =>
+          [p.name, p.sku, p.category, p.price, p.stock, p.status, p.lastUpdated]
+            .map(escapeCsvCell)
+            .join(",")
+        ),
+      ];
+      downloadCsvFile(
+        `products-report-${productsDateFrom}-${productsDateTo}.csv`,
+        lines.join("\n")
       );
-      const csv = [headers.join(","), ...rows].join("\n");
-      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `products-report-${productsDateFrom}-${productsDateTo}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
     } catch (e) {
       console.error(e);
       alert(e instanceof Error ? e.message : "Failed to download products report");
@@ -114,6 +129,10 @@ export function VendorReports() {
         dateFrom: earningsDateFrom,
         dateTo: earningsDateTo,
       });
+      if (rows.length === 0) {
+        alert("No earnings found for the selected date range.");
+        return;
+      }
       const headers = [
         "Order ID",
         "Date",
@@ -124,26 +143,27 @@ export function VendorReports() {
         "Payout Status",
         "Payout Ref",
       ];
-      const dataRows = rows.map((r) =>
-        [
-          r.orderId,
-          r.orderDate,
-          r.grossAmount,
-          r.commissionPercent,
-          r.commissionAmount,
-          r.netEarning,
-          r.payoutStatus,
-          r.payoutRef ?? "",
-        ].join(",")
+      const lines = [
+        headers.map(escapeCsvCell).join(","),
+        ...rows.map((r) =>
+          [
+            r.orderId,
+            r.orderDate,
+            r.grossAmount,
+            r.commissionPercent,
+            r.commissionAmount,
+            r.netEarning,
+            r.payoutStatus,
+            r.payoutRef ?? "",
+          ]
+            .map(escapeCsvCell)
+            .join(",")
+        ),
+      ];
+      downloadCsvFile(
+        `earnings-report-${earningsDateFrom}-${earningsDateTo}.csv`,
+        lines.join("\n")
       );
-      const csv = [headers.join(","), ...dataRows].join("\n");
-      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `earnings-report-${earningsDateFrom}-${earningsDateTo}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
     } catch (e) {
       console.error(e);
       alert(e instanceof Error ? e.message : "Failed to download earnings report");
