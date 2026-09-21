@@ -75,9 +75,11 @@ export async function middleware(request: NextRequest) {
     if (session.role !== "SELLER") {
       return redirectToLogin(request, pathname, VENDOR_LOGIN);
     }
-    // Complete sellers leave onboarding
-    const incomplete = await isSellerAuthIncomplete(request);
-    if (!incomplete) {
+    // Only leave onboarding when /me positively says complete. Fail-open on
+    // /me errors used to bounce incomplete WebView users back to /vendor
+    // (looked like a dead "Complete account" button + client 401 noise).
+    const onboarding = await getSellerAuthOnboardingState(request);
+    if (onboarding === "complete") {
       const url = new URL("/vendor", request.url);
       copyVendorAppContextParams(request.nextUrl.searchParams, url.searchParams);
       return NextResponse.redirect(url);
@@ -154,9 +156,17 @@ export async function middleware(request: NextRequest) {
 
 /**
  * Ask the allowlisted vendor session endpoint whether auth onboarding is incomplete.
- * Fail open if /me is unreachable — APIs still enforce the gate.
+ * Fail open if /me is unreachable — APIs still enforce the gate on commerce routes.
  */
 async function isSellerAuthIncomplete(request: NextRequest): Promise<boolean> {
+  const state = await getSellerAuthOnboardingState(request);
+  return state === "incomplete";
+}
+
+/** Distinguishes known-complete from unknown so onboarding pages do not bounce. */
+async function getSellerAuthOnboardingState(
+  request: NextRequest
+): Promise<"complete" | "incomplete" | "unknown"> {
   try {
     const meUrl = new URL("/api/vendor/me", request.nextUrl.origin);
     const headers: HeadersInit = {
@@ -170,7 +180,8 @@ async function isSellerAuthIncomplete(request: NextRequest): Promise<boolean> {
       headers,
       cache: "no-store",
     });
-    if (!res.ok) return false;
+    if (res.status === 401 || res.status === 403) return "unknown";
+    if (!res.ok) return "unknown";
     const json = (await res.json()) as {
       data?: {
         authOnboardingComplete?: boolean;
@@ -178,12 +189,16 @@ async function isSellerAuthIncomplete(request: NextRequest): Promise<boolean> {
       } | null;
     };
     const data = json?.data;
-    if (!data) return false;
-    if (data.authOnboardingComplete === false) return true;
-    if (data.needsAuthOnboarding === true) return true;
-    return false;
+    if (!data) return "unknown";
+    if (data.authOnboardingComplete === true && data.needsAuthOnboarding !== true) {
+      return "complete";
+    }
+    if (data.authOnboardingComplete === false || data.needsAuthOnboarding === true) {
+      return "incomplete";
+    }
+    return "unknown";
   } catch {
-    return false;
+    return "unknown";
   }
 }
 

@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { Loader2, Mail, Phone, User, LogOut } from "lucide-react";
 import { IndovyaparLogo } from "@/components/IndovyaparLogo";
 import { toast } from "sonner";
@@ -17,11 +16,43 @@ import { buildVendorLoginPath } from "@/lib/vendor-app-query";
 
 type PhoneOtpPhase = "number" | "otp";
 
-export function VendorCompleteAccountPage() {
-  const router = useRouter();
-  const [loading, setLoading] = React.useState(true);
-  const [me, setMe] = React.useState<VendorAuthMe | null>(null);
-  const [step, setStep] = React.useState<VendorOnboardingStep>("done");
+function applyMeToFormState(
+  data: VendorAuthMe,
+  setters: {
+    setFullName: (v: string) => void;
+    setEmail: (v: string) => void;
+    setPhone: (v: string) => void;
+  }
+) {
+  if (data.ownerName && data.ownerName.toLowerCase() !== "pending") {
+    setters.setFullName(data.ownerName);
+  }
+  if (data.email && !isPlaceholderVendorEmailClient(data.email)) {
+    setters.setEmail(data.email);
+  }
+  if (data.phone) {
+    const digits = data.phone.replace(/\D/g, "");
+    setters.setPhone(digits.length > 10 ? digits.slice(-10) : digits);
+  }
+}
+
+function hardNavigate(path: string) {
+  if (typeof window === "undefined") return;
+  window.location.assign(path);
+}
+
+export function VendorCompleteAccountPage({
+  /** When embedded under VendorLayoutWrapper, skip a second /me round-trip that can 401-bounce. */
+  initialMe = null,
+}: {
+  initialMe?: VendorAuthMe | null;
+} = {}) {
+  const seeded = Boolean(initialMe && vendorNeedsAuthOnboarding(initialMe));
+  const [loading, setLoading] = React.useState(!seeded);
+  const [me, setMe] = React.useState<VendorAuthMe | null>(initialMe);
+  const [step, setStep] = React.useState<VendorOnboardingStep>(() =>
+    initialMe ? resolveVendorOnboardingStep(initialMe) : "done"
+  );
 
   const [fullName, setFullName] = React.useState("");
   const [email, setEmail] = React.useState("");
@@ -51,40 +82,42 @@ export function VendorCompleteAccountPage() {
     const next = resolveVendorOnboardingStep(data);
     setStep(next);
     if (next === "done") {
-      router.replace("/vendor/status");
+      // Hard nav — Next soft replace is unreliable inside the Expo WebView.
+      hardNavigate("/vendor/status");
     }
     return data;
-  }, [router]);
+  }, []);
 
   React.useEffect(() => {
+    if (initialMe && vendorNeedsAuthOnboarding(initialMe)) {
+      applyMeToFormState(initialMe, { setFullName, setEmail, setPhone });
+      setLoading(false);
+      // Background refresh only — never bounce to login while we already have session data.
+      void refreshMe().catch(() => {
+        /* keep seeded form */
+      });
+      return;
+    }
+
     (async () => {
       try {
         const data = await refreshMe();
         if (!data) {
-          router.replace(buildVendorLoginPath("/vendor/complete-account"));
+          hardNavigate(buildVendorLoginPath("/vendor/complete-account"));
           return;
         }
         if (!vendorNeedsAuthOnboarding(data)) {
-          router.replace("/vendor");
+          hardNavigate("/vendor");
           return;
         }
-        if (data.ownerName && data.ownerName.toLowerCase() !== "pending") {
-          setFullName(data.ownerName);
-        }
-        if (data.email && !isPlaceholderVendorEmailClient(data.email)) {
-          setEmail(data.email);
-        }
-        if (data.phone) {
-          const digits = data.phone.replace(/\D/g, "");
-          setPhone(digits.length > 10 ? digits.slice(-10) : digits);
-        }
+        applyMeToFormState(data, { setFullName, setEmail, setPhone });
       } catch {
         toast.error("Could not load your account. Please refresh.");
       } finally {
         setLoading(false);
       }
     })();
-  }, [refreshMe, router]);
+  }, [initialMe, refreshMe]);
 
   React.useEffect(() => {
     if (resendSeconds <= 0) return;
@@ -144,7 +177,7 @@ export function VendorCompleteAccountPage() {
 
   const logout = async () => {
     await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
-    router.replace(buildVendorLoginPath("/vendor"));
+    hardNavigate(buildVendorLoginPath("/vendor"));
   };
 
   const requestOtp = async (isResend = false) => {
@@ -185,8 +218,8 @@ export function VendorCompleteAccountPage() {
   const verifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
-    if (!/^\d{4,9}$/.test(otpCode.trim())) {
-      setFormError("Enter the code from your SMS.");
+    if (!/^\d{6}$/.test(otpCode.trim())) {
+      setFormError("Enter the 6-digit code from your SMS.");
       return;
     }
     setVerifyOtpLoading(true);
@@ -385,7 +418,7 @@ export function VendorCompleteAccountPage() {
                 <input
                   className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5 tracking-widest text-center text-lg"
                   value={otpCode}
-                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 9))}
+                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
                   inputMode="numeric"
                   autoComplete="one-time-code"
                   disabled={verifyOtpLoading}

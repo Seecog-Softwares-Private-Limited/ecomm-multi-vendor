@@ -82,7 +82,19 @@ export async function GET(request: NextRequest, context: ApiRouteContext) {
 
   const oauthBaseUrl = resolveOAuthBaseUrlFromRequest(request);
   // Auth URL still tagged as vendor for logging; Google redirect_uri is shared.
-  const authUrl = buildOAuthAuthUrl(provider, stateStr, oauthBaseUrl, "vendor");
+  let authUrl: string;
+  try {
+    authUrl = buildOAuthAuthUrl(provider, stateStr, oauthBaseUrl, "vendor");
+  } catch (e) {
+    console.error("[Vendor OAuth] Failed to build auth URL:", e);
+    const login = new URL(isLink ? "/vendor/settings" : "/vendor/login", getOAuthAppBaseUrl());
+    login.searchParams.set(
+      "error",
+      "Google sign-in is misconfigured. Check GOOGLE_CLIENT_ID and redirect URI."
+    );
+    copyVendorAppContextParams(searchParams, login.searchParams);
+    return NextResponse.redirect(login.toString());
+  }
 
   const response = NextResponse.redirect(authUrl);
   const cookieOpts = {

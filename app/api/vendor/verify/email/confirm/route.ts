@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { withApiHandler, apiSuccess, apiBadRequest, apiUnauthorized, apiForbidden } from "@/lib/api";
+import { withApiHandler, apiSuccess, apiBadRequest, apiForbidden } from "@/lib/api";
 import { requireSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { verifyPhoneOtp } from "@/lib/auth/phone-otp-hash";
@@ -29,11 +29,11 @@ export const POST = withApiHandler(async (request: NextRequest) => {
   if (!seller) return apiBadRequest("Vendor not found");
 
   if (!seller.emailOtpCode || !seller.emailOtpExpires || seller.emailOtpExpires < new Date()) {
-    return apiUnauthorized("Code expired or not requested. Please send a new OTP first.");
+    return apiBadRequest("Code expired or not requested. Please send a new OTP first.");
   }
 
   const ok = verifyPhoneOtp(sellerId, code.trim(), seller.emailOtpCode);
-  if (!ok) return apiUnauthorized("Incorrect code. Try again.");
+  if (!ok) return apiBadRequest("Incorrect code. Try again.");
 
   await prisma.seller.update({
     where: { id: sellerId },

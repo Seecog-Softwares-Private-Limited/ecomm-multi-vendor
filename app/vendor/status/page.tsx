@@ -39,6 +39,15 @@ export default function VendorStatusPage() {
       })
       .then((json) => {
         if (cancelled || !json?.success) return;
+        if (!json.data) {
+          router.replace(
+            buildVendorLoginPath(
+              "/vendor/status",
+              new URLSearchParams(window.location.search)
+            )
+          );
+          return;
+        }
         setData(json.data as MeResponse);
       })
       .catch(() => {

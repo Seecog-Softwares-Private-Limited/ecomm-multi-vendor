@@ -4,15 +4,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { VendorLayout } from "@/app/vendor/components/VendorLayout";
 import { VendorStatusCard } from "@/app/vendor/components/VendorStatusCard";
+import { VendorCompleteAccountPage } from "@/app/pages/vendor/VendorCompleteAccountPage";
 import { VendorAppNavProvider } from "@/contexts/VendorAppNavContext";
 import { authService } from "@/services/auth.service";
 import { LogOut } from "lucide-react";
 import type { VendorStatusDisplay } from "@/lib/auth";
 import { buildVendorLoginPath } from "@/lib/vendor-app-query";
-import {
-  vendorNeedsAuthOnboarding,
-  VENDOR_AUTH_ONBOARDING_PATH,
-} from "@/lib/auth/vendor-onboarding-client";
+import { vendorNeedsAuthOnboarding } from "@/lib/auth/vendor-onboarding-client";
 
 const VENDOR_LOGIN_PATH = "/vendor/login";
 const VENDOR_REGISTER_PATH = "/vendor/register";
@@ -68,6 +66,10 @@ type MeData = {
   rawStatus: string | null;
   statusReason: string | null;
   businessName: string | null;
+  ownerName?: string | null;
+  phone?: string | null;
+  phoneVerified?: boolean;
+  emailVerified?: boolean;
   authOnboardingComplete?: boolean;
   needsAuthOnboarding?: boolean;
 };
@@ -120,7 +122,7 @@ export function VendorLayoutWrapper({
             pathname ?? "/vendor",
             new URLSearchParams(window.location.search)
           );
-          routerRef.current.replace(loginPath);
+          window.location.replace(loginPath);
           return res;
         }
         return res.json();
@@ -130,6 +132,15 @@ export function VendorLayoutWrapper({
         if (json && typeof json === "object" && "success" in json && json.success && json.data) {
           setMe(json.data as MeData);
           setBootstrapError(null);
+          return;
+        }
+        // 200 + null data = logged out (no more 401 noise from /api/vendor/me)
+        if (json && typeof json === "object" && "success" in json && json.success && !json.data) {
+          const loginPath = buildVendorLoginPath(
+            pathname ?? "/vendor",
+            new URLSearchParams(window.location.search)
+          );
+          window.location.replace(loginPath);
         }
       })
       .catch((err: unknown) => {
@@ -142,7 +153,7 @@ export function VendorLayoutWrapper({
           );
           return;
         }
-        routerRef.current.replace(
+        window.location.replace(
           buildVendorLoginPath(
             pathname ?? "/vendor",
             new URLSearchParams(window.location.search)
@@ -165,12 +176,9 @@ export function VendorLayoutWrapper({
   /** Never call router.replace during render — it can break navigation and leave the shell stuck loading. */
   useEffect(() => {
     if (!authChecked || isVendorAuthPage(pathname ?? null)) return;
-    if (needsAuthOnboarding) {
-      // Soft Next.js navigation often no-ops in the Expo WebView shell — use a
-      // full load so Incomplete vendors actually reach /vendor/complete-account.
-      window.location.replace(VENDOR_AUTH_ONBOARDING_PATH);
-      return;
-    }
+    // Incomplete auth: form is rendered inline below — do not navigate (WebView soft/hard
+    // nav to /vendor/complete-account was unreliable and looked like a dead button).
+    if (needsAuthOnboarding) return;
     const approved = me?.status === "approved";
     if (approved) return;
     if (!isAllowedWhenNotApproved(pathname)) {
@@ -237,25 +245,13 @@ export function VendorLayoutWrapper({
     );
   }
 
-  // Auth Stage 1 incomplete: never render dashboard/commerce shell (avoids
-  // ACCOUNT_INCOMPLETE → DataState "Try again" dead-end while redirect settles).
+  // Auth Stage 1 incomplete: render the onboarding form here (no navigation).
+  // Expo WebView often no-ops Next soft nav and even <a href> (App Router intercepts
+  // same-origin clicks), so a "Complete account" CTA looked dead.
   if (needsAuthOnboarding) {
     return (
       <VendorAppNavProvider enabled={false}>
-        <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#F8FAFC] px-6 text-center">
-          <p className="max-w-md text-base font-semibold text-[#1E293B]">
-            Complete your account setup
-          </p>
-          <p className="max-w-md text-sm text-[#64748B]">
-            Verify your email and phone to continue to Vendor verification.
-          </p>
-          <a
-            href={VENDOR_AUTH_ONBOARDING_PATH}
-            className="rounded-xl bg-[#1B7A43] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#135C32]"
-          >
-            Complete account
-          </a>
-        </div>
+        <VendorCompleteAccountPage initialMe={me} />
       </VendorAppNavProvider>
     );
   }

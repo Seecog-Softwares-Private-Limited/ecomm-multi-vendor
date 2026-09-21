@@ -51,7 +51,18 @@ export async function GET(request: NextRequest, context: ApiRouteContext) {
   const stateStr = encodeOAuthState(stateObj);
 
   const oauthBaseUrl = resolveOAuthBaseUrlFromRequest(request);
-  const authUrl = buildOAuthAuthUrl(provider, stateStr, oauthBaseUrl);
+  let authUrl: string;
+  try {
+    authUrl = buildOAuthAuthUrl(provider, stateStr, oauthBaseUrl);
+  } catch (e) {
+    console.error("[OAuth] Failed to build auth URL:", e);
+    const login = new URL("/login", getOAuthAppBaseUrl());
+    login.searchParams.set(
+      "error",
+      "Google sign-in is misconfigured. Check GOOGLE_CLIENT_ID and redirect URI."
+    );
+    return NextResponse.redirect(login.toString());
+  }
 
   const response = NextResponse.redirect(authUrl);
   response.cookies.set(OAUTH_STATE_COOKIE, stateStr, {
