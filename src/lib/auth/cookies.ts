@@ -46,17 +46,40 @@ export function setAuthCookie(response: NextResponse, token: string): void {
 
 /**
  * Clear the auth cookie.
+ *
+ * Deletes both:
+ * - the shared Domain=.indovyapar.com cookie (current production), and
+ * - any legacy host-only cookie (no Domain) from before Domain was added.
+ *
+ * NextResponse.cookies is keyed by cookie name, so the Domain deletion is
+ * appended as a second Set-Cookie header when a shared domain is configured.
  */
 export function clearAuthCookie(response: NextResponse): void {
-  const domain = authCookieDomain();
-  response.cookies.set(authConfig.cookieName, "", {
+  const clearOpts = {
     httpOnly: true,
     secure: cookieSecure,
-    sameSite: "lax",
+    sameSite: "lax" as const,
     maxAge: 0,
     path: "/",
-    ...(domain ? { domain } : {}),
-  });
+  };
+
+  // B. Legacy host-only cookie — omit Domain so it matches pre-Domain jars.
+  response.cookies.set(authConfig.cookieName, "", clearOpts);
+
+  // A. Shared-domain cookie (when APP_URL maps to .indovyapar.com).
+  const domain = authCookieDomain();
+  if (domain) {
+    const parts = [
+      `${authConfig.cookieName}=`,
+      "Path=/",
+      "Max-Age=0",
+      `Domain=${domain}`,
+      ...(cookieSecure ? (["Secure"] as const) : []),
+      "HttpOnly",
+      "SameSite=Lax",
+    ];
+    response.headers.append("Set-Cookie", parts.join("; "));
+  }
 }
 
 /**
