@@ -9,6 +9,7 @@ import {
   generateOAuthState,
   validateOAuthCallbackState,
   canonicalizePublicOrigin,
+  oauthRedirectUri,
   OAUTH_STATE_COOKIE,
 } from "../src/lib/auth/oauth";
 
@@ -32,6 +33,17 @@ assert(
 assert(
   canonicalizePublicOrigin("https://www.indovyapar.com/") === "https://www.indovyapar.com",
   "www stays www"
+);
+
+assert(
+  oauthRedirectUri("google", "https://indovyapar.com") ===
+    "https://www.indovyapar.com/api/auth/oauth/google/callback",
+  "google redirect_uri must canonicalize apex → www"
+);
+assert(
+  oauthRedirectUri("google", "https://www.indovyapar.com/") ===
+    "https://www.indovyapar.com/api/auth/oauth/google/callback",
+  "google redirect_uri keeps www"
 );
 
 // Signed state validates without cookie (WebView/CCT split).

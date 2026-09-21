@@ -138,7 +138,11 @@ export function oauthRedirectUri(
   baseUrl?: string,
   _flow: OAuthFlow = "customer"
 ): string {
-  const origin = (baseUrl?.trim() || appUrl()).replace(/\/$/, "");
+  // Always canonicalize (apex → www) so Google never sees a host that isn't
+  // registered — a common source of Error 400: redirect_uri_mismatch in apps.
+  const origin = canonicalizePublicOrigin(
+    (baseUrl?.trim() || appUrl()).replace(/\/$/, "")
+  );
   // Google Cloud OAuth clients usually register a single web redirect URI.
   // Customer + vendor Google login share `/api/auth/oauth/google/callback`;
   // vendor vs customer is distinguished via OAuth state `flow`.

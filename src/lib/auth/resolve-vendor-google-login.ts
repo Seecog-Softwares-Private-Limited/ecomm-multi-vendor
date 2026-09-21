@@ -158,10 +158,6 @@ export async function applyVendorGoogleLogin(input: {
     byEmail,
   });
 
-  // #region agent log
-  fetch('http://127.0.0.1:7456/ingest/072b8280-cbe0-406c-9e62-41143fb8780b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'337f7e'},body:JSON.stringify({sessionId:'337f7e',runId:'post-fix',hypothesisId:'A',location:'resolve-vendor-google-login.ts:match',message:'resolveVendorGoogleMatch decision',data:{action:match.action,code:match.action==='conflict'?match.code:null,googleEmailVerified:input.googleEmailVerified===true,byGoogleSubFound:Boolean(byGoogleSub),byEmailFound:Boolean(byEmail),sellerEmailVerified:byEmail?byEmail.emailVerified===true:null,sellerHasOauth:byEmail?Boolean(byEmail.oauthProviderId):null,sellerIdPrefix:byEmail?String(byEmail.id).slice(0,8):null,linkGoogle:match.action==='login'?match.linkGoogle:null},timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
-
   if (match.action === "conflict") {
     return { ok: false, message: match.message, code: match.code };
   }

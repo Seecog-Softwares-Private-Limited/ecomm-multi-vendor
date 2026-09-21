@@ -7,6 +7,10 @@ import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 ///    ASWebAuthenticationSession (iOS).
 /// 2. Receives the custom-scheme callback with a one-time hand-off token.
 /// 3. Returns a URL the WebView must load to set the `auth_token` cookie.
+///
+/// Never open a raw `accounts.google.com` authorize URL. Android WebView
+/// redirect races often truncate query params; Google then shows Error 400
+/// after email/password. Always restart from our OAuth start endpoint.
 class GoogleOAuthBridge {
   const GoogleOAuthBridge({
     this.callbackUrlScheme = callbackScheme,
@@ -19,6 +23,7 @@ class GoogleOAuthBridge {
   /// Production OAuth + cookie host (matches server redirect_uri host).
   static const defaultSiteOrigin = 'https://www.indovyapar.com';
 
+  static const oauthStartPath = '/api/auth/oauth/google';
   static const nativeCompletePath = '/api/auth/oauth/native-complete';
 
   final String callbackUrlScheme;
@@ -29,7 +34,7 @@ class GoogleOAuthBridge {
   bool isGoogleOAuthStart(Uri uri) {
     if (uri.scheme != 'http' && uri.scheme != 'https') return false;
     final path = uri.path.toLowerCase().replaceAll(RegExp(r'/+$'), '');
-    return path == '/api/auth/oauth/google';
+    return path == oauthStartPath;
   }
 
   /// True when [uri] is a Google authorization host that must not stay in WebView.
@@ -42,18 +47,44 @@ class GoogleOAuthBridge {
     return host.endsWith('.google.com') && host.contains('accounts');
   }
 
+  /// Clean native OAuth start on [siteOrigin]. Preserves [returnUrl] when present.
+  Uri buildCleanNativeStartUrl({String returnUrl = '/'}) {
+    return Uri.parse('$siteOrigin$oauthStartPath').replace(
+      queryParameters: {
+        'returnUrl': returnUrl.isEmpty ? '/' : returnUrl,
+        'native': '1',
+      },
+    );
+  }
+
+  /// Coerce any candidate URL into a safe native start URL.
+  ///
+  /// - Our oauth start → add `native=1`, keep returnUrl
+  /// - Google authorize / anything else → restart clean start (never open Google)
+  Uri resolveNativeStartUrl(Uri candidate, {String fallbackReturnUrl = '/'}) {
+    if (isGoogleAuthorizationHost(candidate)) {
+      return buildCleanNativeStartUrl(returnUrl: fallbackReturnUrl);
+    }
+    if (isGoogleOAuthStart(candidate)) {
+      final returnUrl = candidate.queryParameters['returnUrl'] ?? fallbackReturnUrl;
+      return buildCleanNativeStartUrl(returnUrl: returnUrl);
+    }
+    return buildCleanNativeStartUrl(returnUrl: fallbackReturnUrl);
+  }
+
   /// Appends `native=1` so the server returns a custom-scheme hand-off.
+  /// Prefer [resolveNativeStartUrl] / [authenticate] — this alone does not
+  /// protect against truncated Google authorize URLs.
   Uri buildNativeStartUrl(Uri startUri) {
-    final params = Map<String, String>.from(startUri.queryParameters);
-    params['native'] = '1';
-    return startUri.replace(queryParameters: params);
+    return resolveNativeStartUrl(startUri);
   }
 
   /// Runs system auth UI; returns the WebView redeem URL, or null if cancelled.
   ///
   /// Throws [GoogleOAuthBridgeException] on auth failure (non-cancel).
   Future<Uri?> authenticate({required Uri oauthStartUri}) async {
-    final start = buildNativeStartUrl(oauthStartUri);
+    // Defense in depth: never pass accounts.google.com into the auth session.
+    final start = resolveNativeStartUrl(oauthStartUri);
     late final String resultUrl;
     try {
       resultUrl = await FlutterWebAuth2.authenticate(

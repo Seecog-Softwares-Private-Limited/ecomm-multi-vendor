@@ -72,13 +72,20 @@ class _CustomerWebViewScreenState extends State<CustomerWebViewScreen> {
             if (!mounted) return;
             setState(() => _progress = progress);
           },
-          onPageStarted: (_) {
+          onPageStarted: (url) {
             if (!mounted) return;
             setState(() {
               _isLoading = true;
               _hasError = false;
               _errorMessage = null;
             });
+            // Android often skips onNavigationRequest for 302 → Google.
+            // Catch Google hosts here and restart a clean native OAuth start
+            // instead of letting a truncated authorize URL show Error 400.
+            final uri = Uri.tryParse(url);
+            if (uri != null && widget.oauthBridge.isGoogleAuthorizationHost(uri)) {
+              unawaited(_interceptGoogleAuthorizationHost(uri));
+            }
           },
           onPageFinished: (_) {
             if (!mounted) return;
@@ -177,10 +184,7 @@ class _CustomerWebViewScreenState extends State<CustomerWebViewScreen> {
     // URL → Google 400), restart a clean native OAuth start instead of
     // showing Google's error page in-app.
     if (widget.oauthBridge.isGoogleAuthorizationHost(uri)) {
-      final restart = Uri.parse(
-        '${widget.oauthBridge.siteOrigin}/api/auth/oauth/google',
-      ).replace(queryParameters: const {'returnUrl': '/', 'native': '1'});
-      unawaited(_startGoogleOAuth(restart));
+      unawaited(_interceptGoogleAuthorizationHost(uri));
       return NavigationDecision.prevent;
     }
 
@@ -203,6 +207,20 @@ class _CustomerWebViewScreenState extends State<CustomerWebViewScreen> {
     return NavigationDecision.prevent;
   }
 
+  Future<void> _interceptGoogleAuthorizationHost(Uri googleUri) async {
+    // Pull WebView off Google immediately so the user cannot submit email/password
+    // against a truncated authorize URL (Google Error 400). loadRequest cancels
+    // the in-flight Google navigation (WebViewController has no stopLoading).
+    try {
+      await _controller.loadRequest(
+        Uri.parse('${widget.oauthBridge.siteOrigin}/login'),
+      );
+    } catch (_) {}
+
+    final restart = widget.oauthBridge.resolveNativeStartUrl(googleUri);
+    await _startGoogleOAuth(restart);
+  }
+
   Future<void> _startGoogleOAuth(Uri startUri) async {
     if (_googleAuthInFlight) return;
     _googleAuthInFlight = true;
@@ -215,6 +233,7 @@ class _CustomerWebViewScreenState extends State<CustomerWebViewScreen> {
     }
 
     try {
+      // Bridge coerces Google authorize URLs → clean /api/auth/oauth/google?native=1.
       final redeemUrl = await widget.oauthBridge.authenticate(
         oauthStartUri: startUri,
       );

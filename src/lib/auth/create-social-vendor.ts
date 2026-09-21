@@ -114,9 +114,6 @@ export async function createSocialVendor(opts: {
     select: { id: true },
   });
   if (emailOwner) {
-    // #region agent log
-    fetch('http://127.0.0.1:7456/ingest/072b8280-cbe0-406c-9e62-41143fb8780b',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'337f7e'},body:JSON.stringify({sessionId:'337f7e',runId:'pre-fix',hypothesisId:'E',location:'create-social-vendor.ts:email-conflict',message:'createSocialVendor email conflict path hit',data:{provider:opts.provider,emailOwnerIdPrefix:String(emailOwner.id).slice(0,8)},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
     throw new SocialVendorCreateError(
       opts.provider === "apple"
         ? SOCIAL_APPLE_EMAIL_CONFLICT_MESSAGE

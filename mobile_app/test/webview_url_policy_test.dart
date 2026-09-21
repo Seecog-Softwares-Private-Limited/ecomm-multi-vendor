@@ -59,6 +59,24 @@ void main() {
     expect(start.queryParameters['returnUrl'], '/cart');
   });
 
+  test('bridge never opens truncated Google authorize URL', () {
+    final truncated = Uri.parse(
+      'https://accounts.google.com/o/oauth2/v2/auth?client_id=abc',
+    );
+    final start = bridge.resolveNativeStartUrl(truncated);
+    expect(start.host, 'www.indovyapar.com');
+    expect(start.path, '/api/auth/oauth/google');
+    expect(start.queryParameters['native'], '1');
+    expect(start.queryParameters.containsKey('client_id'), isFalse);
+  });
+
+  test('buildCleanNativeStartUrl always uses www + native=1', () {
+    final start = bridge.buildCleanNativeStartUrl(returnUrl: '/orders');
+    expect(start.toString(), contains('https://www.indovyapar.com/api/auth/oauth/google'));
+    expect(start.queryParameters['native'], '1');
+    expect(start.queryParameters['returnUrl'], '/orders');
+  });
+
   test('tel and mailto are external app schemes', () {
     expect(policy.isExternalAppScheme(Uri.parse('tel:+911234567890')), isTrue);
     expect(
