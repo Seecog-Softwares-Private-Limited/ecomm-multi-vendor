@@ -23,6 +23,13 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- flutter_web_auth_2: Google OAuth custom-scheme return -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="indovyaparcustomer" />
+            </intent-filter>
         </activity>
         <meta-data
             android:name="flutterEmbedding"

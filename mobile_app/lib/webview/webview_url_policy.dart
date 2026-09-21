@@ -1,7 +1,9 @@
 /// URL policy for the Customer WebView container.
 ///
 /// IndoVyapar website URLs stay inside the WebView.
-/// External schemes / hosts are opened outside the WebView when needed.
+/// Google OAuth authorization must NOT stay in the WebView — the app opens
+/// it via [GoogleOAuthBridge] (Chrome Custom Tabs / ASWebAuthenticationSession).
+/// External schemes / unrelated hosts are opened outside the WebView when needed.
 class WebViewUrlPolicy {
   const WebViewUrlPolicy({
     this.allowedHosts = const {'indovyapar.com', 'www.indovyapar.com'},
@@ -9,19 +11,9 @@ class WebViewUrlPolicy {
 
   final Set<String> allowedHosts;
 
-  static const productionUrl = 'https://indovyapar.com';
-
-  /// Hosts that participate in website Google OAuth and must stay in-WebView
-  /// so session cookies land in the same WebView cookie jar.
-  static const oauthHosts = {
-    'accounts.google.com',
-    'accounts.youtube.com',
-    'oauth2.googleapis.com',
-    'www.googleapis.com',
-    'google.com',
-    'www.google.com',
-    'apis.google.com',
-  };
+  /// Prefer www so host-only auth cookies from the production OAuth callback
+  /// host (`www.indovyapar.com`) are visible to the WebView session.
+  static const productionUrl = 'https://www.indovyapar.com';
 
   /// Payment / checkout hosts commonly opened during Razorpay / bank flows.
   /// Keep them in-WebView so the website can complete the return path.
@@ -42,12 +34,6 @@ class WebViewUrlPolicy {
     return false;
   }
 
-  bool isOAuthHost(String? host) {
-    if (host == null || host.isEmpty) return false;
-    final h = host.toLowerCase();
-    return oauthHosts.contains(h) || h.endsWith('.google.com');
-  }
-
   bool isPaymentHost(String? host) {
     if (host == null || host.isEmpty) return false;
     final h = host.toLowerCase();
@@ -59,13 +45,14 @@ class WebViewUrlPolicy {
   }
 
   /// Whether this navigation should remain inside the WebView.
+  ///
+  /// Google OAuth hosts are intentionally excluded — use [GoogleOAuthBridge].
   bool shouldStayInWebView(Uri uri) {
     final scheme = uri.scheme.toLowerCase();
     if (scheme != 'http' && scheme != 'https') return false;
 
     final host = uri.host.toLowerCase();
     if (isAllowedHost(host)) return true;
-    if (isOAuthHost(host)) return true;
     if (isPaymentHost(host)) return true;
 
     return false;
