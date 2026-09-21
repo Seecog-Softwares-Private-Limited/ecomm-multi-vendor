@@ -67,10 +67,16 @@ void main() {
     );
   });
 
-  test('unrelated https hosts leave the WebView', () {
+  test('bank ACS / third-party https hosts stay in WebView for payments', () {
     expect(
       policy.shouldStayInWebView(Uri.parse('https://example.com/page')),
-      isFalse,
+      isTrue,
+    );
+    expect(
+      policy.shouldStayInWebView(
+        Uri.parse('https://api.razorpay.com/v1/checkout'),
+      ),
+      isTrue,
     );
   });
 
