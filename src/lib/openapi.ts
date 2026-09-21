@@ -193,7 +193,10 @@ export const openApiSpec = {
       get: {
         tags: ["Vendor"],
         summary: "Vendor session check",
-        responses: { "200": { description: "Vendor info" }, "401": { description: "Not vendor" } },
+        responses: {
+          "200": { description: "Vendor info, or data:null when logged out" },
+          "403": { description: "Authenticated but not a vendor" },
+        },
       },
     },
     "/api/vendor/dashboard": {

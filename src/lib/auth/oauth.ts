@@ -55,10 +55,39 @@ export interface OAuthUserInfo {
 function appUrl(): string {
   const fromEnv = process.env.NEXT_PUBLIC_APP_URL?.trim() || process.env.APP_URL?.trim();
   if (fromEnv) {
-    return fromEnv.replace(/\/$/, "");
+    return canonicalizePublicOrigin(fromEnv.replace(/\/$/, ""));
   }
   const port = process.env.PORT?.replace(/\D/g, "") || "3000";
   return `http://localhost:${port}`;
+}
+
+/**
+ * One stable public origin for OAuth redirect_uri + post-login redirects.
+ * Apex `indovyapar.com` → `www.indovyapar.com` so Customer app, Vendor app, and
+ * Google Cloud Console share the same redirect host (avoids Google 400 / cookie splits).
+ */
+export function canonicalizePublicOrigin(origin: string): string {
+  try {
+    const u = new URL(origin.includes("://") ? origin : `https://${origin}`);
+    const host = u.hostname.toLowerCase();
+    if (host === "indovyapar.com") {
+      u.hostname = "www.indovyapar.com";
+    }
+    u.hash = "";
+    u.pathname = "";
+    u.search = "";
+    return u.origin;
+  } catch {
+    return origin.replace(/\/$/, "");
+  }
+}
+
+export function getGoogleClientId(): string {
+  return process.env.GOOGLE_CLIENT_ID?.trim() ?? "";
+}
+
+export function getGoogleClientSecret(): string {
+  return process.env.GOOGLE_CLIENT_SECRET?.trim() ?? "";
 }
 
 export function getOAuthAppBaseUrl(): string {
@@ -98,10 +127,10 @@ export function resolveOAuthBaseUrlFromRequest(request: NextRequest): string {
   // redirect_uri (avoids www vs apex and http vs https mismatches).
   const configured = appUrl();
   if (configured && !configured.includes("localhost")) {
-    return configured.replace(/\/$/, "");
+    return canonicalizePublicOrigin(configured.replace(/\/$/, ""));
   }
 
-  return requestOrigin;
+  return canonicalizePublicOrigin(requestOrigin);
 }
 
 export function oauthRedirectUri(
@@ -122,9 +151,7 @@ export function oauthRedirectUri(
 
 export function isOAuthClientConfigured(provider: OAuthProvider): boolean {
   if (provider === "google") {
-    return Boolean(
-      process.env.GOOGLE_CLIENT_ID?.trim() && process.env.GOOGLE_CLIENT_SECRET?.trim()
-    );
+    return Boolean(getGoogleClientId() && getGoogleClientSecret());
   }
   if (provider === "facebook") {
     return Boolean(getFacebookAppId() && getFacebookAppSecret());
@@ -361,9 +388,14 @@ export function googleAuthUrl(
   baseUrl?: string,
   flow: OAuthFlow = "customer"
 ): string {
+  const clientId = getGoogleClientId();
+  if (!clientId) {
+    throw new Error("GOOGLE_CLIENT_ID is not configured");
+  }
+  const redirectUri = oauthRedirectUri("google", baseUrl, flow);
   const params = new URLSearchParams({
-    client_id: process.env.GOOGLE_CLIENT_ID ?? "",
-    redirect_uri: oauthRedirectUri("google", baseUrl, flow),
+    client_id: clientId,
+    redirect_uri: redirectUri,
     response_type: "code",
     scope: "openid email profile",
     state: stateStr,
@@ -383,8 +415,8 @@ export async function exchangeGoogleCode(
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
       code,
-      client_id: process.env.GOOGLE_CLIENT_ID ?? "",
-      client_secret: process.env.GOOGLE_CLIENT_SECRET ?? "",
+      client_id: getGoogleClientId(),
+      client_secret: getGoogleClientSecret(),
       redirect_uri: oauthRedirectUri("google", baseUrl, flow),
       grant_type: "authorization_code",
     }).toString(),

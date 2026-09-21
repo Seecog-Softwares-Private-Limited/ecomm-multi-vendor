@@ -8,6 +8,7 @@ import {
   decodeOAuthState,
   generateOAuthState,
   validateOAuthCallbackState,
+  canonicalizePublicOrigin,
   OAUTH_STATE_COOKIE,
 } from "../src/lib/auth/oauth";
 
@@ -23,6 +24,15 @@ const signed = encodeOAuthState(base);
 assert(signed.includes("."), "signed state must contain HMAC delimiter");
 assert(decodeOAuthState(signed)?.flow === "vendor", "decode signed vendor flow");
 assert(decodeOAuthState(signed)?.returnUrl === "/vendor?app=1", "decode returnUrl");
+
+assert(
+  canonicalizePublicOrigin("https://indovyapar.com") === "https://www.indovyapar.com",
+  "apex must canonicalize to www"
+);
+assert(
+  canonicalizePublicOrigin("https://www.indovyapar.com/") === "https://www.indovyapar.com",
+  "www stays www"
+);
 
 // Signed state validates without cookie (WebView/CCT split).
 const reqNoCookie = new NextRequest(

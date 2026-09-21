@@ -3,7 +3,6 @@ import {
   withApiHandler,
   apiSuccess,
   apiBadRequest,
-  apiUnauthorized,
   apiForbidden,
 } from "@/lib/api";
 import { requireSession } from "@/lib/auth";
@@ -42,15 +41,15 @@ export const POST = withApiHandler(async (request: NextRequest) => {
   if (!phoneNorm) return apiBadRequest(INDIAN_MOBILE_HINT);
 
   if (!seller.phoneOtpExpires || seller.phoneOtpExpires < new Date()) {
-    return apiUnauthorized("Code expired or not requested. Please send a new OTP first.");
+    return apiBadRequest("Code expired or not requested. Please send a new OTP first.");
   }
 
   if (!seller.phoneOtpCode || seller.phoneOtpCode === "__msg91_sendotp__") {
-    return apiUnauthorized("Please request a new verification code and try again.");
+    return apiBadRequest("Please request a new verification code and try again.");
   }
 
   if (!verifyPhoneOtp(phoneNorm, code.trim(), seller.phoneOtpCode)) {
-    return apiUnauthorized("Incorrect code. Try again.");
+    return apiBadRequest("Incorrect code. Try again.");
   }
 
   await prisma.seller.update({

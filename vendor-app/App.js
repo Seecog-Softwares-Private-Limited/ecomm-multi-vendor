@@ -28,8 +28,8 @@ const APP_RELEASE = '1.0.0.8';
  * keeps returning vendors on the dashboard when the session cookie is still valid.
  * `app=1` enables hybrid-app chrome hiding on shared layouts; `v` busts stale caches.
  */
-const VENDOR_DASHBOARD_URI = `https://indovyapar.com/vendor?app=1&v=${APP_RELEASE}`;
-const VENDOR_LOGIN_URI = `https://indovyapar.com/vendor/login?app=1&v=${APP_RELEASE}`;
+const VENDOR_DASHBOARD_URI = `https://www.indovyapar.com/vendor?app=1&v=${APP_RELEASE}`;
+const VENDOR_LOGIN_URI = `https://www.indovyapar.com/vendor/login?app=1&v=${APP_RELEASE}`;
 /**
  * Custom-scheme callback for the auth session. Must match app.json `scheme`.
  * ASWebAuthenticationSession (iOS) / Chrome Custom Tabs (Android) require a real
@@ -40,7 +40,7 @@ const NATIVE_OAUTH_CALLBACK_SCHEME = 'vendorapp';
 const NATIVE_OAUTH_CALLBACK_URL = `${NATIVE_OAUTH_CALLBACK_SCHEME}://google-auth`;
 /** Redeems the one-time hand-off token inside the WebView (sets session cookie there). */
 const NATIVE_OAUTH_COMPLETE_URL =
-  'https://indovyapar.com/api/auth/vendor-oauth/native-complete';
+  'https://www.indovyapar.com/api/auth/vendor-oauth/native-complete';
 
 // Finish auth sessions that return to this app (iOS ASWebAuthenticationSession).
 WebBrowser.maybeCompleteAuthSession();

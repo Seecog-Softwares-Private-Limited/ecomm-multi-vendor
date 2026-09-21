@@ -1,16 +1,20 @@
 import { NextRequest } from "next/server";
 import { withApiHandler, apiSuccess, apiForbidden, apiBadRequest, apiNotFound } from "@/lib/api";
-import { requireSession, getVendorStatus, verifyPassword, clearAuthCookie } from "@/lib/auth";
+import { getSession, requireSession, getVendorStatus, verifyPassword, clearAuthCookie } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { deleteVendorAccount } from "@/lib/auth/delete-vendor-account";
 
 /**
  * GET /api/vendor/me — return current vendor session and status (for auth + approval UI).
- * Returns 401 if not authenticated, 403 if not a vendor.
+ * Returns 200 with `data: null` when there is no session (avoids noisy 401 in WebView/DevTools).
+ * Returns 403 if authenticated but not a vendor.
  * Includes status and statusReason so frontend can show status screen when not approved.
  */
 export const GET = withApiHandler(async (request: NextRequest) => {
-  const session = await requireSession(request);
+  const session = await getSession(request);
+  if (!session) {
+    return apiSuccess(null);
+  }
   if (session.role !== "SELLER" && session.role !== "ADMIN") {
     return apiForbidden("Vendor access required");
   }

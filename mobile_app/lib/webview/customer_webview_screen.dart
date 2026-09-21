@@ -173,7 +173,14 @@ class _CustomerWebViewScreenState extends State<CustomerWebViewScreen> {
     }
 
     // Never keep Google's authorize UI inside the WebView.
+    // If we somehow land on accounts.google.com (redirect race / truncated
+    // URL → Google 400), restart a clean native OAuth start instead of
+    // showing Google's error page in-app.
     if (widget.oauthBridge.isGoogleAuthorizationHost(uri)) {
+      final restart = Uri.parse(
+        '${widget.oauthBridge.siteOrigin}/api/auth/oauth/google',
+      ).replace(queryParameters: const {'returnUrl': '/', 'native': '1'});
+      unawaited(_startGoogleOAuth(restart));
       return NavigationDecision.prevent;
     }
 
