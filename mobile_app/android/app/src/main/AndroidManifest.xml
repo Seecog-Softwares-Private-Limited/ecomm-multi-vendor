@@ -70,5 +70,18 @@
             <action android:name="android.intent.action.VIEW"/>
             <data android:scheme="intent"/>
         </intent>
+        <!-- Scheme visibility for existing UPI deep-link handoff (canLaunchUrl). -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="gpay"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="phonepe"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="paytmmp"/>
+        </intent>
     </queries>
 </manifest>
