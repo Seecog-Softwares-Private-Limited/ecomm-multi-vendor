@@ -217,6 +217,9 @@ export function CheckoutPage() {
       order_id: razorpayOrderId,
       name: "Indovyapar",
       description: "Order payment",
+      // Required for UPI Intent inside Customer App Android WebView.
+      // Desktop Checkout still shows UPI QR (Intent is not used on desktop).
+      webview_intent: true,
       ...(Object.keys(prefill).length > 0 && { prefill }),
       handler: async (response: {
         razorpay_payment_id: string;
