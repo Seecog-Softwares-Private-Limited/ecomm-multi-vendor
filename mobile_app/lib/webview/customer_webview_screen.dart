@@ -10,6 +10,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
 
+import 'customer_native_marker.dart';
 import 'google_oauth_bridge.dart';
 import 'google_oauth_debug.dart';
 import 'webview_url_policy.dart';
@@ -83,6 +84,8 @@ class _CustomerWebViewScreenState extends State<CustomerWebViewScreen> {
               _hasError = false;
               _errorMessage = null;
             });
+            // Re-inject after every main-frame document start (reload/navigation).
+            unawaited(_injectCustomerNativeMarker(url));
             // Android often skips onNavigationRequest for 302 → Google.
             // Catch Google hosts here and restart a clean native OAuth start
             // instead of letting a truncated authorize URL show Error 400.
@@ -100,7 +103,9 @@ class _CustomerWebViewScreenState extends State<CustomerWebViewScreen> {
               unawaited(_interceptGoogleAuthorizationHost(uri));
             }
           },
-          onPageFinished: (_) {
+          onPageFinished: (url) {
+            // Ensure marker is present after DOM ready (onPageStarted can race).
+            unawaited(_injectCustomerNativeMarker(url));
             if (!mounted) return;
             setState(() {
               _isLoading = false;
@@ -174,6 +179,25 @@ class _CustomerWebViewScreenState extends State<CustomerWebViewScreen> {
         _hasError = true;
         _errorMessage = 'Failed to open IndoVyapar: $e';
       });
+    }
+  }
+
+  /// Sets [window.__INDOVYAPAR_CUSTOMER_NATIVE__] on IndoVyapar pages only.
+  ///
+  /// Re-run on every main-frame start/finish so full reloads restore the marker.
+  /// Client-side Next.js navigations keep the same `window`, so the flag stays.
+  /// Skips third-party hosts (Razorpay, bank ACS, etc.) to avoid side effects.
+  Future<void> _injectCustomerNativeMarker(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return;
+    final scheme = uri.scheme.toLowerCase();
+    if (scheme != 'http' && scheme != 'https') return;
+    if (!widget.urlPolicy.isAllowedHost(uri.host)) return;
+
+    try {
+      await _controller.runJavaScript(customerNativeMarkerJavaScript);
+    } catch (_) {
+      // Swallow — page may have navigated away; next finish will retry.
     }
   }
 

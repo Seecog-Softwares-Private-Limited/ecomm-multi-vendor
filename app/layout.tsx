@@ -6,6 +6,7 @@ import { CartDrawerProvider } from "@/contexts/CartDrawerContext";
 import { DeliveryLocationProvider } from "@/contexts/DeliveryLocationContext";
 import { AppModeProvider } from "@/contexts/AppModeContext";
 import { ChunkLoadRecovery } from "@/components/ChunkLoadRecovery";
+import { CustomerNativeSessionMarker } from "@/components/CustomerNativeSessionMarker";
 
 const manrope = Manrope({
   subsets: ["latin"],
@@ -55,6 +56,7 @@ export default function RootLayout({
     >
       <body className={manrope.className}>
         <ChunkLoadRecovery />
+        <CustomerNativeSessionMarker />
         <CartDrawerProvider>
           <AppModeProvider>
             <DeliveryLocationProvider>{children}</DeliveryLocationProvider>

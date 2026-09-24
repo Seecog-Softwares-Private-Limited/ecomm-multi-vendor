@@ -4,7 +4,8 @@ import {
   apiSuccess,
   apiBadRequest,
   apiUnauthorized,
-  apiForbidden,
+  apiError,
+  Status,
 } from "@/lib/api";
 import { assertCustomerAuthComplete } from "@/lib/auth";
 import { listCustomerOrders, type OrderListSort } from "@/lib/data/customer-orders";
@@ -14,6 +15,8 @@ import {
 } from "@/lib/commerce/order-placement.service";
 import { prisma } from "@/lib/prisma";
 import { notifyOrderPlaced } from "@/lib/notifications/customer-notifications";
+import { isCustomerAppRequest } from "@/lib/auth/customer-app-cookie";
+import { customerHasVerifiedPhone } from "@/lib/auth/customer-onboarding";
 
 const VALID_SORTS: OrderListSort[] = ["newest", "oldest", "amount_asc", "amount_desc"];
 
@@ -108,9 +111,20 @@ export const POST = withApiHandler(async (request: NextRequest) => {
 
   const user = await prisma.user.findUnique({
     where: { id: session.sub, deletedAt: null },
-    select: { id: true },
+    select: { id: true, phone: true, phoneVerified: true },
   });
   if (!user) return apiUnauthorized("User not found.");
+
+  // Customer App only: verified account phone required to place an order.
+  // Website customers are already phone-complete via authOnboardingComplete.
+  if (isCustomerAppRequest(request) && !customerHasVerifiedPhone(user)) {
+    return apiError(
+      "Phone number is required to place an order.",
+      Status.FORBIDDEN,
+      "PHONE_REQUIRED_FOR_ORDER",
+      { needsPhone: true }
+    );
+  }
 
   let result;
   if (typeof checkoutSessionId === "string" && checkoutSessionId.trim()) {

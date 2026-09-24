@@ -61,12 +61,19 @@ export {
 } from "./validation";
 export {
   computeAuthOnboardingComplete,
+  computeCustomerAppAuthReady,
+  customerHasVerifiedPhone,
   syncCustomerAuthOnboardingComplete,
   customerAuthStatusFields,
   customerHasName,
   customerHasRealEmail,
   CUSTOMER_ONBOARDING_SELECT,
 } from "./customer-onboarding";
+export {
+  isCustomerAppRequest,
+  setCustomerAppCookie,
+  CUSTOMER_APP_COOKIE_NAME,
+} from "./customer-app-cookie";
 export {
   normalizeIndianPhone,
   toMobileInputDigits,

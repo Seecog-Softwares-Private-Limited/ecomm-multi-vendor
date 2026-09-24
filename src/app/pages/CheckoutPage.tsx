@@ -21,6 +21,12 @@ import { DEFAULT_GST_PERCENT } from "@/lib/constants/gst";
 import { calculateShippingAmount } from "@/lib/constants/shipping";
 import { storefrontTermsOfServiceHref } from "@/lib/cms-footer-pages";
 import { DEFAULT_PRODUCT_IMAGE_URL } from "@/lib/product-image";
+import { isCustomerNativeApp } from "@/lib/native-bridge";
+import {
+  normalizeIndianPhone,
+  INDIAN_MOBILE_HINT,
+  toMobileInputDigits,
+} from "@/lib/auth/phone";
 
 type AddressApi = {
   id: string;
@@ -80,11 +86,22 @@ export function CheckoutPage() {
     isDefault: true,
   });
 
+  // Customer App: collect/verify account phone before place-order when missing.
+  const [showPhoneRequiredModal, setShowPhoneRequiredModal] = useState(false);
+  const [orderPhone, setOrderPhone] = useState("");
+  const [orderPhoneOtp, setOrderPhoneOtp] = useState("");
+  const [orderPhonePhase, setOrderPhonePhase] = useState<"number" | "otp">("number");
+  const [orderPhoneSending, setOrderPhoneSending] = useState(false);
+  const [orderPhoneVerifying, setOrderPhoneVerifying] = useState(false);
+  const [orderPhoneError, setOrderPhoneError] = useState<string | null>(null);
+  const [hasVerifiedAccountPhone, setHasVerifiedAccountPhone] = useState(true);
+
   const fetchData = useCallback(async () => {
     try {
-      const [addrRes, cartRes] = await Promise.all([
+      const [addrRes, cartRes, meRes] = await Promise.all([
         fetch("/api/addresses", { credentials: "include" }),
         fetch("/api/cart/items", { credentials: "include" }),
+        fetch("/api/auth/me", { credentials: "include" }),
       ]);
 
       if (addrRes.status === 401 || cartRes.status === 401) {
@@ -98,8 +115,24 @@ export function CheckoutPage() {
 
       const addrData = await addrRes.json().catch(() => ({}));
       const cartData = await cartRes.json().catch(() => ({}));
+      const meData = meRes.ok ? await meRes.json().catch(() => ({})) : {};
       const addrList = addrData?.data?.addresses ?? [];
       const items = cartData?.data?.items ?? [];
+      const meUser = meData?.data?.user as
+        | { phone?: string | null; phoneVerified?: boolean }
+        | null
+        | undefined;
+
+      if (isCustomerNativeApp()) {
+        setHasVerifiedAccountPhone(
+          Boolean(meUser?.phone?.trim()) && meUser?.phoneVerified === true
+        );
+        if (meUser?.phone) {
+          setOrderPhone(toMobileInputDigits(String(meUser.phone)));
+        }
+      } else {
+        setHasVerifiedAccountPhone(true);
+      }
 
       setAddresses(addrList);
       setCartItems(items);
@@ -274,6 +307,17 @@ export function CheckoutPage() {
       router.push("/cart");
       return;
     }
+    if (isCustomerNativeApp() && !hasVerifiedAccountPhone) {
+      setOrderPhoneError(null);
+      setOrderPhonePhase("number");
+      setOrderPhoneOtp("");
+      setShowPhoneRequiredModal(true);
+      return;
+    }
+    await submitPlaceOrder();
+  };
+
+  const submitPlaceOrder = async () => {
     setPlacing(true);
     try {
       const res = await fetch("/api/orders", {
@@ -288,6 +332,15 @@ export function CheckoutPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
+        if (data?.error?.code === "PHONE_REQUIRED_FOR_ORDER") {
+          setHasVerifiedAccountPhone(false);
+          setShowPhoneRequiredModal(true);
+          toast.error(
+            data?.error?.message ?? "Phone number is required to place an order."
+          );
+          setPlacing(false);
+          return;
+        }
         toast.error(data?.error?.message ?? "Could not place order.");
         setPlacing(false);
         return;
@@ -306,6 +359,76 @@ export function CheckoutPage() {
       toast.error("Could not place order.");
     } finally {
       setPlacing(false);
+    }
+  };
+
+  const sendOrderPhoneOtp = async (isResend = false) => {
+    setOrderPhoneError(null);
+    const trimmed = orderPhone.trim();
+    if (!trimmed) {
+      setOrderPhoneError("Please enter your mobile number.");
+      return;
+    }
+    if (!normalizeIndianPhone(trimmed)) {
+      setOrderPhoneError(INDIAN_MOBILE_HINT);
+      return;
+    }
+    setOrderPhoneSending(true);
+    try {
+      const res = await fetch("/api/auth/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          phone: trimmed,
+          ...(isResend ? { resend: true } : {}),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setOrderPhoneError(data?.error?.message ?? "Could not send OTP. Try again.");
+        return;
+      }
+      setOrderPhonePhase("otp");
+      setOrderPhoneOtp("");
+      toast.success("OTP sent to your mobile.");
+    } catch {
+      setOrderPhoneError("Something went wrong. Please try again.");
+    } finally {
+      setOrderPhoneSending(false);
+    }
+  };
+
+  const verifyOrderPhoneOtp = async () => {
+    setOrderPhoneError(null);
+    if (!/^\d{6}$/.test(orderPhoneOtp.trim())) {
+      setOrderPhoneError("Enter the 6-digit code from your SMS.");
+      return;
+    }
+    setOrderPhoneVerifying(true);
+    try {
+      const res = await fetch("/api/auth/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          phone: orderPhone.trim(),
+          otp: orderPhoneOtp.trim(),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setOrderPhoneError(data?.error?.message ?? "Invalid or expired code.");
+        return;
+      }
+      toast.success("Phone verified.");
+      setHasVerifiedAccountPhone(true);
+      setShowPhoneRequiredModal(false);
+      await submitPlaceOrder();
+    } catch {
+      setOrderPhoneError("Something went wrong. Please try again.");
+    } finally {
+      setOrderPhoneVerifying(false);
     }
   };
 
@@ -751,6 +874,128 @@ export function CheckoutPage() {
           </div>
         )}
       </div>
+
+      {/* Customer App — phone required to place order */}
+      {showPhoneRequiredModal && (
+        <div
+          className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/50"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="phone-required-title"
+        >
+          <div
+            className="bg-white rounded-xl shadow-xl border border-[#E5E7EB] w-full max-w-md"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="border-b border-[#E5E7EB] px-6 py-4 flex items-center justify-between">
+              <h2 id="phone-required-title" className="text-lg font-bold text-[#111827]">
+                Phone number required
+              </h2>
+              <button
+                type="button"
+                onClick={() => setShowPhoneRequiredModal(false)}
+                className="p-1 rounded-lg text-[#6B7280] hover:bg-[#F3F4F6]"
+                aria-label="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              <p className="text-sm text-[#4B5563]">
+                Phone number is required to place an order. Verify your mobile with OTP to continue.
+              </p>
+              {orderPhoneError ? (
+                <p className="text-sm text-red-600">{orderPhoneError}</p>
+              ) : null}
+              {orderPhonePhase === "number" ? (
+                <>
+                  <div>
+                    <label
+                      htmlFor="order-phone"
+                      className="block text-sm font-semibold text-[#374151] mb-1.5"
+                    >
+                      Mobile number
+                    </label>
+                    <input
+                      id="order-phone"
+                      type="tel"
+                      inputMode="numeric"
+                      maxLength={10}
+                      value={orderPhone}
+                      onChange={(e) =>
+                        setOrderPhone(toMobileInputDigits(e.target.value))
+                      }
+                      placeholder="10-digit mobile"
+                      className="w-full px-4 py-2.5 border border-[#D1D5DC] rounded-lg focus:border-[#FF6A00] outline-none text-[15px]"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    disabled={orderPhoneSending}
+                    onClick={() => void sendOrderPhoneOtp(false)}
+                    className="w-full py-3 rounded-xl font-semibold text-white bg-[#FF6A00] hover:bg-[#E55F00] transition disabled:opacity-60"
+                  >
+                    {orderPhoneSending ? "Sending…" : "Send OTP"}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <label
+                      htmlFor="order-phone-otp"
+                      className="block text-sm font-semibold text-[#374151] mb-1.5"
+                    >
+                      Enter OTP sent to {orderPhone}
+                    </label>
+                    <input
+                      id="order-phone-otp"
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      maxLength={6}
+                      value={orderPhoneOtp}
+                      onChange={(e) =>
+                        setOrderPhoneOtp(e.target.value.replace(/\D/g, "").slice(0, 6))
+                      }
+                      placeholder="6-digit OTP"
+                      className="w-full px-4 py-2.5 border border-[#D1D5DC] rounded-lg focus:border-[#FF6A00] outline-none text-[15px] tracking-widest"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      disabled={orderPhoneSending}
+                      onClick={() => void sendOrderPhoneOtp(true)}
+                      className="flex-1 py-3 rounded-xl font-semibold border border-[#D1D5DC] text-[#374151] hover:bg-[#F9FAFB] disabled:opacity-60"
+                    >
+                      Resend
+                    </button>
+                    <button
+                      type="button"
+                      disabled={orderPhoneVerifying || orderPhoneOtp.length !== 6}
+                      onClick={() => void verifyOrderPhoneOtp()}
+                      className="flex-1 py-3 rounded-xl font-semibold text-white bg-[#FF6A00] hover:bg-[#E55F00] transition disabled:opacity-60"
+                    >
+                      {orderPhoneVerifying ? "Verifying…" : "Verify & continue"}
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    className="text-sm text-[#FF6A00] hover:underline"
+                    onClick={() => {
+                      setOrderPhonePhase("number");
+                      setOrderPhoneOtp("");
+                      setOrderPhoneError(null);
+                    }}
+                  >
+                    Change number
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Add Address Modal */}
       {showAddAddressModal && (

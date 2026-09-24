@@ -7,6 +7,8 @@ import {
 import { signToken, setAuthCookie } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { htmlRedirectWithCookie } from "@/lib/auth/html-redirect-with-cookie";
+import { setCustomerAppCookie } from "@/lib/auth/customer-app-cookie";
+import { computeCustomerAppAuthReady } from "@/lib/auth/customer-onboarding";
 
 /**
  * GET /api/auth/oauth/native-complete?token=<handoff>&returnUrl=/
@@ -43,6 +45,9 @@ export async function GET(request: NextRequest) {
     select: {
       id: true,
       email: true,
+      firstName: true,
+      lastName: true,
+      emailVerified: true,
       authOnboardingComplete: true,
       phoneVerified: true,
     },
@@ -59,12 +64,14 @@ export async function GET(request: NextRequest) {
 
   // Prefer onboarding when incomplete — avoids / → middleware → /login races
   // when the session cookie is still settling in the WebView.
-  let destinationPath = returnUrl;
-  if (!user.authOnboardingComplete || !user.phoneVerified) {
-    destinationPath = "/complete-profile";
-  }
+  // Customer App: phone optional until order (soft-ready users skip /complete-profile).
+  const appReady = computeCustomerAppAuthReady(user);
+  const destinationPath =
+    user.authOnboardingComplete || appReady ? returnUrl : "/complete-profile";
   const dest = new URL(destinationPath, appBase);
   const response = htmlRedirectWithCookie(dest.toString());
   setAuthCookie(response, token);
+  // This route is loaded only by the Customer Flutter WebView after OAuth.
+  setCustomerAppCookie(response);
   return response;
 }

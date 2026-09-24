@@ -12,6 +12,7 @@ import {
   customerNeedsAuthOnboarding,
   resolveCustomerOnboardingStep,
 } from "@/lib/auth/customer-onboarding-client";
+import { isCustomerNativeApp } from "@/lib/native-bridge";
 
 type PhoneOtpPhase = "number" | "otp";
 
@@ -46,7 +47,9 @@ export function CompleteProfilePage() {
     const me = (json?.data?.user ?? null) as CustomerAuthMeUser | null;
     if (!me) return null;
     setUser(me);
-    const next = resolveCustomerOnboardingStep(me);
+    const next = resolveCustomerOnboardingStep(me, {
+      skipPhoneStep: isCustomerNativeApp(),
+    });
     if (editingEmail && next === "await_email_verification") {
       return me;
     }
