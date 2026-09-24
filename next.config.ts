@@ -58,6 +58,17 @@ const nextConfig: NextConfig = {
     imageSizes: [16, 32, 48, 64, 96, 128, 256],
   },
   async headers() {
+    // In development, never long-cache /_next/static — immutable max-age causes
+    // stale webpack chunks vs new HTML → TypeError reading 'call' on undefined factories.
+    if (process.env.NODE_ENV === "development") {
+      return [
+        {
+          source: "/:path*",
+          headers: [{ key: "Cache-Control", value: "no-store, must-revalidate" }],
+        },
+      ];
+    }
+
     return [
       {
         // Vendor hybrid app loads live HTML in WebView — never cache HTML (UA-specific stale bundles).
@@ -89,10 +100,8 @@ const nextConfig: NextConfig = {
       { source: "/superadmin/login.", destination: "/superadmin/login", permanent: false },
     ];
   },
-  webpack: (config) => {
-    config.cache = false;
-    return config;
-  },
+  // Keep default webpack filesystem cache in dev — disabling it can worsen
+  // module-id / HMR mismatches that surface as options.factory.call TypeErrors.
 };
 
 export default nextConfig;
