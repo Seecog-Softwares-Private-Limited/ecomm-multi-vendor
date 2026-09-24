@@ -72,11 +72,28 @@ declare global {
     };
     __INDOVYAPAR_ON_APPLE_AUTH_RESULT__?: (payload: AppleAuthResultPayload) => void;
     __INDOVYAPAR_NATIVE__?: IndovyaparNativeCapabilities;
+    /**
+     * Environment flag injected by the Flutter Customer App WebView.
+     * Not authentication — client-side UX indicator only.
+     * Not visible to server-side API handlers unless separately propagated.
+     */
+    __INDOVYAPAR_CUSTOMER_NATIVE__?: boolean;
   }
 }
 
 function canUseDom() {
   return typeof window !== "undefined";
+}
+
+/**
+ * True when the storefront is running inside the Flutter Customer App WebView.
+ *
+ * Client-only. Server components / API routes cannot read this window flag.
+ * Treat as an environment hint, never as auth or trust.
+ */
+export function isCustomerNativeApp(): boolean {
+  if (!canUseDom()) return false;
+  return window.__INDOVYAPAR_CUSTOMER_NATIVE__ === true;
 }
 
 export function hasNativeBridge(): boolean {

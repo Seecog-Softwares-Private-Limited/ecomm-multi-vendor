@@ -22,6 +22,7 @@ import { dispatchCartUpdated } from "@/contexts/CartDrawerContext";
 import { startOAuthLogin } from "@/lib/auth/start-oauth";
 import { normalizeIndianPhone, INDIAN_MOBILE_HINT, toMobileInputDigits } from "@/lib/auth/phone";
 import { customerNeedsAuthOnboarding } from "@/lib/auth/customer-onboarding-client";
+import { isCustomerNativeApp } from "@/lib/native-bridge";
 
 const inputClass =
   "block w-full rounded-xl border border-slate-200 bg-slate-50/50 py-3 text-slate-900 placeholder:text-slate-400 transition focus:border-[#FF6A00] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6A00]/20";
@@ -117,6 +118,7 @@ export function RegisterPage() {
   const [emailVerifyLoading, setEmailVerifyLoading] = React.useState(false);
   const [phoneSendLoading, setPhoneSendLoading] = React.useState(false);
   const [phoneVerifyLoading, setPhoneVerifyLoading] = React.useState(false);
+  const [isCustomerApp, setIsCustomerApp] = React.useState(false);
 
   // Customer register must stay on customer flow (Google visible).
   // Sticky app=1 was blanking this page for Safari/iPad after vendor WebView visits.
@@ -126,6 +128,7 @@ export function RegisterPage() {
       router.replace("/vendor/login?app=1");
       return;
     }
+    setIsCustomerApp(isCustomerNativeApp());
     try {
       window.sessionStorage.removeItem("indovyapar-app-mode");
     } catch {
@@ -319,13 +322,25 @@ export function RegisterPage() {
       setError("Password must be at least 8 characters and contain uppercase, lowercase, and a number.");
       return;
     }
-    if (!phone.trim() || !normalizeIndianPhone(phone.trim())) {
-      setError(INDIAN_MOBILE_HINT);
-      return;
-    }
-    if (!phoneVerified || !phoneProofToken) {
-      setError("Please verify your phone with OTP before creating an account.");
-      return;
+    if (!isCustomerApp) {
+      if (!phone.trim() || !normalizeIndianPhone(phone.trim())) {
+        setError(INDIAN_MOBILE_HINT);
+        return;
+      }
+      if (!phoneVerified || !phoneProofToken) {
+        setError("Please verify your phone with OTP before creating an account.");
+        return;
+      }
+    } else if (phone.trim()) {
+      // Optional on Customer App — if provided, must be verified.
+      if (!normalizeIndianPhone(phone.trim())) {
+        setError(INDIAN_MOBILE_HINT);
+        return;
+      }
+      if (!phoneVerified || !phoneProofToken) {
+        setError("Please verify your phone with OTP, or leave it blank for now.");
+        return;
+      }
     }
     if (!agreeTerms) {
       setError("Please agree to the Terms & Conditions and Privacy Policy.");
@@ -337,6 +352,12 @@ export function RegisterPage() {
 
     setLoading(true);
     try {
+      if (isCustomerApp) {
+        await fetch("/api/auth/customer-app/marker", {
+          method: "POST",
+          credentials: "include",
+        }).catch(() => undefined);
+      }
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -346,9 +367,12 @@ export function RegisterPage() {
           password,
           firstName: firstName || undefined,
           lastName: lastName || undefined,
-          phone: phone.trim(),
+          ...(phone.trim() && phoneVerified && phoneProofToken
+            ? { phone: phone.trim(), phoneProofToken }
+            : isCustomerApp
+              ? {}
+              : { phone: phone.trim(), phoneProofToken }),
           emailProofToken,
-          phoneProofToken,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -572,7 +596,12 @@ export function RegisterPage() {
 
               <div className="space-y-2">
                 <label htmlFor="reg-phone" className="block text-sm font-semibold text-slate-700">
-                  Phone <span className="text-red-500">*</span>
+                  Phone{" "}
+                  {isCustomerApp ? (
+                    <span className="font-normal text-slate-500">(optional)</span>
+                  ) : (
+                    <span className="text-red-500">*</span>
+                  )}
                 </label>
                 <div className="flex gap-2">
                   <div className="relative flex-1">

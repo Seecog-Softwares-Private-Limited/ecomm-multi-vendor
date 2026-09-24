@@ -14,9 +14,11 @@ import { prisma } from "@/lib/prisma";
 import { getUserAvatarUrlSafe } from "@/lib/data/user-avatar";
 import {
   CUSTOMER_ONBOARDING_SELECT,
+  computeCustomerAppAuthReady,
   customerAuthStatusFields,
   syncCustomerAuthOnboardingComplete,
 } from "@/lib/auth/customer-onboarding";
+import { isCustomerAppRequest } from "@/lib/auth/customer-app-cookie";
 
 const DELETE_CONFIRM_PHRASE = "DELETE";
 
@@ -59,10 +61,30 @@ export const GET = withApiHandler(async (request: NextRequest) => {
     profileCompleted: user.profileCompleted,
     authOnboardingComplete,
   });
+
+  // Customer App: soft-ready response for middleware/UX without changing DB flag.
+  // Website keeps strict phone-required completeness.
+  let responseAuthComplete = authOnboardingComplete;
+  let needsAuthOnboarding = status.needsAuthOnboarding;
+  let needsProfileCompletion = status.needsProfileCompletion;
+  if (session.role === "CUSTOMER" && isCustomerAppRequest(request)) {
+    const appReady = computeCustomerAppAuthReady(user);
+    if (appReady) {
+      responseAuthComplete = true;
+      needsAuthOnboarding = false;
+      needsProfileCompletion = false;
+    } else {
+      needsAuthOnboarding = true;
+    }
+  }
+
   const safeUser = {
     ...rest,
     avatarUrl,
     ...status,
+    authOnboardingComplete: responseAuthComplete,
+    needsAuthOnboarding,
+    needsProfileCompletion,
     ...(session.role === "CUSTOMER" ? { hasPassword: Boolean(passwordHash) } : {}),
   };
   const payload: { user: typeof safeUser & { role: string }; stats?: { orderCount: number; wishlistCount: number; addressCount: number } } = {

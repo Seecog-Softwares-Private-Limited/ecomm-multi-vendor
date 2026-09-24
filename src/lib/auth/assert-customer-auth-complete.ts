@@ -2,6 +2,8 @@
  * Phase 4 — Customer account-completion gate.
  *
  * Source of truth: User.authOnboardingComplete in the database (not JWT claims).
+ * Customer App (HttpOnly env cookie) may soft-pass without phone — phone is
+ * enforced at order creation instead.
  */
 
 import { NextRequest } from "next/server";
@@ -9,6 +11,8 @@ import { ApiRouteError, Status } from "@/lib/api";
 import { getSession } from "@/lib/auth/session";
 import type { JwtPayload } from "@/lib/auth/jwt";
 import { prisma } from "@/lib/prisma";
+import { isCustomerAppRequest } from "@/lib/auth/customer-app-cookie";
+import { computeCustomerAppAuthReady } from "@/lib/auth/customer-onboarding";
 
 export const ACCOUNT_INCOMPLETE_MESSAGE =
   "Complete your account setup to continue.";
@@ -23,7 +27,10 @@ export type AssertCustomerAuthCompleteOptions = {
 /**
  * Require an authenticated Customer whose DB `authOnboardingComplete` is true.
  *
- * Order: session → CUSTOMER role → DB completeness.
+ * Customer App exception: if the env cookie is present and the user has
+ * name + real verified email (phone optional), allow commerce APIs.
+ *
+ * Order: session → CUSTOMER role → DB completeness (or App soft ready).
  * Throws ApiRouteError (caught by withApiHandler):
  * - 401 UNAUTHORIZED
  * - 403 FORBIDDEN (wrong role)
@@ -51,7 +58,14 @@ export async function assertCustomerAuthComplete(
 
   const user = await prisma.user.findFirst({
     where: { id: session.sub, deletedAt: null },
-    select: { id: true, authOnboardingComplete: true },
+    select: {
+      id: true,
+      authOnboardingComplete: true,
+      firstName: true,
+      lastName: true,
+      email: true,
+      emailVerified: true,
+    },
   });
 
   if (!user) {
@@ -62,16 +76,23 @@ export async function assertCustomerAuthComplete(
     );
   }
 
-  if (!user.authOnboardingComplete) {
-    throw new ApiRouteError(
-      ACCOUNT_INCOMPLETE_MESSAGE,
-      Status.FORBIDDEN,
-      "ACCOUNT_INCOMPLETE",
-      { needsAuthOnboarding: true }
-    );
+  if (user.authOnboardingComplete) {
+    return session;
   }
 
-  return session;
+  if (
+    isCustomerAppRequest(request) &&
+    computeCustomerAppAuthReady(user)
+  ) {
+    return session;
+  }
+
+  throw new ApiRouteError(
+    ACCOUNT_INCOMPLETE_MESSAGE,
+    Status.FORBIDDEN,
+    "ACCOUNT_INCOMPLETE",
+    { needsAuthOnboarding: true }
+  );
 }
 
 /**

@@ -44,6 +44,32 @@ export function computeAuthOnboardingComplete(
   );
 }
 
+/**
+ * Customer App soft readiness (phone optional until order).
+ * Used only when the Customer App environment cookie is present.
+ * Must NOT be written to User.authOnboardingComplete.
+ */
+export function computeCustomerAppAuthReady(
+  user: Pick<
+    CustomerOnboardingFields,
+    "firstName" | "lastName" | "email" | "emailVerified"
+  >
+): boolean {
+  return (
+    customerHasName(user) &&
+    customerHasRealEmail(user.email) &&
+    user.emailVerified === true
+  );
+}
+
+/** Account has a verified phone suitable for placing an order. */
+export function customerHasVerifiedPhone(user: {
+  phone: string | null;
+  phoneVerified: boolean;
+}): boolean {
+  return Boolean(user.phone?.trim()) && user.phoneVerified === true;
+}
+
 export const CUSTOMER_ONBOARDING_SELECT = {
   id: true,
   email: true,

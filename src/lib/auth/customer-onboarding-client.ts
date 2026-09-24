@@ -49,15 +49,18 @@ export function customerNeedsAuthOnboarding(user: CustomerAuthMeUser | null | un
 /**
  * Decide which onboarding UI to show from /api/auth/me fields.
  * Does not re-implement completion rules — only maps UX steps.
+ *
+ * @param opts.skipPhoneStep — Customer App: phone is collected at order, not onboarding.
  */
 export function resolveCustomerOnboardingStep(
-  user: CustomerAuthMeUser | null | undefined
+  user: CustomerAuthMeUser | null | undefined,
+  opts?: { skipPhoneStep?: boolean }
 ): CustomerOnboardingStep {
   if (!user) return "done";
   if (!customerNeedsAuthOnboarding(user)) return "done";
 
   const phoneVerified = user.phoneVerified === true && Boolean(user.phone?.trim());
-  if (!phoneVerified) return "phone_otp";
+  if (!phoneVerified && !opts?.skipPhoneStep) return "phone_otp";
 
   const hasRealEmail =
     Boolean(user.email?.trim()) && !isPlaceholderCustomerEmailClient(user.email);
@@ -66,6 +69,9 @@ export function resolveCustomerOnboardingStep(
   if (!hasRealEmail || !hasName) return "name_email";
 
   if (user.emailVerified !== true) return "await_email_verification";
+
+  // Customer App: phone is deferred to order — name + verified email is enough for UX.
+  if (opts?.skipPhoneStep) return "done";
 
   // Backend still says incomplete — keep onboarding until me refreshes to complete.
   return "name_email";
