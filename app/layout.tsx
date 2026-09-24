@@ -54,6 +54,14 @@ export default function RootLayout({
       lang="en"
       className={`${manrope.variable} ${nunito.variable} ${katibeh.variable}`}
     >
+      <head>
+        {/* Runs before React hydration so stale webpack chunk mismatches can self-heal. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){var K="__chunk_reload_attempted_at",W=60000;function bad(m,s){m=String(m||"");s=String(s||"");if(/ChunkLoadError/i.test(m))return true;if(/Cannot read properties of undefined \\(reading ['"]call['"]\\)/i.test(m))return !s||/webpack|__webpack_require__|requireModule|options\\.factory/i.test(s);return false;}function recover(){try{var n=Date.now(),l=Number(sessionStorage.getItem(K)||"0");if(n-l<W)return;sessionStorage.setItem(K,String(n));}catch(e){}var done=function(){location.reload();};try{if("serviceWorker" in navigator){navigator.serviceWorker.getRegistrations().then(function(rs){return Promise.all(rs.map(function(r){return r.unregister();}));}).then(function(){return"caches"in window?caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k);}));}):null;}).then(done,done);return;}}catch(e){}done();}window.addEventListener("error",function(e){if(bad(e.message,e.error&&e.error.stack))recover();});window.addEventListener("unhandledrejection",function(e){var r=e.reason;if(bad(r&&r.message||r,r&&r.stack))recover();});})();`,
+          }}
+        />
+      </head>
       <body className={manrope.className}>
         <ChunkLoadRecovery />
         <CustomerNativeSessionMarker />
