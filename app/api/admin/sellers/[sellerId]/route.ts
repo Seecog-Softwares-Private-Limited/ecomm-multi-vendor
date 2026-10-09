@@ -210,14 +210,31 @@ export const GET = withApiHandler(
       ADDRESS_PROOF: "Address Proof",
     };
 
-    const pendingStorefront =
+    const publishedStoreLogoRaw =
+      typeof profileExtrasParsed.storeLogo === "string"
+        ? profileExtrasParsed.storeLogo.trim()
+        : "";
+    const publishedStoreLogo =
+      normalizeUploadUrl(publishedStoreLogoRaw || undefined, request) ?? null;
+
+    let pendingStorefront: Record<string, unknown> | null =
       profileExtrasParsed &&
       typeof profileExtrasParsed === "object" &&
       "pendingStorefront" in profileExtrasParsed &&
       profileExtrasParsed.pendingStorefront &&
       typeof profileExtrasParsed.pendingStorefront === "object"
-        ? (profileExtrasParsed.pendingStorefront as Record<string, unknown>)
+        ? { ...(profileExtrasParsed.pendingStorefront as Record<string, unknown>) }
         : null;
+
+    if (pendingStorefront && typeof pendingStorefront.storeLogo === "string") {
+      const pendingLogo = pendingStorefront.storeLogo.trim();
+      pendingStorefront = {
+        ...pendingStorefront,
+        storeLogo: pendingLogo
+          ? (normalizeUploadUrl(pendingLogo, request) ?? pendingLogo)
+          : "",
+      };
+    }
 
     return apiSuccess({
       seller: {
@@ -228,6 +245,7 @@ export const GET = withApiHandler(
         phone: seller.phone ?? undefined,
         businessAddress,
         gstNumber,
+        storeLogo: publishedStoreLogo,
         status: seller.status,
         statusReason: seller.statusReason ?? undefined,
         createdAt: seller.createdAt.toISOString(),
