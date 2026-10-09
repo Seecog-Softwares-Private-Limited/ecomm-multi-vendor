@@ -586,7 +586,7 @@ export function VendorProductForm({ productId = "", onBack, onSave }: VendorProd
         <div className="space-y-4">
           <Alert
             type="info"
-            message="Upload high-quality images. Minimum 500x500px square format. Maximum 5 images. Supported: JPEG, PNG, WebP, GIF (max 20MB each)."
+            message="Upload high-quality images. Minimum 500x500px square format. Maximum 5 images. Supported: JPEG, PNG, WebP, GIF (max 50MB each)."
           />
           {uploadError && (
             <Alert type="error" message={uploadError} />

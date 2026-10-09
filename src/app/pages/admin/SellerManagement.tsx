@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Link } from "../../components/Link";
 import { Search, Filter, Eye, Ban, X, AlertTriangle, Unlock } from "lucide-react";
 
@@ -58,6 +58,7 @@ function statusBadgeClass(status: string): string {
 }
 
 export function SellerManagement() {
+  const router = useRouter();
   const searchParamsHook = useSearchParams();
   const [sellers, setSellers] = useState<SellerRow[]>([]);
   const [meta, setMeta] = useState<SellersResponse["meta"] | undefined>(undefined);
@@ -297,10 +298,21 @@ export function SellerManagement() {
                       </td>
                     </tr>
                   ) : (
-                    sellers.map((seller) => (
+                    sellers.map((seller) => {
+                      const detailHref = `/admin/sellers/${seller.id}`;
+                      return (
                       <tr
                         key={seller.id}
-                        className="transition-colors hover:bg-slate-50/50"
+                        role="link"
+                        tabIndex={0}
+                        onClick={() => router.push(detailHref)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            router.push(detailHref);
+                          }
+                        }}
+                        className="cursor-pointer transition-colors hover:bg-slate-50/50"
                       >
                         <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-slate-900">
                           {seller.name}
@@ -330,10 +342,14 @@ export function SellerManagement() {
                             {seller.status}
                           </span>
                         </td>
-                        <td className="whitespace-nowrap px-6 py-4">
+                        <td
+                          className="whitespace-nowrap px-6 py-4"
+                          onClick={(e) => e.stopPropagation()}
+                          onKeyDown={(e) => e.stopPropagation()}
+                        >
                           <div className="flex items-center gap-2">
                             <Link
-                              href={`/admin/sellers/${seller.id}`}
+                              href={detailHref}
                               className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition-colors hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600"
                             >
                               <span title="View Details">
@@ -366,7 +382,8 @@ export function SellerManagement() {
                           </div>
                         </td>
                       </tr>
-                    ))
+                      );
+                    })
                   )}
                 </tbody>
               </table>

@@ -341,7 +341,7 @@ export function ProductUploadPage() {
               </p>
               <ul className="text-sm text-gray-600 mt-2 space-y-1 ml-4">
                 <li>• Minimum resolution: 800x800 pixels</li>
-                <li>• Maximum file size: 5 MB per image</li>
+                <li>• Maximum file size: 50 MB per image</li>
                 <li>• Supported formats: JPG, PNG</li>
                 <li>• White background recommended</li>
               </ul>

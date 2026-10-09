@@ -80,6 +80,18 @@ bash deploy/ensure-upload-persistence.sh
 
 That creates `/home/bitnami/projects/data/ecomm-uploads`, sets `PUBLIC_UPLOAD_ROOT` in `.env`, and reloads PM2. Without this, product images were wiped on every deploy and `/uploads/*.jpg` returned **404**.
 
+- **Nginx upload body size (required for KYC / logo uploads):** the app allows up to **50MB** per file (`MAX_UPLOAD_SIZE_BYTES`). Nginx defaults are often **1MB**, which returns an HTML **413** page and the UI shows `Unexpected token '<' ... is not valid JSON`. On the server, set:
+
+```nginx
+client_max_body_size 50m;
+```
+
+in the site `server { }` (or `http { }`) block, then:
+
+```bash
+sudo nginx -t && sudo systemctl reload nginx
+```
+
 ---
 
 ## 6. Run the deploy
@@ -112,6 +124,7 @@ If **`DATABASE_URL`** is set in Actions, migrations already ran in CI before rsy
 | `Permission denied (publickey)` | Public key in `authorized_keys`; correct user (`bitnami`); correct IP |
 | App 502 / no listen | `PORT` in `.env` matches nginx; `PATH` includes Node; `pm2` / systemd |
 | Product images 404 on `/uploads/*.jpg` | Run `bash deploy/ensure-upload-persistence.sh`; confirm `PUBLIC_UPLOAD_ROOT` is outside the app folder; re-upload images that were deleted by older deploys |
+| KYC/logo upload: `Unexpected token '<'` / HTML not JSON | Raise nginx `client_max_body_size` to **50m** (see §5), reload nginx; confirm Network tab is not **413** |
 | Huge transfer / slow | Normal first time (`node_modules` is large); later runs are incremental with rsync |
 
 **Fallback:** each successful build still uploads artifact **`ecomm-linux-bundle`** — download from the run **Summary → Artifacts** if SSH deploy is blocked.
