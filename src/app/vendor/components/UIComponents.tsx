@@ -508,7 +508,7 @@ export function FileUpload({
         ) : (
           <div className="relative z-0 pointer-events-none">
             <p className="mb-2 text-slate-600">{canReplace ? "Click to upload or drag and drop" : "No document uploaded"}</p>
-            <p className="text-sm text-slate-500">{helperText || "PDF, PNG, JPG (max 5MB)"}</p>
+            <p className="text-sm text-slate-500">{helperText || "PDF, PNG, JPG (max 20MB)"}</p>
           </div>
         )}
       </div>

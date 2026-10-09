@@ -22,6 +22,7 @@
     "test:commerce": "tsx scripts/test-commerce-pricing.ts",
     "test:coupons": "tsx scripts/test-admin-coupons.ts && tsx scripts/test-coupon-usage-limits.ts",
     "test:customer-apis": "tsx scripts/test-customer-apis.ts",
+    "test:vendor-store-logo": "tsx scripts/test-vendor-store-logo-upload.ts",
     "seed:faqs": "tsx scripts/seed-faqs.ts",
     "smoke:commerce": "tsx scripts/smoke-test-commerce.ts",
     "smoke:coupon-limits": "tsx scripts/smoke-test-coupon-limits.ts",

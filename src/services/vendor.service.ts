@@ -30,6 +30,31 @@ import type {
 
 const VENDOR_BASE = "/api/vendor";
 
+async function postMultipartUpload(path: string, file: File): Promise<{ url: string }> {
+  const formData = new FormData();
+  formData.append("file", file);
+  const base = getBaseUrl();
+  const url = base ? `${base}${path}` : path;
+  const res = await fetch(url, {
+    method: "POST",
+    body: formData,
+    credentials: "include",
+  });
+  const json = (await res.json()) as {
+    success?: boolean;
+    data?: { url: string };
+    error?: { message: string };
+  };
+  if (!res.ok) {
+    const msg = json?.error?.message ?? res.statusText ?? "Upload failed";
+    throw new ServiceError(msg, "UPLOAD_ERROR", res.status);
+  }
+  if (!json.success || !json.data?.url) {
+    throw new ServiceError("Invalid upload response", "UPLOAD_ERROR");
+  }
+  return json.data;
+}
+
 export const vendorService = {
   /** Current vendor session and status (for onboarding lock UI). */
   async getMe(): Promise<VendorMeResponse> {
@@ -337,25 +362,16 @@ export const vendorService = {
     });
   },
 
-  /** Upload a product image. Returns the public URL to use in imageUrls. */
+  /** Upload a product image. Returns the public URL to use in imageUrls. Requires approved vendor. */
   async uploadImage(file: File): Promise<{ url: string }> {
-    const formData = new FormData();
-    formData.append("file", file);
-    const base = getBaseUrl();
-    const url = base ? `${base}${VENDOR_BASE}/upload` : `${VENDOR_BASE}/upload`;
-    const res = await fetch(url, {
-      method: "POST",
-      body: formData,
-      credentials: "include",
-    });
-    const json = (await res.json()) as { success?: boolean; data?: { url: string }; error?: { message: string } };
-    if (!res.ok) {
-      const msg = json?.error?.message ?? res.statusText ?? "Upload failed";
-      throw new ServiceError(msg, "UPLOAD_ERROR", res.status);
-    }
-    if (!json.success || !json.data?.url) {
-      throw new ServiceError("Invalid upload response", "UPLOAD_ERROR");
-    }
-    return json.data;
+    return postMultipartUpload(`${VENDOR_BASE}/upload`, file);
+  },
+
+  /**
+   * Upload a storefront logo. Allowed for any seller with completed auth onboarding
+   * (draft / under review / rejected / approved). Does not require APPROVED status.
+   */
+  async uploadStoreLogo(file: File): Promise<{ url: string }> {
+    return postMultipartUpload(`${VENDOR_BASE}/profile/logo`, file);
   },
 };
