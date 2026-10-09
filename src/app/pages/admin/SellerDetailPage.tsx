@@ -28,6 +28,7 @@ type SellerDetail = {
     phone?: string;
     businessAddress?: string;
     gstNumber?: string;
+    storeLogo?: string | null;
     status: string;
     statusReason?: string;
     createdAt: string;
@@ -86,6 +87,21 @@ function formatCurrency(n: number): string {
 function hasPendingStorefront(p: Record<string, unknown> | null | undefined): boolean {
   if (!p || typeof p !== "object") return false;
   return Object.values(p).some((v) => v !== undefined && v !== null && String(v).trim() !== "");
+}
+
+function storeLogoInitials(businessName: string): string {
+  const parts = businessName.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
+  return `${parts[0]![0] ?? ""}${parts[1]![0] ?? ""}`.toUpperCase();
+}
+
+function pendingStoreLogoUrl(
+  pending: Record<string, unknown> | null | undefined
+): string | null {
+  if (!pending || typeof pending.storeLogo !== "string") return null;
+  const url = pending.storeLogo.trim();
+  return url || null;
 }
 
 function formatDate(iso: string): string {
@@ -253,6 +269,8 @@ export function SellerDetailPage({ sellerId = "" }: SellerDetailPageProps) {
   const showPendingStorefront =
     seller.status === "APPROVED" && hasPendingStorefront(pendingStorefront ?? undefined);
   const isBlocked = seller.status === "SUSPENDED";
+  const liveStoreLogo = seller.storeLogo?.trim() || null;
+  const pendingLogo = pendingStoreLogoUrl(pendingStorefront ?? undefined);
 
   return (
     <div className="min-h-full bg-slate-50/80 px-3 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
@@ -266,9 +284,16 @@ export function SellerDetailPage({ sellerId = "" }: SellerDetailPageProps) {
 
       {/* Header */}
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">{seller.businessName}</h1>
-          <p className="mt-1 text-sm text-slate-500">Seller ID: #{seller.id.slice(0, 8)}</p>
+        <div className="flex items-start gap-3">
+          <StoreLogoThumb
+            url={liveStoreLogo}
+            businessName={seller.businessName}
+            size={56}
+          />
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">{seller.businessName}</h1>
+            <p className="mt-1 text-sm text-slate-500">Seller ID: #{seller.id.slice(0, 8)}</p>
+          </div>
         </div>
         <div className="flex flex-wrap gap-2">
           <Link
@@ -420,6 +445,20 @@ export function SellerDetailPage({ sellerId = "" }: SellerDetailPageProps) {
                 <Field label="Business Name (live on site)" value={seller.businessName} />
                 {showPendingStorefront && pendingStorefront?.displayName != null && String(pendingStorefront.displayName).trim() !== "" && (
                   <Field label="Pending display name" value={String(pendingStorefront.displayName)} />
+                )}
+                <StoreLogoField
+                  label="Store logo (live on storefront)"
+                  url={liveStoreLogo}
+                  businessName={seller.businessName}
+                  emptyLabel="No logo published"
+                />
+                {showPendingStorefront && pendingLogo && (
+                  <StoreLogoField
+                    label="Store logo (pending approval)"
+                    url={pendingLogo}
+                    businessName={seller.businessName}
+                    emptyLabel="—"
+                  />
                 )}
                 <Field label="GST Number" value={seller.gstNumber?.trim() ? seller.gstNumber : "Not Provided"} />
                 <Field label="Email" value={seller.email} icon={Mail} />
@@ -656,6 +695,65 @@ function Field({
         {label}
       </label>
       <p className="mt-1 text-slate-900">{value}</p>
+    </div>
+  );
+}
+
+function StoreLogoThumb({
+  url,
+  businessName,
+  size = 56,
+}: {
+  url: string | null;
+  businessName: string;
+  size?: number;
+}) {
+  const [broken, setBroken] = React.useState(false);
+  const showImage = Boolean(url) && !broken;
+
+  React.useEffect(() => {
+    setBroken(false);
+  }, [url]);
+
+  return (
+    <div
+      className="flex shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-slate-100 text-sm font-semibold text-slate-500"
+      style={{ width: size, height: size }}
+      aria-hidden={!showImage}
+    >
+      {showImage ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={url!}
+          alt={`${businessName} store logo`}
+          className="h-full w-full object-cover"
+          onError={() => setBroken(true)}
+        />
+      ) : (
+        <span>{storeLogoInitials(businessName)}</span>
+      )}
+    </div>
+  );
+}
+
+function StoreLogoField({
+  label,
+  url,
+  businessName,
+  emptyLabel,
+}: {
+  label: string;
+  url: string | null;
+  businessName: string;
+  emptyLabel: string;
+}) {
+  return (
+    <div>
+      <label className="text-sm font-medium text-slate-500">{label}</label>
+      <div className="mt-2 flex items-center gap-3">
+        <StoreLogoThumb url={url} businessName={businessName} size={64} />
+        {!url && <p className="text-sm text-slate-500">{emptyLabel}</p>}
+      </div>
     </div>
   );
 }
