@@ -689,7 +689,7 @@ export function VendorProfile() {
     setUploadingStoreLogo(true);
     setSubmitError(null);
     try {
-      const { url } = await vendorService.uploadImage(file);
+      const { url } = await vendorService.uploadStoreLogo(file);
       setFormData((prev) => ({ ...prev, storeLogo: url }));
       setUploadSuccess("Store logo uploaded.");
       setTimeout(() => setUploadSuccess(null), 4000);
@@ -1149,7 +1149,7 @@ export function VendorProfile() {
                     label="Store logo"
                     accept=".jpg,.jpeg,.png,.webp"
                     onChange={handleStoreLogoUpload}
-                    helperText="Square logo, PNG or JPG (max 5MB)"
+                    helperText="Square logo, PNG or JPG (max 20MB)"
                     uploading={uploadingStoreLogo}
                     uploadedUrl={formData.storeLogo || null}
                     preview={formData.storeLogo || undefined}
@@ -1274,7 +1274,7 @@ export function VendorProfile() {
               )}
               <Alert
                 type="info"
-                message="Upload clear, legible documents. PDF, JPG, PNG (Max 5MB each)."
+                message="Upload clear, legible documents. PDF, JPG, PNG (Max 20MB each)."
               />
               <FileUpload
                 label="PAN Card Image (Required)"
@@ -1387,7 +1387,7 @@ export function VendorProfile() {
                         onChange={(e) => { setNewDocFile(e.target.files?.[0] ?? null); setNewDocError(null); }}
                         className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-700 shadow-sm file:mr-3 file:rounded-lg file:border-0 file:bg-indigo-600 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-white hover:file:bg-indigo-700"
                       />
-                      <p className="text-xs text-slate-400">PDF, JPG, PNG — max 5 MB</p>
+                      <p className="text-xs text-slate-400">PDF, JPG, PNG — max 20 MB</p>
                     </div>
                     {newDocError && (
                       <p className="text-sm font-medium text-red-600">{newDocError}</p>
@@ -1555,7 +1555,7 @@ export function VendorProfile() {
                 label="Cancelled Cheque or Bank Proof"
                 accept=".pdf,.jpg,.jpeg,.png"
                 onChange={handleKycUpload("ADDRESS_PROOF")}
-                helperText="Optional proof (PDF, JPG, PNG - Max 5MB)"
+                helperText="Optional proof (PDF, JPG, PNG - Max 20MB)"
                 disabled={kycLocked || uploadingDoc === "ADDRESS_PROOF"}
                 uploading={uploadingDoc === "ADDRESS_PROOF"}
                 uploadedUrl={addressProofUrl}

@@ -12,6 +12,10 @@ import {
 } from "@/lib/api";
 import { requireSession } from "@/lib/auth";
 import { assertVendorCanEditKyc, upsertKycDocument } from "@/lib/data/vendor-profile";
+import {
+  MAX_UPLOAD_SIZE_BYTES,
+  MAX_UPLOAD_SIZE_LABEL,
+} from "@/lib/uploads/limits";
 
 const ALLOWED_TYPES = [
   "image/jpeg",
@@ -20,7 +24,7 @@ const ALLOWED_TYPES = [
   "image/gif",
   "application/pdf",
 ];
-const MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
+const MAX_SIZE_BYTES = MAX_UPLOAD_SIZE_BYTES;
 const KYC_TYPES = ["PAN", "GST_CERTIFICATE", "ADDRESS_PROOF"] as const;
 
 function getBaseUrl(request: NextRequest): string {
@@ -72,7 +76,7 @@ export const POST = withApiHandler(async (request: NextRequest) => {
     return apiBadRequest("Invalid file type. Use JPEG, PNG, WebP, GIF, or PDF.");
   }
   if (upload.size > MAX_SIZE_BYTES) {
-    return apiBadRequest("File too large. Maximum size is 5MB.");
+    return apiBadRequest(`File too large. Maximum size is ${MAX_UPLOAD_SIZE_LABEL}.`);
   }
 
   const safeExt = /^\.(jpe?g|png|webp|gif|pdf)$/i.test(ext) ? ext : ".pdf";

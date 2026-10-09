@@ -12,9 +12,13 @@ import {
   apiBadRequest,
 } from "@/lib/api";
 import { requireVendorApproved } from "@/lib/auth";
+import {
+  MAX_UPLOAD_SIZE_BYTES,
+  MAX_UPLOAD_SIZE_LABEL,
+} from "@/lib/uploads/limits";
 
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
-const MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
+const MAX_SIZE_BYTES = MAX_UPLOAD_SIZE_BYTES;
 
 function getBaseUrl(request: NextRequest): string {
   const host = request.headers.get("host") || (process.env.PORT ? `localhost:${process.env.PORT}` : "localhost");
@@ -47,7 +51,7 @@ export const POST = withApiHandler(async (request: NextRequest) => {
     );
   }
   if (upload.size > MAX_SIZE_BYTES) {
-    return apiBadRequest("File too large. Maximum size is 5MB.");
+    return apiBadRequest(`File too large. Maximum size is ${MAX_UPLOAD_SIZE_LABEL}.`);
   }
 
   const safeExt = safeImageExtension(upload.name, mime);
