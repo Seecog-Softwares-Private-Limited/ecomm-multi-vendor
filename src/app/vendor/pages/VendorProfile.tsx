@@ -26,6 +26,7 @@ import {
   isProfileComplete,
   isTabComplete,
   isCategoryDocumentsComplete,
+  isGstCertificateDocumentName,
   isBusinessInfoComplete,
   isKycDetailsComplete,
   isBankDetailsComplete,
@@ -422,9 +423,16 @@ export function VendorProfile() {
     });
   }, [formData, profile]);
 
+  const visibleCategoryDocRequirements = React.useMemo(
+    () =>
+      formData.gstNotApplicable
+        ? categoryDocRequirements.filter((d) => !isGstCertificateDocumentName(d.documentName))
+        : categoryDocRequirements,
+    [categoryDocRequirements, formData.gstNotApplicable]
+  );
   const requiredCategoryDocNames = React.useMemo(
-    () => categoryDocRequirements.filter((d) => d.isRequired).map((d) => d.documentName),
-    [categoryDocRequirements]
+    () => visibleCategoryDocRequirements.filter((d) => d.isRequired).map((d) => d.documentName),
+    [visibleCategoryDocRequirements]
   );
   const uploadedCategoryDocNames = React.useMemo(
     () => profile?.vendorDocuments?.map((d) => d.documentName) ?? [],
@@ -432,7 +440,8 @@ export function VendorProfile() {
   );
   const categoryDocsComplete = isCategoryDocumentsComplete(
     requiredCategoryDocNames,
-    uploadedCategoryDocNames
+    uploadedCategoryDocNames,
+    formData.gstNotApplicable
   );
   const profileComplete =
     isProfileComplete(vendorProfile, formData.gstNotApplicable) && categoryDocsComplete;
@@ -454,8 +463,20 @@ export function VendorProfile() {
   };
 
   const missingForSubmit: string[] = [];
-  if (!businessComplete) missingForSubmit.push("Business Info");
-  if (!kycComplete) missingForSubmit.push("KYC Details (PAN & GST certificate)");
+  if (!businessComplete) {
+    missingForSubmit.push(
+      formData.gstNotApplicable
+        ? "Business Info (business name and PAN)"
+        : "Business Info (business name, PAN, and GST number — or mark GST not applicable)"
+    );
+  }
+  if (!kycComplete) {
+    missingForSubmit.push(
+      formData.gstNotApplicable
+        ? "KYC Details (upload PAN card)"
+        : "KYC Details (upload PAN card and GST certificate — or mark GST not applicable)"
+    );
+  }
   if (!bankComplete) missingForSubmit.push("Bank Details");
   const categorySelectionErr = validateCategorySelection();
   if (categorySelectionErr) missingForSubmit.push("Product categories (select categories or Other)");
@@ -534,7 +555,7 @@ export function VendorProfile() {
                   formData.sellOtherProducts ? formData.otherProductsDescription : formData.businessTypeCustom
                 ),
                 pan: formData.pan,
-                gstin: formData.gstin,
+                gstin: formData.gstNotApplicable ? "" : formData.gstin,
                 gstNotApplicable: formData.gstNotApplicable,
                 websiteUrl: formData.websiteUrl,
                 addressLine1: formData.addressLine1,
@@ -612,7 +633,7 @@ export function VendorProfile() {
             formData.sellOtherProducts ? formData.otherProductsDescription : formData.businessTypeCustom
           ),
           pan: formData.pan,
-          gstin: formData.gstin,
+          gstin: formData.gstNotApplicable ? "" : formData.gstin,
           gstNotApplicable: formData.gstNotApplicable,
           websiteUrl: formData.websiteUrl,
           addressLine1: formData.addressLine1,
@@ -978,7 +999,12 @@ export function VendorProfile() {
                   <Toggle
                     checked={formData.gstNotApplicable}
                     onChange={(checked) => {
-                      setFormData({ ...formData, gstNotApplicable: checked });
+                      setFormData({
+                        ...formData,
+                        gstNotApplicable: checked,
+                        // Clear GSTIN so leftover partial values cannot fail validation/save.
+                        ...(checked ? { gstin: "" } : {}),
+                      });
                       if (checked) {
                         setFieldErrors((prev) => ({ ...prev, gstin: undefined }));
                       }
@@ -986,7 +1012,11 @@ export function VendorProfile() {
                     label="GST not applicable"
                     disabled={kycLocked}
                   />
-                  {!formData.gstNotApplicable && (
+                  {formData.gstNotApplicable ? (
+                    <p className="mt-2 text-sm text-slate-500">
+                      GST number and GST certificate are not required.
+                    </p>
+                  ) : (
                     <Input
                       label="GST Number"
                       value={formData.gstin}
@@ -1288,18 +1318,27 @@ export function VendorProfile() {
                 onPreview={openDocumentPreview}
                 error={uploadErrorByType.PAN ?? undefined}
               />
-              <FileUpload
-                label="GST Certificate (Required)"
-                accept=".pdf,.jpg,.jpeg,.png"
-                onChange={handleKycUpload("GST_CERTIFICATE")}
-                helperText="Upload GST registration certificate"
-                disabled={kycLocked || uploadingDoc === "GST_CERTIFICATE"}
-                uploading={uploadingDoc === "GST_CERTIFICATE"}
-                uploadedUrl={gstUrl}
-                previewTitle="GST Certificate"
-                onPreview={openDocumentPreview}
-                error={uploadErrorByType.GST_CERTIFICATE ?? undefined}
-              />
+              {formData.gstNotApplicable ? (
+                <div className="rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm text-slate-600">
+                  <p className="font-medium text-slate-800">GST certificate not required</p>
+                  <p className="mt-1">
+                    You marked <strong>GST not applicable</strong> in Business Info. Upload PAN only.
+                  </p>
+                </div>
+              ) : (
+                <FileUpload
+                  label="GST Certificate (Required)"
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  onChange={handleKycUpload("GST_CERTIFICATE")}
+                  helperText="Upload GST registration certificate"
+                  disabled={kycLocked || uploadingDoc === "GST_CERTIFICATE"}
+                  uploading={uploadingDoc === "GST_CERTIFICATE"}
+                  uploadedUrl={gstUrl}
+                  previewTitle="GST Certificate"
+                  onPreview={openDocumentPreview}
+                  error={uploadErrorByType.GST_CERTIFICATE ?? undefined}
+                />
+              )}
               <div className="border-t border-slate-200 pt-8">
                 <h3 className="mb-1 text-lg font-semibold text-slate-900">Additional documents (by category)</h3>
                 <p className="mb-4 text-sm text-slate-500">
@@ -1309,13 +1348,15 @@ export function VendorProfile() {
                   <p className="rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm text-slate-600">
                     Select <strong>Categories you sell in</strong> in the Business Info tab to see optional documents for your category.
                   </p>
-                ) : categoryDocRequirements.length === 0 ? (
+                ) : visibleCategoryDocRequirements.length === 0 ? (
                   <p className="rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm text-slate-600">
-                    No additional documents defined for your category. PAN and GST Certificate are enough.
+                    {formData.gstNotApplicable
+                      ? "No additional documents defined for your category. PAN card is enough."
+                      : "No additional documents defined for your category. PAN and GST Certificate are enough."}
                   </p>
                 ) : (
                   <div className="space-y-4">
-                    {categoryDocRequirements.map((doc) => (
+                    {visibleCategoryDocRequirements.map((doc) => (
                       <FileUpload
                         key={doc.documentName}
                         label={`${doc.documentName} (${doc.isRequired ? "Required" : "Optional"})`}

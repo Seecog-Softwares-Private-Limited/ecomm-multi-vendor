@@ -487,21 +487,29 @@ export async function updateVendorProfile(
     const panErr = getPanFormatError(effectivePayload.business.pan);
     if (panErr) throw new Error(panErr);
   }
-  if (effectivePayload.business?.gstin !== undefined) {
-    const gstNotApplicable =
-      effectivePayload.business.gstNotApplicable ?? extras.gstNotApplicable ?? false;
-    effectivePayload.business.gstin = normalizeGstin(effectivePayload.business.gstin);
-    if (!gstNotApplicable && effectivePayload.business.gstin) {
-      const gstErr = getGstinFormatError(effectivePayload.business.gstin);
-      if (gstErr) throw new Error(gstErr);
-      const panForMatch = normalizePan(
-        effectivePayload.business.pan ?? extras.pan ?? ""
-      );
-      const panMismatchErr = getGstinPanMismatchError(
-        effectivePayload.business.gstin,
-        panForMatch
-      );
-      if (panMismatchErr) throw new Error(panMismatchErr);
+  if (
+    effectivePayload.business?.gstin !== undefined ||
+    effectivePayload.business?.gstNotApplicable !== undefined
+  ) {
+    const gstNotApplicable = Boolean(
+      effectivePayload.business?.gstNotApplicable ?? extras.gstNotApplicable ?? false
+    );
+    if (gstNotApplicable) {
+      if (effectivePayload.business) effectivePayload.business.gstin = "";
+    } else if (effectivePayload.business?.gstin !== undefined) {
+      effectivePayload.business.gstin = normalizeGstin(effectivePayload.business.gstin);
+      if (effectivePayload.business.gstin) {
+        const gstErr = getGstinFormatError(effectivePayload.business.gstin);
+        if (gstErr) throw new Error(gstErr);
+        const panForMatch = normalizePan(
+          effectivePayload.business.pan ?? extras.pan ?? ""
+        );
+        const panMismatchErr = getGstinPanMismatchError(
+          effectivePayload.business.gstin,
+          panForMatch
+        );
+        if (panMismatchErr) throw new Error(panMismatchErr);
+      }
     }
   }
   if (effectivePayload.bank?.ifsc !== undefined) {
@@ -543,13 +551,24 @@ export async function updateVendorProfile(
       sellerUpdate.profileExtras = JSON.stringify(newExtras);
     } else {
       if (b.displayName !== undefined) sellerUpdate.businessName = b.displayName;
+      const gstNotApplicableNext =
+        b.gstNotApplicable !== undefined
+          ? Boolean(b.gstNotApplicable)
+          : Boolean(extras.gstNotApplicable);
       const newExtras: ProfileExtras = {
         ...extras,
         ...(b.legalName !== undefined && { legalName: b.legalName }),
         ...(b.businessType !== undefined && { businessType: b.businessType }),
         ...(b.pan !== undefined && { pan: b.pan }),
-        ...(b.gstin !== undefined && { gstin: b.gstin }),
-        ...(b.gstNotApplicable !== undefined && { gstNotApplicable: b.gstNotApplicable }),
+        // When GST is not applicable, always clear GSTIN so stale values cannot block submit.
+        ...(gstNotApplicableNext
+          ? { gstin: "", gstNotApplicable: true }
+          : {
+              ...(b.gstin !== undefined && { gstin: b.gstin }),
+              ...(b.gstNotApplicable !== undefined && {
+                gstNotApplicable: Boolean(b.gstNotApplicable),
+              }),
+            }),
         ...(b.websiteUrl !== undefined && { websiteUrl: b.websiteUrl }),
         ...(b.addressLine1 !== undefined && { addressLine1: b.addressLine1 }),
         ...(b.addressLine2 !== undefined && { addressLine2: b.addressLine2 }),

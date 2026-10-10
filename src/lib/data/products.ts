@@ -141,6 +141,7 @@ export async function getProducts(options: {
       mrp: true,
       avgRating: true,
       reviewCount: true,
+      createdAt: true,
       images: { take: 1, orderBy: { sortOrder: "asc" }, select: { url: true } },
     },
   });
@@ -154,6 +155,7 @@ export async function getProducts(options: {
     rating: toNumber(p.avgRating) || 0,
     reviews: p.reviewCount ?? 0,
     imageUrl: resolveProductImageUrl(p.images[0]?.url),
+    createdAt: p.createdAt.toISOString(),
   }));
 }
 
@@ -213,6 +215,7 @@ export async function getRelatedProducts(
       mrp: true,
       avgRating: true,
       reviewCount: true,
+      createdAt: true,
       images: { take: 1, orderBy: { sortOrder: "asc" }, select: { url: true } },
     },
   });
@@ -226,6 +229,7 @@ export async function getRelatedProducts(
     rating: toNumber(p.avgRating) || 0,
     reviews: p.reviewCount ?? 0,
     imageUrl: resolveProductImageUrl(p.images[0]?.url),
+    createdAt: p.createdAt.toISOString(),
   }));
 }
 
@@ -258,6 +262,7 @@ export async function getProductsByMenuType(
     mrp: true,
     avgRating: true,
     reviewCount: true,
+    createdAt: true,
     images: { take: 1, orderBy: { sortOrder: "asc" as const }, select: { url: true } },
   };
 
@@ -279,6 +284,7 @@ export async function getProductsByMenuType(
         rating: toNumber(p.avgRating) || 0,
         reviews: p.reviewCount ?? 0,
         imageUrl: resolveProductImageUrl(p.images[0]?.url),
+        createdAt: p.createdAt.toISOString(),
         _discountPct: toNumber(p.mrp) > 0
           ? ((toNumber(p.mrp) - toNumber(p.sellingPrice)) / toNumber(p.mrp)) * 100
           : 0,
@@ -305,6 +311,7 @@ export async function getProductsByMenuType(
       rating: toNumber(p.avgRating) || 0,
       reviews: p.reviewCount ?? 0,
       imageUrl: resolveProductImageUrl(p.images[0]?.url),
+      createdAt: p.createdAt.toISOString(),
     }));
   }
 
@@ -325,6 +332,7 @@ export async function getProductsByMenuType(
       rating: toNumber(p.avgRating) || 0,
       reviews: p.reviewCount ?? 0,
       imageUrl: resolveProductImageUrl(p.images[0]?.url),
+      createdAt: p.createdAt.toISOString(),
     }));
   }
 

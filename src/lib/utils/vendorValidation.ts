@@ -188,7 +188,8 @@ export function validateVendorFinancialFields(
     if (panErr) errors.pan = panErr;
   }
 
-  const gstNorm = normalizeGstin(input.gstin ?? "");
+  // When GST is not applicable, ignore any leftover GSTIN entirely.
+  const gstNorm = gstNotApplicable ? "" : normalizeGstin(input.gstin ?? "");
   if (!gstNotApplicable) {
     if (requireFilled && !gstNorm) {
       errors.gstin = "GST number is required (or mark GST not applicable)";
@@ -265,21 +266,38 @@ export function isBankDetailsComplete(profile: VendorProfileForValidation): bool
   );
 }
 
+/** True for names that refer to a GST registration / certificate document. */
+export function isGstCertificateDocumentName(name: string): boolean {
+  const n = name.trim().toLowerCase().replace(/[\s_-]+/g, " ");
+  return (
+    n === "gst certificate" ||
+    n === "gst cert" ||
+    n === "gstin certificate" ||
+    n === "gst registration" ||
+    n === "gst registration certificate"
+  );
+}
+
 /**
  * Returns true if all required category documents (for vendor's primary category) are uploaded.
  * Pass empty arrays if no primary category or no required docs.
  * Comparison is case-insensitive and trims whitespace to avoid mismatches.
+ * When gstNotApplicable is true, GST certificate-named requirements are ignored.
  */
 export function isCategoryDocumentsComplete(
   requiredDocumentNames: string[],
-  uploadedDocumentNames: string[]
+  uploadedDocumentNames: string[],
+  gstNotApplicable?: boolean
 ): boolean {
-  if (requiredDocumentNames.length === 0) return true;
+  const required = gstNotApplicable
+    ? requiredDocumentNames.filter((n) => !isGstCertificateDocumentName(n))
+    : requiredDocumentNames;
+  if (required.length === 0) return true;
   const normalize = (s: string) => s.trim().toLowerCase();
   const uploadedSet = new Set(
     uploadedDocumentNames.map((n) => normalize(n)).filter(Boolean)
   );
-  return requiredDocumentNames.every((name) => uploadedSet.has(normalize(name)));
+  return required.every((name) => uploadedSet.has(normalize(name)));
 }
 
 /**
