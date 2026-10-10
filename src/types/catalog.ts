@@ -32,6 +32,8 @@ export interface ProductListItem {
   /** SEO-friendly URL slug. Falls back to id for backward compatibility. */
   slug: string;
   imageUrl?: string;
+  /** ISO timestamp; used for newest/oldest sort on listing pages. */
+  createdAt?: string;
 }
 
 /** Sellable SKU row (vendor-defined); when non-empty, PDP uses these for price/stock/options. */

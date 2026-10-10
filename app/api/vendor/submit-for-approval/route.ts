@@ -14,6 +14,7 @@ import {
   isKycDetailsComplete,
   isBankDetailsComplete,
   isCategoryDocumentsComplete,
+  isGstCertificateDocumentName,
   profileToValidationShape,
 } from "@/lib/utils/vendorValidation";
 
@@ -40,14 +41,26 @@ export const POST = withApiHandler(async (request: NextRequest) => {
     bank: profile.bank,
   });
 
-  const gstNotApplicable = profile.business?.gstNotApplicable === true;
+  const gstNotApplicable = Boolean(profile.business?.gstNotApplicable);
   const businessComplete = isBusinessInfoComplete(validationShape, gstNotApplicable);
   const kycComplete = isKycDetailsComplete(validationShape, gstNotApplicable);
   const bankComplete = isBankDetailsComplete(validationShape);
 
   const missing: string[] = [];
-  if (!businessComplete) missing.push("Business Info (business name, PAN, and GST number or mark GST not applicable)");
-  if (!kycComplete) missing.push("KYC Details (upload PAN card and GST certificate, or mark GST not applicable)");
+  if (!businessComplete) {
+    missing.push(
+      gstNotApplicable
+        ? "Business Info (business name and PAN)"
+        : "Business Info (business name, PAN, and GST number — or mark GST not applicable)"
+    );
+  }
+  if (!kycComplete) {
+    missing.push(
+      gstNotApplicable
+        ? "KYC Details (upload PAN card)"
+        : "KYC Details (upload PAN card and GST certificate — or mark GST not applicable)"
+    );
+  }
   if (!bankComplete) missing.push("Bank Details (account holder name, account number, IFSC)");
 
   if (profile.primaryCategoryId) {
@@ -55,9 +68,11 @@ export const POST = withApiHandler(async (request: NextRequest) => {
       where: { categoryId: profile.primaryCategoryId, deletedAt: null, isRequired: true },
       select: { documentName: true },
     });
-    const requiredNames = requiredDocs.map((r) => r.documentName);
+    const requiredNames = requiredDocs
+      .map((r) => r.documentName)
+      .filter((n) => !(gstNotApplicable && isGstCertificateDocumentName(n)));
     const uploadedNames = (profile.vendorDocuments ?? []).map((d) => d.documentName);
-    if (!isCategoryDocumentsComplete(requiredNames, uploadedNames)) {
+    if (!isCategoryDocumentsComplete(requiredNames, uploadedNames, gstNotApplicable)) {
       const missingDocs = requiredNames.filter(
         (n) => !uploadedNames.some((u) => u.trim().toLowerCase() === n.trim().toLowerCase())
       );

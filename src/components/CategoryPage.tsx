@@ -65,7 +65,13 @@ export function CategoryPage({
   const [minRating, setMinRating] = useState<number | null>(null);
   const [inStockOnly, setInStockOnly] = useState(true);
   const [minDiscount, setMinDiscount] = useState<number | null>(null);
-  const [sortBy, setSortBy] = useState("popularity");
+  const [sortBy, setSortBy] = useState(
+    categorySlug === "new-arrivals" ? "newest" : "popularity"
+  );
+
+  useEffect(() => {
+    if (categorySlug === "new-arrivals") setSortBy("newest");
+  }, [categorySlug]);
   const [addingToCartId, setAddingToCartId] = useState<string | null>(null);
   /** productId -> wishlist row id (for toggle/remove) */
   const [wishlistByProductId, setWishlistByProductId] = useState<Record<string, string>>({});
@@ -222,6 +228,19 @@ export function CategoryPage({
     else if (sortBy === "price-desc") list.sort((a, b) => b.price - a.price);
     else if (sortBy === "rating") list.sort((a, b) => b.rating - a.rating);
     else if (sortBy === "popularity") list.sort((a, b) => (b.reviews ?? 0) - (a.reviews ?? 0));
+    else if (sortBy === "newest") {
+      list.sort((a, b) => {
+        const ta = a.createdAt ? Date.parse(a.createdAt) : 0;
+        const tb = b.createdAt ? Date.parse(b.createdAt) : 0;
+        return tb - ta;
+      });
+    } else if (sortBy === "oldest") {
+      list.sort((a, b) => {
+        const ta = a.createdAt ? Date.parse(a.createdAt) : 0;
+        const tb = b.createdAt ? Date.parse(b.createdAt) : 0;
+        return ta - tb;
+      });
+    }
     return list;
   }, [catalogProducts, priceMax, selectedBrands, minRating, minDiscount, sortBy]);
 
@@ -430,6 +449,8 @@ export function CategoryPage({
                 onChange={(e) => setSortBy(e.target.value)}
                 className="rounded-full border border-[#CBD5E1] bg-white px-3 py-1.5 text-xs font-semibold text-[#334155] outline-none"
               >
+                <option value="newest">Newest first</option>
+                <option value="oldest">Oldest first</option>
                 <option value="popularity">Popularity</option>
                 <option value="price-asc">Price Low-High</option>
                 <option value="price-desc">Price High-Low</option>
@@ -459,6 +480,8 @@ export function CategoryPage({
                   onChange={(e) => setSortBy(e.target.value)}
                   className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#FF6A00]/30 focus:border-[#FF6A00]"
                 >
+                  <option value="newest">Newest first</option>
+                  <option value="oldest">Oldest first</option>
                   <option value="popularity">Popularity</option>
                   <option value="price-asc">Price: Low to High</option>
                   <option value="price-desc">Price: High to Low</option>
