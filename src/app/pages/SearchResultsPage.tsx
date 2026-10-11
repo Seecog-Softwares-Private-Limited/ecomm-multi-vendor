@@ -21,6 +21,8 @@ type ProductItem = {
   rating: number;
   reviews: number;
   imageUrl?: string | null;
+  available?: boolean;
+  unavailableReason?: string | null;
 };
 
 function formatRupee(n: number) {

@@ -8,7 +8,7 @@ import {
   skuVariantsRequireExplicitKey,
 } from "@/lib/product-sku-variant";
 import { resolveProductImageUrl } from "@/lib/product-image";
-import { getCartVersion } from "./cart-version";
+import { getCartVersion, incrementCartVersion } from "./cart-version";
 import { CHECKOUT_SESSION_TTL_MS, MAX_LINE_QUANTITY } from "./constants";
 import { generateCommerceId } from "./id";
 import { logCommerceEvent } from "./logger";
@@ -25,10 +25,11 @@ import {
   lockProductsForLines,
   type StockLineInput,
 } from "./stock-reservation";
-import { validateSellersForProducts } from "./vendor-validation";
+import { isProductOrderable, validateSellersForProducts } from "./vendor-validation";
 import { invalidateCheckoutCache } from "./cache";
 import { transitionCheckoutSession } from "./checkout-session-lifecycle";
 import { runCommerceTransaction } from "./db-transaction";
+import { pruneUnavailableCartItems } from "@/lib/data/cart";
 
 export type BuyNowLineInput = {
   productId: string;
@@ -208,6 +209,9 @@ async function resolveCartLines(userId: string, cartItemIds: string[]): Promise<
     );
   }
 
+  // Drop draft / suspended-seller / deleted products so they cannot block place-order.
+  await pruneUnavailableCartItems(userId);
+
   const uniqueIds = [...new Set(cartItemIds.map((id) => id.trim()).filter(Boolean))];
   const cartItems = await prisma.cartItem.findMany({
     where: {
@@ -221,16 +225,32 @@ async function resolveCartLines(userId: string, cartItemIds: string[]): Promise<
     },
   });
 
-  if (cartItems.length !== uniqueIds.length) {
+  const orderable = cartItems.filter((item) => isProductOrderable(item.product));
+  const unavailable = cartItems.filter((item) => !isProductOrderable(item.product));
+
+  if (unavailable.length > 0) {
+    const now = new Date();
+    await prisma.cartItem.updateMany({
+      where: { id: { in: unavailable.map((i) => i.id) }, userId, deletedAt: null },
+      data: { deletedAt: now, updatedAt: now },
+    });
+    await incrementCartVersion(userId);
+  }
+
+  // Missing IDs are OK when they were pruned as unavailable; only fail if nothing left to buy.
+  if (orderable.length === 0) {
+    const sample = unavailable[0]?.product?.name;
     throw new ApiRouteError(
-      "Some selected cart items are no longer available. Please refresh your cart.",
+      sample
+        ? `"${sample}" is no longer available. Please update your cart and try again.`
+        : "Some selected cart items are no longer available. Please refresh your cart.",
       Status.BAD_REQUEST,
       "CART_ITEMS_STALE"
     );
   }
 
   const resolved: ResolvedLine[] = [];
-  for (const item of cartItems) {
+  for (const item of orderable) {
     const product = item.product;
     assertProductAvailable(product);
     validateSellersForProducts([{ name: product.name, seller: product.seller }]);

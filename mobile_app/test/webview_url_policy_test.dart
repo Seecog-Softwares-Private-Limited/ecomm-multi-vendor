@@ -85,6 +85,29 @@ void main() {
     );
   });
 
+  test('UPI / wallet schemes open external payment apps', () {
+    expect(
+      policy.isExternalAppScheme(Uri.parse('upi://pay?pa=merchant@upi')),
+      isTrue,
+    );
+    expect(
+      policy.isExternalAppScheme(Uri.parse('phonepe://pay')),
+      isTrue,
+    );
+    expect(
+      policy.isExternalAppScheme(Uri.parse('gpay://upi/pay')),
+      isTrue,
+    );
+    expect(
+      policy.isExternalAppScheme(Uri.parse('paytmmp://pay')),
+      isTrue,
+    );
+    expect(
+      policy.isExternalAppScheme(Uri.parse('tez://upi/pay')),
+      isTrue,
+    );
+  });
+
   test('bank ACS / third-party https hosts stay in WebView for payments', () {
     expect(
       policy.shouldStayInWebView(Uri.parse('https://example.com/page')),

@@ -26,6 +26,18 @@ export function isSellerSellable(
   return seller.deletedAt == null && seller.status === "APPROVED";
 }
 
+/** True when a cart/checkout line can be purchased right now. */
+export function isProductOrderable(product: {
+  status: string;
+  deletedAt: Date | null;
+  seller?: Pick<SellerValidationRow, "status" | "deletedAt"> | null;
+}): boolean {
+  if (product.deletedAt != null) return false;
+  if (product.status !== "ACTIVE") return false;
+  if (!product.seller) return false;
+  return isSellerSellable(product.seller);
+}
+
 /** Customer-facing label when a listing should show as unavailable. */
 export function getSellerUnavailableLabel(
   seller: Pick<SellerValidationRow, "status" | "deletedAt">
