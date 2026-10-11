@@ -554,14 +554,21 @@ export function CategoryPage({
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         />
                       </Link>
-                      {discountPct > 0 && (
+                      {product.available === false ? (
+                        <span
+                          className="pointer-events-none absolute top-1.5 left-1.5 z-[5] px-1.5 py-0.5 text-[10px] sm:text-xs font-bold text-white rounded"
+                          style={{ background: "#6B7280" }}
+                        >
+                          {product.unavailableReason ?? "Not available"}
+                        </span>
+                      ) : discountPct > 0 ? (
                         <span
                           className="pointer-events-none absolute top-1.5 left-1.5 z-[5] px-1.5 py-0.5 text-[10px] sm:text-xs font-bold text-white rounded"
                           style={{ background: "#EF4444" }}
                         >
                           SALE {discountPct}% OFF
                         </span>
-                      )}
+                      ) : null}
                       {customerLoggedIn ? (
                       <button
                         type="button"
@@ -654,17 +661,27 @@ export function CategoryPage({
                           </span>
                         )}
                       </div>
-                      <p className="flex items-center gap-1 text-[10px] sm:text-xs text-gray-500 mt-1.5 sm:mt-2">
-                        <Truck className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                        Free delivery by Tomorrow
-                      </p>
+                      {product.available === false ? (
+                        <p className="text-[10px] sm:text-xs font-semibold text-gray-500 mt-1.5 sm:mt-2">
+                          {product.unavailableReason ?? "Not available"}
+                        </p>
+                      ) : (
+                        <p className="flex items-center gap-1 text-[10px] sm:text-xs text-gray-500 mt-1.5 sm:mt-2">
+                          <Truck className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                          Free delivery by Tomorrow
+                        </p>
+                      )}
                     </Link>
                     <div className="p-2.5 sm:p-4 pt-0 flex gap-1.5 sm:gap-2">
                       <button
                         className="flex-1 py-2 sm:py-2.5 rounded-full sm:rounded-lg border-2 border-[#FF6A00] text-[#FF6A00] font-semibold text-xs sm:text-sm hover:bg-[#FFF4EC] transition disabled:opacity-60"
-                        disabled={addingToCartId === product.id}
+                        disabled={addingToCartId === product.id || product.available === false}
                         onClick={async (e) => {
                           e.preventDefault();
+                          if (product.available === false) {
+                            toast.error(product.unavailableReason ?? "Not available");
+                            return;
+                          }
                           setAddingToCartId(product.id);
                           try {
                             const res = await fetch("/api/cart/items", {
@@ -706,16 +723,21 @@ export function CategoryPage({
                           }
                         }}
                       >
-                        {addingToCartId === product.id ? "Adding..." : "Add to cart"}
+                        {product.available === false
+                          ? "Not available"
+                          : addingToCartId === product.id
+                            ? "Adding..."
+                            : "Add to cart"}
                       </button>
                       <button
-                        className="hidden sm:block flex-1 py-2.5 rounded-lg bg-[#FF6A00] text-white font-semibold text-sm hover:bg-[#E55F00] transition"
+                        className="hidden sm:block flex-1 py-2.5 rounded-lg bg-[#FF6A00] text-white font-semibold text-sm hover:bg-[#E55F00] transition disabled:opacity-60"
+                        disabled={product.available === false}
                         onClick={(e) => {
                           e.preventDefault();
                           router.push(`/product/${product.slug ?? product.id}`);
                         }}
                       >
-                        Buy Now
+                        {product.available === false ? "Not available" : "Buy Now"}
                       </button>
                     </div>
                   </div>

@@ -75,6 +75,7 @@ export const POST = withApiHandler(async (request: NextRequest) => {
     where: { id: productId, deletedAt: null, status: "ACTIVE" },
     select: {
       id: true,
+      name: true,
       stock: true,
       sellingPrice: true,
       mrp: true,
@@ -82,10 +83,22 @@ export const POST = withApiHandler(async (request: NextRequest) => {
         where: { deletedAt: null },
         select: { color: true, size: true, stock: true, price: true },
       },
+      seller: { select: { id: true, status: true, deletedAt: true, businessName: true } },
     },
   });
   if (!product) {
     return apiBadRequest("Product not found or not available");
+  }
+
+  const { assertSellerCanSell } = await import("@/lib/commerce/vendor-validation");
+  const { ApiRouteError } = await import("@/lib/api");
+  try {
+    assertSellerCanSell(product.seller, product.name);
+  } catch (e) {
+    if (e instanceof ApiRouteError) {
+      return apiBadRequest(e.message);
+    }
+    throw e;
   }
 
   const pvRows = product.productVariants ?? [];

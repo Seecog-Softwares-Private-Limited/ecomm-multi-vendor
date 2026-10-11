@@ -18,6 +18,9 @@
     "backfill:slugs": "tsx scripts/backfill-product-slugs.ts",
     "backfill:product-images": "tsx scripts/backfill-product-images.ts",
     "delete-customers-by-email": "tsx scripts/delete-customers-by-email.ts",
+    "soft-delete:old-products": "tsx scripts/soft-delete-products-older-than.ts",
+    "draft:demo-products": "tsx scripts/draft-demo-products.ts",
+
     "commerce:cleanup": "tsx scripts/commerce-cleanup.ts",
     "test:commerce": "tsx scripts/test-commerce-pricing.ts",
     "test:coupons": "tsx scripts/test-admin-coupons.ts && tsx scripts/test-coupon-usage-limits.ts",

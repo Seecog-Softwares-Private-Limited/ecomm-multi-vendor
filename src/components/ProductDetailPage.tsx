@@ -55,6 +55,7 @@ function RelatedProductCard({ item }: { item: ProductListItem }) {
     item.oldPrice != null && item.oldPrice > item.price && item.oldPrice > 0
       ? Math.round(((item.oldPrice - item.price) / item.oldPrice) * 100)
       : 0;
+  const unavailable = item.available === false;
   return (
     <Link
       href={`/product/${item.slug ?? item.id}`}
@@ -64,16 +65,23 @@ function RelatedProductCard({ item }: { item: ProductListItem }) {
         <ProductImage
           src={item.imageUrl}
           alt={item.name}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-300${unavailable ? " opacity-70" : ""}`}
         />
-        {discountPct > 0 && (
+        {unavailable ? (
+          <span
+            className="absolute bottom-2 left-2 px-2 py-1 text-xs font-bold text-white rounded"
+            style={{ background: "#6B7280" }}
+          >
+            {item.unavailableReason ?? "Not available"}
+          </span>
+        ) : discountPct > 0 ? (
           <span
             className="absolute bottom-2 left-2 px-2 py-1 text-xs font-bold text-white rounded"
             style={{ background: "#16A34A" }}
           >
             {discountPct}% OFF
           </span>
-        )}
+        ) : null}
         <button
           className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/90 flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition shadow border-0 cursor-pointer"
           aria-label="Wishlist"
@@ -360,7 +368,10 @@ export function ProductDetailPage({
   const discount = mrp > price ? Math.round(((mrp - price) / mrp) * 100) : 0;
   const skuColorOptions = hasSkuVariants ? distinctVariantColors(skuVariants) : [];
   const skuSizeOptions = hasSkuVariants ? distinctVariantSizes(skuVariants, skuColor) : [];
+  const sellerUnavailable = product.available === false;
+  const sellerUnavailableLabel = product.unavailableReason ?? "Not available";
   const stockBlocked = displayStock <= 0;
+  const purchaseBlocked = sellerUnavailable || stockBlocked;
   const maxOrderQty = Math.max(1, Math.min(99, displayStock > 0 ? displayStock : 99));
   useEffect(() => {
     setQty((q) => Math.max(1, Math.min(maxOrderQty, q)));
@@ -403,6 +414,10 @@ export function ProductDetailPage({
 
 
   const handleAddToCart = async () => {
+    if (sellerUnavailable) {
+      toast.error(sellerUnavailableLabel);
+      return;
+    }
     if (deliveryEligible === false) {
       toast.error("This item is not deliverable to your PIN. Change delivery location or choose another seller.");
       openDeliveryModal();
@@ -472,6 +487,10 @@ export function ProductDetailPage({
   };
 
   const handleBuyNow = async () => {
+    if (sellerUnavailable) {
+      toast.error(sellerUnavailableLabel);
+      return;
+    }
     if (deliveryEligible === false) {
       toast.error("This item is not deliverable to your PIN. Change delivery location or choose another seller.");
       openDeliveryModal();
@@ -805,15 +824,15 @@ export function ProductDetailPage({
                 <button
                   type="button"
                   onClick={handleAddToCart}
-                  disabled={addingToCart || deliveryEligible === false || stockBlocked}
+                  disabled={addingToCart || deliveryEligible === false || purchaseBlocked}
                   style={{
                     width: "100%",
                     height: 44,
                     background:
-                      addingToCart || deliveryEligible === false || stockBlocked ? "#CC5500" : "#FF6A00",
+                      addingToCart || deliveryEligible === false || purchaseBlocked ? "#CC5500" : "#FF6A00",
                     border: "none",
                     borderRadius: 10,
-                    cursor: addingToCart || deliveryEligible === false || stockBlocked ? "not-allowed" : "pointer",
+                    cursor: addingToCart || deliveryEligible === false || purchaseBlocked ? "not-allowed" : "pointer",
                     fontFamily: "'Manrope', sans-serif",
                     fontWeight: 700,
                     fontSize: 15,
@@ -821,17 +840,19 @@ export function ProductDetailPage({
                     transition: "background 0.15s",
                   }}
                   onMouseEnter={(e) => {
-                    if (!addingToCart && deliveryEligible !== false)
+                    if (!addingToCart && deliveryEligible !== false && !purchaseBlocked)
                       (e.currentTarget as HTMLButtonElement).style.background = "#E55F00";
                   }}
                   onMouseLeave={(e) => {
-                    if (!addingToCart && deliveryEligible !== false)
+                    if (!addingToCart && deliveryEligible !== false && !purchaseBlocked)
                       (e.currentTarget as HTMLButtonElement).style.background = "#FF6A00";
                   }}
                 >
                   {addingToCart
                     ? "Adding…"
-                    : deliveryEligible === false
+                    : sellerUnavailable
+                      ? sellerUnavailableLabel
+                      : deliveryEligible === false
                       ? "Not deliverable here"
                       : stockBlocked
                         ? "Out of stock"
@@ -841,20 +862,20 @@ export function ProductDetailPage({
                 {/* Buy Now */}
                 <button
                   onClick={handleBuyNow}
-                  disabled={buyNowLoading || deliveryEligible === false || stockBlocked}
+                  disabled={buyNowLoading || deliveryEligible === false || purchaseBlocked}
                   style={{
                     width: "100%",
                     height: 44,
                     background: "#FFF0E0",
                     border: "2px solid #FF6A00",
                     borderRadius: 10,
-                    cursor: buyNowLoading || deliveryEligible === false || stockBlocked ? "not-allowed" : "pointer",
+                    cursor: buyNowLoading || deliveryEligible === false || purchaseBlocked ? "not-allowed" : "pointer",
                     fontFamily: "'Manrope', sans-serif",
                     fontWeight: 700,
                     fontSize: 15,
                     color: "#FF6A00",
                     transition: "background 0.15s",
-                    opacity: buyNowLoading || deliveryEligible === false || stockBlocked ? 0.65 : 1,
+                    opacity: buyNowLoading || deliveryEligible === false || purchaseBlocked ? 0.65 : 1,
                   }}
                   onMouseEnter={(e) => {
                     if (!buyNowLoading && deliveryEligible !== false)
@@ -867,7 +888,9 @@ export function ProductDetailPage({
                 >
                   {buyNowLoading
                     ? "Adding…"
-                    : deliveryEligible === false
+                    : sellerUnavailable
+                      ? sellerUnavailableLabel
+                      : deliveryEligible === false
                       ? "Not deliverable here"
                       : stockBlocked
                         ? "Out of stock"
@@ -1359,19 +1382,35 @@ export function ProductDetailPage({
               </div>
             )}
 
-            {/* Stock */}
+            {/* Stock / availability */}
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <span
                 style={{
                   fontFamily: "'Manrope', sans-serif",
                   fontWeight: 700,
                   fontSize: 13,
-                  color: displayStock > 0 ? "#16A34A" : "#DC2626",
+                  color: sellerUnavailable ? "#DC2626" : displayStock > 0 ? "#16A34A" : "#DC2626",
                 }}
               >
-                {displayStock > 0 ? `● In stock (${displayStock} left)` : "● Out of stock"}
+                {sellerUnavailable
+                  ? `● ${sellerUnavailableLabel}`
+                  : displayStock > 0
+                    ? `● In stock (${displayStock} left)`
+                    : "● Out of stock"}
               </span>
             </div>
+            {sellerUnavailable && (
+              <p
+                style={{
+                  fontFamily: "'Manrope', sans-serif",
+                  fontSize: 12,
+                  color: "#6B7280",
+                  margin: "4px 0 0",
+                }}
+              >
+                This seller is temporarily suspended. The product will be available again when the seller is reinstated.
+              </p>
+            )}
           </div>
 
           {/* Key Features */}
@@ -1751,13 +1790,15 @@ export function ProductDetailPage({
             <button
               type="button"
               onClick={handleAddToCart}
-              disabled={addingToCart || deliveryEligible === false || stockBlocked}
+              disabled={addingToCart || deliveryEligible === false || purchaseBlocked}
               className="h-10 rounded-lg bg-[#FF6A00] text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-70 sm:text-sm"
               style={{ fontFamily: "'Manrope', sans-serif" }}
             >
               {addingToCart
                 ? "…"
-                : deliveryEligible === false
+                : sellerUnavailable
+                  ? "N/A"
+                  : deliveryEligible === false
                   ? "N/A"
                   : stockBlocked
                     ? "Out"
@@ -1766,13 +1807,15 @@ export function ProductDetailPage({
             <button
               type="button"
               onClick={handleBuyNow}
-              disabled={buyNowLoading || deliveryEligible === false || stockBlocked}
+              disabled={buyNowLoading || deliveryEligible === false || purchaseBlocked}
               className="h-10 rounded-lg border-2 border-[#FF6A00] bg-[#FFF0E0] text-xs font-bold text-[#FF6A00] disabled:cursor-not-allowed disabled:opacity-65 sm:text-sm"
               style={{ fontFamily: "'Manrope', sans-serif" }}
             >
               {buyNowLoading
                 ? "…"
-                : deliveryEligible === false
+                : sellerUnavailable
+                  ? "N/A"
+                  : deliveryEligible === false
                   ? "N/A"
                   : stockBlocked
                     ? "Out"

@@ -43,6 +43,7 @@ export async function getCartItems(userId: string): Promise<CartItemWithProduct[
           stock: true,
           status: true,
           deletedAt: true,
+          seller: { select: { status: true, deletedAt: true } },
           productVariants: {
             where: { deletedAt: null },
             select: { color: true, size: true, price: true, stock: true, image: true, images: true },
@@ -70,7 +71,9 @@ export async function getCartItems(userId: string): Promise<CartItemWithProduct[
       const snapshotSelling =
         i.listedUnitSellingPrice != null ? Number(i.listedUnitSellingPrice) : null;
       const snapshotMrp = i.listedUnitMrp != null ? Number(i.listedUnitMrp) : null;
-      const listingPaused = p.status !== "ACTIVE";
+      const sellerBlocked =
+        p.seller?.deletedAt != null || (p.seller != null && p.seller.status !== "APPROVED");
+      const listingPaused = p.status !== "ACTIVE" || sellerBlocked;
       let sellingPrice: number;
       let mrp: number;
       if (snapshotSelling != null) {
@@ -282,6 +285,7 @@ export async function getSavedForLaterItems(userId: string): Promise<CartItemWit
           stock: true,
           status: true,
           deletedAt: true,
+          seller: { select: { status: true, deletedAt: true } },
           productVariants: {
             where: { deletedAt: null },
             select: { color: true, size: true, price: true, stock: true, image: true, images: true },
@@ -307,7 +311,9 @@ export async function getSavedForLaterItems(userId: string): Promise<CartItemWit
       const snapshotSelling =
         i.listedUnitSellingPrice != null ? Number(i.listedUnitSellingPrice) : null;
       const snapshotMrp = i.listedUnitMrp != null ? Number(i.listedUnitMrp) : null;
-      const listingPaused = p.status !== "ACTIVE";
+      const sellerBlocked =
+        p.seller?.deletedAt != null || (p.seller != null && p.seller.status !== "APPROVED");
+      const listingPaused = p.status !== "ACTIVE" || sellerBlocked;
       let sellingPrice: number;
       let mrp: number;
       if (snapshotSelling != null) {

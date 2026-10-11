@@ -1,6 +1,7 @@
 export { emailConfig } from "./config";
 export { sendMail, type SendMailOptions } from "./send";
 export { sendVendorVerificationEmail } from "./vendor-verification";
+export { sendVendorNewOrderEmail } from "./vendor-new-order";
 export { sendCustomerVerificationEmail } from "./customer-verification";
 export { sendCustomerEmailOtpEmail } from "./customer-email-otp";
 export { sendVendorPasswordResetEmail } from "./vendor-password-reset";
