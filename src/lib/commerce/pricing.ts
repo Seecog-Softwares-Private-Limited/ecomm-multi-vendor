@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { DEFAULT_GST_PERCENT } from "@/lib/constants/gst";
+import { DEFAULT_GST_PERCENT, computeGstAmount } from "@/lib/constants/gst";
 import { calculateShippingAmount } from "@/lib/constants/shipping";
 import { assertCouponLimitsForUser } from "@/lib/commerce/coupon-usage";
 
@@ -39,7 +39,11 @@ export function computeLineSubtotal(lines: PricedCheckoutLine[]): number {
 export function computeTaxAmount(lines: PricedCheckoutLine[]): number {
   return lines.reduce((sum, l) => {
     const gst = l.gstPercent ?? DEFAULT_GST_PERCENT;
-    return sum + l.unitSellingPrice * l.quantity * (gst / 100);
+    const lineAmount = l.unitSellingPrice * l.quantity;
+    // GST exclusive (add on top of selling price) — kept for rollback:
+    // return sum + lineAmount * (gst / 100);
+    // GST inclusive (selling price already includes GST):
+    return sum + computeGstAmount(lineAmount, gst);
   }, 0);
 }
 
@@ -92,8 +96,12 @@ export function buildCheckoutTotals(
   const subtotal = computeLineSubtotal(lines);
   const amountAfterDiscount = Math.max(0, subtotal - discountAmount);
   const shippingAmount = calculateShippingAmount(amountAfterDiscount);
+  // taxAmount is the GST portion inside inclusive prices (for display / invoices).
   const taxAmount = computeTaxAmount(lines);
-  const totalAmount = amountAfterDiscount + shippingAmount + taxAmount;
+  // GST exclusive total (add tax on top) — kept for rollback:
+  // const totalAmount = amountAfterDiscount + shippingAmount + taxAmount;
+  // GST inclusive: listed prices already include GST, so do not add tax again.
+  const totalAmount = amountAfterDiscount + shippingAmount;
 
   return {
     subtotal,

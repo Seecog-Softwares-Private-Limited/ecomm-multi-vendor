@@ -19,6 +19,39 @@ export type SellerValidationRow = {
   businessName: string;
 };
 
+/** True when the seller may sell / appear as available on the storefront. */
+export function isSellerSellable(
+  seller: Pick<SellerValidationRow, "status" | "deletedAt">
+): boolean {
+  return seller.deletedAt == null && seller.status === "APPROVED";
+}
+
+/** Customer-facing label when a listing should show as unavailable. */
+export function getSellerUnavailableLabel(
+  seller: Pick<SellerValidationRow, "status" | "deletedAt">
+): string {
+  if (seller.deletedAt != null) return "Not available";
+  if (seller.status === "SUSPENDED") return "Not available";
+  if (seller.status === "ON_HOLD") return "Not available";
+  if (seller.status === "REJECTED") return "Not available";
+  return "Not available";
+}
+
+export function catalogAvailabilityFromSeller(
+  seller: Pick<SellerValidationRow, "status" | "deletedAt"> | null | undefined
+): { available: boolean; unavailableReason: string | null } {
+  if (!seller) {
+    return { available: false, unavailableReason: "Not available" };
+  }
+  if (isSellerSellable(seller)) {
+    return { available: true, unavailableReason: null };
+  }
+  return {
+    available: false,
+    unavailableReason: getSellerUnavailableLabel(seller),
+  };
+}
+
 export function assertSellerCanSell(seller: SellerValidationRow, productName?: string): void {
   const label = productName ? `"${productName}"` : "One or more items";
 

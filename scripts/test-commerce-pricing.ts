@@ -24,7 +24,10 @@ assert.equal(computeLineSubtotal(lines), 200);
 const totals = buildCheckoutTotals(lines, 10, null, null);
 assert.equal(totals.subtotal, 200);
 assert.equal(totals.discountAmount, 10);
-assert.equal(totals.totalAmount, 200 - 10 + totals.shippingAmount + totals.taxAmount);
+// GST inclusive: tax is portion of price, not added again to total.
+// Exclusive rollback would be: 200 - 10 + shipping + tax
+assert.equal(totals.totalAmount, 200 - 10 + totals.shippingAmount);
+assert.ok(totals.taxAmount > 0);
 
 const changes = detectPriceChanges(
   [{ productId: "p1", variantKey: null, unitSellingPrice: 100, productName: "Shoe" }],

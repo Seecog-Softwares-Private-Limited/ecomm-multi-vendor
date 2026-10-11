@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { TopBar } from "@/components/TopBar";
 import { Navbar } from "@/components/Navbar";
-import { DEFAULT_GST_PERCENT } from "@/lib/constants/gst";
+import { DEFAULT_GST_PERCENT, computeGstAmount } from "@/lib/constants/gst";
 import { calculateShippingAmount } from "@/lib/constants/shipping";
 import { storefrontTermsOfServiceHref } from "@/lib/cms-footer-pages";
 import { DEFAULT_PRODUCT_IMAGE_URL } from "@/lib/product-image";
@@ -158,15 +158,27 @@ export function CheckoutPage() {
   const discount = 0;
   const amountAfterDiscount = Math.max(0, subtotal - discount);
   const shipping = calculateShippingAmount(amountAfterDiscount);
+  // GST exclusive (add on top) — kept for rollback:
+  // const tax = cartItems.reduce(
+  //   (sum, it) =>
+  //     sum +
+  //     it.product.sellingPrice *
+  //       it.quantity *
+  //       ((it.product.gstPercent ?? DEFAULT_GST_PERCENT) / 100),
+  //   0
+  // );
+  // const total = amountAfterDiscount + shipping + tax;
+  // GST inclusive (prices already include GST):
   const tax = cartItems.reduce(
     (sum, it) =>
       sum +
-      it.product.sellingPrice *
-        it.quantity *
-        ((it.product.gstPercent ?? DEFAULT_GST_PERCENT) / 100),
+      computeGstAmount(
+        it.product.sellingPrice * it.quantity,
+        it.product.gstPercent ?? DEFAULT_GST_PERCENT
+      ),
     0
   );
-  const total = amountAfterDiscount + shipping + tax;
+  const total = amountAfterDiscount + shipping;
 
   const openRazorpayCheckout = async (
     orderId: string,
@@ -830,9 +842,9 @@ export function CheckoutPage() {
                     )}
                   </div>
                   <div className="flex justify-between text-[15px]">
-                    <span className="text-[#6B7280]">GST</span>
+                    <span className="text-[#6B7280]">GST (included)</span>
                     <span className="font-semibold text-[#111827]">
-                      ₹{tax.toLocaleString("en-IN")}
+                      ₹{tax.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
                     </span>
                   </div>
                 </div>

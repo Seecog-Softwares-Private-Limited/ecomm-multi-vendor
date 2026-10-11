@@ -291,6 +291,11 @@ export async function confirmRazorpayPayment(
 
   void notifyCustomerPaymentSuccess(order.id, order.userId).catch(() => undefined);
 
+  const { notifyVendorsOfNewOrder } = await import(
+    "@/lib/notifications/vendor-order-emails"
+  );
+  void notifyVendorsOfNewOrder(order.id).catch(() => undefined);
+
   return { orderId: order.id, verified: true, recovered: false };
 }
 

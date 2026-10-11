@@ -34,6 +34,13 @@ export interface ProductListItem {
   imageUrl?: string;
   /** ISO timestamp; used for newest/oldest sort on listing pages. */
   createdAt?: string;
+  /**
+   * False when the seller is blocked/suspended/on hold/rejected (or deleted).
+   * Defaults to true when omitted (older API payloads).
+   */
+  available?: boolean;
+  /** Short customer-facing reason when `available` is false (e.g. "Not available"). */
+  unavailableReason?: string | null;
 }
 
 /** Sellable SKU row (vendor-defined); when non-empty, PDP uses these for price/stock/options. */
@@ -68,6 +75,13 @@ export interface ProductDetail {
   variations: { name: string; values: string[] }[];
   /** SKU combinations with own price/stock (optional). */
   skuVariants: ProductSkuVariant[];
+  /**
+   * False when the seller is blocked/suspended/on hold/rejected (or deleted).
+   * Defaults to true when omitted (older API payloads).
+   */
+  available?: boolean;
+  /** Short customer-facing reason when `available` is false (e.g. "Not available"). */
+  unavailableReason?: string | null;
 }
 
 export interface ReviewItem {

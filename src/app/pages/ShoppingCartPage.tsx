@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { TopBar } from "@/components/TopBar";
 import { Navbar } from "@/components/Navbar";
-import { DEFAULT_GST_PERCENT } from "@/lib/constants/gst";
+import { DEFAULT_GST_PERCENT, computeGstAmount } from "@/lib/constants/gst";
 import {
   calculateShippingAmount,
   isShippingPromoEnabled,
@@ -118,15 +118,27 @@ export function ShoppingCartPage() {
   );
   const discount = couponApplied ? subtotal * 0.1 : 0;
   const shipping = calculateShippingAmount(subtotal);
+  // GST exclusive (add on top) — kept for rollback:
+  // const tax = items.reduce(
+  //   (sum, it) =>
+  //     sum +
+  //     it.product.sellingPrice *
+  //       it.quantity *
+  //       ((it.product.gstPercent ?? DEFAULT_GST_PERCENT) / 100),
+  //   0
+  // );
+  // const total = Math.max(0, subtotal - discount + shipping + tax);
+  // GST inclusive (prices already include GST):
   const tax = items.reduce(
     (sum, it) =>
       sum +
-      it.product.sellingPrice *
-        it.quantity *
-        ((it.product.gstPercent ?? DEFAULT_GST_PERCENT) / 100),
+      computeGstAmount(
+        it.product.sellingPrice * it.quantity,
+        it.product.gstPercent ?? DEFAULT_GST_PERCENT
+      ),
     0
   );
-  const total = Math.max(0, subtotal - discount + shipping + tax);
+  const total = Math.max(0, subtotal - discount + shipping);
 
   const handleQuantityChange = async (cartItemId: string, newQty: number) => {
     if (newQty < 1 || newQty > 99) return;
@@ -435,9 +447,9 @@ export function ShoppingCartPage() {
                     )}
                   </div>
                   <div className="flex justify-between text-[15px]">
-                    <span className="text-[#6B7280]">Tax</span>
+                    <span className="text-[#6B7280]">GST (included)</span>
                     <span className="font-semibold text-[#111827]">
-                      ₹{tax.toLocaleString("en-IN")}
+                      ₹{tax.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
                     </span>
                   </div>
                 </div>

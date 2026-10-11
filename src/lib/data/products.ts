@@ -6,6 +6,16 @@ import { coalesceVariantImagesFromDb } from "@/lib/product-sku-variant";
 import { memCacheGetOrSet } from "@/lib/utils/mem-cache";
 import type { ProductDetail, ProductListItem, ReviewItem, ProductQuestionItem } from "@/types/catalog";
 import { ensureProductImageList, resolveProductImageUrl } from "@/lib/product-image";
+import { catalogAvailabilityFromSeller } from "@/lib/commerce/vendor-validation";
+
+const productListSellerSelect = {
+  status: true,
+  deletedAt: true,
+} as const;
+
+function listItemAvailability(seller: { status: import("@prisma/client").SellerStatus; deletedAt: Date | null } | null | undefined) {
+  return catalogAvailabilityFromSeller(seller);
+}
 
 const CAT_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
@@ -143,20 +153,26 @@ export async function getProducts(options: {
       reviewCount: true,
       createdAt: true,
       images: { take: 1, orderBy: { sortOrder: "asc" }, select: { url: true } },
+      seller: { select: productListSellerSelect },
     },
   });
 
-  return list.map((p) => ({
-    id: p.id,
-    name: p.name,
-    slug: p.slug ?? p.id,
-    price: toNumber(p.sellingPrice),
-    oldPrice: toNumber(p.mrp) > toNumber(p.sellingPrice) ? toNumber(p.mrp) : undefined,
-    rating: toNumber(p.avgRating) || 0,
-    reviews: p.reviewCount ?? 0,
-    imageUrl: resolveProductImageUrl(p.images[0]?.url),
-    createdAt: p.createdAt.toISOString(),
-  }));
+  return list.map((p) => {
+    const avail = listItemAvailability(p.seller);
+    return {
+      id: p.id,
+      name: p.name,
+      slug: p.slug ?? p.id,
+      price: toNumber(p.sellingPrice),
+      oldPrice: toNumber(p.mrp) > toNumber(p.sellingPrice) ? toNumber(p.mrp) : undefined,
+      rating: toNumber(p.avgRating) || 0,
+      reviews: p.reviewCount ?? 0,
+      imageUrl: resolveProductImageUrl(p.images[0]?.url),
+      createdAt: p.createdAt.toISOString(),
+      available: avail.available,
+      unavailableReason: avail.unavailableReason,
+    };
+  });
 }
 
 /**
@@ -217,20 +233,26 @@ export async function getRelatedProducts(
       reviewCount: true,
       createdAt: true,
       images: { take: 1, orderBy: { sortOrder: "asc" }, select: { url: true } },
+      seller: { select: productListSellerSelect },
     },
   });
 
-  return list.map((p) => ({
-    id: p.id,
-    name: p.name,
-    slug: p.slug ?? p.id,
-    price: toNumber(p.sellingPrice),
-    oldPrice: toNumber(p.mrp) > toNumber(p.sellingPrice) ? toNumber(p.mrp) : undefined,
-    rating: toNumber(p.avgRating) || 0,
-    reviews: p.reviewCount ?? 0,
-    imageUrl: resolveProductImageUrl(p.images[0]?.url),
-    createdAt: p.createdAt.toISOString(),
-  }));
+  return list.map((p) => {
+    const avail = listItemAvailability(p.seller);
+    return {
+      id: p.id,
+      name: p.name,
+      slug: p.slug ?? p.id,
+      price: toNumber(p.sellingPrice),
+      oldPrice: toNumber(p.mrp) > toNumber(p.sellingPrice) ? toNumber(p.mrp) : undefined,
+      rating: toNumber(p.avgRating) || 0,
+      reviews: p.reviewCount ?? 0,
+      imageUrl: resolveProductImageUrl(p.images[0]?.url),
+      createdAt: p.createdAt.toISOString(),
+      available: avail.available,
+      unavailableReason: avail.unavailableReason,
+    };
+  });
 }
 
 const MENU_TYPE_NAMES: Record<MenuTypeSlug, string> = {
@@ -264,6 +286,35 @@ export async function getProductsByMenuType(
     reviewCount: true,
     createdAt: true,
     images: { take: 1, orderBy: { sortOrder: "asc" as const }, select: { url: true } },
+    seller: { select: productListSellerSelect },
+  };
+
+  const toListItem = (p: {
+    id: string;
+    name: string;
+    slug: string | null;
+    sellingPrice: unknown;
+    mrp: unknown;
+    avgRating: unknown;
+    reviewCount: number | null;
+    createdAt: Date;
+    images: { url: string }[];
+    seller: { status: import("@prisma/client").SellerStatus; deletedAt: Date | null };
+  }): ProductListItem => {
+    const avail = listItemAvailability(p.seller);
+    return {
+      id: p.id,
+      name: p.name,
+      slug: p.slug ?? p.id,
+      price: toNumber(p.sellingPrice),
+      oldPrice: toNumber(p.mrp) > toNumber(p.sellingPrice) ? toNumber(p.mrp) : undefined,
+      rating: toNumber(p.avgRating) || 0,
+      reviews: p.reviewCount ?? 0,
+      imageUrl: resolveProductImageUrl(p.images[0]?.url),
+      createdAt: p.createdAt.toISOString(),
+      available: avail.available,
+      unavailableReason: avail.unavailableReason,
+    };
   };
 
   if (type === "deals") {
@@ -276,15 +327,8 @@ export async function getProductsByMenuType(
     const withDiscount = list
       .filter((p) => toNumber(p.mrp) > toNumber(p.sellingPrice))
       .map((p) => ({
-        id: p.id,
-        name: p.name,
-        slug: p.slug ?? p.id,
-        price: toNumber(p.sellingPrice),
+        ...toListItem(p),
         oldPrice: toNumber(p.mrp),
-        rating: toNumber(p.avgRating) || 0,
-        reviews: p.reviewCount ?? 0,
-        imageUrl: resolveProductImageUrl(p.images[0]?.url),
-        createdAt: p.createdAt.toISOString(),
         _discountPct: toNumber(p.mrp) > 0
           ? ((toNumber(p.mrp) - toNumber(p.sellingPrice)) / toNumber(p.mrp)) * 100
           : 0,
@@ -302,17 +346,7 @@ export async function getProductsByMenuType(
       skip: offset,
       select,
     });
-    return list.map((p) => ({
-      id: p.id,
-      name: p.name,
-      slug: p.slug ?? p.id,
-      price: toNumber(p.sellingPrice),
-      oldPrice: toNumber(p.mrp) > toNumber(p.sellingPrice) ? toNumber(p.mrp) : undefined,
-      rating: toNumber(p.avgRating) || 0,
-      reviews: p.reviewCount ?? 0,
-      imageUrl: resolveProductImageUrl(p.images[0]?.url),
-      createdAt: p.createdAt.toISOString(),
-    }));
+    return list.map(toListItem);
   }
 
   if (type === "best-sellers") {
@@ -323,17 +357,7 @@ export async function getProductsByMenuType(
       skip: offset,
       select,
     });
-    return list.map((p) => ({
-      id: p.id,
-      name: p.name,
-      slug: p.slug ?? p.id,
-      price: toNumber(p.sellingPrice),
-      oldPrice: toNumber(p.mrp) > toNumber(p.sellingPrice) ? toNumber(p.mrp) : undefined,
-      rating: toNumber(p.avgRating) || 0,
-      reviews: p.reviewCount ?? 0,
-      imageUrl: resolveProductImageUrl(p.images[0]?.url),
-      createdAt: p.createdAt.toISOString(),
-    }));
+    return list.map(toListItem);
   }
 
   return [];
@@ -499,6 +523,7 @@ export async function getProductBySlug(slug: string): Promise<ProductDetail | nu
   const product = await prisma.product.findFirst({
     where: { slug: normalized, deletedAt: null, status: "ACTIVE" },
     include: {
+      seller: { select: productListSellerSelect },
       images: { where: { deletedAt: null }, orderBy: { sortOrder: "asc" }, select: { url: true } },
       specifications: { where: { deletedAt: null }, select: { key: true, value: true } },
       variations: { where: { deletedAt: null }, select: { name: true, values: true } },
@@ -514,6 +539,7 @@ export async function getProductBySlug(slug: string): Promise<ProductDetail | nu
 
   const valuesFromJson = (v: unknown): string[] =>
     Array.isArray(v) ? v.map((x) => String(x)) : [];
+  const avail = listItemAvailability(product.seller);
 
   return {
     id: product.id,
@@ -532,6 +558,8 @@ export async function getProductBySlug(slug: string): Promise<ProductDetail | nu
       name: v.name,
       values: valuesFromJson(v.values),
     })),
+    available: avail.available,
+    unavailableReason: avail.unavailableReason,
     skuVariants: (product.productVariants ?? []).map((v) => {
       const imgs = ensureProductImageList(coalesceVariantImagesFromDb(v.images, v.image));
       return {
@@ -555,6 +583,7 @@ export async function getProductById(id: string): Promise<ProductDetail | null> 
   const product = await prisma.product.findFirst({
     where: { id, deletedAt: null, status: "ACTIVE" },
     include: {
+      seller: { select: productListSellerSelect },
       images: { where: { deletedAt: null }, orderBy: { sortOrder: "asc" }, select: { url: true } },
       specifications: { where: { deletedAt: null }, select: { key: true, value: true } },
       variations: { where: { deletedAt: null }, select: { name: true, values: true } },
@@ -570,6 +599,7 @@ export async function getProductById(id: string): Promise<ProductDetail | null> 
 
   const valuesFromJson = (v: unknown): string[] =>
     Array.isArray(v) ? v.map((x) => String(x)) : [];
+  const avail = listItemAvailability(product.seller);
 
   return {
     id: product.id,
@@ -588,6 +618,8 @@ export async function getProductById(id: string): Promise<ProductDetail | null> 
       name: v.name,
       values: valuesFromJson(v.values),
     })),
+    available: avail.available,
+    unavailableReason: avail.unavailableReason,
     skuVariants: (product.productVariants ?? []).map((v) => {
       const imgs = ensureProductImageList(coalesceVariantImagesFromDb(v.images, v.image));
       return {

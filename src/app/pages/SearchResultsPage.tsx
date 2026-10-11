@@ -305,8 +305,12 @@ export function SearchResultsPage() {
                     </div>
                     <button
                       type="button"
-                      disabled={addingToCartId === product.id}
+                      disabled={addingToCartId === product.id || product.available === false}
                       onClick={async () => {
+                        if (product.available === false) {
+                          toast.error(product.unavailableReason ?? "Not available");
+                          return;
+                        }
                         setAddingToCartId(product.id);
                         try {
                           const res = await fetch("/api/cart/items", {
@@ -350,7 +354,11 @@ export function SearchResultsPage() {
                       className="flex items-center justify-center gap-2 w-full py-2.5 bg-[#FF6A00] text-white rounded-xl font-semibold hover:bg-[#E55F00] transition-colors disabled:opacity-60"
                     >
                       <ShoppingCart className="w-4 h-4" />
-                      {addingToCartId === product.id ? "Adding…" : "Add to Cart"}
+                      {product.available === false
+                        ? product.unavailableReason ?? "Not available"
+                        : addingToCartId === product.id
+                          ? "Adding…"
+                          : "Add to Cart"}
                     </button>
                   </div>
                 </div>
