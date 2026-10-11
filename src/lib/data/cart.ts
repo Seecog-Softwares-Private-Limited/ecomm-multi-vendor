@@ -3,6 +3,7 @@ import { resolveProductImageUrl } from "@/lib/product-image";
 import { coalesceVariantImagesFromDb, resolveSkuRowForCart } from "@/lib/product-sku-variant";
 import { incrementCartVersion } from "@/lib/commerce/cart-version";
 import { invalidateCartCache } from "@/lib/commerce/cache";
+import { isProductOrderable } from "@/lib/commerce/vendor-validation";
 
 export type CartItemWithProduct = {
   id: string;
@@ -26,9 +27,48 @@ export type CartItemWithProduct = {
 };
 
 /**
+ * Soft-delete cart lines whose product is draft/inactive/deleted or whose seller
+ * cannot sell. Returns removed product names (for messaging).
+ */
+export async function pruneUnavailableCartItems(userId: string): Promise<string[]> {
+  const rows = await prisma.cartItem.findMany({
+    where: { userId, deletedAt: null, savedForLater: false },
+    select: {
+      id: true,
+      product: {
+        select: {
+          name: true,
+          status: true,
+          deletedAt: true,
+          seller: { select: { status: true, deletedAt: true } },
+        },
+      },
+    },
+  });
+
+  const toRemove = rows.filter(
+    (r) => !r.product || !isProductOrderable(r.product)
+  );
+  if (toRemove.length === 0) return [];
+
+  const now = new Date();
+  await prisma.cartItem.updateMany({
+    where: { id: { in: toRemove.map((r) => r.id) }, userId, deletedAt: null },
+    data: { deletedAt: now, updatedAt: now },
+  });
+  await incrementCartVersion(userId);
+  invalidateCartCache(userId);
+
+  return toRemove.map((r) => r.product?.name ?? "An item").filter(Boolean);
+}
+
+/**
  * Get all cart items for a user with product details.
+ * Unavailable (draft/suspended-seller) lines are removed so they cannot block checkout.
  */
 export async function getCartItems(userId: string): Promise<CartItemWithProduct[]> {
+  await pruneUnavailableCartItems(userId);
+
   const items = await prisma.cartItem.findMany({
     where: { userId, deletedAt: null, savedForLater: false },
     include: {
@@ -61,7 +101,7 @@ export async function getCartItems(userId: string): Promise<CartItemWithProduct[
   });
 
   return items
-    .filter((i) => i.product != null && i.product.deletedAt == null)
+    .filter((i) => i.product != null && isProductOrderable(i.product))
     .map((i) => {
       const p = i.product!;
       const pv = p.productVariants ?? [];

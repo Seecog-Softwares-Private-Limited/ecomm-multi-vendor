@@ -26,7 +26,8 @@ import { consumeCouponUse } from "./coupon-usage";
 import { consumeSessionReservations } from "./stock-reservation";
 import { extendPaymentWindowForSession } from "./payment-window";
 import { confirmRazorpayPayment } from "./payment-completion.service";
-import { validateSellersForProducts } from "./vendor-validation";
+import { isProductOrderable, validateSellersForProducts } from "./vendor-validation";
+import { pruneUnavailableCartItems } from "@/lib/data/cart";
 
 export type PlaceOrderInput = {
   userId: string;
@@ -150,6 +151,8 @@ export async function placeOrderFromCheckoutSession(
               id: true,
               name: true,
               sku: true,
+              status: true,
+              deletedAt: true,
               gstPercent: true,
               sellingPrice: true,
               productVariants: {
@@ -247,6 +250,15 @@ export async function placeOrderFromCheckoutSession(
   });
   if (!address) {
     throw new ApiRouteError("Invalid or missing shipping address.", Status.BAD_REQUEST, "INVALID_ADDRESS");
+  }
+
+  const unavailableLine = sessionRow.lines.find((l) => !isProductOrderable(l.product));
+  if (unavailableLine) {
+    throw new ApiRouteError(
+      `"${unavailableLine.product.name}" is no longer available. Please refresh your cart and try again.`,
+      Status.BAD_REQUEST,
+      "PRODUCT_UNAVAILABLE"
+    );
   }
 
   validateSellersForProducts(
@@ -522,12 +534,19 @@ export async function placeLegacyCartOrder(
   couponCode?: string | null,
   idempotencyKey?: string | null
 ): Promise<PlaceOrderResult> {
+  // Remove draft / unavailable products left in the cart before building checkout.
+  await pruneUnavailableCartItems(userId);
+
   const cartItems = await prisma.cartItem.findMany({
     where: { userId, deletedAt: null, savedForLater: false },
     select: { id: true },
   });
   if (cartItems.length === 0) {
-    throw new ApiRouteError("Your cart is empty.", Status.BAD_REQUEST, "EMPTY_CART");
+    throw new ApiRouteError(
+      "Your cart is empty or only contained unavailable items. Please add products and try again.",
+      Status.BAD_REQUEST,
+      "EMPTY_CART"
+    );
   }
 
   const cartItemIds = cartItems.map((c) => c.id);

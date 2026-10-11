@@ -69,7 +69,7 @@ class WebViewUrlPolicy {
     return true;
   }
 
-  /// Schemes that should be handed to another app (phone, mail, maps, etc.).
+  /// Schemes that should be handed to another app (phone, mail, maps, UPI, etc.).
   bool isExternalAppScheme(Uri uri) {
     final scheme = uri.scheme.toLowerCase();
     return scheme == 'tel' ||
@@ -82,6 +82,10 @@ class WebViewUrlPolicy {
         scheme == 'upi' ||
         scheme == 'phonepe' ||
         scheme == 'gpay' ||
-        scheme == 'paytmmp';
+        scheme == 'tez' || // Google Pay (India)
+        scheme == 'paytmmp' ||
+        scheme == 'bhim' ||
+        scheme == 'amazonpay' ||
+        scheme == 'ppe'; // PhonePe alternate
   }
 }

@@ -86,10 +86,18 @@ class _CustomerWebViewScreenState extends State<CustomerWebViewScreen> {
             });
             // Re-inject after every main-frame document start (reload/navigation).
             unawaited(_injectCustomerNativeMarker(url));
+            final uri = Uri.tryParse(url);
+            // Some Android WebViews surface intent:/upi: as page starts instead
+            // of onNavigationRequest — hand them to the UPI app immediately.
+            if (uri != null &&
+                (widget.urlPolicy.isExternalAppScheme(uri) ||
+                    uri.scheme == 'intent')) {
+              unawaited(_openExternal(uri));
+              return;
+            }
             // Android often skips onNavigationRequest for 302 → Google.
             // Catch Google hosts here and restart a clean native OAuth start
             // instead of letting a truncated authorize URL show Error 400.
-            final uri = Uri.tryParse(url);
             if (uri != null &&
                 widget.oauthBridge.isGoogleAuthorizationHost(uri)) {
               GoogleOAuthDebug.log(
@@ -410,21 +418,61 @@ class _CustomerWebViewScreenState extends State<CustomerWebViewScreen> {
         return;
       }
 
-      final mode = LaunchMode.externalApplication;
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: mode);
+      // Prefer externalApplication. Do not require canLaunchUrl first —
+      // on Android 11+ it often returns false for UPI schemes even when
+      // GPay/PhonePe are installed (package visibility), which left Razorpay
+      // stuck on "Processing your payment".
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!launched && await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
       }
     } catch (_) {
       // Swallow — user can retry from the website.
     }
   }
 
+  /// Razorpay UPI Intent URLs look like:
+  /// `intent://pay?...#Intent;scheme=upi;package=...;S.browser_fallback_url=...;end`
+  ///
+  /// Prefer launching the UPI app scheme first. Using the browser fallback first
+  /// leaves checkout stuck on "Processing your payment" and never opens GPay/PhonePe.
   Future<void> _launchAndroidIntent(Uri uri) async {
     final raw = uri.toString();
-    final schemeMatch = RegExp(r'scheme=([^;]+)').firstMatch(raw);
+    final schemeMatch = RegExp(r'[;:]scheme=([^;]+)').firstMatch(raw);
     final fallbackMatch = RegExp(
       r'S\.browser_fallback_url=([^;]+)',
     ).firstMatch(raw);
+
+    if (schemeMatch != null) {
+      final scheme = schemeMatch.group(1)!.trim();
+      final pathAndQuery = raw
+          .replaceFirst(RegExp(r'^intent:'), '')
+          .split('#Intent')
+          .first;
+      final rewritten = '$scheme:$pathAndQuery';
+      final launchUri = Uri.tryParse(rewritten);
+      if (launchUri != null) {
+        try {
+          final launched = await launchUrl(
+            launchUri,
+            mode: LaunchMode.externalApplication,
+          );
+          if (launched) return;
+        } catch (_) {
+          // Fall through to browser fallback.
+        }
+        if (await canLaunchUrl(launchUri)) {
+          final launched = await launchUrl(
+            launchUri,
+            mode: LaunchMode.externalApplication,
+          );
+          if (launched) return;
+        }
+      }
+    }
 
     if (fallbackMatch != null) {
       final fallback = Uri.tryParse(
@@ -432,19 +480,6 @@ class _CustomerWebViewScreenState extends State<CustomerWebViewScreen> {
       );
       if (fallback != null && await canLaunchUrl(fallback)) {
         await launchUrl(fallback, mode: LaunchMode.externalApplication);
-        return;
-      }
-    }
-
-    if (schemeMatch != null) {
-      final scheme = schemeMatch.group(1)!;
-      final rewritten = raw
-          .replaceFirst('intent:', '$scheme:')
-          .split('#Intent')
-          .first;
-      final launchUri = Uri.tryParse(rewritten);
-      if (launchUri != null && await canLaunchUrl(launchUri)) {
-        await launchUrl(launchUri, mode: LaunchMode.externalApplication);
       }
     }
   }
