@@ -105,5 +105,15 @@
         <package android:name="net.one97.paytm"/>
         <package android:name="in.org.npci.upiapp"/>
         <package android:name="in.amazon.mShop.android.shopping"/>
+        <package android:name="com.dreamplug.androidapp"/>
+        <package android:name="com.mobikwik_new"/>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="credpay"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="mobikwik"/>
+        </intent>
     </queries>
 </manifest>

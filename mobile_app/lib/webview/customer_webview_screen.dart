@@ -5,11 +5,11 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
 
+import 'android_intent_launcher.dart';
 import 'customer_native_marker.dart';
 import 'google_oauth_bridge.dart';
 import 'google_oauth_debug.dart';
@@ -49,6 +49,8 @@ class _CustomerWebViewScreenState extends State<CustomerWebViewScreen> {
   /// TEMPORARY: active OAuth attempt id while Auth Tab is open (debug only).
   String? _activeGoogleOAuthRequestId;
 
+  final AndroidIntentLauncher _intentLauncher = AndroidIntentLauncher();
+
   @override
   void initState() {
     super.initState();
@@ -86,15 +88,14 @@ class _CustomerWebViewScreenState extends State<CustomerWebViewScreen> {
             });
             // Re-inject after every main-frame document start (reload/navigation).
             unawaited(_injectCustomerNativeMarker(url));
-            final uri = Uri.tryParse(url);
             // Some Android WebViews surface intent:/upi: as page starts instead
             // of onNavigationRequest — hand them to the UPI app immediately.
-            if (uri != null &&
-                (widget.urlPolicy.isExternalAppScheme(uri) ||
-                    uri.scheme == 'intent')) {
-              unawaited(_openExternal(uri));
+            // Use the raw URL string (not Uri.toString()) so Intent extras stay intact.
+            if (_isPaymentDeepLink(url)) {
+              unawaited(_openExternalUrl(url));
               return;
             }
+            final uri = Uri.tryParse(url);
             // Android often skips onNavigationRequest for 302 → Google.
             // Catch Google hosts here and restart a clean native OAuth start
             // instead of letting a truncated authorize URL show Error 400.
@@ -255,8 +256,9 @@ class _CustomerWebViewScreenState extends State<CustomerWebViewScreen> {
       return NavigationDecision.navigate;
     }
 
-    if (widget.urlPolicy.isExternalAppScheme(uri) || uri.scheme == 'intent') {
-      await _openExternal(uri);
+    // Payment / tel / mailto deep links — use raw [url], not Uri.toString().
+    if (_isPaymentDeepLink(url) || widget.urlPolicy.isExternalAppScheme(uri)) {
+      await _openExternalUrl(url);
       return NavigationDecision.prevent;
     }
 
@@ -268,6 +270,19 @@ class _CustomerWebViewScreenState extends State<CustomerWebViewScreen> {
     }
 
     return NavigationDecision.prevent;
+  }
+
+  bool _isPaymentDeepLink(String url) {
+    final lower = url.trim().toLowerCase();
+    return lower.startsWith('intent:') ||
+        lower.startsWith('upi:') ||
+        lower.startsWith('phonepe:') ||
+        lower.startsWith('gpay:') ||
+        lower.startsWith('tez:') ||
+        lower.startsWith('paytmmp:') ||
+        lower.startsWith('bhim:') ||
+        lower.startsWith('amazonpay:') ||
+        lower.startsWith('ppe:');
   }
 
   Future<void> _interceptGoogleAuthorizationHost(Uri googleUri) async {
@@ -411,76 +426,11 @@ class _CustomerWebViewScreenState extends State<CustomerWebViewScreen> {
     }
   }
 
-  Future<void> _openExternal(Uri uri) async {
+  Future<void> _openExternalUrl(String url) async {
     try {
-      if (uri.scheme == 'intent') {
-        await _launchAndroidIntent(uri);
-        return;
-      }
-
-      // Prefer externalApplication. Do not require canLaunchUrl first —
-      // on Android 11+ it often returns false for UPI schemes even when
-      // GPay/PhonePe are installed (package visibility), which left Razorpay
-      // stuck on "Processing your payment".
-      final launched = await launchUrl(
-        uri,
-        mode: LaunchMode.externalApplication,
-      );
-      if (!launched && await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      }
+      await _intentLauncher.launch(url);
     } catch (_) {
       // Swallow — user can retry from the website.
-    }
-  }
-
-  /// Razorpay UPI Intent URLs look like:
-  /// `intent://pay?...#Intent;scheme=upi;package=...;S.browser_fallback_url=...;end`
-  ///
-  /// Prefer launching the UPI app scheme first. Using the browser fallback first
-  /// leaves checkout stuck on "Processing your payment" and never opens GPay/PhonePe.
-  Future<void> _launchAndroidIntent(Uri uri) async {
-    final raw = uri.toString();
-    final schemeMatch = RegExp(r'[;:]scheme=([^;]+)').firstMatch(raw);
-    final fallbackMatch = RegExp(
-      r'S\.browser_fallback_url=([^;]+)',
-    ).firstMatch(raw);
-
-    if (schemeMatch != null) {
-      final scheme = schemeMatch.group(1)!.trim();
-      final pathAndQuery = raw
-          .replaceFirst(RegExp(r'^intent:'), '')
-          .split('#Intent')
-          .first;
-      final rewritten = '$scheme:$pathAndQuery';
-      final launchUri = Uri.tryParse(rewritten);
-      if (launchUri != null) {
-        try {
-          final launched = await launchUrl(
-            launchUri,
-            mode: LaunchMode.externalApplication,
-          );
-          if (launched) return;
-        } catch (_) {
-          // Fall through to browser fallback.
-        }
-        if (await canLaunchUrl(launchUri)) {
-          final launched = await launchUrl(
-            launchUri,
-            mode: LaunchMode.externalApplication,
-          );
-          if (launched) return;
-        }
-      }
-    }
-
-    if (fallbackMatch != null) {
-      final fallback = Uri.tryParse(
-        Uri.decodeComponent(fallbackMatch.group(1)!),
-      );
-      if (fallback != null && await canLaunchUrl(fallback)) {
-        await launchUrl(fallback, mode: LaunchMode.externalApplication);
-      }
     }
   }
 

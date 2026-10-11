@@ -86,6 +86,8 @@ class WebViewUrlPolicy {
         scheme == 'paytmmp' ||
         scheme == 'bhim' ||
         scheme == 'amazonpay' ||
-        scheme == 'ppe'; // PhonePe alternate
+        scheme == 'ppe' || // PhonePe alternate
+        scheme == 'credpay' ||
+        scheme == 'mobikwik';
   }
 }

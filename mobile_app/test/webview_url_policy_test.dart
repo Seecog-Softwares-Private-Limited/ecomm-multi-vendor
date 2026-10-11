@@ -106,6 +106,10 @@ void main() {
       policy.isExternalAppScheme(Uri.parse('tez://upi/pay')),
       isTrue,
     );
+    expect(
+      policy.isExternalAppScheme(Uri.parse('intent://pay#Intent;scheme=upi;end')),
+      isTrue,
+    );
   });
 
   test('bank ACS / third-party https hosts stay in WebView for payments', () {
