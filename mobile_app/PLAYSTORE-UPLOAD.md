@@ -26,8 +26,8 @@ Upload this file in [Google Play Console](https://play.google.com/console) → *
 | Field | Value |
 |-------|--------|
 | Package | `com.seecogg.indovyapar` |
-| Version name | `1.0.3` |
-| Version code | `7` |
+| Version name | `1.1.5` |
+| Version code | `16` |
 | API (prod) | `https://indovyapar.com` |
 
 ---
