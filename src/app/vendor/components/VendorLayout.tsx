@@ -27,12 +27,12 @@ import {
 import * as React from "react";
 import { toast } from "sonner";
 import { authService } from "@/services/auth.service";
-import { SELLER_PRODUCT_APPROVED_NOTIFICATION_TITLE } from "@/lib/notifications/product-moderation";
-import { SELLER_ACCOUNT_APPROVED_NOTIFICATION_TITLE } from "@/lib/notifications/vendor-approval";
 import {
+  SELLER_ACCOUNT_APPROVED_NOTIFICATION_TITLE,
   SELLER_NEW_ORDER_NOTIFICATION_TITLE_PREFIX,
   SELLER_ORDER_CANCELLED_NOTIFICATION_TITLE_PREFIX,
-} from "@/lib/notifications/vendor-order-emails";
+  SELLER_PRODUCT_APPROVED_NOTIFICATION_TITLE,
+} from "@/lib/notifications/vendor-notification-titles";
 import { isVendorApproved } from "@/lib/vendor-onboarding";
 import { VendorSidebarItem } from "./VendorSidebarItem";
 import { vendorService } from "@/services/vendor.service";
