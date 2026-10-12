@@ -151,6 +151,7 @@ export const PATCH = withApiHandler(async (request: NextRequest, context?: ApiRo
   const reason =
     typeof reasonRaw === "string" && reasonRaw.trim() ? reasonRaw.trim().slice(0, 500) : "";
 
+  let previousStatus: string | null = null;
   try {
     await prisma.$transaction(async (tx) => {
       const order = await tx.order.findFirst({
@@ -174,6 +175,7 @@ export const PATCH = withApiHandler(async (request: NextRequest, context?: ApiRo
         throw new Error("NOT_CANCELLABLE");
       }
 
+      previousStatus = order.status;
       assertOrderTransition(order.status, "CANCELLED");
 
       await tx.order.update({
@@ -220,7 +222,11 @@ export const PATCH = withApiHandler(async (request: NextRequest, context?: ApiRo
     throw e;
   }
 
-  void notifyOrderCancelled(session.sub, id).catch(() => undefined);
+  void notifyOrderCancelled(session.sub, id, reason || null).catch(() => undefined);
+  const { notifyVendorsOfOrderCancelled } = await import(
+    "@/lib/notifications/vendor-order-emails"
+  );
+  void notifyVendorsOfOrderCancelled(id, reason || null, previousStatus).catch(() => undefined);
 
   const payload = await buildCustomerOrderPayload(id, session.sub);
   if (!payload) return apiNotFound("Order not found.");

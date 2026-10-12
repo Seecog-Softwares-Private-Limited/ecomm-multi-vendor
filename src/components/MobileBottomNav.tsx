@@ -14,6 +14,7 @@ import {
   LifeBuoy,
   Lock,
   ArrowRight,
+  Bell,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -71,6 +72,7 @@ const tabItems: TabItem[] = [
 /** Shown only when the customer is logged in. */
 const accountQuickLinks: Array<{ href: string; label: string; icon: LucideIcon }> = [
   { href: "/my-orders", label: "Orders", icon: ClipboardList },
+  { href: "/notifications", label: "Notifications", icon: Bell },
   { href: "/wishlist", label: "Wishlist", icon: Heart },
   { href: "/profile", label: "My Profile", icon: User },
   { href: "/support-tickets", label: "Support", icon: LifeBuoy },
@@ -198,6 +200,7 @@ export function MobileBottomNav() {
     pathname.startsWith("/register") ||
     (!guestOrLoading && pathname.startsWith("/support-tickets")) ||
     (!guestOrLoading && pathname.startsWith("/wishlist")) ||
+    (!guestOrLoading && pathname.startsWith("/notifications")) ||
     (!guestOrLoading && pathname.startsWith("/profile"));
 
   const renderTab = (item: TabItem) => {

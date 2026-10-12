@@ -253,15 +253,28 @@ export function VendorNotifications() {
                       <p className="text-sm text-[#64748B] leading-relaxed">{n.message}</p>
                       <div className="flex items-center justify-between mt-2 flex-wrap gap-2">
                         <span className="text-xs text-[#94A3B8]">{formatRelative(n.createdAt)}</span>
-                        {!n.read && (
-                          <button
-                            onClick={() => handleMarkRead(n.id)}
-                            disabled={markingId === n.id}
-                            className="text-xs font-semibold text-[#3B82F6] hover:text-[#2563EB] disabled:opacity-50 transition-colors"
-                          >
-                            {markingId === n.id ? "Marking…" : "Mark as read"}
-                          </button>
-                        )}
+                        <div className="flex items-center gap-3">
+                          {n.actionHref && (
+                            <Link
+                              href={n.actionHref}
+                              onClick={() => {
+                                if (!n.read) void handleMarkRead(n.id);
+                              }}
+                              className="text-xs font-semibold text-[#FF6A00] hover:text-[#E55F00]"
+                            >
+                              {n.actionLabel || "Open"}
+                            </Link>
+                          )}
+                          {!n.read && (
+                            <button
+                              onClick={() => handleMarkRead(n.id)}
+                              disabled={markingId === n.id}
+                              className="text-xs font-semibold text-[#3B82F6] hover:text-[#2563EB] disabled:opacity-50 transition-colors"
+                            >
+                              {markingId === n.id ? "Marking…" : "Mark as read"}
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>

@@ -28,6 +28,11 @@ import * as React from "react";
 import { toast } from "sonner";
 import { authService } from "@/services/auth.service";
 import { SELLER_PRODUCT_APPROVED_NOTIFICATION_TITLE } from "@/lib/notifications/product-moderation";
+import { SELLER_ACCOUNT_APPROVED_NOTIFICATION_TITLE } from "@/lib/notifications/vendor-approval";
+import {
+  SELLER_NEW_ORDER_NOTIFICATION_TITLE_PREFIX,
+  SELLER_ORDER_CANCELLED_NOTIFICATION_TITLE_PREFIX,
+} from "@/lib/notifications/vendor-order-emails";
 import { isVendorApproved } from "@/lib/vendor-onboarding";
 import { VendorSidebarItem } from "./VendorSidebarItem";
 import { vendorService } from "@/services/vendor.service";
@@ -264,52 +269,101 @@ export function VendorLayout({
     }
   }, [notifOpen, selectedNotif, pushVendorHistory]);
 
-  // Fetch unread count on mount (quiet — no loading state shown in header)
+  // Poll unread badge so the vendor app WebView picks up new orders / KYC without refresh.
   React.useEffect(() => {
-    vendorService
-      .getNotifications({ limit: 1, unreadOnly: true })
-      .then((r) => setUnreadCount(r.unreadCount))
-      .catch(() => {});
+    let cancelled = false;
+    const refreshUnread = () => {
+      vendorService
+        .getNotifications({ limit: 1, unreadOnly: true })
+        .then((r) => {
+          if (!cancelled) setUnreadCount(r.unreadCount);
+        })
+        .catch(() => {});
+    };
+    refreshUnread();
+    const timer = window.setInterval(refreshUnread, 20_000);
+    const onFocus = () => refreshUnread();
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
+    };
   }, []);
 
-  /** Toast once per notification id when admin approves a product (session-scoped). */
+  /** Toast once per important unread notification (orders, KYC, product approve). */
   React.useEffect(() => {
-    if (!approved || typeof window === "undefined") return;
-    const storageKey = "vendor_product_approved_toast_ids";
+    if (typeof window === "undefined") return;
+    const storageKey = "vendor_notif_toast_ids";
     let cancelled = false;
-    vendorService
-      .getNotifications({ limit: 30, unreadOnly: true })
-      .then((r) => {
-        if (cancelled) return;
-        let seen: string[] = [];
-        try {
-          seen = JSON.parse(sessionStorage.getItem(storageKey) ?? "[]") as string[];
-          if (!Array.isArray(seen)) seen = [];
-        } catch {
-          seen = [];
-        }
-        const seenSet = new Set(seen);
-        let changed = false;
-        for (const n of r.notifications) {
-          if (n.title !== SELLER_PRODUCT_APPROVED_NOTIFICATION_TITLE || seenSet.has(n.id)) continue;
+
+    const toastImportant = (list: VendorNotificationItem[]) => {
+      let seen: string[] = [];
+      try {
+        seen = JSON.parse(sessionStorage.getItem(storageKey) ?? "[]") as string[];
+        if (!Array.isArray(seen)) seen = [];
+      } catch {
+        seen = [];
+      }
+      const seenSet = new Set(seen);
+      let changed = false;
+      for (const n of list) {
+        if (seenSet.has(n.id)) continue;
+        if (n.title === SELLER_PRODUCT_APPROVED_NOTIFICATION_TITLE) {
           toast.success("Your product was approved", {
             description: n.message,
             duration: 10_000,
-            id: `vendor-product-approved-${n.id}`,
+            id: `vendor-notif-${n.id}`,
           });
-          seenSet.add(n.id);
-          changed = true;
+        } else if (n.title === SELLER_ACCOUNT_APPROVED_NOTIFICATION_TITLE) {
+          toast.success("Your vendor account is approved", {
+            description: n.message,
+            duration: 12_000,
+            id: `vendor-notif-${n.id}`,
+          });
+        } else if (n.title.startsWith(SELLER_NEW_ORDER_NOTIFICATION_TITLE_PREFIX)) {
+          toast.success("New order received", {
+            description: n.message,
+            duration: 12_000,
+            id: `vendor-notif-${n.id}`,
+          });
+        } else if (n.title.startsWith(SELLER_ORDER_CANCELLED_NOTIFICATION_TITLE_PREFIX)) {
+          toast.message("Order cancelled", {
+            description: n.message,
+            duration: 10_000,
+            id: `vendor-notif-${n.id}`,
+          });
+        } else {
+          continue;
         }
-        if (changed) {
-          const next = [...seenSet].slice(-100);
-          sessionStorage.setItem(storageKey, JSON.stringify(next));
-        }
-      })
-      .catch(() => {});
+        seenSet.add(n.id);
+        changed = true;
+      }
+      if (changed) {
+        sessionStorage.setItem(storageKey, JSON.stringify([...seenSet].slice(-120)));
+      }
+    };
+
+    const pollToasts = () => {
+      vendorService
+        .getNotifications({ limit: 30, unreadOnly: true })
+        .then((r) => {
+          if (cancelled) return;
+          setUnreadCount(r.unreadCount);
+          toastImportant(r.notifications);
+        })
+        .catch(() => {});
+    };
+
+    pollToasts();
+    const timer = window.setInterval(pollToasts, 20_000);
     return () => {
       cancelled = true;
+      window.clearInterval(timer);
     };
-  }, [approved]);
+  }, []);
 
   const openNotifDropdown = async () => {
     closeProfileMenu();

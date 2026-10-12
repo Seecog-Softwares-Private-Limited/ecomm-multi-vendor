@@ -38,21 +38,31 @@ export const GET = withApiHandler(async (request: NextRequest) => {
         read: true,
         readAt: true,
         createdAt: true,
+        metadata: true,
       },
     }),
     prisma.notification.count({ where: { sellerId, read: false, deletedAt: null } }),
   ]);
 
   return apiSuccess({
-    notifications: notifications.map((n) => ({
-      id: n.id,
-      type: n.type,
-      title: n.title,
-      message: n.message,
-      read: n.read,
-      readAt: n.readAt?.toISOString() ?? null,
-      createdAt: n.createdAt.toISOString(),
-    })),
+    notifications: notifications.map((n) => {
+      const meta =
+        n.metadata && typeof n.metadata === "object" && !Array.isArray(n.metadata)
+          ? (n.metadata as Record<string, unknown>)
+          : {};
+      return {
+        id: n.id,
+        type: n.type,
+        title: n.title,
+        message: n.message,
+        read: n.read,
+        readAt: n.readAt?.toISOString() ?? null,
+        createdAt: n.createdAt.toISOString(),
+        orderId: typeof meta.orderId === "string" ? meta.orderId : null,
+        actionHref: typeof meta.actionHref === "string" ? meta.actionHref : null,
+        actionLabel: typeof meta.actionLabel === "string" ? meta.actionLabel : null,
+      };
+    }),
     unreadCount,
   });
 });

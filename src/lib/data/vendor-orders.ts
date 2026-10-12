@@ -2,7 +2,11 @@ import type { OrderItemStatus, OrderStatus, PaymentStatus } from "@prisma/client
 import { prisma } from "@/lib/prisma";
 import { assertOrderTransition } from "@/lib/commerce/order-state-machine";
 import {
+  notifyOrderCancelled,
   notifyOrderDelivered,
+  notifyOrderItemsRejected,
+  notifyOrderPartialShipped,
+  notifyOrderProcessing,
   notifyOrderShipped,
 } from "@/lib/notifications/customer-notifications";
 
@@ -445,11 +449,14 @@ export async function vendorAcceptOrder(
   const id = orderId.trim();
   if (!id) return { ok: false, error: "Invalid order" };
 
+  let notifyProcessing = false;
+  let customerUserId: string | null = null;
+
   try {
     const result = await prisma.$transaction(async (tx) => {
       const order = await tx.order.findFirst({
         where: { id, items: { some: { sellerId } } },
-        select: { id: true, status: true },
+        select: { id: true, status: true, userId: true },
       });
       if (!order) return "NOT_FOUND" as const;
       if (order.status === "CANCELLED" || order.status === "RETURNED") {
@@ -458,6 +465,8 @@ export async function vendorAcceptOrder(
       if (order.status === "PENDING_PAYMENT") {
         return "INVALID_STATE" as const;
       }
+
+      customerUserId = order.userId;
 
       const updated = await tx.orderItem.updateMany({
         where: { orderId: id, sellerId, status: "NEW" },
@@ -486,6 +495,7 @@ export async function vendorAcceptOrder(
             note: "Vendor accepted order",
           },
         });
+        notifyProcessing = true;
       }
 
       return "OK" as const;
@@ -493,6 +503,9 @@ export async function vendorAcceptOrder(
 
     if (result === "NOT_FOUND") return { ok: false, error: "NOT_FOUND" };
     if (result === "INVALID_STATE") return { ok: false, error: "INVALID_STATE" };
+    if (notifyProcessing && customerUserId) {
+      void notifyOrderProcessing(customerUserId, id).catch(() => undefined);
+    }
     return { ok: true };
   } catch {
     return { ok: false, error: "TRANSACTION_FAILED" };
@@ -509,16 +522,22 @@ export async function vendorRejectOrder(
   const note = reason.trim().slice(0, 450);
   if (!note) return { ok: false, error: "REASON_REQUIRED" };
 
+  let notifyCancel = false;
+  let notifyPartialReject = false;
+  let customerUserId: string | null = null;
+
   try {
     const result = await prisma.$transaction(async (tx) => {
       const order = await tx.order.findFirst({
         where: { id, items: { some: { sellerId } } },
-        select: { id: true, status: true },
+        select: { id: true, status: true, userId: true },
       });
       if (!order) return "NOT_FOUND" as const;
       if (order.status === "CANCELLED" || order.status === "RETURNED") {
         return "INVALID_STATE" as const;
       }
+
+      customerUserId = order.userId;
 
       const updated = await tx.orderItem.updateMany({
         where: { orderId: id, sellerId, status: "NEW" },
@@ -554,6 +573,9 @@ export async function vendorRejectOrder(
             note: "All line items rejected or cancelled",
           },
         });
+        notifyCancel = true;
+      } else {
+        notifyPartialReject = true;
       }
 
       return "OK" as const;
@@ -561,6 +583,13 @@ export async function vendorRejectOrder(
 
     if (result === "NOT_FOUND") return { ok: false, error: "NOT_FOUND" };
     if (result === "INVALID_STATE") return { ok: false, error: "INVALID_STATE" };
+    if (customerUserId) {
+      if (notifyCancel) {
+        void notifyOrderCancelled(customerUserId, id, note).catch(() => undefined);
+      } else if (notifyPartialReject) {
+        void notifyOrderItemsRejected(customerUserId, id, note).catch(() => undefined);
+      }
+    }
     return { ok: true };
   } catch {
     return { ok: false, error: "TRANSACTION_FAILED" };
@@ -583,6 +612,7 @@ export async function vendorShipOrder(
     : `Shipped via ${courier}`.slice(0, 500);
 
   let notifyShip = false;
+  let notifyPartialShip = false;
 
   try {
     await prisma.$transaction(async (tx) => {
@@ -627,15 +657,20 @@ export async function vendorShipOrder(
             note: shipNote,
           },
         });
+        notifyPartialShip = true;
       }
     });
 
-    if (notifyShip) {
-      const order = await prisma.order.findUnique({
-        where: { id },
-        select: { userId: true },
-      });
-      if (order) void notifyOrderShipped(order.userId, id).catch(() => undefined);
+    const order = await prisma.order.findUnique({
+      where: { id },
+      select: { userId: true },
+    });
+    if (order) {
+      if (notifyShip) {
+        void notifyOrderShipped(order.userId, id).catch(() => undefined);
+      } else if (notifyPartialShip) {
+        void notifyOrderPartialShipped(order.userId, id).catch(() => undefined);
+      }
     }
 
     return { ok: true };

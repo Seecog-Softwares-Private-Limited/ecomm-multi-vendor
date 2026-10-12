@@ -185,16 +185,77 @@ export async function notifyOrderDelivered(userId: string, orderId: string): Pro
   });
 }
 
-export async function notifyOrderCancelled(userId: string, orderId: string): Promise<void> {
+export async function notifyOrderCancelled(
+  userId: string,
+  orderId: string,
+  reason?: string | null
+): Promise<void> {
+  const short = orderId.slice(0, 8).toUpperCase();
+  const reasonText = reason?.trim();
   await createCustomerNotification({
     userId,
     type: "ORDER",
     title: "Order cancelled",
-    message: `Your order #${orderId.slice(0, 8).toUpperCase()} has been cancelled.`,
+    message: reasonText
+      ? `Your order #${short} has been cancelled. ${reasonText}`
+      : `Your order #${short} has been cancelled.`,
     metadata: {
       orderId,
       actionHref: `/order-detail/${orderId}`,
       actionLabel: "View order",
+    },
+  });
+}
+
+export async function notifyOrderProcessing(userId: string, orderId: string): Promise<void> {
+  await createCustomerNotification({
+    userId,
+    type: "ORDER",
+    title: "Order confirmed",
+    message: `Your order #${orderId.slice(0, 8).toUpperCase()} is being prepared by the seller.`,
+    metadata: {
+      orderId,
+      actionHref: `/order-detail/${orderId}`,
+      actionLabel: "View order",
+    },
+  });
+}
+
+export async function notifyOrderItemsRejected(
+  userId: string,
+  orderId: string,
+  reason?: string | null
+): Promise<void> {
+  const short = orderId.slice(0, 8).toUpperCase();
+  const reasonText = reason?.trim();
+  await createCustomerNotification({
+    userId,
+    type: "ORDER",
+    title: "Items unavailable",
+    message: reasonText
+      ? `Some items on order #${short} were cancelled by the seller. ${reasonText}`
+      : `Some items on order #${short} were cancelled by the seller.`,
+    metadata: {
+      orderId,
+      actionHref: `/order-detail/${orderId}`,
+      actionLabel: "View order",
+    },
+  });
+}
+
+export async function notifyOrderPartialShipped(
+  userId: string,
+  orderId: string
+): Promise<void> {
+  await createCustomerNotification({
+    userId,
+    type: "ORDER",
+    title: "Items shipped",
+    message: `Some items from order #${orderId.slice(0, 8).toUpperCase()} have been shipped.`,
+    metadata: {
+      orderId,
+      actionHref: `/track-order/${orderId}`,
+      actionLabel: "Track order",
     },
   });
 }

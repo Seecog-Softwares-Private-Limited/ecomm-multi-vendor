@@ -30,6 +30,7 @@ function deptButtonLabel(scope: SearchScope): string {
 const ACCOUNT_DROPDOWN_LINKS = [
   { href: "/profile", label: "My Profile" },
   { href: "/my-orders", label: "Orders" },
+  { href: "/notifications", label: "Notifications" },
   { href: "/wishlist", label: "Wishlist" },
   { href: "/support-tickets", label: "Support" },
 ] as const;
