@@ -71,41 +71,89 @@ async function clearConsumedCartItems(
   });
 }
 
+/** Cancel an unpaid order so a new checkout (e.g. with coupon) can replace it. */
+async function abandonUnpaidPendingOrder(
+  orderId: string,
+  checkoutSessionId: string | null
+): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    const order = await tx.order.findUnique({
+      where: { id: orderId },
+      select: { status: true },
+    });
+    if (!order || order.status !== "PENDING_PAYMENT") return;
+
+    await tx.order.update({
+      where: { id: orderId },
+      data: { status: "CANCELLED", updatedAt: new Date() },
+    });
+    await tx.orderStatusEvent.create({
+      data: {
+        orderId,
+        status: "CANCELLED",
+        note: "Superseded by new checkout (coupon or payable total changed)",
+      },
+    });
+    await tx.payment.updateMany({
+      where: { orderId, status: "PENDING" },
+      data: { status: "FAILED", updatedAt: new Date() },
+    });
+    if (checkoutSessionId) {
+      await transitionCheckoutSession(tx, checkoutSessionId, "FAILED", "superseded");
+    }
+  });
+  if (checkoutSessionId) invalidateCheckoutCache(checkoutSessionId);
+  logCommerceEvent("order_failed", { orderId, reason: "superseded_unpaid" });
+}
+
+function samePayableTotal(a: number, b: number): boolean {
+  return Math.abs(a - b) < 0.01;
+}
+
 async function findExistingOrderForRequest(
   userId: string,
   checkoutSessionId: string,
-  idempotencyKey: string
+  idempotencyKey: string,
+  expectedTotalAmount: number | null
 ): Promise<{ orderId: string; totalAmount: number; requiresRazorpay: boolean } | null> {
-  const byKey = await prisma.order.findFirst({
-    where: { idempotencyKey, userId },
-    select: {
-      id: true,
-      totalAmount: true,
-      payments: { take: 1, select: { mode: true } },
-    },
-  });
-  if (byKey) {
-    const mode = byKey.payments[0]?.mode ?? "COD";
-    return {
-      orderId: byKey.id,
-      totalAmount: Number(byKey.totalAmount),
-      requiresRazorpay: isOnlinePayment(mode),
-    };
-  }
+  const select = {
+    id: true,
+    totalAmount: true,
+    status: true,
+    checkoutSessionId: true,
+    payments: { take: 1, select: { mode: true } },
+  } as const;
 
-  const bySession = await prisma.order.findFirst({
-    where: { checkoutSessionId, userId },
-    select: {
-      id: true,
-      totalAmount: true,
-      payments: { take: 1, select: { mode: true } },
-    },
-  });
-  if (bySession) {
-    const mode = bySession.payments[0]?.mode ?? "COD";
+  const candidates = [
+    await prisma.order.findFirst({
+      where: { idempotencyKey, userId, status: { not: "CANCELLED" } },
+      select,
+    }),
+    await prisma.order.findFirst({
+      where: { checkoutSessionId, userId, status: { not: "CANCELLED" } },
+      select,
+    }),
+  ];
+
+  for (const existing of candidates) {
+    if (!existing) continue;
+    const totalAmount = Number(existing.totalAmount);
+    const mode = existing.payments[0]?.mode ?? "COD";
+
+    // Unpaid online order with a different payable total (coupon applied later) —
+    // abandon it so Razorpay is not opened for the old full amount.
+    if (
+      existing.status === "PENDING_PAYMENT" &&
+      expectedTotalAmount != null &&
+      !samePayableTotal(totalAmount, expectedTotalAmount)
+    ) {
+      await abandonUnpaidPendingOrder(existing.id, existing.checkoutSessionId);
+      continue;
+    }
+
     return {
-      orderId: bySession.id,
-      totalAmount: Number(bySession.totalAmount),
+      orderId: existing.id,
+      totalAmount,
       requiresRazorpay: isOnlinePayment(mode),
     };
   }
@@ -127,18 +175,6 @@ export async function placeOrderFromCheckoutSession(
   } = input;
 
   const idemKey = resolveOrderIdempotencyKey(checkoutSessionId, idempotencyKey);
-
-  const existing = await findExistingOrderForRequest(userId, checkoutSessionId, idemKey);
-  if (existing) {
-    logCommerceEvent("order_created", { orderId: existing.orderId, userId, recovered: true });
-    return {
-      orderId: existing.orderId,
-      totalAmount: existing.totalAmount,
-      requiresRazorpay: existing.requiresRazorpay,
-      message: "Order already placed.",
-      recovered: true,
-    };
-  }
 
   const sessionRow = await prisma.checkoutSession.findFirst({
     where: { id: checkoutSessionId, userId },
@@ -171,17 +207,6 @@ export async function placeOrderFromCheckoutSession(
     throw new ApiRouteError("Checkout session not found.", Status.NOT_FOUND, "SESSION_NOT_FOUND");
   }
 
-  if (sessionRow.order) {
-    const mode = sessionRow.order.payments[0]?.mode ?? "COD";
-    return {
-      orderId: sessionRow.order.id,
-      totalAmount: Number(sessionRow.order.totalAmount),
-      requiresRazorpay: isOnlinePayment(mode),
-      message: "Order already created for this checkout.",
-      recovered: true,
-    };
-  }
-
   const now = new Date();
   if (sessionRow.expiresAt <= now && sessionRow.status === "ACTIVE") {
     await prisma.$transaction(async (tx) => {
@@ -207,24 +232,6 @@ export async function placeOrderFromCheckoutSession(
       "This checkout session is no longer valid. Please start again.",
       Status.BAD_REQUEST,
       "SESSION_INVALID"
-    );
-  }
-
-  if (sessionRow.status === "CHECKING_OUT") {
-    const pending = await findExistingOrderForRequest(userId, checkoutSessionId, idemKey);
-    if (pending) {
-      return {
-        orderId: pending.orderId,
-        totalAmount: pending.totalAmount,
-        requiresRazorpay: pending.requiresRazorpay,
-        message: "Order already placed.",
-        recovered: true,
-      };
-    }
-    throw new ApiRouteError(
-      "Checkout is already being processed. Please wait a moment.",
-      Status.CONFLICT,
-      "CHECKOUT_IN_PROGRESS"
     );
   }
 
@@ -351,6 +358,53 @@ export async function placeOrderFromCheckoutSession(
   }
 
   const totals = buildCheckoutTotals(pricedLines, discountAmount, couponId, couponCode?.trim() ?? null);
+
+  // Recover existing order only when payable total still matches (prevents Razorpay
+  // charging a stale full-price PENDING_PAYMENT after a coupon is applied).
+  const existing = await findExistingOrderForRequest(
+    userId,
+    checkoutSessionId,
+    idemKey,
+    totals.totalAmount
+  );
+  if (existing) {
+    logCommerceEvent("order_created", { orderId: existing.orderId, userId, recovered: true });
+    return {
+      orderId: existing.orderId,
+      totalAmount: existing.totalAmount,
+      requiresRazorpay: existing.requiresRazorpay,
+      message: "Order already placed.",
+      recovered: true,
+    };
+  }
+
+  // Re-read status — unpaid mismatch may have marked this session FAILED.
+  const freshSession = await prisma.checkoutSession.findFirst({
+    where: { id: checkoutSessionId, userId },
+    select: { status: true },
+  });
+  if (!freshSession || freshSession.status === "FAILED" || freshSession.status === "CANCELLED") {
+    throw new ApiRouteError(
+      "This checkout session is no longer valid. Please start again.",
+      Status.BAD_REQUEST,
+      "SESSION_INVALID"
+    );
+  }
+  if (freshSession.status === "CHECKING_OUT") {
+    throw new ApiRouteError(
+      "Checkout is already being processed. Please wait a moment.",
+      Status.CONFLICT,
+      "CHECKOUT_IN_PROGRESS"
+    );
+  }
+  if (freshSession.status !== "ACTIVE") {
+    throw new ApiRouteError(
+      "This checkout session is no longer valid. Please start again.",
+      Status.BAD_REQUEST,
+      "SESSION_INVALID"
+    );
+  }
+
   const paymentMode = mapPaymentMode(paymentMethod);
   const online = isOnlinePayment(paymentMode);
   const initialOrderStatus = online ? "PENDING_PAYMENT" : "PLACED";
@@ -485,7 +539,12 @@ export async function placeOrderFromCheckoutSession(
     ]);
 
     if (apiErr?.code === "CHECKOUT_IN_PROGRESS") {
-      const existing = await findExistingOrderForRequest(userId, checkoutSessionId, idemKey);
+      const existing = await findExistingOrderForRequest(
+        userId,
+        checkoutSessionId,
+        idemKey,
+        totals.totalAmount
+      );
       if (existing) {
         return {
           orderId: existing.orderId,
@@ -550,36 +609,127 @@ export async function placeLegacyCartOrder(
   }
 
   const cartItemIds = cartItems.map((c) => c.id);
-  const legacyKey = idempotencyKey?.trim() || deriveLegacyCartIdempotencyKey(userId, cartItemIds);
+  const legacyKey =
+    idempotencyKey?.trim() ||
+    deriveLegacyCartIdempotencyKey(userId, cartItemIds, couponCode);
 
-  const existingByLegacyKey = await prisma.order.findFirst({
-    where: { idempotencyKey: legacyKey, userId },
-    select: { id: true, totalAmount: true, payments: { take: 1, select: { mode: true } } },
-  });
-  if (existingByLegacyKey) {
-    const mode = existingByLegacyKey.payments[0]?.mode ?? "COD";
-    return {
-      orderId: existingByLegacyKey.id,
-      totalAmount: Number(existingByLegacyKey.totalAmount),
-      requiresRazorpay: isOnlinePayment(mode),
-      message: "Order already placed.",
-      recovered: true,
-    };
+  // Pre-compute expected payable so we can discard stale unpaid orders.
+  let expectedTotalAmount: number | null = null;
+  try {
+    const previewLines = await prisma.cartItem.findMany({
+      where: { id: { in: cartItemIds }, userId, deletedAt: null },
+      include: {
+        product: {
+          select: {
+            sellingPrice: true,
+            gstPercent: true,
+            productVariants: {
+              where: { deletedAt: null },
+              select: { color: true, size: true, price: true, stock: true },
+            },
+          },
+        },
+      },
+    });
+    const priced: PricedCheckoutLine[] = previewLines.map((l) => {
+      const pv = l.product.productVariants ?? [];
+      let unit = Number(l.product.sellingPrice);
+      if (pv.length > 0) {
+        const row = resolveSkuRowForCart(pv, l.variantKey);
+        if (row) unit = Number(row.price);
+      }
+      return {
+        productId: l.productId,
+        sellerId: "",
+        variantKey: l.variantKey,
+        quantity: l.quantity,
+        unitSellingPrice: unit,
+        unitMrp: null,
+        gstPercent:
+          l.product.gstPercent !== null && l.product.gstPercent !== undefined
+            ? Number(l.product.gstPercent)
+            : 18,
+      };
+    });
+    const coupon = await applyCouponToSubtotal(couponCode ?? null, computeLineSubtotal(priced), {
+      userId,
+    });
+    expectedTotalAmount = buildCheckoutTotals(
+      priced,
+      coupon.discountAmount,
+      coupon.couponId,
+      coupon.couponCode
+    ).totalAmount;
+  } catch {
+    expectedTotalAmount = null;
   }
 
+  const existingByLegacyKey = await prisma.order.findFirst({
+    where: { idempotencyKey: legacyKey, userId, status: { not: "CANCELLED" } },
+    select: {
+      id: true,
+      totalAmount: true,
+      status: true,
+      checkoutSessionId: true,
+      payments: { take: 1, select: { mode: true } },
+    },
+  });
+  if (existingByLegacyKey) {
+    const totalAmount = Number(existingByLegacyKey.totalAmount);
+    if (
+      existingByLegacyKey.status === "PENDING_PAYMENT" &&
+      expectedTotalAmount != null &&
+      !samePayableTotal(totalAmount, expectedTotalAmount)
+    ) {
+      await abandonUnpaidPendingOrder(
+        existingByLegacyKey.id,
+        existingByLegacyKey.checkoutSessionId
+      );
+    } else {
+      const mode = existingByLegacyKey.payments[0]?.mode ?? "COD";
+      return {
+        orderId: existingByLegacyKey.id,
+        totalAmount,
+        requiresRazorpay: isOnlinePayment(mode),
+        message: "Order already placed.",
+        recovered: true,
+      };
+    }
+  }
+
+  // Also abandon any other unpaid cart checkout stuck in CHECKING_OUT with a
+  // different payable total (legacy key without coupon, earlier attempt, etc.).
   const checkingOut = await prisma.checkoutSession.findFirst({
     where: { userId, status: "CHECKING_OUT" },
-    include: { order: { select: { id: true, totalAmount: true, payments: { take: 1 } } } },
+    include: {
+      order: {
+        select: {
+          id: true,
+          totalAmount: true,
+          status: true,
+          payments: { take: 1, select: { mode: true } },
+        },
+      },
+    },
   });
   if (checkingOut?.order) {
-    const mode = checkingOut.order.payments[0]?.mode ?? "COD";
-    return {
-      orderId: checkingOut.order.id,
-      totalAmount: Number(checkingOut.order.totalAmount),
-      requiresRazorpay: isOnlinePayment(mode),
-      message: "Order already placed.",
-      recovered: true,
-    };
+    const totalAmount = Number(checkingOut.order.totalAmount);
+    if (
+      checkingOut.order.status === "PENDING_PAYMENT" &&
+      expectedTotalAmount != null &&
+      !samePayableTotal(totalAmount, expectedTotalAmount)
+    ) {
+      await abandonUnpaidPendingOrder(checkingOut.order.id, checkingOut.id);
+    } else {
+      const mode = checkingOut.order.payments[0]?.mode ?? "COD";
+      return {
+        orderId: checkingOut.order.id,
+        totalAmount,
+        requiresRazorpay: isOnlinePayment(mode),
+        message: "Order already placed.",
+        recovered: true,
+      };
+    }
   }
 
   const { createCheckoutSession } = await import("./checkout-session.service");

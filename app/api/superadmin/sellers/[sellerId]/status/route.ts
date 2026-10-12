@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSuperAdmin, createAuditLog } from "@/lib/superadmin-auth";
-import { getSmsNotificationService } from "@/services/sms-notification.service";
+import { notifyVendorAccountApproved } from "@/lib/notifications/vendor-approval";
 
 /**
  * PUT /api/superadmin/sellers/[sellerId]/status
@@ -66,10 +66,7 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ sel
     ]);
 
     if (!wasAlreadyApproved) {
-      getSmsNotificationService().onVendorApproval({
-        phone: seller.phone,
-        name: seller.businessName ?? seller.ownerName ?? "Vendor",
-      });
+      void notifyVendorAccountApproved(sellerId).catch(() => undefined);
     }
   } else {
     await prisma.seller.update({

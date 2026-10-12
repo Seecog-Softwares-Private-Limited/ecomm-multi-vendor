@@ -15,9 +15,21 @@ export function resolveOrderIdempotencyKey(
   return deriveOrderIdempotencyKey(checkoutSessionId);
 }
 
-/** Stable key for legacy flows before session id is known (hash cart snapshot). */
-export function deriveLegacyCartIdempotencyKey(userId: string, cartItemIds: string[]): string {
+/**
+ * Stable key for legacy flows before session id is known (hash cart + coupon).
+ * Coupon must be part of the key so applying a discount creates a new pending
+ * order instead of recovering an unpaid full-price Razorpay order.
+ */
+export function deriveLegacyCartIdempotencyKey(
+  userId: string,
+  cartItemIds: string[],
+  couponCode?: string | null
+): string {
   const sorted = [...cartItemIds].sort().join(",");
-  const hash = createHash("sha256").update(`${userId}:${sorted}`).digest("hex").slice(0, 32);
+  const coupon = (couponCode ?? "").trim().toUpperCase();
+  const hash = createHash("sha256")
+    .update(`${userId}:${sorted}:coupon=${coupon}`)
+    .digest("hex")
+    .slice(0, 32);
   return `order-legacy:${hash}`;
 }

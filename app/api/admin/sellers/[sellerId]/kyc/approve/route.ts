@@ -7,7 +7,7 @@ import {
 } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { requireAdminPermission } from "@/lib/admin-rbac";
-import { getSmsNotificationService } from "@/services/sms-notification.service";
+import { notifyVendorAccountApproved } from "@/lib/notifications/vendor-approval";
 
 /**
  * POST /api/admin/sellers/[sellerId]/kyc/approve — approve KYC for seller (admin only).
@@ -26,7 +26,7 @@ export const POST = withApiHandler(
 
     const seller = await prisma.seller.findFirst({
       where: { id: sellerId, deletedAt: null },
-      select: { id: true, status: true, phone: true, businessName: true, ownerName: true },
+      select: { id: true, status: true },
     });
 
     if (!seller) {
@@ -46,12 +46,9 @@ export const POST = withApiHandler(
       }),
     ]);
 
-    // SMS only on first approval (pending → APPROVED), not on repeat approve clicks.
+    // Email + in-app notification + SMS on first approval only.
     if (!wasAlreadyApproved) {
-      getSmsNotificationService().onVendorApproval({
-        phone: seller.phone,
-        name: seller.businessName ?? seller.ownerName ?? "Vendor",
-      });
+      void notifyVendorAccountApproved(sellerId).catch(() => undefined);
     }
 
     return apiSuccess({ approved: true, sellerId });
