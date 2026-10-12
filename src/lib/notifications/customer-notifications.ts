@@ -116,6 +116,24 @@ export async function createCustomerNotification(input: {
 }
 
 export async function notifyOrderPlaced(userId: string, orderId: string): Promise<void> {
+  // Skip duplicate "Order placed" rows for the same order (place-order recovery retries).
+  try {
+    const short = orderId.slice(0, 8).toUpperCase();
+    const existing = await prisma.notification.findFirst({
+      where: {
+        userId,
+        deletedAt: null,
+        type: "ORDER",
+        title: "Order placed",
+        message: { contains: `#${short}` },
+      },
+      select: { id: true },
+    });
+    if (existing) return;
+  } catch {
+    // proceed to create
+  }
+
   await createCustomerNotification({
     userId,
     type: "ORDER",

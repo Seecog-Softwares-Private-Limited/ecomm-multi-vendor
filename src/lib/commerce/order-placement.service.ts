@@ -571,11 +571,12 @@ export async function placeOrderFromCheckoutSession(
   getSmsNotificationService().onCustomerOrder({ orderId, amount: totals.totalAmount });
 
   // COD / offline: notify vendors immediately. Online: wait until payment is confirmed.
+  // Await in-app notify so the row exists before the API response returns.
   if (!online) {
     const { notifyVendorsOfNewOrder } = await import(
       "@/lib/notifications/vendor-order-emails"
     );
-    void notifyVendorsOfNewOrder(orderId).catch(() => undefined);
+    await notifyVendorsOfNewOrder(orderId);
   }
 
   return {

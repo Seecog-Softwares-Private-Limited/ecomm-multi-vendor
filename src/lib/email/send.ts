@@ -58,10 +58,9 @@ export async function sendMail(options: SendMailOptions): Promise<{ sent: boolea
   const transport = getTransporter();
 
   if (!transport) {
-    if (process.env.NODE_ENV === "development") {
-      console.log("[email] Not sending (no transport):", { to, subject });
-    }
-    return { sent: false };
+    const reason = getDisabledReason();
+    console.warn("[email] Not sending (no transport):", { to, subject, reason });
+    return { sent: false, error: reason };
   }
 
   try {

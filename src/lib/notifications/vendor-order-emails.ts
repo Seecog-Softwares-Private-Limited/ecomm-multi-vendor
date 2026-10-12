@@ -36,126 +36,166 @@ type SellerBucket = {
   }>;
 };
 
-/**
- * Notify each seller who has items on this order:
- * - in-app notification (always)
- * - email when the seller has a real mailbox
- *
- * Safe to call fire-and-forget; never throws to the caller.
- */
-export async function notifyVendorsOfNewOrder(orderId: string): Promise<void> {
-  try {
-    const order = await prisma.order.findFirst({
-      where: { id: orderId },
-      select: {
-        id: true,
-        status: true,
-        shippingAddress: {
-          select: {
-            fullName: true,
-            phone: true,
-            line1: true,
-            line2: true,
-            city: true,
-            state: true,
-            pincode: true,
-          },
+async function loadOrderForVendorNotify(orderId: string) {
+  return prisma.order.findFirst({
+    where: { id: orderId },
+    select: {
+      id: true,
+      status: true,
+      shippingAddress: {
+        select: {
+          fullName: true,
+          phone: true,
+          line1: true,
+          line2: true,
+          city: true,
+          state: true,
+          pincode: true,
         },
-        payments: {
-          orderBy: { createdAt: "desc" },
-          take: 1,
-          select: { mode: true },
-        },
-        items: {
-          select: {
-            sellerId: true,
-            quantity: true,
-            unitPrice: true,
-            totalPrice: true,
-            sku: true,
-            variantSnapshot: true,
-            product: { select: { name: true } },
-            seller: {
-              select: {
-                email: true,
-                businessName: true,
-                ownerName: true,
-                deletedAt: true,
-              },
+      },
+      payments: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: { mode: true },
+      },
+      items: {
+        select: {
+          sellerId: true,
+          quantity: true,
+          unitPrice: true,
+          totalPrice: true,
+          sku: true,
+          variantSnapshot: true,
+          product: { select: { name: true } },
+          seller: {
+            select: {
+              email: true,
+              businessName: true,
+              ownerName: true,
+              deletedAt: true,
             },
           },
         },
       },
+    },
+  });
+}
+
+function groupItemsBySeller(
+  items: NonNullable<Awaited<ReturnType<typeof loadOrderForVendorNotify>>>["items"]
+): Map<string, SellerBucket> {
+  const bySeller = new Map<string, SellerBucket>();
+  for (const item of items) {
+    if (item.seller.deletedAt) continue;
+    let bucket = bySeller.get(item.sellerId);
+    if (!bucket) {
+      const email = sellerHasRealEmail(item.seller.email)
+        ? item.seller.email.trim().toLowerCase()
+        : null;
+      bucket = {
+        sellerId: item.sellerId,
+        email,
+        vendorName:
+          item.seller.businessName?.trim() ||
+          item.seller.ownerName?.trim() ||
+          "Vendor",
+        lines: [],
+      };
+      bySeller.set(item.sellerId, bucket);
+    }
+    bucket.lines.push({
+      productName: item.product.name,
+      sku: item.sku,
+      quantity: item.quantity,
+      unitPrice: Number(item.unitPrice),
+      totalPrice: Number(item.totalPrice),
+      variantLabel: variantLabelFromSnapshot(item.variantSnapshot),
     });
+  }
+  return bySeller;
+}
 
-    if (!order || order.items.length === 0) return;
+/** True if any seller already has an in-app row for this order. */
+async function vendorOrderAlreadyNotified(orderId: string): Promise<boolean> {
+  const shortTitle = `${SELLER_NEW_ORDER_NOTIFICATION_TITLE_PREFIX}${orderId.slice(0, 8).toUpperCase()}`;
+  try {
+    const existing = await prisma.notification.findFirst({
+      where: {
+        deletedAt: null,
+        sellerId: { not: null },
+        type: "ORDER",
+        title: shortTitle,
+      },
+      select: { id: true },
+    });
+    return Boolean(existing);
+  } catch {
+    return false;
+  }
+}
 
-    const bySeller = new Map<string, SellerBucket>();
-
-    for (const item of order.items) {
-      if (item.seller.deletedAt) continue;
-
-      let bucket = bySeller.get(item.sellerId);
-      if (!bucket) {
-        const email = sellerHasRealEmail(item.seller.email)
-          ? item.seller.email.trim().toLowerCase()
-          : null;
-        bucket = {
-          sellerId: item.sellerId,
-          email,
-          vendorName:
-            item.seller.businessName?.trim() ||
-            item.seller.ownerName?.trim() ||
-            "Vendor",
-          lines: [],
-        };
-        bySeller.set(item.sellerId, bucket);
-      }
-
-      bucket.lines.push({
-        productName: item.product.name,
-        sku: item.sku,
-        quantity: item.quantity,
-        unitPrice: Number(item.unitPrice),
-        totalPrice: Number(item.totalPrice),
-        variantLabel: variantLabelFromSnapshot(item.variantSnapshot),
-      });
+/**
+ * Notify each seller who has items on this order:
+ * - in-app notification (always; awaited by callers)
+ * - email when the seller has a real mailbox
+ *
+ * Safe to call repeatedly — skips duplicate in-app rows for the same order.
+ */
+export async function notifyVendorsOfNewOrder(orderId: string): Promise<void> {
+  try {
+    const order = await loadOrderForVendorNotify(orderId);
+    if (!order || order.items.length === 0) {
+      console.warn("[vendor-order-notify] Order missing or empty", orderId);
+      return;
     }
 
+    const bySeller = groupItemsBySeller(order.items);
     if (bySeller.size === 0) {
       console.warn("[vendor-order-notify] No active sellers for order", orderId);
       return;
     }
 
-    const addr = order.shippingAddress;
-    const shippingLines = [
-      addr.line1,
-      addr.line2?.trim() || null,
-      `${addr.city}, ${addr.state} ${addr.pincode}`,
-    ].filter((x): x is string => Boolean(x && x.trim()));
-
     const orderShortId = order.id.slice(0, 8).toUpperCase();
     const paymentMode = order.payments[0]?.mode ?? "COD";
     const itemCountLabel = (n: number) => `${n} item${n === 1 ? "" : "s"}`;
 
-    // In-app notifications for every seller on the order (even without email).
-    try {
-      await prisma.notification.createMany({
-        data: [...bySeller.values()].map((seller) => ({
-          type: "ORDER" as const,
-          title: `${SELLER_NEW_ORDER_NOTIFICATION_TITLE_PREFIX}${orderShortId}`,
-          message: `You received ${itemCountLabel(seller.lines.length)} in order #${orderShortId} (${paymentMode}).`,
-          sellerId: seller.sellerId,
-          metadata: {
-            orderId: order.id,
-            actionHref: `/vendor/orders/${order.id}`,
-            actionLabel: "View order",
-          },
-        })),
-      });
-    } catch (err) {
-      console.error("[vendor-order-notify] in-app createMany failed", orderId, err);
+    const already = await vendorOrderAlreadyNotified(order.id);
+    if (!already) {
+      try {
+        await prisma.notification.createMany({
+          data: [...bySeller.values()].map((seller) => ({
+            type: "ORDER" as const,
+            title: `${SELLER_NEW_ORDER_NOTIFICATION_TITLE_PREFIX}${orderShortId}`,
+            message: `You received ${itemCountLabel(seller.lines.length)} in order #${orderShortId} (${paymentMode}).`,
+            sellerId: seller.sellerId,
+            metadata: {
+              orderId: order.id,
+              actionHref: `/vendor/orders/${order.id}`,
+              actionLabel: "View order",
+            },
+          })),
+        });
+        console.info(
+          "[vendor-order-notify] in-app created",
+          orderId,
+          "sellers=",
+          bySeller.size
+        );
+      } catch (err) {
+        console.error("[vendor-order-notify] in-app createMany failed", orderId, err);
+      }
+    } else {
+      console.info("[vendor-order-notify] in-app already exists", orderId);
     }
+
+    const addr = order.shippingAddress;
+    const shippingLines = addr
+      ? [
+          addr.line1,
+          addr.line2?.trim() || null,
+          `${addr.city}, ${addr.state} ${addr.pincode}`,
+        ].filter((x): x is string => Boolean(x && x.trim()))
+      : [];
 
     await Promise.all(
       [...bySeller.values()].map(async (seller) => {
@@ -168,8 +208,8 @@ export async function notifyVendorsOfNewOrder(orderId: string): Promise<void> {
           orderShortId,
           paymentMode,
           orderStatus: order.status,
-          customerName: addr.fullName,
-          customerPhone: addr.phone,
+          customerName: addr?.fullName ?? "Customer",
+          customerPhone: addr?.phone ?? "",
           shippingLines,
           lines: seller.lines,
           sellerSubtotal,
@@ -199,7 +239,6 @@ export async function notifyVendorsOfOrderCancelled(
   previousStatus?: string | null
 ): Promise<void> {
   try {
-    // Unpaid carts never notified vendors on create — don't spam on cancel either.
     if (previousStatus === "PENDING_PAYMENT") return;
 
     const order = await prisma.order.findFirst({
