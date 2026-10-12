@@ -1,15 +1,18 @@
 import { prisma } from "@/lib/prisma";
 import { getSmsNotificationService } from "@/services/sms-notification.service";
+import {
+  SELLER_PRODUCT_APPROVED_NOTIFICATION_TITLE,
+  SELLER_PRODUCT_REJECTED_NOTIFICATION_TITLE,
+} from "@/lib/notifications/vendor-notification-titles";
 
-/** Vendor notification title when a product is approved (keep in sync with approve API + vendor UI). */
-export const SELLER_PRODUCT_APPROVED_NOTIFICATION_TITLE = "Product approved";
-
-/** Vendor notification title when a product is rejected. */
-export const SELLER_PRODUCT_REJECTED_NOTIFICATION_TITLE = "Product rejected";
+export {
+  SELLER_PRODUCT_APPROVED_NOTIFICATION_TITLE,
+  SELLER_PRODUCT_REJECTED_NOTIFICATION_TITLE,
+} from "@/lib/notifications/vendor-notification-titles";
 
 /**
  * In-app (+ optional SMS) when a product is approved.
- * Best-effort; never throws.
+ * Best-effort; never throws. Server-only.
  */
 export async function notifyVendorProductApproved(input: {
   productId: string;
@@ -50,7 +53,7 @@ export async function notifyVendorProductApproved(input: {
 }
 
 /**
- * In-app when a product is rejected. Best-effort; never throws.
+ * In-app when a product is rejected. Best-effort; never throws. Server-only.
  */
 export async function notifyVendorProductRejected(input: {
   productId: string;

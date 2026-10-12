@@ -1,8 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { sendVendorApprovalEmail } from "@/lib/email/vendor-approval";
 import { getSmsNotificationService } from "@/services/sms-notification.service";
+import { SELLER_ACCOUNT_APPROVED_NOTIFICATION_TITLE } from "@/lib/notifications/vendor-notification-titles";
 
-export const SELLER_ACCOUNT_APPROVED_NOTIFICATION_TITLE = "Vendor account approved";
+export { SELLER_ACCOUNT_APPROVED_NOTIFICATION_TITLE } from "@/lib/notifications/vendor-notification-titles";
 
 /**
  * Notify a vendor on first approval: in-app notification, email, and SMS.

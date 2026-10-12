@@ -1,12 +1,15 @@
 import { prisma } from "@/lib/prisma";
 import { sellerHasRealEmail } from "@/lib/auth/seller-onboarding";
 import { sendVendorNewOrderEmail } from "@/lib/email/vendor-new-order";
+import {
+  SELLER_NEW_ORDER_NOTIFICATION_TITLE_PREFIX,
+  SELLER_ORDER_CANCELLED_NOTIFICATION_TITLE_PREFIX,
+} from "@/lib/notifications/vendor-notification-titles";
 
-/** Title prefix for vendor new-order in-app notifications (used by vendor UI toasts). */
-export const SELLER_NEW_ORDER_NOTIFICATION_TITLE_PREFIX = "New order #";
-
-/** Title prefix when a customer cancels an order that includes the vendor's items. */
-export const SELLER_ORDER_CANCELLED_NOTIFICATION_TITLE_PREFIX = "Order cancelled #";
+export {
+  SELLER_NEW_ORDER_NOTIFICATION_TITLE_PREFIX,
+  SELLER_ORDER_CANCELLED_NOTIFICATION_TITLE_PREFIX,
+} from "@/lib/notifications/vendor-notification-titles";
 
 function variantLabelFromSnapshot(snapshot: unknown): string | null {
   if (!snapshot || typeof snapshot !== "object") return null;
