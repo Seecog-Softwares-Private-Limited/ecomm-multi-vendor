@@ -30,6 +30,11 @@ import {
   type GuestCartItem,
 } from "@/lib/guest-cart";
 import { DEFAULT_PRODUCT_IMAGE_URL } from "@/lib/product-image";
+import {
+  previewCoupon,
+  readStoredCartCoupon,
+  writeStoredCartCoupon,
+} from "@/lib/commerce/cart-coupon";
 
 type CartItemApi = {
   id: string;
@@ -78,7 +83,9 @@ export function ShoppingCartPage() {
   const [isGuestCart, setIsGuestCart] = useState(false);
   const [loading, setLoading] = useState(true);
   const [couponCode, setCouponCode] = useState("");
-  const [couponApplied, setCouponApplied] = useState(false);
+  const [appliedCouponCode, setAppliedCouponCode] = useState<string | null>(null);
+  const [discountAmount, setDiscountAmount] = useState(0);
+  const [applyingCoupon, setApplyingCoupon] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
 
@@ -116,8 +123,37 @@ export function ShoppingCartPage() {
     (sum, it) => sum + it.product.sellingPrice * it.quantity,
     0
   );
-  const discount = couponApplied ? subtotal * 0.1 : 0;
-  const shipping = calculateShippingAmount(subtotal);
+
+  // Re-validate a previously applied coupon when the cart subtotal changes.
+  useEffect(() => {
+    const stored = readStoredCartCoupon();
+    if (!stored?.code || subtotal <= 0) return;
+    let cancelled = false;
+    (async () => {
+      const result = await previewCoupon(stored.code, subtotal);
+      if (cancelled) return;
+      if (result.valid && result.discountAmount > 0) {
+        setCouponCode(result.code);
+        setAppliedCouponCode(result.code);
+        setDiscountAmount(result.discountAmount);
+        writeStoredCartCoupon({
+          code: result.code,
+          discountAmount: result.discountAmount,
+        });
+      } else {
+        setAppliedCouponCode(null);
+        setDiscountAmount(0);
+        writeStoredCartCoupon(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [subtotal]);
+
+  const discount = discountAmount;
+  const amountAfterDiscount = Math.max(0, subtotal - discount);
+  const shipping = calculateShippingAmount(amountAfterDiscount);
   // GST exclusive (add on top) — kept for rollback:
   // const tax = items.reduce(
   //   (sum, it) =>
@@ -127,7 +163,7 @@ export function ShoppingCartPage() {
   //       ((it.product.gstPercent ?? DEFAULT_GST_PERCENT) / 100),
   //   0
   // );
-  // const total = Math.max(0, subtotal - discount + shipping + tax);
+  // const total = Math.max(0, amountAfterDiscount + shipping + tax);
   // GST inclusive (prices already include GST):
   const tax = items.reduce(
     (sum, it) =>
@@ -138,7 +174,7 @@ export function ShoppingCartPage() {
       ),
     0
   );
-  const total = Math.max(0, subtotal - discount + shipping);
+  const total = Math.max(0, amountAfterDiscount + shipping);
 
   const handleQuantityChange = async (cartItemId: string, newQty: number) => {
     if (newQty < 1 || newQty > 99) return;
@@ -207,13 +243,47 @@ export function ShoppingCartPage() {
     }
   };
 
-  const handleApplyCoupon = () => {
-    if (couponCode.trim().toLowerCase() === "save10") {
-      setCouponApplied(true);
-      toast.success("Coupon applied!");
-    } else {
-      toast.error("Invalid coupon code.");
+  const handleApplyCoupon = async () => {
+    const code = couponCode.trim();
+    if (!code) {
+      toast.error("Enter a coupon code.");
+      return;
     }
+    if (subtotal <= 0) {
+      toast.error("Add items to your cart before applying a coupon.");
+      return;
+    }
+    setApplyingCoupon(true);
+    try {
+      const result = await previewCoupon(code, subtotal);
+      if (!result.valid || result.discountAmount <= 0) {
+        setAppliedCouponCode(null);
+        setDiscountAmount(0);
+        writeStoredCartCoupon(null);
+        toast.error(result.message ?? "Invalid or expired coupon code.");
+        return;
+      }
+      setCouponCode(result.code);
+      setAppliedCouponCode(result.code);
+      setDiscountAmount(result.discountAmount);
+      writeStoredCartCoupon({
+        code: result.code,
+        discountAmount: result.discountAmount,
+      });
+      toast.success(`Coupon ${result.code} applied — you save ₹${result.discountAmount.toLocaleString("en-IN")}!`);
+    } catch {
+      toast.error("Could not apply coupon. Please try again.");
+    } finally {
+      setApplyingCoupon(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCouponCode(null);
+    setDiscountAmount(0);
+    setCouponCode("");
+    writeStoredCartCoupon(null);
+    toast.success("Coupon removed.");
   };
 
   const parseVariantKey = (variantKey: string | null) => {
@@ -402,21 +472,31 @@ export function ShoppingCartPage() {
                       value={couponCode}
                       onChange={(e) => setCouponCode(e.target.value)}
                       placeholder="Enter coupon code"
-                      disabled={couponApplied}
+                      disabled={!!appliedCouponCode || applyingCoupon}
                       className="w-full pl-10 pr-4 py-2.5 border border-[#D1D5DC] rounded-lg focus:border-[#FF6A00] focus:ring-1 focus:ring-[#FF6A00] outline-none transition text-[15px] disabled:opacity-60"
                     />
                   </div>
-                  {couponApplied ? (
-                    <div className="py-2 px-4 rounded-lg font-semibold text-center text-[#16A34A] bg-[#DCFCE7] border border-[#86EFAC]">
-                      ✓ Coupon Applied!
+                  {appliedCouponCode ? (
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 py-2 px-4 rounded-lg font-semibold text-center text-[#16A34A] bg-[#DCFCE7] border border-[#86EFAC]">
+                        ✓ {appliedCouponCode} applied
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleRemoveCoupon}
+                        className="py-2 px-3 rounded-lg text-sm font-semibold text-[#6B7280] border border-[#D1D5DC] hover:border-[#FF6A00] hover:text-[#FF6A00] transition"
+                      >
+                        Remove
+                      </button>
                     </div>
                   ) : (
                     <button
                       type="button"
                       onClick={handleApplyCoupon}
-                      className="w-full py-2.5 rounded-lg font-semibold text-white bg-[#374151] hover:bg-[#4B5563] transition"
+                      disabled={applyingCoupon}
+                      className="w-full py-2.5 rounded-lg font-semibold text-white bg-[#374151] hover:bg-[#4B5563] transition disabled:opacity-60"
                     >
-                      Apply Coupon
+                      {applyingCoupon ? "Applying…" : "Apply Coupon"}
                     </button>
                   )}
                 </div>
@@ -430,7 +510,9 @@ export function ShoppingCartPage() {
                   </div>
                   {discount > 0 && (
                     <div className="flex justify-between text-[15px]">
-                      <span className="text-[#16A34A] font-semibold">Discount (10%)</span>
+                      <span className="text-[#16A34A] font-semibold">
+                        Discount{appliedCouponCode ? ` (${appliedCouponCode})` : ""}
+                      </span>
                       <span className="font-semibold text-[#16A34A]">
                         -₹{discount.toLocaleString("en-IN")}
                       </span>

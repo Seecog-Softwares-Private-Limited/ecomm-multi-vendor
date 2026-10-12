@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { DEFAULT_GST_PERCENT, computeGstAmount } from "@/lib/constants/gst";
 import { calculateShippingAmount } from "@/lib/constants/shipping";
 import { assertCouponLimitsForUser } from "@/lib/commerce/coupon-usage";
+import { normalizeCouponCode } from "@/lib/admin/coupons";
 
 export type PricedCheckoutLine = {
   productId: string;
@@ -52,11 +53,11 @@ export async function applyCouponToSubtotal(
   subtotal: number,
   options?: { userId?: string | null }
 ): Promise<{ discountAmount: number; couponId: string | null; couponCode: string | null }> {
-  if (!couponCode?.trim()) {
+  const code = normalizeCouponCode(couponCode);
+  if (!code) {
     return { discountAmount: 0, couponId: null, couponCode: null };
   }
 
-  const code = couponCode.trim();
   const coupon = await prisma.coupon.findFirst({
     where: {
       code,
@@ -84,7 +85,7 @@ export async function applyCouponToSubtotal(
   const discountAmount =
     coupon.discountType === "PERCENT" ? (subtotal * val) / 100 : Math.min(val, subtotal);
 
-  return { discountAmount, couponId: coupon.id, couponCode: code };
+  return { discountAmount, couponId: coupon.id, couponCode: coupon.code };
 }
 
 export function buildCheckoutTotals(
