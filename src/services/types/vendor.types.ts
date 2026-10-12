@@ -339,6 +339,9 @@ export interface VendorNotificationItem {
   read: boolean;
   readAt: string | null;
   createdAt: string;
+  orderId?: string | null;
+  actionHref?: string | null;
+  actionLabel?: string | null;
 }
 
 export interface VendorNotificationsResult {

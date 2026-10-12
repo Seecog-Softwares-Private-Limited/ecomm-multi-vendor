@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { User, Package, MapPin, Heart, Headphones } from "lucide-react";
+import { User, Package, MapPin, Heart, Headphones, Bell } from "lucide-react";
 import { Navbar } from "./Navbar";
 
 const SIDEBAR_LINKS = [
   { href: "/profile", label: "My Profile", icon: User },
   { href: "/my-orders", label: "My Orders", icon: Package },
+  { href: "/notifications", label: "Notifications", icon: Bell },
   { href: "/address-management", label: "Addresses", icon: MapPin },
   { href: "/wishlist", label: "Wishlist", icon: Heart },
   { href: "/support-tickets", label: "Support", icon: Headphones },
