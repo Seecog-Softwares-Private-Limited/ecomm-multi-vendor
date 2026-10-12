@@ -47,8 +47,13 @@ export const POST = withApiHandler(
     ]);
 
     // Email + in-app notification + SMS on first approval only.
+    // Await so in-app row is committed before the admin API returns.
     if (!wasAlreadyApproved) {
-      void notifyVendorAccountApproved(sellerId).catch(() => undefined);
+      try {
+        await notifyVendorAccountApproved(sellerId);
+      } catch (err) {
+        console.error("[kyc-approve] notifyVendorAccountApproved failed", sellerId, err);
+      }
     }
 
     return apiSuccess({ approved: true, sellerId });

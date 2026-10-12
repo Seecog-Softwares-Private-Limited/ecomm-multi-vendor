@@ -82,12 +82,16 @@ export async function PUT(
     request
   );
 
-  void notifyVendorStatusChange({
-    sellerId,
-    action: action as "approve" | "reject" | "block" | "unblock" | "hold",
-    reason,
-    wasAlreadyApproved,
-  }).catch(() => undefined);
+  try {
+    await notifyVendorStatusChange({
+      sellerId,
+      action: action as "approve" | "reject" | "block" | "unblock" | "hold",
+      reason,
+      wasAlreadyApproved,
+    });
+  } catch (err) {
+    console.error("[superadmin-seller-status] notify failed", sellerId, err);
+  }
 
   const updatedStatus = action === "approve" || action === "unblock" ? "APPROVED" : status;
   const updatedReason = action === "approve" || action === "unblock" ? null : reason ?? null;

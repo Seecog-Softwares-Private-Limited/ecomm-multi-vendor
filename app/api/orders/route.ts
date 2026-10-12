@@ -147,8 +147,22 @@ export const POST = withApiHandler(async (request: NextRequest) => {
     );
   }
 
-  if (!result.recovered) {
-    void notifyOrderPlaced(user.id, result.orderId).catch(() => undefined);
+  // Always ensure customer + (COD) vendor in-app rows exist — including recovered
+  // unpaid/COD retries where the first attempt may have skipped notify.
+  try {
+    await notifyOrderPlaced(user.id, result.orderId);
+  } catch (err) {
+    console.error("[orders] notifyOrderPlaced failed", result.orderId, err);
+  }
+  if (!result.requiresRazorpay) {
+    try {
+      const { notifyVendorsOfNewOrder } = await import(
+        "@/lib/notifications/vendor-order-emails"
+      );
+      await notifyVendorsOfNewOrder(result.orderId);
+    } catch (err) {
+      console.error("[orders] notifyVendorsOfNewOrder failed", result.orderId, err);
+    }
   }
 
   return apiSuccess({
