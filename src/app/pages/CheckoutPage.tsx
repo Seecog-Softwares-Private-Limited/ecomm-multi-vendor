@@ -14,6 +14,7 @@ import {
   X,
   Pencil,
   Trash2,
+  Tag,
 } from "lucide-react";
 import { TopBar } from "@/components/TopBar";
 import { Navbar } from "@/components/Navbar";
@@ -27,6 +28,11 @@ import {
   INDIAN_MOBILE_HINT,
   toMobileInputDigits,
 } from "@/lib/auth/phone";
+import {
+  previewCoupon,
+  readStoredCartCoupon,
+  writeStoredCartCoupon,
+} from "@/lib/commerce/cart-coupon";
 
 type AddressApi = {
   id: string;
@@ -70,6 +76,9 @@ export function CheckoutPage() {
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [selectedPayment, setSelectedPayment] = useState<"card" | "upi" | "cod">("cod");
   const [couponCode, setCouponCode] = useState("");
+  const [appliedCouponCode, setAppliedCouponCode] = useState<string | null>(null);
+  const [discountAmount, setDiscountAmount] = useState(0);
+  const [applyingCoupon, setApplyingCoupon] = useState(false);
   const [showAddAddressModal, setShowAddAddressModal] = useState(false);
   const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
   const [addAddressSubmitting, setAddAddressSubmitting] = useState(false);
@@ -155,7 +164,35 @@ export function CheckoutPage() {
     (sum, it) => sum + it.product.sellingPrice * it.quantity,
     0
   );
-  const discount = 0;
+
+  useEffect(() => {
+    if (subtotal <= 0) return;
+    const stored = readStoredCartCoupon();
+    if (!stored?.code) return;
+    let cancelled = false;
+    (async () => {
+      const result = await previewCoupon(stored.code, subtotal);
+      if (cancelled) return;
+      if (result.valid && result.discountAmount > 0) {
+        setCouponCode(result.code);
+        setAppliedCouponCode(result.code);
+        setDiscountAmount(result.discountAmount);
+        writeStoredCartCoupon({
+          code: result.code,
+          discountAmount: result.discountAmount,
+        });
+      } else {
+        setAppliedCouponCode(null);
+        setDiscountAmount(0);
+        writeStoredCartCoupon(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [subtotal]);
+
+  const discount = discountAmount;
   const amountAfterDiscount = Math.max(0, subtotal - discount);
   const shipping = calculateShippingAmount(amountAfterDiscount);
   // GST exclusive (add on top) — kept for rollback:
@@ -309,6 +346,48 @@ export function CheckoutPage() {
     rz.open();
   };
 
+  const handleApplyCoupon = async () => {
+    const code = couponCode.trim();
+    if (!code) {
+      toast.error("Enter a coupon code.");
+      return;
+    }
+    if (subtotal <= 0) {
+      toast.error("Your cart is empty.");
+      return;
+    }
+    setApplyingCoupon(true);
+    try {
+      const result = await previewCoupon(code, subtotal);
+      if (!result.valid || result.discountAmount <= 0) {
+        setAppliedCouponCode(null);
+        setDiscountAmount(0);
+        writeStoredCartCoupon(null);
+        toast.error(result.message ?? "Invalid or expired coupon code.");
+        return;
+      }
+      setCouponCode(result.code);
+      setAppliedCouponCode(result.code);
+      setDiscountAmount(result.discountAmount);
+      writeStoredCartCoupon({
+        code: result.code,
+        discountAmount: result.discountAmount,
+      });
+      toast.success(`Coupon ${result.code} applied.`);
+    } catch {
+      toast.error("Could not apply coupon. Please try again.");
+    } finally {
+      setApplyingCoupon(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCouponCode(null);
+    setDiscountAmount(0);
+    setCouponCode("");
+    writeStoredCartCoupon(null);
+  };
+
   const handlePlaceOrder = async () => {
     if (!selectedAddressId) {
       toast.error("Please select a delivery address.");
@@ -339,7 +418,7 @@ export function CheckoutPage() {
         body: JSON.stringify({
           shippingAddressId: selectedAddressId,
           paymentMethod: selectedPayment,
-          couponCode: couponCode.trim() || undefined,
+          couponCode: appliedCouponCode?.trim() || couponCode.trim() || undefined,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -359,6 +438,7 @@ export function CheckoutPage() {
       }
       const orderId = data?.data?.orderId;
       const requiresRazorpay = data?.data?.requiresRazorpay === true;
+      writeStoredCartCoupon(null);
 
       if (requiresRazorpay && (selectedPayment === "card" || selectedPayment === "upi")) {
         await openRazorpayCheckout(orderId, selectedPayment);
@@ -824,6 +904,43 @@ export function CheckoutPage() {
                   ))}
                 </div>
 
+                <div className="mb-5 p-4 bg-[#F9FAFB] rounded-xl border border-[#E5E7EB]">
+                  <div className="relative mb-3">
+                    <Tag className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6B7280] w-5 h-5" />
+                    <input
+                      type="text"
+                      value={couponCode}
+                      onChange={(e) => setCouponCode(e.target.value)}
+                      placeholder="Enter coupon code"
+                      disabled={!!appliedCouponCode || applyingCoupon}
+                      className="w-full pl-10 pr-4 py-2.5 border border-[#D1D5DC] rounded-lg focus:border-[#FF6A00] focus:ring-1 focus:ring-[#FF6A00] outline-none transition text-[15px] disabled:opacity-60"
+                    />
+                  </div>
+                  {appliedCouponCode ? (
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 py-2 px-3 rounded-lg font-semibold text-center text-[#16A34A] bg-[#DCFCE7] border border-[#86EFAC] text-sm">
+                        ✓ {appliedCouponCode} applied
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleRemoveCoupon}
+                        className="py-2 px-3 rounded-lg text-sm font-semibold text-[#6B7280] border border-[#D1D5DC] hover:border-[#FF6A00] hover:text-[#FF6A00] transition"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleApplyCoupon}
+                      disabled={applyingCoupon}
+                      className="w-full py-2.5 rounded-lg font-semibold text-white bg-[#374151] hover:bg-[#4B5563] transition disabled:opacity-60"
+                    >
+                      {applyingCoupon ? "Applying…" : "Apply Coupon"}
+                    </button>
+                  )}
+                </div>
+
                 <div className="space-y-2 mb-5 pb-5 border-b border-[#E5E7EB]">
                   <div className="flex justify-between text-[15px]">
                     <span className="text-[#6B7280]">Subtotal</span>
@@ -831,6 +948,16 @@ export function CheckoutPage() {
                       ₹{subtotal.toLocaleString("en-IN")}
                     </span>
                   </div>
+                  {discount > 0 && (
+                    <div className="flex justify-between text-[15px]">
+                      <span className="text-[#16A34A] font-semibold">
+                        Discount{appliedCouponCode ? ` (${appliedCouponCode})` : ""}
+                      </span>
+                      <span className="font-semibold text-[#16A34A]">
+                        -₹{discount.toLocaleString("en-IN")}
+                      </span>
+                    </div>
+                  )}
                   <div className="flex justify-between text-[15px]">
                     <span className="text-[#6B7280]">Shipping</span>
                     {shipping === 0 ? (
