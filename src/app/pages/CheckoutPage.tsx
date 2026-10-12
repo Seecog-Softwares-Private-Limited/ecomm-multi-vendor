@@ -438,6 +438,20 @@ export function CheckoutPage() {
       }
       const orderId = data?.data?.orderId;
       const requiresRazorpay = data?.data?.requiresRazorpay === true;
+      const placedTotal =
+        typeof data?.data?.totalAmount === "number" ? data.data.totalAmount : null;
+      // Guard: never open Razorpay for a stale full-price order when UI shows a coupon total.
+      if (
+        requiresRazorpay &&
+        placedTotal != null &&
+        Math.abs(placedTotal - total) > 0.5
+      ) {
+        toast.error(
+          `Payment amount (₹${placedTotal.toLocaleString("en-IN")}) does not match your order total (₹${total.toLocaleString("en-IN")}). Please try placing the order again.`
+        );
+        setPlacing(false);
+        return;
+      }
       writeStoredCartCoupon(null);
 
       if (requiresRazorpay && (selectedPayment === "card" || selectedPayment === "upi")) {
