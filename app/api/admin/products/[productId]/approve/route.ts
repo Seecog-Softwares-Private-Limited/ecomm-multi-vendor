@@ -7,8 +7,7 @@ import {
 } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { requireAdminPermission } from "@/lib/admin-rbac";
-import { SELLER_PRODUCT_APPROVED_NOTIFICATION_TITLE } from "@/lib/notifications/product-moderation";
-import { getSmsNotificationService } from "@/services/sms-notification.service";
+import { notifyVendorProductApproved } from "@/lib/notifications/product-moderation";
 
 /**
  * POST /api/admin/products/[productId]/approve — set product status to ACTIVE (admin only).
@@ -42,28 +41,18 @@ export const POST = withApiHandler(
     const nameTrim = product.name?.trim() || "Your product";
     const wasPendingApproval = product.status === "PENDING_APPROVAL";
 
-    await prisma.$transaction([
-      prisma.product.update({
-        where: { id: productId },
-        data: { status: "ACTIVE" },
-      }),
-      prisma.notification.create({
-        data: {
-          type: "SELLER",
-          title: SELLER_PRODUCT_APPROVED_NOTIFICATION_TITLE,
-          message: `"${nameTrim}" has been approved and is now live in the storefront.`,
-          sellerId: product.sellerId,
-        },
-      }),
-    ]);
+    await prisma.product.update({
+      where: { id: productId },
+      data: { status: "ACTIVE", rejectionReason: null },
+    });
 
-    // SMS only when product moves pending → live (not if already ACTIVE).
-    if (wasPendingApproval) {
-      getSmsNotificationService().onProductApproval({
-        phone: product.seller?.phone,
-        productName: nameTrim,
-      });
-    }
+    void notifyVendorProductApproved({
+      productId: product.id,
+      sellerId: product.sellerId,
+      productName: nameTrim,
+      phone: product.seller?.phone,
+      sendSms: wasPendingApproval,
+    }).catch(() => undefined);
 
     return apiSuccess({ productId, status: "ACTIVE", productName: nameTrim });
   }

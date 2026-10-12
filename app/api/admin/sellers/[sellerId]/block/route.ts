@@ -8,6 +8,7 @@ import {
 } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { requireAdminPermission } from "@/lib/admin-rbac";
+import { notifyVendorStatusChange } from "@/lib/notifications/vendor-status";
 
 /**
  * POST /api/admin/sellers/[sellerId]/block — block, unblock, reject, or put on hold (admin only).
@@ -49,12 +50,14 @@ export const POST = withApiHandler(
 
     const seller = await prisma.seller.findFirst({
       where: { id: sellerId, deletedAt: null },
-      select: { id: true },
+      select: { id: true, status: true },
     });
 
     if (!seller) {
       return apiNotFound("Seller not found");
     }
+
+    const wasAlreadyApproved = seller.status === "APPROVED";
 
     await prisma.seller.update({
       where: { id: sellerId },
@@ -63,6 +66,18 @@ export const POST = withApiHandler(
         statusReason: action === "unblock" ? null : reason ?? null,
       },
     });
+
+    const notifyAction =
+      action === "unblock" || action === "reject" || action === "block" || action === "hold"
+        ? (action as "unblock" | "reject" | "block" | "hold")
+        : "block";
+
+    void notifyVendorStatusChange({
+      sellerId,
+      action: notifyAction,
+      reason,
+      wasAlreadyApproved,
+    }).catch(() => undefined);
 
     return apiSuccess({
       sellerId,

@@ -7,6 +7,7 @@ import {
 } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { requireAdminPermission } from "@/lib/admin-rbac";
+import { notifyVendorProductRejected } from "@/lib/notifications/product-moderation";
 
 /**
  * POST /api/admin/products/[productId]/reject — set product status to REJECTED and optional reason (admin only).
@@ -33,12 +34,14 @@ export const POST = withApiHandler(
 
     const product = await prisma.product.findFirst({
       where: { id: productId, deletedAt: null },
-      select: { id: true },
+      select: { id: true, name: true, sellerId: true, status: true },
     });
 
     if (!product) {
       return apiNotFound("Product not found");
     }
+
+    const wasAlreadyRejected = product.status === "REJECTED";
 
     await prisma.product.update({
       where: { id: productId },
@@ -48,6 +51,15 @@ export const POST = withApiHandler(
         updatedAt: new Date(),
       },
     });
+
+    if (!wasAlreadyRejected) {
+      void notifyVendorProductRejected({
+        productId: product.id,
+        sellerId: product.sellerId,
+        productName: product.name?.trim() || "Your product",
+        reason,
+      }).catch(() => undefined);
+    }
 
     return apiSuccess({ productId, status: "REJECTED", reason: reason ?? null });
   }

@@ -1,13 +1,16 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSuperAdmin, createAuditLog } from "@/lib/superadmin-auth";
-import { notifyVendorAccountApproved } from "@/lib/notifications/vendor-approval";
+import { notifyVendorStatusChange } from "@/lib/notifications/vendor-status";
 
 /**
  * PUT /api/superadmin/sellers/[sellerId]/status
  * Body: { action: "approve" | "reject" | "block" | "unblock" | "hold", reason?: string }
  */
-export async function PUT(request: NextRequest, context: { params: Promise<{ sellerId: string }> }) {
+export async function PUT(
+  request: NextRequest,
+  context: { params: Promise<{ sellerId: string }> }
+) {
   const { session, errorResponse } = await requireSuperAdmin(request);
   if (errorResponse) return errorResponse;
 
@@ -33,19 +36,15 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ sel
   }
   const requiresReason = action === "reject" || action === "block" || action === "hold";
   if (requiresReason && !reason) {
-    return Response.json({ success: false, message: "Reason is required for this action" }, { status: 400 });
+    return Response.json(
+      { success: false, message: "Reason is required for this action" },
+      { status: 400 }
+    );
   }
 
   const seller = await prisma.seller.findFirst({
     where: { id: sellerId, deletedAt: null },
-    select: {
-      id: true,
-      email: true,
-      status: true,
-      phone: true,
-      businessName: true,
-      ownerName: true,
-    },
+    select: { id: true, status: true },
   });
   if (!seller) {
     return Response.json({ success: false, message: "Seller not found" }, { status: 404 });
@@ -64,10 +63,6 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ sel
         data: { status: "APPROVED", statusReason: null },
       }),
     ]);
-
-    if (!wasAlreadyApproved) {
-      void notifyVendorAccountApproved(sellerId).catch(() => undefined);
-    }
   } else {
     await prisma.seller.update({
       where: { id: sellerId },
@@ -78,7 +73,21 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ sel
     });
   }
 
-  await createAuditLog(session.id, session.email, `seller_${action}`, "sellers", { sellerId }, request);
+  await createAuditLog(
+    session.id,
+    session.email,
+    `seller_${action}`,
+    "sellers",
+    { sellerId },
+    request
+  );
+
+  void notifyVendorStatusChange({
+    sellerId,
+    action: action as "approve" | "reject" | "block" | "unblock" | "hold",
+    reason,
+    wasAlreadyApproved,
+  }).catch(() => undefined);
 
   const updatedStatus = action === "approve" || action === "unblock" ? "APPROVED" : status;
   const updatedReason = action === "approve" || action === "unblock" ? null : reason ?? null;
