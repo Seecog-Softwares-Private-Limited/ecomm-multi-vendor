@@ -2,6 +2,12 @@ import { prisma } from "@/lib/prisma";
 import { sellerHasRealEmail } from "@/lib/auth/seller-onboarding";
 import { sendVendorNewOrderEmail } from "@/lib/email/vendor-new-order";
 
+/** Title prefix for vendor new-order in-app notifications (used by vendor UI toasts). */
+export const SELLER_NEW_ORDER_NOTIFICATION_TITLE_PREFIX = "New order #";
+
+/** Title prefix when a customer cancels an order that includes the vendor's items. */
+export const SELLER_ORDER_CANCELLED_NOTIFICATION_TITLE_PREFIX = "Order cancelled #";
+
 function variantLabelFromSnapshot(snapshot: unknown): string | null {
   if (!snapshot || typeof snapshot !== "object") return null;
   const raw = (snapshot as { raw?: unknown }).raw;
@@ -134,7 +140,7 @@ export async function notifyVendorsOfNewOrder(orderId: string): Promise<void> {
       await prisma.notification.createMany({
         data: [...bySeller.values()].map((seller) => ({
           type: "ORDER" as const,
-          title: `New order #${orderShortId}`,
+          title: `${SELLER_NEW_ORDER_NOTIFICATION_TITLE_PREFIX}${orderShortId}`,
           message: `You received ${itemCountLabel(seller.lines.length)} in order #${orderShortId} (${paymentMode}).`,
           sellerId: seller.sellerId,
           metadata: {
@@ -176,5 +182,66 @@ export async function notifyVendorsOfNewOrder(orderId: string): Promise<void> {
     );
   } catch (err) {
     console.error("[vendor-order-notify] Failed for order", orderId, err);
+  }
+}
+
+/**
+ * In-app notify each seller on an order when the customer cancels.
+ * Pass [previousStatus] from before the cancel write — unpaid pending
+ * orders never notified vendors on create, so skip those. Best-effort.
+ */
+export async function notifyVendorsOfOrderCancelled(
+  orderId: string,
+  reason?: string | null,
+  previousStatus?: string | null
+): Promise<void> {
+  try {
+    // Unpaid carts never notified vendors on create — don't spam on cancel either.
+    if (previousStatus === "PENDING_PAYMENT") return;
+
+    const order = await prisma.order.findFirst({
+      where: { id: orderId },
+      select: {
+        id: true,
+        items: {
+          select: {
+            sellerId: true,
+            seller: { select: { deletedAt: true } },
+          },
+        },
+      },
+    });
+    if (!order || order.items.length === 0) return;
+
+    const sellerIds = [
+      ...new Set(
+        order.items
+          .filter((i) => !i.seller.deletedAt)
+          .map((i) => i.sellerId)
+      ),
+    ];
+    if (sellerIds.length === 0) return;
+
+    const orderShortId = order.id.slice(0, 8).toUpperCase();
+    const reasonText = reason?.trim();
+    const message = reasonText
+      ? `Customer cancelled order #${orderShortId}. ${reasonText}`
+      : `Customer cancelled order #${orderShortId}.`;
+
+    await prisma.notification.createMany({
+      data: sellerIds.map((sellerId) => ({
+        type: "ORDER" as const,
+        title: `${SELLER_ORDER_CANCELLED_NOTIFICATION_TITLE_PREFIX}${orderShortId}`,
+        message: message.slice(0, 2000),
+        sellerId,
+        metadata: {
+          orderId: order.id,
+          actionHref: `/vendor/orders/${order.id}`,
+          actionLabel: "View order",
+        },
+      })),
+    });
+  } catch (err) {
+    console.error("[vendor-order-notify] cancel notify failed", orderId, err);
   }
 }
