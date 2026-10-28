@@ -364,8 +364,10 @@ export function ProductDetailPage({
     ? activeSkuVariant?.price ?? Math.min(...skuVariants.map((s) => s.price))
     : Number(product.price) ?? 0;
   const displayStock = hasSkuVariants ? activeSkuVariant?.stock ?? 0 : product.stock;
-  const mrp = Number(product.mrp) ?? 0;
-  const discount = mrp > price ? Math.round(((mrp - price) / mrp) * 100) : 0;
+  const mrp = Number(product.mrp) || 0;
+  // Only show MRP when it is a real markdown; a blank (0) or equal MRP adds nothing for the shopper.
+  const showMrp = mrp > price;
+  const discount = showMrp ? Math.round(((mrp - price) / mrp) * 100) : 0;
   const skuColorOptions = hasSkuVariants ? distinctVariantColors(skuVariants) : [];
   const skuSizeOptions = hasSkuVariants ? distinctVariantSizes(skuVariants, skuColor) : [];
   const sellerUnavailable = product.available === false;
@@ -663,6 +665,7 @@ export function ProductDetailPage({
                   >
                     ₹{price.toLocaleString("en-IN")}
                   </p>
+                  {showMrp && (
                   <p
                     style={{
                       fontFamily: "'Manrope', sans-serif",
@@ -674,6 +677,7 @@ export function ProductDetailPage({
                   >
                     M.R.P ₹{mrp.toLocaleString("en-IN")}
                   </p>
+                  )}
                 </div>
     
                 {/* Delivery */}
@@ -1146,6 +1150,8 @@ export function ProductDetailPage({
           {/* Rating (from API: product.avgRating, product.reviewCount) */}
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
             <StarRow rating={rating} count={reviewCount} />
+            {showMrp && (
+            <>
             <span
               style={{
                 fontFamily: "'Manrope', sans-serif",
@@ -1164,6 +1170,8 @@ export function ProductDetailPage({
             >
               M.R.P: ₹{mrp.toLocaleString("en-IN")}
             </span>
+            </>
+            )}
           </div>
 
           {/* Divider */}
@@ -1205,6 +1213,7 @@ export function ProductDetailPage({
               </div>
               )}
             </div>
+            {showMrp && (
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span
                 style={{
@@ -1226,6 +1235,7 @@ export function ProductDetailPage({
                 ₹{mrp.toLocaleString("en-IN")}
               </span>
             </div>
+            )}
           </div>
 
           <div className="w-full lg:hidden">{buyBoxCard}</div>
