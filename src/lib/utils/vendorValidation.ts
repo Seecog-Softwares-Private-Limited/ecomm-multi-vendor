@@ -227,19 +227,31 @@ export function hasVendorFinancialFieldErrors(errors: VendorFinancialFieldErrors
   return Boolean(errors.pan || errors.gstin || errors.ifsc || errors.accountNumber);
 }
 
+/** Human-readable list of what still blocks Business Info; empty when complete. */
+export function getBusinessInfoMissingFields(
+  profile: VendorProfileForValidation,
+  gstNotApplicable?: boolean
+): string[] {
+  const b = profile.business ?? {};
+  const missing: string[] = [];
+  if (!nonEmpty(b.business_name)) missing.push("Business / store name");
+  if (!nonEmpty(b.pan_number)) missing.push("PAN number");
+  else if (getPanFormatError(b.pan_number)) missing.push("PAN number format (e.g. ABCDE1234F)");
+  if (!gstNotApplicable) {
+    if (!nonEmpty(b.gst_number)) missing.push("GST number (or mark GST not applicable)");
+    else if (getGstinFormatError(b.gst_number)) missing.push("GST number format (e.g. 27ABCDE1234F1Z5)");
+    else if (getGstinPanMismatchError(b.gst_number, b.pan_number))
+      missing.push("GST number must contain your PAN");
+  }
+  return missing;
+}
+
 /** Business Info: business_name, pan_number; gst_number required unless gstNotApplicable */
 export function isBusinessInfoComplete(
   profile: VendorProfileForValidation,
   gstNotApplicable?: boolean
 ): boolean {
-  const b = profile.business ?? {};
-  const panOk = nonEmpty(b.pan_number) && !getPanFormatError(b.pan_number);
-  const gstOk =
-    gstNotApplicable ||
-    (nonEmpty(b.gst_number) &&
-      !getGstinFormatError(b.gst_number) &&
-      !getGstinPanMismatchError(b.gst_number, b.pan_number));
-  return nonEmpty(b.business_name) && panOk && gstOk;
+  return getBusinessInfoMissingFields(profile, gstNotApplicable).length === 0;
 }
 
 /** KYC Details: pan_card_image required; gst_certificate required unless gstNotApplicable */
@@ -368,7 +380,8 @@ export function profileToValidationShape(apiProfile: {
 
   return {
     business: {
-      business_name: business.displayName ?? business.legalName ?? null,
+      // `||` not `??`: the form sends "" for a blank display name, which must still fall back to the legal name.
+      business_name: business.displayName?.trim() || business.legalName?.trim() || null,
       gst_number: business.gstin ?? null,
       pan_number: business.pan ?? null,
       address_line1: business.addressLine1 ?? null,

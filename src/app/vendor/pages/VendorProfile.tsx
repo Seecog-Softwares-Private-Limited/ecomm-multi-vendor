@@ -28,6 +28,7 @@ import {
   isCategoryDocumentsComplete,
   isGstCertificateDocumentName,
   isBusinessInfoComplete,
+  getBusinessInfoMissingFields,
   isKycDetailsComplete,
   isBankDetailsComplete,
   profileToValidationShape,
@@ -464,11 +465,8 @@ export function VendorProfile() {
 
   const missingForSubmit: string[] = [];
   if (!businessComplete) {
-    missingForSubmit.push(
-      formData.gstNotApplicable
-        ? "Business Info (business name and PAN)"
-        : "Business Info (business name, PAN, and GST number — or mark GST not applicable)"
-    );
+    const businessMissing = getBusinessInfoMissingFields(vendorProfile, formData.gstNotApplicable);
+    missingForSubmit.push(`Business Info: ${businessMissing.join(", ")}`);
   }
   if (!kycComplete) {
     missingForSubmit.push(
