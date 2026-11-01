@@ -194,7 +194,11 @@ export function VendorProductForm({ productId = "", onBack, onSave }: VendorProd
     const sellingPrice = Number(formData.sellingPrice);
     let stock = Number(formData.stock);
     if (isNaN(mrp) || mrp < 0 || isNaN(sellingPrice) || sellingPrice < 0) {
-      setSubmitError("Please enter valid numbers for MRP and Selling Price.");
+      setSubmitError("Please enter valid numbers for MRP and Price.");
+      return;
+    }
+    if (specifications.some((s) => s.key.includes(","))) {
+      setSubmitError("Specifications: enter one specification per row (no commas in the name). Use Add Field for each one.");
       return;
     }
 
@@ -443,7 +447,9 @@ export function VendorProductForm({ productId = "", onBack, onSave }: VendorProd
         }
       >
         <div className="space-y-4">
-          <p className="text-sm text-[#64748B]">Add technical specifications based on your sub-category</p>
+          <p className="text-sm text-[#64748B]">
+            Add technical specifications based on your sub-category. Enter one specification per row and use Add Field for each one.
+          </p>
           {specifications.map((spec, index) => (
             <div key={index} className="flex gap-4">
               <div className="flex-1">
@@ -451,6 +457,7 @@ export function VendorProductForm({ productId = "", onBack, onSave }: VendorProd
                   placeholder="Specification name (e.g., Battery Life)"
                   value={spec.key}
                   onChange={(e) => updateSpecification(index, "key", e.target.value)}
+                  error={spec.key.includes(",") ? "One specification per row — use Add Field for the next one" : undefined}
                 />
               </div>
               <div className="flex-1">
@@ -530,7 +537,7 @@ export function VendorProductForm({ productId = "", onBack, onSave }: VendorProd
               required
             />
             <Input
-              label="Selling Price"
+              label="Price"
               type="number"
               placeholder="0"
               value={formData.sellingPrice}

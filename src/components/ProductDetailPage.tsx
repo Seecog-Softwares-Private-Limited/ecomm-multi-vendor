@@ -34,6 +34,7 @@ import { useDeliveryLocation } from "@/contexts/DeliveryLocationContext";
 import { addRecentlyViewedId } from "@/lib/recently-viewed";
 import { DEFAULT_PRODUCT_IMAGE_URL } from "@/lib/product-image";
 import { ProductImage } from "@/components/ProductImage";
+import { ProductImageLightbox } from "@/components/ProductImageLightbox";
 
 const PLACEHOLDER_IMAGE = DEFAULT_PRODUCT_IMAGE_URL;
 
@@ -398,6 +399,13 @@ export function ProductDetailPage({
   }, [hasSkuVariants, skuColor, skuSize, product.id]);
 
   const images = displayGalleryImages;
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  // Desktop hover zoom: cursor position as % of the main image, null when not hovering.
+  const [hoverZoomOrigin, setHoverZoomOrigin] = useState<{ x: number; y: number } | null>(null);
+  const galleryTouchStartX = useRef<number | null>(null);
+  const safeActiveImage = activeImage < images.length ? activeImage : 0;
+  const stepImage = (delta: number) =>
+    setActiveImage((i) => (((i < images.length ? i : 0) + delta) % images.length + images.length) % images.length);
   const displayBrand = specifications.find((s) => s?.label?.toLowerCase() === "brand")?.value ?? brand;
   const keyFeatures = specifications.filter((s) => s?.label?.toLowerCase() !== "brand").slice(0, 6);
   const rating = product.avgRating ?? 0;
@@ -652,8 +660,8 @@ export function ProductDetailPage({
                   gap: 14,
                 }}
               >
-                {/* Price */}
-                <div>
+                {/* Price — desktop only; on mobile the card sits right under the main price block */}
+                <div className="hidden lg:block">
                   <p
                     style={{
                       fontFamily: "'Manrope', sans-serif",
@@ -1035,11 +1043,72 @@ export function ProductDetailPage({
               overflow: "hidden",
             }}
           >
-            <ProductImage
-              src={images[activeImage]}
-              alt={product.name}
-              className="h-full w-full object-cover"
-            />
+            <div
+              className="h-full w-full"
+              style={{ cursor: "zoom-in", touchAction: "pan-y" }}
+              onClick={() => setLightboxOpen(true)}
+              onMouseMove={(e) => {
+                // Hover zoom is for mouse users only; touch devices get tap-to-fullscreen instead.
+                if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
+                const rect = e.currentTarget.getBoundingClientRect();
+                setHoverZoomOrigin({
+                  x: ((e.clientX - rect.left) / rect.width) * 100,
+                  y: ((e.clientY - rect.top) / rect.height) * 100,
+                });
+              }}
+              onMouseLeave={() => setHoverZoomOrigin(null)}
+              onTouchStart={(e) => {
+                galleryTouchStartX.current = e.touches[0].clientX;
+              }}
+              onTouchEnd={(e) => {
+                if (galleryTouchStartX.current == null) return;
+                const dx = e.changedTouches[0].clientX - galleryTouchStartX.current;
+                galleryTouchStartX.current = null;
+                if (Math.abs(dx) > 40 && images.length > 1) {
+                  e.preventDefault(); // a swipe, not a tap: don't open the fullscreen viewer
+                  stepImage(dx < 0 ? 1 : -1);
+                }
+              }}
+            >
+              <ProductImage
+                src={images[safeActiveImage]}
+                alt={product.name}
+                className="h-full w-full object-cover"
+                style={{
+                  transform: hoverZoomOrigin ? "scale(2)" : "scale(1)",
+                  transformOrigin: hoverZoomOrigin ? `${hoverZoomOrigin.x}% ${hoverZoomOrigin.y}%` : "center",
+                  transition: "transform 0.15s ease-out",
+                }}
+              />
+            </div>
+            {images.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  aria-label="Previous image"
+                  onClick={() => stepImage(-1)}
+                  className="absolute left-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-[#E5E7EB] bg-white/90 shadow"
+                >
+                  <ChevronLeft size={18} color="#374151" />
+                </button>
+                <button
+                  type="button"
+                  aria-label="Next image"
+                  onClick={() => stepImage(1)}
+                  className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-[#E5E7EB] bg-white/90 shadow"
+                >
+                  <ChevronRight size={18} color="#374151" />
+                </button>
+                <div className="pointer-events-none absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1.5 lg:hidden">
+                  {images.map((_, i) => (
+                    <span
+                      key={i}
+                      className={`h-1.5 rounded-full transition-all ${i === safeActiveImage ? "w-4 bg-[#FF6A00]" : "w-1.5 bg-white/80"}`}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
             {discount > 0 && (
             <div
               style={{
@@ -1105,7 +1174,7 @@ export function ProductDetailPage({
                   height: 64,
                   borderRadius: 8,
                   overflow: "hidden",
-                  border: i === activeImage ? "2px solid #FF6A00" : "2px solid #E5E7EB",
+                  border: i === safeActiveImage ? "2px solid #FF6A00" : "2px solid #E5E7EB",
                   padding: 0,
                   cursor: "pointer",
                   flexShrink: 0,
@@ -1122,6 +1191,15 @@ export function ProductDetailPage({
               </button>
             ))}
           </div>
+          {lightboxOpen && (
+            <ProductImageLightbox
+              images={images}
+              index={safeActiveImage}
+              alt={product.name}
+              onIndexChange={setActiveImage}
+              onClose={() => setLightboxOpen(false)}
+            />
+          )}
         </div>
 
         {/* ── MIDDLE: Product Details ─────────────────────────────── */}
@@ -1150,28 +1228,6 @@ export function ProductDetailPage({
           {/* Rating (from API: product.avgRating, product.reviewCount) */}
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
             <StarRow rating={rating} count={reviewCount} />
-            {showMrp && (
-            <>
-            <span
-              style={{
-                fontFamily: "'Manrope', sans-serif",
-                fontSize: 13,
-                color: "#9CA3AF",
-              }}
-            >
-              |
-            </span>
-            <span
-              style={{
-                fontFamily: "'Manrope', sans-serif",
-                fontSize: 13,
-                color: "#6B7280",
-              }}
-            >
-              M.R.P: ₹{mrp.toLocaleString("en-IN")}
-            </span>
-            </>
-            )}
           </div>
 
           {/* Divider */}
