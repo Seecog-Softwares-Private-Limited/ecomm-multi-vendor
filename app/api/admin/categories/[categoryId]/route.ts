@@ -10,15 +10,7 @@ import {
 } from "@/lib/api";
 import { requireSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-
-function normalizeSlug(s: string): string {
-  return s
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
-}
+import { normalizeSlug } from "@/lib/category-slug";
 
 /**
  * PUT /api/admin/categories/[categoryId] — update a category (admin only).

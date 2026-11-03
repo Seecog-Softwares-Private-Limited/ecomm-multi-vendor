@@ -6,8 +6,23 @@ import { ArrowRight, ArrowLeft } from "lucide-react";
 import type { ProductListItem } from "@/types/catalog";
 import { resolveProductImageUrl } from "@/lib/product-image";
 import { ProductImage } from "@/components/ProductImage";
+import { fetchActiveBanners } from "@/lib/storefront-banners";
 
-const slides = [
+type HeroSlide = {
+  image: string;
+  overlay: string;
+  label: string;
+  headline: string;
+  subline: string;
+  href: string;
+  cta: string;
+  /** Show the trending product thumbnails on this slide. */
+  showTrending?: boolean;
+  /** Admin-entered headlines can be long, so they use a smaller size. */
+  compact?: boolean;
+};
+
+const defaultSlides: HeroSlide[] = [
   {
     image:
       "https://images.unsplash.com/photo-1760624294469-550753ec203a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=1440",
@@ -16,6 +31,8 @@ const slides = [
     headline: "Trending",
     subline: "",
     href: "/category/best-sellers",
+    cta: "Shop now",
+    showTrending: true,
   },
   {
     image:
@@ -25,10 +42,12 @@ const slides = [
     headline: "Up to 60% Off",
     subline: "From Casual to Festive — Everything You Love",
     href: "/category/new-arrivals",
+    cta: "Shop now",
   },
 ];
 
 export function HeroBanner() {
+  const [slides, setSlides] = useState<HeroSlide[]>([]);
   const [current, setCurrent] = useState(0);
   const [trending, setTrending] = useState<ProductListItem[]>([]);
   const prev = () => setCurrent((c) => (c === 0 ? slides.length - 1 : c - 1));
@@ -51,6 +70,30 @@ export function HeroBanner() {
 
   useEffect(() => {
     let cancelled = false;
+    fetchActiveBanners("HERO").then((banners) => {
+      if (cancelled) return;
+      setSlides(
+        banners.length
+          ? banners.map((b) => ({
+              image: b.imageUrl,
+              overlay: b.title || b.subtitle ? "rgba(0,0,0,0.45)" : "transparent",
+              label: "",
+              headline: b.title ?? "",
+              subline: b.subtitle ?? "",
+              href: b.linkUrl,
+              cta: b.ctaText ?? "",
+              compact: true,
+            }))
+          : defaultSlides
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
     (async () => {
       const res = await fetch("/api/products?limit=8", { credentials: "include" });
       const json = await res.json().catch(() => ({}));
@@ -63,6 +106,10 @@ export function HeroBanner() {
       cancelled = true;
     };
   }, []);
+
+  if (!slide) {
+    return <div className="w-full bg-slate-100 h-[260px] sm:h-[320px] lg:h-[430px]" />;
+  }
 
   return (
     <div className="relative w-full overflow-hidden h-[260px] sm:h-[320px] lg:h-[430px]">
@@ -85,37 +132,45 @@ export function HeroBanner() {
       <Link
         href={slide.href}
         className="absolute inset-0 z-[2] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-white"
-        aria-label={`${slide.label} ${slide.headline}. Shop now`}
+        aria-label={[slide.label, slide.headline, slide.cta].filter(Boolean).join(" ") || "View offer"}
       >
         <span className="sr-only">
           {slide.label} {slide.headline}
-          {slide.subline ? ` ${slide.subline}` : ""} — shop now
+          {slide.subline ? ` ${slide.subline}` : ""}
         </span>
       </Link>
 
       {/* Left text — visual only; clicks fall through to full-slide Link */}
       <div className="absolute left-5 top-1/2 z-[3] flex max-w-[70%] -translate-y-1/2 flex-col gap-2 pointer-events-none sm:left-10 sm:gap-3 lg:left-[120px] lg:max-w-[55%] lg:gap-4">
-        <p
-          className="leading-tight text-[20px] sm:text-[30px] lg:text-[40px]"
-          style={{
-            fontFamily: "'Nunito','Manrope',sans-serif",
-            fontWeight: 800,
-            color: "#FFFFFF",
-          }}
-        >
-          {slide.label}
-        </p>
-        <p
-          className="leading-tight text-[38px] sm:text-[60px] lg:text-[96px]"
-          style={{
-            fontFamily: "'Nunito','Manrope',sans-serif",
-            fontWeight: 800,
-            color: "#FFFFFF",
-            marginTop: -8,
-          }}
-        >
-          {slide.headline}
-        </p>
+        {slide.label && (
+          <p
+            className="leading-tight text-[20px] sm:text-[30px] lg:text-[40px]"
+            style={{
+              fontFamily: "'Nunito','Manrope',sans-serif",
+              fontWeight: 800,
+              color: "#FFFFFF",
+            }}
+          >
+            {slide.label}
+          </p>
+        )}
+        {slide.headline && (
+          <p
+            className={`leading-tight ${
+              slide.compact
+                ? "text-[26px] sm:text-[40px] lg:text-[56px]"
+                : "text-[38px] sm:text-[60px] lg:text-[96px]"
+            }`}
+            style={{
+              fontFamily: "'Nunito','Manrope',sans-serif",
+              fontWeight: 800,
+              color: "#FFFFFF",
+              marginTop: slide.label ? -8 : 0,
+            }}
+          >
+            {slide.headline}
+          </p>
+        )}
         {slide.subline && (
           <p
             className="text-sm leading-snug sm:text-base lg:text-2xl"
@@ -129,27 +184,29 @@ export function HeroBanner() {
           </p>
         )}
 
-        <span
-          className="inline-flex items-center gap-2 self-start"
-          style={{
-            padding: "8px 12px",
-            background: "rgba(255,255,255,0.95)",
-            borderRadius: 10,
-            border: "1px solid #FF6A00",
-            boxShadow: "0px 9.39px 14.08px -2.82px rgba(0,0,0,0.1), 0px 3.75px 5.63px -3.75px rgba(0,0,0,0.1)",
-            color: "#FF6A00",
-            fontFamily: "'Manrope', sans-serif",
-            fontWeight: 600,
-            fontSize: 14,
-          }}
-        >
-          Shop now
-          <ArrowRight size={16} color="#FF6A00" aria-hidden />
-        </span>
+        {slide.cta && (
+          <span
+            className="inline-flex items-center gap-2 self-start"
+            style={{
+              padding: "8px 12px",
+              background: "rgba(255,255,255,0.95)",
+              borderRadius: 10,
+              border: "1px solid #FF6A00",
+              boxShadow: "0px 9.39px 14.08px -2.82px rgba(0,0,0,0.1), 0px 3.75px 5.63px -3.75px rgba(0,0,0,0.1)",
+              color: "#FF6A00",
+              fontFamily: "'Manrope', sans-serif",
+              fontWeight: 600,
+              fontSize: 14,
+            }}
+          >
+            {slide.cta}
+            <ArrowRight size={16} color="#FF6A00" aria-hidden />
+          </span>
+        )}
       </div>
 
       {/* Right product images grid (only for "Trending" slide) — above slide link */}
-      {current === 0 && trendingThumbs.length > 0 && (
+      {slide.showTrending && trendingThumbs.length > 0 && (
         <div
           className="absolute right-4 top-1/2 z-10 hidden w-[220px] -translate-y-1/2 grid grid-cols-2 gap-2 sm:grid md:w-[280px] lg:right-20 lg:w-[340px] lg:gap-3"
         >
@@ -168,8 +225,9 @@ export function HeroBanner() {
 
       {/* Left arrow */}
       <button
+        type="button"
         onClick={prev}
-        className="absolute hidden items-center justify-center sm:flex"
+        className="absolute z-20 hidden items-center justify-center sm:flex"
         style={{
           width: 44,
           height: 44,

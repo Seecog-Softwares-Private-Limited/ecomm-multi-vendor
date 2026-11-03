@@ -51,6 +51,7 @@ export function CategoriesManagement() {
   const [docReqDeleteLoading, setDocReqDeleteLoading] = React.useState<string | null>(null);
 
   const [editCategory, setEditCategory] = React.useState<CategoryRow | null>(null);
+  const [editIsSub, setEditIsSub] = React.useState(false);
   const [editName, setEditName] = React.useState("");
   const [editSlug, setEditSlug] = React.useState("");
   const [editStatus, setEditStatus] = React.useState("Active");
@@ -58,6 +59,7 @@ export function CategoriesManagement() {
   const [editError, setEditError] = React.useState<string | null>(null);
 
   const [deleteCategory, setDeleteCategory] = React.useState<CategoryRow | null>(null);
+  const [deleteIsSub, setDeleteIsSub] = React.useState(false);
   const [deleteLoading, setDeleteLoading] = React.useState(false);
   const [deleteError, setDeleteError] = React.useState<string | null>(null);
 
@@ -99,8 +101,9 @@ export function CategoriesManagement() {
     setShowModal(true);
   };
 
-  const handleOpenEdit = (row: CategoryRow) => {
+  const handleOpenEdit = (row: CategoryRow, isSub = false) => {
     setEditCategory(row);
+    setEditIsSub(isSub);
     setEditName(row.name);
     setEditSlug(row.slug);
     setEditStatus(row.status);
@@ -113,7 +116,10 @@ export function CategoriesManagement() {
     setEditError(null);
     setEditLoading(true);
     try {
-      const res = await fetch(`/api/admin/categories/${editCategory.id}`, {
+      const url = editIsSub
+        ? `/api/admin/subcategories/${editCategory.id}`
+        : `/api/admin/categories/${editCategory.id}`;
+      const res = await fetch(url, {
         method: "PUT",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -142,7 +148,10 @@ export function CategoriesManagement() {
     setDeleteError(null);
     setDeleteLoading(true);
     try {
-      const res = await fetch(`/api/admin/categories/${deleteCategory.id}`, {
+      const url = deleteIsSub
+        ? `/api/admin/subcategories/${deleteCategory.id}`
+        : `/api/admin/categories/${deleteCategory.id}`;
+      const res = await fetch(url, {
         method: "DELETE",
         credentials: "include",
       });
@@ -361,7 +370,10 @@ export function CategoriesManagement() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => setDeleteCategory(category)}
+                          onClick={() => {
+                            setDeleteIsSub(false);
+                            setDeleteCategory(category);
+                          }}
                           className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition-colors hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600"
                           title="Delete"
                         >
@@ -384,7 +396,29 @@ export function CategoriesManagement() {
                       <td className="whitespace-nowrap px-6 py-3 text-sm text-slate-500">
                         {sub.createdDate}
                       </td>
-                      <td className="whitespace-nowrap px-6 py-3" />
+                      <td className="whitespace-nowrap px-6 py-3">
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEdit(sub, true)}
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition-colors hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600"
+                            title="Edit subcategory"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setDeleteIsSub(true);
+                              setDeleteCategory(sub);
+                            }}
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition-colors hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600"
+                            title="Delete subcategory"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </React.Fragment>
@@ -689,7 +723,7 @@ export function CategoriesManagement() {
           >
             <div className="mb-5 flex items-center justify-between">
               <h3 id="edit-modal-title" className="text-lg font-semibold text-slate-900">
-                Edit Category
+                {editIsSub ? "Edit Subcategory" : "Edit Category"}
               </h3>
               <button
                 type="button"
@@ -784,7 +818,7 @@ export function CategoriesManagement() {
           >
             <div className="mb-4">
               <h3 id="delete-modal-title" className="text-lg font-semibold text-slate-900">
-                Delete category?
+                {deleteIsSub ? "Delete subcategory?" : "Delete category?"}
               </h3>
               <p className="mt-2 text-sm text-slate-600">
                 &quot;{deleteCategory.name}&quot; will be deactivated (soft delete). You can reactivate it later by editing and setting status to Active.

@@ -7,17 +7,8 @@ import {
   apiConflict,
 } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
+import { normalizeSlug } from "@/lib/category-slug";
 import { requireAdminPermission } from "@/lib/admin-rbac";
-
-/** Normalize slug: lowercase, replace spaces and consecutive dashes with single hyphen. */
-function normalizeSlug(s: string): string {
-  return s
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
-}
 
 /**
  * GET /api/admin/categories — list all categories with subcategories for admin (admin only).
@@ -36,8 +27,7 @@ export const GET = withApiHandler(async (request: NextRequest) => {
       createdAt: true,
       deletedAt: true,
       subCategories: {
-        where: { deletedAt: null },
-        orderBy: { sortOrder: "asc" },
+        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
         select: {
           id: true,
           name: true,
@@ -126,11 +116,16 @@ export const POST = withApiHandler(async (request: NextRequest) => {
     if (existingSub) {
       return apiConflict(`A subcategory with slug "${slug}" already exists in this category`);
     }
+    const lastSub = await prisma.subCategory.aggregate({
+      where: { categoryId: parent.id },
+      _max: { sortOrder: true },
+    });
     const sub = await prisma.subCategory.create({
       data: {
         categoryId: parent.id,
         name: nameStr,
         slug,
+        sortOrder: (lastSub._max.sortOrder ?? -1) + 1,
         deletedAt: isActive ? null : new Date(),
       },
       select: { id: true, name: true, slug: true, createdAt: true, deletedAt: true },

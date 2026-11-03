@@ -40,6 +40,7 @@ export const MARKETPLACE_CATEGORIES: MarketplaceCategorySeed[] = [
       { slug: "womens-shoes", name: "Women's Footwear" },
       { slug: "sports-shoes", name: "Sports Shoes" },
       { slug: "sandals", name: "Sandals & Flip Flops" },
+      { slug: "kids-shoes", name: "Kids' Footwear" },
     ],
   },
   {

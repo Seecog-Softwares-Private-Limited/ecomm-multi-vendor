@@ -15,6 +15,7 @@ import {
   MessageCircle,
   Lock,
   FileText,
+  Image as ImageIcon,
   MapPin,
   TicketPercent,
 } from "lucide-react";
@@ -43,6 +44,7 @@ const menuItems: MenuItem[] = [
   { icon: Bell, label: "Notifications", path: "/admin/notifications", permission: "notifications" },
   { icon: Settings, label: "Settings", path: "/admin/settings", permission: "settings" },
   { icon: FileText, label: "CMS", path: "/admin/cms", permission: "cms" },
+  { icon: ImageIcon, label: "Banners", path: "/admin/banners", permission: "cms" },
 ];
 
 export type AdminSidebarProps = {

@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
+import { fetchActiveBanners } from "@/lib/storefront-banners";
 
 interface PromoCard {
   gradient: string;
@@ -11,9 +12,11 @@ interface PromoCard {
   cta: string;
   image: string;
   href: string;
+  /** Opacity of the image over the gradient; admin banners show theirs more strongly. */
+  imageOpacity?: number;
 }
 
-const promoCards: PromoCard[] = [
+const defaultPromoCards: PromoCard[] = [
   {
     gradient: "linear-gradient(135deg, #1E5128 0%, #2D7A3E 100%)",
     title: "Furniture, Décor & Essentials",
@@ -60,6 +63,30 @@ const CARD_STEP_DESKTOP = 320 + 12;
 
 export function PromoBanners() {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [promoCards, setPromoCards] = useState<PromoCard[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchActiveBanners("PROMO").then((banners) => {
+      if (cancelled) return;
+      setPromoCards(
+        banners.length
+          ? banners.map((b) => ({
+              gradient: "#000000",
+              title: b.title ?? "",
+              subtitle: b.subtitle ?? "",
+              cta: b.ctaText ?? "",
+              image: b.imageUrl,
+              href: b.linkUrl,
+              imageOpacity: b.title || b.subtitle ? 0.65 : 1,
+            }))
+          : defaultPromoCards
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const scroll = useCallback((dir: "left" | "right") => {
     const el = scrollRef.current;
@@ -114,7 +141,7 @@ export function PromoBanners() {
         className="w-full snap-x snap-mandatory overflow-x-auto scroll-smooth scroll-px-0 [&::-webkit-scrollbar]:hidden"
         style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
       >
-        <div className="flex w-max flex-row gap-0 py-1 sm:gap-3 sm:px-8">
+        <div className="flex min-h-[208px] w-max flex-row gap-0 py-1 sm:gap-3 sm:px-8">
           {promoCards.map((card, i) => (
             <Link
               key={i}
@@ -125,13 +152,13 @@ export function PromoBanners() {
                 borderRadius: 12,
                 background: card.gradient,
               }}
-              aria-label={`${card.title}. ${card.subtitle}. ${card.cta}`}
+              aria-label={[card.title, card.subtitle, card.cta].filter(Boolean).join(". ") || "View offer"}
             >
               <img
                 src={card.image}
                 alt=""
                 className="absolute inset-0 w-full h-full object-cover pointer-events-none"
-                style={{ opacity: 0.2, borderRadius: 12 }}
+                style={{ opacity: card.imageOpacity ?? 0.2, borderRadius: 12 }}
                 draggable={false}
               />
 
@@ -162,29 +189,31 @@ export function PromoBanners() {
                   </p>
                 </div>
 
-                <span
-                  className="flex flex-row items-center gap-1.5 self-start w-fit"
-                  style={{
-                    padding: "9px 17px",
-                    background: "rgba(255,255,255,0.95)",
-                    boxShadow:
-                      "0px 9.39px 14.08px -2.82px rgba(0,0,0,0.1), 0px 3.75px 5.63px -3.75px rgba(0,0,0,0.1)",
-                    borderRadius: 9,
-                  }}
-                >
+                {card.cta && (
                   <span
+                    className="flex flex-row items-center gap-1.5 self-start w-fit"
                     style={{
-                      fontFamily: "'Manrope', sans-serif",
-                      fontWeight: 500,
-                      fontSize: 18,
-                      color: "#FF6A00",
-                      whiteSpace: "nowrap",
+                      padding: "9px 17px",
+                      background: "rgba(255,255,255,0.95)",
+                      boxShadow:
+                        "0px 9.39px 14.08px -2.82px rgba(0,0,0,0.1), 0px 3.75px 5.63px -3.75px rgba(0,0,0,0.1)",
+                      borderRadius: 9,
                     }}
                   >
-                    {card.cta}
+                    <span
+                      style={{
+                        fontFamily: "'Manrope', sans-serif",
+                        fontWeight: 500,
+                        fontSize: 18,
+                        color: "#FF6A00",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {card.cta}
+                    </span>
+                    <ArrowRight size={15} color="#FF6A00" aria-hidden />
                   </span>
-                  <ArrowRight size={15} color="#FF6A00" aria-hidden />
-                </span>
+                )}
               </div>
             </Link>
           ))}
